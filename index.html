@@ -1574,6 +1574,264 @@
             font-weight: 600;
             color: var(--accent-blue);
         }
+
+        /* FAQ Styles */
+        .faq-container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .faq-section {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        .faq-header {
+            width: 100%;
+            padding: 1.5rem;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .faq-header:hover {
+            background: var(--hover-bg);
+        }
+
+        .faq-header i {
+            transition: transform 0.3s ease;
+            color: var(--accent-blue);
+        }
+
+        .faq-header.active i {
+            transform: rotate(180deg);
+        }
+
+        .faq-content {
+            padding: 0 1.5rem 1.5rem;
+            display: none;
+        }
+
+        .fee-explanation {
+            display: grid;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .fee-item {
+            background: var(--hover-bg);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border-left: 3px solid var(--accent-blue);
+        }
+
+        .fee-item strong {
+            color: var(--accent-blue);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-box {
+            background: rgba(14, 165, 233, 0.1);
+            border: 1px solid var(--accent-blue);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 1.5rem;
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+
+        .info-box.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: var(--warning);
+        }
+
+        .info-box i {
+            color: var(--accent-blue);
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .info-box.warning i {
+            color: var(--warning);
+        }
+
+        .delivery-option {
+            background: var(--hover-bg);
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .delivery-option h5 {
+            color: var(--accent-blue);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .delivery-option ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .delivery-option li {
+            margin-bottom: 0.5rem;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .delivery-option li::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: var(--accent-blue);
+        }
+
+        .scenario {
+            background: var(--hover-bg);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .scenario h5 {
+            color: var(--text-primary);
+            margin-bottom: 0.75rem;
+        }
+
+        .scenario ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .scenario li {
+            padding-left: 1.5rem;
+            margin-bottom: 0.5rem;
+            position: relative;
+        }
+
+        .scenario li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: var(--success);
+        }
+
+        .cost-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .cost-table th,
+        .cost-table td {
+            padding: 0.75rem;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+
+        .cost-table th {
+            background: var(--hover-bg);
+            font-weight: 600;
+            color: var(--accent-blue);
+        }
+
+        .cost-table tr:nth-child(even) {
+            background: var(--hover-bg);
+        }
+
+        .breakdown-row td {
+            background: var(--card-bg);
+            font-style: italic;
+            text-align: left !important;
+            padding-left: 1.5rem;
+        }
+
+        .cost-note {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: var(--hover-bg);
+            border-radius: 0.5rem;
+        }
+
+        .benefit-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .benefit-card {
+            background: var(--hover-bg);
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            transition: transform 0.2s ease;
+        }
+
+        .benefit-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .benefit-card i {
+            font-size: 2.5rem;
+            color: var(--accent-blue);
+            margin-bottom: 1rem;
+        }
+
+        .benefit-card h5 {
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .step-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 1rem;
+        }
+
+        .step-list li {
+            padding: 0.75rem 0 0.75rem 2.5rem;
+            position: relative;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .step-list li:last-child {
+            border-bottom: none;
+        }
+
+        .step-list li::before {
+            content: counter(step-counter);
+            counter-increment: step-counter;
+            position: absolute;
+            left: 0;
+            width: 1.75rem;
+            height: 1.75rem;
+            background: var(--accent-blue);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .step-list {
+            counter-reset: step-counter;
+        }
     </style>
 </head>
 <body>
@@ -2009,73 +2267,302 @@
 
         <!-- Help Tab -->
         <div id="helpTab" class="tab-content">
-            <div class="card">
-                <div class="card-header">
-                    <h2><i class="fas fa-question-circle"></i> Getting Started</h2>
+            <!-- FAQ Accordion -->
+            <div class="faq-container">
+                <h2 style="margin-bottom: 2rem;"><i class="fas fa-question-circle"></i> Frequently Asked Questions</h2>
+                
+                <!-- Payment Structure Section -->
+                <div class="faq-section">
+                    <button class="faq-header active" onclick="toggleFAQ(this)">
+                        <i class="fas fa-chevron-down"></i>
+                        <span>Understanding the Payment Structure</span>
+                    </button>
+                    <div class="faq-content" style="display: block;">
+                        <h4>Why are there fees?</h4>
+                        <p>The fee structure ensures the sustainability and reliability of the legal notice service:</p>
+                        
+                        <div class="fee-explanation">
+                            <div class="fee-item">
+                                <strong>Service Fee (20 TRX)</strong>
+                                <p>This is the platform's operational revenue that funds ongoing development, maintenance, and support. Law enforcement agencies can be exempted from this fee.</p>
+                            </div>
+                            
+                            <div class="fee-item">
+                                <strong>Creation Fee (5-10 TRX)</strong>
+                                <p>Covers the blockchain transaction costs for creating and storing the notice on the TRON network. This ensures permanent, tamper-proof records.</p>
+                            </div>
+                            
+                            <div class="fee-item">
+                                <strong>Alert Fee (10 TRX)</strong>
+                                <p>Only charged when sending preview images. Storing images on-chain is expensive due to data size, but provides instant visual confirmation.</p>
+                            </div>
+                            
+                            <div class="fee-item">
+                                <strong>Sponsorship Fee (2 TRX)</strong>
+                                <p>This innovative fee stays in the smart contract to sponsor recipients' acceptance transactions. Recipients can acknowledge receipt without paying any fees.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="info-box">
+                            <i class="fas fa-lightbulb"></i>
+                            <p><strong>Why Sponsorship Matters:</strong> Traditional blockchain services require recipients to have cryptocurrency to interact. Our sponsorship system removes this barrier, making legal notices accessible to everyone.</p>
+                        </div>
+                    </div>
                 </div>
-                <div style="padding: 1rem;">
-                    <h3 style="margin-bottom: 1rem;">For Process Servers</h3>
-                    <ol style="margin-left: 1.5rem; color: var(--text-secondary);">
-                        <li style="margin-bottom: 0.5rem;">Connect your TronLink wallet</li>
-                        <li style="margin-bottom: 0.5rem;">Register as a Process Server to get your unique ID</li>
-                        <li style="margin-bottom: 0.5rem;">Connect to the Legal Notice smart contract</li>
-                        <li style="margin-bottom: 0.5rem;">Create legal notices by uploading documents</li>
-                        <li style="margin-bottom: 0.5rem;">Track delivery status and acceptances</li>
-                    </ol>
-
-                    <h3 style="margin: 2rem 0 1rem;">For Recipients</h3>
-                    <ol style="margin-left: 1.5rem; color: var(--text-secondary);">
-                        <li style="margin-bottom: 0.5rem;">Check "My Legal Notice Alerts" for pending notices</li>
-                        <li style="margin-bottom: 0.5rem;">Click "Accept" to acknowledge receipt</li>
-                        <li style="margin-bottom: 0.5rem;">The blockchain records your acceptance permanently</li>
-                    </ol>
-
-                    <h3 style="margin: 2rem 0 1rem;">Document Requirements</h3>
-                    <ul style="margin-left: 1.5rem; color: var(--text-secondary);">
-                        <li style="margin-bottom: 0.5rem;">Format: JPEG or PNG only</li>
-                        <li style="margin-bottom: 0.5rem;">Recommended: 8.5×11" documents</li>
-                        <li style="margin-bottom: 0.5rem;">Max file size: 400KB after compression</li>
-                        <li style="margin-bottom: 0.5rem;">Documents are automatically optimized for blockchain</li>
-                    </ul>
-
-                    <h3 style="margin: 2rem 0 1rem;">Fees</h3>
-                    <p style="color: var(--text-secondary);">
-                        A small fee (default 0.1 TRX) is required to create legal notices. 
-                        This covers blockchain transaction costs and prevents spam.
-                    </p>
+                
+                <!-- Delivery Options Section -->
+                <div class="faq-section">
+                    <button class="faq-header" onclick="toggleFAQ(this)">
+                        <i class="fas fa-chevron-right"></i>
+                        <span>Delivery Options Explained</span>
+                    </button>
+                    <div class="faq-content">
+                        <h4>What are the different delivery options?</h4>
+                        
+                        <div class="delivery-option">
+                            <h5><i class="fas fa-file-alt"></i> Notice Only (Cheapest Option)</h5>
+                            <ul>
+                                <li><strong>What:</strong> Sends only the IPFS document link as an NFT</li>
+                                <li><strong>Cost:</strong> ~7 TRX for law enforcement, ~27 TRX for others</li>
+                                <li><strong>Best for:</strong> High-volume serving where cost is critical</li>
+                                <li><strong>Limitation:</strong> No visual preview in wallet</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="delivery-option">
+                            <h5><i class="fas fa-image"></i> Alert Only (Visual Impact)</h5>
+                            <ul>
+                                <li><strong>What:</strong> Sends only the preview thumbnail as an NFT</li>
+                                <li><strong>Cost:</strong> ~12 TRX for law enforcement, ~32 TRX for others</li>
+                                <li><strong>Best for:</strong> Urgent notifications requiring immediate attention</li>
+                                <li><strong>Limitation:</strong> No access to full document</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="delivery-option">
+                            <h5><i class="fas fa-folder-open"></i> Full Package (Complete Service)</h5>
+                            <ul>
+                                <li><strong>What:</strong> Sends both alert thumbnail AND document NFT</li>
+                                <li><strong>Cost:</strong> ~17 TRX for law enforcement, ~37 TRX for others</li>
+                                <li><strong>Best for:</strong> Critical legal notices requiring full documentation</li>
+                                <li><strong>Benefit:</strong> Complete proof of service with visual confirmation</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
-            </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <h2><i class="fas fa-shield-alt"></i> Security & Privacy</h2>
+                
+                <!-- When to Use Each Option -->
+                <div class="faq-section">
+                    <button class="faq-header" onclick="toggleFAQ(this)">
+                        <i class="fas fa-chevron-right"></i>
+                        <span>Choosing the Right Delivery Option</span>
+                    </button>
+                    <div class="faq-content">
+                        <h4>How do I choose the best option?</h4>
+                        
+                        <div class="scenario">
+                            <h5>Choose "Notice Only" when:</h5>
+                            <ul>
+                                <li>Serving high volumes of routine notices</li>
+                                <li>Recipients are expecting the documents</li>
+                                <li>Cost efficiency is paramount</li>
+                                <li>Visual impact is not necessary</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="scenario">
+                            <h5>Choose "Alert Only" when:</h5>
+                            <ul>
+                                <li>Immediate visual notification is critical</li>
+                                <li>Document details can be communicated separately</li>
+                                <li>You need attention-grabbing wallet notifications</li>
+                                <li>Full document access isn't required</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="scenario">
+                            <h5>Choose "Full Package" when:</h5>
+                            <ul>
+                                <li>Serving critical legal documents</li>
+                                <li>Complete chain of custody is required</li>
+                                <li>Recipients need both notification and documentation</li>
+                                <li>Maximum legal compliance is necessary</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="info-box warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p><strong>Important:</strong> The alert image is what drives most of the cost because storing images on-blockchain is expensive. Each character in the base64 image costs gas fees.</p>
+                        </div>
+                    </div>
                 </div>
-                <div style="padding: 1rem;">
-                    <ul style="margin-left: 1.5rem; color: var(--text-secondary);">
-                        <li style="margin-bottom: 0.5rem;">All documents are stored on IPFS for decentralization</li>
-                        <li style="margin-bottom: 0.5rem;">Document hashes are recorded on blockchain for verification</li>
-                        <li style="margin-bottom: 0.5rem;">Only authorized process servers can create notices</li>
-                        <li style="margin-bottom: 0.5rem;">Recipients must actively accept notices</li>
-                        <li style="margin-bottom: 0.5rem;">All transactions are transparent and auditable</li>
-                    </ul>
+                
+                <!-- Cost Breakdown Section -->
+                <div class="faq-section">
+                    <button class="faq-header" onclick="toggleFAQ(this)">
+                        <i class="fas fa-chevron-right"></i>
+                        <span>Detailed Cost Breakdown</span>
+                    </button>
+                    <div class="faq-content">
+                        <h4>What exactly am I paying for?</h4>
+                        
+                        <table class="cost-table">
+                            <thead>
+                                <tr>
+                                    <th>User Type</th>
+                                    <th>Notice Only</th>
+                                    <th>Alert Only</th>
+                                    <th>Full Package</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Regular User</strong></td>
+                                    <td>27 TRX</td>
+                                    <td>32 TRX</td>
+                                    <td>37 TRX</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Law Enforcement</strong></td>
+                                    <td>7 TRX</td>
+                                    <td>12 TRX</td>
+                                    <td>17 TRX</td>
+                                </tr>
+                                <tr class="breakdown-row">
+                                    <td colspan="4"><em>Fee Breakdown:</em></td>
+                                </tr>
+                                <tr>
+                                    <td>Service Fee</td>
+                                    <td>20 / 0</td>
+                                    <td>20 / 0</td>
+                                    <td>20 / 0</td>
+                                </tr>
+                                <tr>
+                                    <td>Creation Fee</td>
+                                    <td>5</td>
+                                    <td>0</td>
+                                    <td>5</td>
+                                </tr>
+                                <tr>
+                                    <td>Alert Fee</td>
+                                    <td>0</td>
+                                    <td>10</td>
+                                    <td>10</td>
+                                </tr>
+                                <tr>
+                                    <td>Sponsorship</td>
+                                    <td>2</td>
+                                    <td>2</td>
+                                    <td>2</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                        <div class="cost-note">
+                            <p><strong>Note:</strong> Prices shown are in TRX. Current exchange rates apply. Law enforcement agencies receive service fee exemptions to support public service.</p>
+                        </div>
+                    </div>
                 </div>
-            </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <h2><i class="fas fa-link"></i> Useful Links</h2>
+                
+                <!-- Benefits of Blockchain -->
+                <div class="faq-section">
+                    <button class="faq-header" onclick="toggleFAQ(this)">
+                        <i class="fas fa-chevron-right"></i>
+                        <span>Why Use Blockchain for Legal Notices?</span>
+                    </button>
+                    <div class="faq-content">
+                        <h4>What makes blockchain superior for legal service?</h4>
+                        
+                        <div class="benefit-grid">
+                            <div class="benefit-card">
+                                <i class="fas fa-shield-alt"></i>
+                                <h5>Immutable Proof</h5>
+                                <p>Once served, the record cannot be altered, deleted, or disputed. Perfect for court proceedings.</p>
+                            </div>
+                            
+                            <div class="benefit-card">
+                                <i class="fas fa-clock"></i>
+                                <h5>Timestamped</h5>
+                                <p>Automatic, cryptographic timestamps prove exact service time without relying on third parties.</p>
+                            </div>
+                            
+                            <div class="benefit-card">
+                                <i class="fas fa-globe"></i>
+                                <h5>Global Access</h5>
+                                <p>Serve notices to any wallet address worldwide, instantly, without geographical limitations.</p>
+                            </div>
+                            
+                            <div class="benefit-card">
+                                <i class="fas fa-check-double"></i>
+                                <h5>Verifiable</h5>
+                                <p>Anyone can independently verify service on the blockchain without accessing private systems.</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div style="padding: 1rem;">
-                    <div style="display: flex; flex-direction: column; gap: 1rem;">
-                        <a href="https://www.tronlink.org/" target="_blank" class="btn btn-secondary">
-                            <i class="fas fa-wallet"></i> Get TronLink Wallet
-                        </a>
-                        <a href="https://tronscan.org/" target="_blank" class="btn btn-secondary">
-                            <i class="fas fa-search"></i> View on Tronscan
-                        </a>
-                        <a href="https://developers.tron.network/" target="_blank" class="btn btn-secondary">
-                            <i class="fas fa-book"></i> TRON Documentation
-                        </a>
+                
+                <!-- Getting Started -->
+                <div class="faq-section">
+                    <button class="faq-header" onclick="toggleFAQ(this)">
+                        <i class="fas fa-chevron-right"></i>
+                        <span>Getting Started Guide</span>
+                    </button>
+                    <div class="faq-content">
+                        <h4>For Process Servers</h4>
+                        <ol class="step-list">
+                            <li>Install TronLink wallet and fund with TRX</li>
+                            <li>Connect wallet to the application</li>
+                            <li>Register as a Process Server (one-time setup)</li>
+                            <li>Choose delivery option based on your needs</li>
+                            <li>Upload document and enter recipient details</li>
+                            <li>Review costs and confirm transaction</li>
+                        </ol>
+                        
+                        <h4>For Recipients</h4>
+                        <ol class="step-list">
+                            <li>Check your wallet for new NFT notifications</li>
+                            <li>Alert NFTs show preview in most wallets</li>
+                            <li>Notice NFTs contain IPFS link to full document</li>
+                            <li>Accept notice to confirm receipt (FREE - sponsored)</li>
+                            <li>NFT serves as permanent proof of service</li>
+                        </ol>
+                        
+                        <h4>For Law Enforcement</h4>
+                        <p>Contact administration to register your agency wallet for service fee exemption. Provide official documentation for verification.</p>
+                    </div>
+                </div>
+                
+                <!-- Technical Details -->
+                <div class="faq-section">
+                    <button class="faq-header" onclick="toggleFAQ(this)">
+                        <i class="fas fa-chevron-right"></i>
+                        <span>Technical Information</span>
+                    </button>
+                    <div class="faq-content">
+                        <h4>Smart Contract Details</h4>
+                        <ul>
+                            <li><strong>Network:</strong> TRON (TRC-721 Standard)</li>
+                            <li><strong>Multi-chain Support:</strong> Ethereum, Polygon, BSC (coming soon)</li>
+                            <li><strong>Storage:</strong> IPFS for documents, on-chain for previews</li>
+                            <li><strong>Verification:</strong> All transactions viewable on TronScan</li>
+                        </ul>
+                        
+                        <h4>Security Features</h4>
+                        <ul>
+                            <li>Role-based access control (Admin, Server, User)</li>
+                            <li>Cryptographic signatures for all transactions</li>
+                            <li>Decentralized storage prevents single point of failure</li>
+                            <li>Open source contract for transparency</li>
+                        </ul>
+                        
+                        <div class="help-links" style="margin-top: 2rem;">
+                            <a href="https://github.com/JGooseK41/NFTServiceApp" target="_blank" class="btn btn-secondary">
+                                <i class="fas fa-code"></i> View Source Code
+                            </a>
+                            <a href="#" onclick="viewContractOnTronscan('legal')" class="btn btn-secondary">
+                                <i class="fas fa-search"></i> View on TronScan
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2992,6 +3479,25 @@ function useConnectedAddressForFeeCollector() {
             // Check admin access when switching to admin tab
             if (tabName === 'admin') {
                 checkAdminAccess();
+            }
+        }
+
+        // Toggle FAQ accordion sections
+        function toggleFAQ(button) {
+            const section = button.parentElement;
+            const content = section.querySelector('.faq-content');
+            const icon = button.querySelector('i');
+            
+            // Toggle active state
+            button.classList.toggle('active');
+            
+            // Toggle content visibility
+            if (content.style.display === 'block') {
+                content.style.display = 'none';
+                icon.className = 'fas fa-chevron-right';
+            } else {
+                content.style.display = 'block';
+                icon.className = 'fas fa-chevron-down';
             }
         }
 
