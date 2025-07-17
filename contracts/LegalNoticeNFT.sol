@@ -3,23 +3,20 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title LegalNoticeNFT
  * @dev Optimized NFT contract for legal document service with reduced gas costs
  */
 contract LegalNoticeNFT is ERC721, AccessControl, ReentrancyGuard {
-    using Counters for Counters.Counter;
-    
     // Role definitions
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant SERVER_ROLE = keccak256("SERVER_ROLE");
     
     // Counters for token IDs
-    Counters.Counter private _noticeIdCounter;
-    Counters.Counter private _alertIdCounter;
+    uint256 private _noticeIdCounter;
+    uint256 private _alertIdCounter;
     
     // Fee management
     uint256 public creationFee;
@@ -113,10 +110,10 @@ contract LegalNoticeNFT is ERC721, AccessControl, ReentrancyGuard {
         }
         
         // Increment counters
-        _noticeIdCounter.increment();
-        _alertIdCounter.increment();
-        noticeId = _noticeIdCounter.current();
-        alertId = _alertIdCounter.current();
+        _noticeIdCounter++;
+        _alertIdCounter++;
+        noticeId = _noticeIdCounter;
+        alertId = _alertIdCounter;
         
         // Create notice with packed struct
         notices[noticeId] = Notice({
