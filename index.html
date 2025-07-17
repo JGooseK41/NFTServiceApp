@@ -4806,6 +4806,13 @@ async function checkUserRoles() {
             return address.substring(0, 8) + '...' + address.substring(address.length - 6);
         }
         
+        // Get current network based on chain type
+        function getCurrentNetwork() {
+            // For TRON, we're using Nile testnet by default
+            // You could add logic here to detect mainnet vs testnet
+            return 'nile';
+        }
+        
         // Create address display with copy and TronScan link
         function createAddressDisplay(address, showFull = false) {
             if (!address || address === 'N/A') return 'N/A';
