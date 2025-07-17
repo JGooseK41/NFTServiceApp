@@ -3137,9 +3137,9 @@ function useConnectedAddressForFeeCollector() {
                 return;
             }
             
-            // Validate file size (max 5MB before compression)
-            if (file.size > 5 * 1024 * 1024) {
-                uiManager.showNotification('error', 'File size must be less than 5MB');
+            // Validate file size (max 25MB for legal documents before compression)
+            if (file.size > 25 * 1024 * 1024) {
+                uiManager.showNotification('error', 'File size must be less than 25MB. Large documents will be compressed automatically.');
                 event.target.value = '';
                 uploadArea.classList.add('error');
                 setTimeout(() => uploadArea.classList.remove('error'), 2000);
