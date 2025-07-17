@@ -3415,6 +3415,11 @@ function useConnectedAddressForFeeCollector() {
             return new Promise((resolve) => {
                 const img = new Image();
                 img.onload = function() {
+                    // Clean up object URL after loading
+                    if (img.src.startsWith('blob:')) {
+                        URL.revokeObjectURL(img.src);
+                    }
+                    
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     
@@ -3429,7 +3434,16 @@ function useConnectedAddressForFeeCollector() {
                     const thumbnailBase64 = canvas.toDataURL('image/jpeg', 0.3).split(',')[1];
                     resolve(thumbnailBase64);
                 };
-                img.src = `data:image/jpeg;base64,${base64Image}`;
+                
+                // Use object URL instead of data URL to avoid length limits
+                try {
+                    const objectURL = createObjectURLFromBase64(base64Image);
+                    img.src = objectURL;
+                } catch (error) {
+                    console.error('Error creating object URL for thumbnail:', error);
+                    // Fallback: try the original method for smaller images
+                    img.src = base64Image.startsWith('data:') ? base64Image : `data:image/jpeg;base64,${base64Image}`;
+                }
             });
         }
 
@@ -3532,13 +3546,18 @@ function useConnectedAddressForFeeCollector() {
             
             try {
                 showProcessing('Preparing legal notice...');
+                console.log('Starting transaction process with uploadedImage size:', uploadedImage ? uploadedImage.length : 'null');
                 
                 // Generate a smaller preview image for the alert token
+                console.log('Generating thumbnail...');
                 const previewImage = await generateThumbnail(uploadedImage);
+                console.log('Thumbnail generated, size:', previewImage.length);
                 
                 // Upload the full-size document to IPFS
                 showProcessing('Uploading document to IPFS...');
+                console.log('Starting IPFS upload...');
                 const ipfsHash = await uploadToIPFS(uploadedImage);
+                console.log('IPFS upload complete, hash:', ipfsHash);
                 
                 // Generate content hash
                 const contentHash = generateContentHash(ipfsHash + caseNumber);
