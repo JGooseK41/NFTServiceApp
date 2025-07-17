@@ -3614,7 +3614,7 @@ function useConnectedAddressForFeeCollector() {
                         jurisdictionIndex,
                         documentType
                     ).send({
-                        feeLimit: 200_000_000,
+                        feeLimit: 50_000_000, // 50 TRX max
                         callValue: feeInSun,
                         shouldPollResponse: true
                     });
