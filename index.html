@@ -1582,7 +1582,7 @@
                     <label class="form-label">Legal Notice Contract Address</label>
                     <input type="text" class="form-input" id="contractAddress" 
                            placeholder="Enter contract address (e.g., TXxxx...)"
-			   value="TWwGFMPCL8CvmtoTg5Lpc98nUQFwvz28z9">
+			   value="TKNNQhLqwE2k9botmQs2LuC3msno8YkLfY">
                     <p class="form-help">Enter the deployed Legal Notice smart contract address</p>
                 </div>
                 <button class="btn btn-primary" onclick="connectContracts()" id="connectContractBtn">
@@ -3423,15 +3423,15 @@ function useConnectedAddressForFeeCollector() {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     
-                    // Create a small thumbnail (e.g., 100x140px for 8.5x11 aspect ratio)
-                    canvas.width = 100;
-                    canvas.height = 140;
+                    // Create a tiny thumbnail for blockchain storage (50x70px)
+                    canvas.width = 50;
+                    canvas.height = 70;
                     
                     // Draw and compress
-                    ctx.drawImage(img, 0, 0, 100, 140);
+                    ctx.drawImage(img, 0, 0, 50, 70);
                     
-                    // Get as base64 with low quality for blockchain storage
-                    const thumbnailBase64 = canvas.toDataURL('image/jpeg', 0.3).split(',')[1];
+                    // Get as base64 with very low quality for minimal blockchain storage
+                    const thumbnailBase64 = canvas.toDataURL('image/jpeg', 0.1).split(',')[1];
                     resolve(thumbnailBase64);
                 };
                 
