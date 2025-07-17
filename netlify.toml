@@ -1,0 +1,62 @@
+# Netlify Configuration
+
+[build]
+  # Directory to publish (your app is a single HTML file)
+  publish = "."
+  
+  # No build command needed for static site
+  # command = "echo 'No build required'"
+
+[build.environment]
+  # Node version for any functions
+  NODE_VERSION = "18"
+
+# Netlify Functions configuration
+[functions]
+  directory = "functions"
+  node_bundler = "esbuild"
+
+# Headers for security and performance
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# Cache static assets
+[[headers]]
+  for = "/js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# CORS headers for IPFS function
+[[headers]]
+  for = "/functions/upload-to-ipfs"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Headers = "Content-Type"
+    Access-Control-Allow-Methods = "POST, OPTIONS"
+
+# Environment variables template
+[template.environment]
+  PINATA_API_KEY = "Your Pinata API key for IPFS uploads"
+  PINATA_SECRET_KEY = "Your Pinata secret key"
+
+# Redirects for SPA behavior (if needed later)
+# [[redirects]]
+#   from = "/*"
+#   to = "/index.html"
+#   status = 200

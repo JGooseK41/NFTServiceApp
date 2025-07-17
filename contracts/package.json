@@ -1,0 +1,29 @@
+{
+  "name": "legal-service-nft-contracts",
+  "version": "2.0.0",
+  "description": "Smart contracts for Legal Service NFT platform",
+  "main": "deploy_legal_service_v2.js",
+  "scripts": {
+    "compile": "tronbox compile",
+    "deploy:nile": "node deploy_legal_service_v2.js",
+    "deploy:shasta": "NETWORK=shasta node deploy_legal_service_v2.js",
+    "test": "tronbox test",
+    "compile-help": "node deploy_legal_service_v2.js --compile-help"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.0",
+    "tronweb": "^5.3.4"
+  },
+  "devDependencies": {
+    "tronbox": "^3.2.0"
+  },
+  "keywords": [
+    "tron",
+    "nft",
+    "legal",
+    "blockchain",
+    "smart-contract"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}
