@@ -4394,15 +4394,46 @@ function useConnectedAddressForFeeCollector() {
             
             try {
                 showProcessing('Updating resource sponsorship...');
+                console.log('Sending setResourceSponsorship transaction, enabled:', enabled);
                 
-                await legalContract.setResourceSponsorship(enabled).send({
+                const tx = await legalContract.setResourceSponsorship(enabled).send({
                     feeLimit: 100_000_000,
                     callValue: 0,
-                    shouldPollResponse: true
+                    shouldPollResponse: false // Don't auto-poll, we'll do it manually
                 });
                 
+                console.log('Transaction sent, hash:', tx);
+                showProcessing('Waiting for confirmation...');
+                
+                // Manual polling with timeout
+                let confirmed = false;
+                let attempts = 0;
+                const maxAttempts = 20; // 20 seconds timeout
+                
+                while (!confirmed && attempts < maxAttempts) {
+                    try {
+                        const info = await tronWeb.trx.getTransactionInfo(tx);
+                        if (info && info.id) {
+                            confirmed = true;
+                            console.log('Transaction confirmed:', info);
+                        }
+                    } catch (e) {
+                        // Transaction not found yet, keep polling
+                    }
+                    
+                    if (!confirmed) {
+                        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+                        attempts++;
+                    }
+                }
+                
                 hideProcessing();
-                showAlert('contractManagementResult', 'success', `Resource sponsorship ${enabled ? 'enabled' : 'disabled'}`);
+                
+                if (confirmed) {
+                    showAlert('contractManagementResult', 'success', `Resource sponsorship ${enabled ? 'enabled' : 'disabled'}`);
+                } else {
+                    showAlert('contractManagementResult', 'warning', 'Transaction sent but confirmation timed out. Check TronScan for status.');
+                }
                 
             } catch (error) {
                 hideProcessing();
