@@ -3400,16 +3400,27 @@ function useConnectedAddressForFeeCollector() {
         // Upload to IPFS (using Netlify Function)
         async function uploadToIPFS(base64Image) {
             try {
+                console.log('Starting IPFS upload, image size:', base64Image.length);
+                
+                // Add timeout for the fetch request
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+                
                 // Call Netlify function to handle the IPFS upload
                 const response = await fetch('/.netlify/functions/upload-to-ipfs', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ image: base64Image })
+                    body: JSON.stringify({ image: base64Image }),
+                    signal: controller.signal
                 });
                 
+                clearTimeout(timeoutId);
+                console.log('IPFS upload response status:', response.status);
+                
                 const data = await response.json();
+                console.log('IPFS upload response data:', data);
                 
                 if (!response.ok) {
                     throw new Error(data.message || 'Failed to upload to IPFS');
@@ -3417,6 +3428,12 @@ function useConnectedAddressForFeeCollector() {
                 
                 return data.ipfsHash;
             } catch (error) {
+                console.error('IPFS upload error:', error);
+                console.error('Error stack:', error.stack);
+                
+                if (error.name === 'AbortError') {
+                    throw new Error('IPFS upload timed out. Please try again.');
+                }
                 console.error('IPFS upload error:', error);
                 
                 // Fallback: use a mock IPFS hash for testing

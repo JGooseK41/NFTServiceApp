@@ -75,7 +75,15 @@ exports.handler = async function(event, context) {
             };
         }
         
-        const base64Image = body.image;
+        let base64Image = body.image;
+        
+        // Strip data URL prefix if present (data:image/jpeg;base64,...)
+        if (base64Image.startsWith('data:')) {
+            const base64Index = base64Image.indexOf(',');
+            if (base64Index !== -1) {
+                base64Image = base64Image.substring(base64Index + 1);
+            }
+        }
         
         // Convert base64 to buffer
         const imageBuffer = Buffer.from(base64Image, 'base64');
