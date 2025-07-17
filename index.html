@@ -4426,6 +4426,19 @@ function useConnectedAddressForFeeCollector() {
             
             const enabled = document.getElementById('resourceSponsorshipCheck').checked;
             
+            // First check current status
+            try {
+                const currentStatus = await legalContract.resourceSponsorshipEnabled().call();
+                console.log('Current sponsorship status:', currentStatus);
+                
+                if (currentStatus === enabled) {
+                    showAlert('contractManagementResult', 'info', `Resource sponsorship is already ${enabled ? 'enabled' : 'disabled'}`);
+                    return;
+                }
+            } catch (e) {
+                console.log('Could not check current status:', e);
+            }
+            
             try {
                 showProcessing('Updating resource sponsorship...');
                 console.log('Sending setResourceSponsorship transaction, enabled:', enabled);
