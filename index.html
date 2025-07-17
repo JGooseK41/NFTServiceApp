@@ -1826,6 +1826,16 @@
                             Update Settings
                         </button>
                         <div id="contractManagementResult"></div>
+                        
+                        <div class="form-group" style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
+                            <label class="form-label">Withdraw TRX from Contract</label>
+                            <input type="number" class="form-input" id="withdrawAmount" placeholder="Amount in TRX" step="0.1">
+                            <p class="form-help">Withdraw TRX from contract balance (admin only)</p>
+                            <button class="btn btn-warning" onclick="withdrawFromContract()">
+                                <i class="fas fa-coins"></i>
+                                Withdraw TRX
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -5198,6 +5208,42 @@ document.addEventListener('keydown', function(event) {
         window.checkRole = checkRole;
         window.updateFee = updateFee;
         window.updateFeeCollector = updateFeeCollector;
+        async function withdrawFromContract() {
+            if (!legalContract) {
+                uiManager.showNotification('error', 'Contract not connected');
+                return;
+            }
+            
+            const amountTRX = document.getElementById('withdrawAmount').value;
+            if (!amountTRX || parseFloat(amountTRX) <= 0) {
+                uiManager.showNotification('error', 'Please enter a valid amount');
+                return;
+            }
+            
+            try {
+                showProcessing('Withdrawing TRX from contract...');
+                
+                // Convert TRX to SUN
+                const amountSUN = tronWeb.toSun(amountTRX);
+                
+                const tx = await legalContract.withdrawTRX(amountSUN).send({
+                    feeLimit: 10_000_000,
+                    callValue: 0,
+                    shouldPollResponse: true
+                });
+                
+                hideProcessing();
+                uiManager.showNotification('success', `Successfully withdrew ${amountTRX} TRX from contract`);
+                document.getElementById('withdrawAmount').value = '';
+                
+            } catch (error) {
+                hideProcessing();
+                console.error('Withdrawal error:', error);
+                uiManager.showNotification('error', 'Failed to withdraw: ' + getErrorMessage(error));
+            }
+        }
+        
+        window.withdrawFromContract = withdrawFromContract;
         window.updateResourceSponsorship = updateResourceSponsorship;
         window.connectContracts = connectContracts;
 	window.copyWalletAddress = copyWalletAddress;
