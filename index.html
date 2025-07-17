@@ -2526,6 +2526,13 @@ function useConnectedAddressForFeeCollector() {
                     throw new Error('TronLink not detected. Please install TronLink extension');
                 }
 
+                // Use recommended TronLink account request method
+                try {
+                    await window.tronLink.request({method: 'tron_requestAccounts'});
+                } catch (error) {
+                    throw new Error('Please unlock your TronLink wallet and grant permission');
+                }
+
                 // Wait for TronWeb to be ready
                 let tries = 0;
                 while (!window.tronWeb.ready && tries < 10) {
