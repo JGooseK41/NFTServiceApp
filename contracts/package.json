@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "dotenv": "^17.2.0",
+    "solc": "^0.8.30",
     "tronweb": "^5.3.4"
   },
   "devDependencies": {

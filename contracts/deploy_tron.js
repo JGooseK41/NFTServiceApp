@@ -1,5 +1,6 @@
 const TronWeb = require('tronweb');
 const fs = require('fs');
+require('dotenv').config();
 
 // Configuration
 const config = {
@@ -7,8 +8,8 @@ const config = {
     networks: {
         nile: {
             fullHost: 'https://nile.trongrid.io',
-            privateKey: process.env.PRIVATE_KEY,
-            feeCollector: process.env.FEE_COLLECTOR || 'YOUR_FEE_COLLECTOR_ADDRESS'
+            privateKey: process.env.PRIVATE_KEY || process.env.TRON_PRIVATE_KEY,
+            feeCollector: process.env.FEE_COLLECTOR || 'TDbeaZQ25WzZ4Aqn4RJAZxmo6BeHdMeXGf'
         },
         shasta: {
             fullHost: 'https://api.shasta.trongrid.io',
