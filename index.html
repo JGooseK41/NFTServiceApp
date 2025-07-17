@@ -3188,8 +3188,26 @@ function useConnectedAddressForFeeCollector() {
                         uploadedFileInfo.compressionRatio = 'Converted';
                         uploadedFileInfo.format = converted.fileType.toUpperCase();
                         
-                        // Show preview
-                        document.getElementById('documentPreview').src = compressedPreview;
+                        // Show preview using object URL to avoid data URL length limits
+                        const previewElement = document.getElementById('documentPreview');
+                        
+                        // Convert base64 to blob for object URL
+                        const base64Data = compressedPreview.split(',')[1];
+                        const byteCharacters = atob(base64Data);
+                        const byteNumbers = new Array(byteCharacters.length);
+                        for (let i = 0; i < byteCharacters.length; i++) {
+                            byteNumbers[i] = byteCharacters.charCodeAt(i);
+                        }
+                        const byteArray = new Uint8Array(byteNumbers);
+                        const blob = new Blob([byteArray], {type: 'image/jpeg'});
+                        const objectURL = URL.createObjectURL(blob);
+                        
+                        // Clean up previous object URL if exists
+                        if (previewElement.src && previewElement.src.startsWith('blob:')) {
+                            URL.revokeObjectURL(previewElement.src);
+                        }
+                        
+                        previewElement.src = objectURL;
                         showMintStep(2);
                         
                         updateCompressionProgress(100, 'Document conversion complete!');
@@ -3233,8 +3251,26 @@ function useConnectedAddressForFeeCollector() {
                             uploadedFileInfo.finalSizeStr = formatFileSize(compressedImage.size);
                             uploadedFileInfo.compressionRatio = Math.round((1 - compressedImage.size / file.size) * 100) + '%';
                             
-                            // Show preview
-                            document.getElementById('documentPreview').src = compressedImage.dataUrl;
+                            // Show preview using object URL to avoid data URL length limits
+                            const previewElement = document.getElementById('documentPreview');
+                            
+                            // Convert base64 to blob for object URL
+                            const base64Data = compressedImage.dataUrl.split(',')[1];
+                            const byteCharacters = atob(base64Data);
+                            const byteNumbers = new Array(byteCharacters.length);
+                            for (let i = 0; i < byteCharacters.length; i++) {
+                                byteNumbers[i] = byteCharacters.charCodeAt(i);
+                            }
+                            const byteArray = new Uint8Array(byteNumbers);
+                            const blob = new Blob([byteArray], {type: 'image/jpeg'});
+                            const objectURL = URL.createObjectURL(blob);
+                            
+                            // Clean up previous object URL if exists
+                            if (previewElement.src && previewElement.src.startsWith('blob:')) {
+                                URL.revokeObjectURL(previewElement.src);
+                            }
+                            
+                            previewElement.src = objectURL;
                             showMintStep(2);
                             
                             // Update metadata display
@@ -3395,6 +3431,19 @@ function useConnectedAddressForFeeCollector() {
                 };
                 img.src = `data:image/jpeg;base64,${base64Image}`;
             });
+        }
+
+        // Utility function to convert base64 to object URL for large images
+        function createObjectURLFromBase64(base64Data, mimeType = 'image/jpeg') {
+            const base64 = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
+            const byteCharacters = atob(base64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], {type: mimeType});
+            return URL.createObjectURL(blob);
         }
 
         // Upload to IPFS (using Netlify Function)
