@@ -1553,6 +1553,27 @@
             background-color: #3b82f6;
             color: white;
         }
+
+        /* Fee Summary */
+        .fee-summary {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .fee-summary p {
+            margin: 0.5rem 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .fee-summary span {
+            font-weight: 600;
+            color: var(--accent-blue);
+        }
     </style>
 </head>
 <body>
@@ -1834,17 +1855,56 @@
                         <div class="card-header">
                             <h2><i class="fas fa-coins"></i> Fee Structure Management</h2>
                         </div>
+                        
+                        <!-- Service Fee (Profit) -->
                         <div class="form-group">
-                            <label class="form-label">Creation Fee (TRX)</label>
+                            <label class="form-label">Service Fee (Profit) - TRX</label>
+                            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                <input type="number" class="form-input" id="serviceFee" 
+                                       step="0.01" min="0" placeholder="20" style="flex: 1;">
+                                <span class="form-help" id="currentServiceFee">Current: 20 TRX</span>
+                            </div>
+                            <p class="form-help">Revenue fee - can be waived for law enforcement</p>
+                        </div>
+                        
+                        <!-- Creation Fee (Operations) -->
+                        <div class="form-group">
+                            <label class="form-label">Creation Fee (Operations) - TRX</label>
                             <div style="display: flex; gap: 0.5rem; align-items: center;">
                                 <input type="number" class="form-input" id="creationFee" 
-                                       step="0.01" min="0" placeholder="0.1" style="flex: 1;">
-                                <span class="form-help" id="currentCreationFee">Current: 0.1 TRX</span>
+                                       step="0.01" min="0" placeholder="10" style="flex: 1;">
+                                <span class="form-help" id="currentCreationFee">Current: 10 TRX</span>
                             </div>
+                            <p class="form-help">Operational costs - not waivable</p>
                         </div>
-                        <button class="btn btn-primary" onclick="updateFee()" id="updateFeeBtn">
-                            <i class="fas fa-save"></i> Update Fee
-                        </button>
+                        
+                        <!-- Sponsorship Fee -->
+                        <div class="form-group">
+                            <label class="form-label">Sponsorship Fee (Recipient Support) - TRX</label>
+                            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                <input type="number" class="form-input" id="sponsorshipFee" 
+                                       step="0.01" min="0" placeholder="2" style="flex: 1;">
+                                <span class="form-help" id="currentSponsorshipFee">Current: 2 TRX</span>
+                            </div>
+                            <p class="form-help">Funds recipient acceptance - not waivable</p>
+                        </div>
+                        
+                        <div class="fee-summary">
+                            <p><strong>Total Regular User Cost:</strong> <span id="totalRegularCost">32 TRX</span></p>
+                            <p><strong>Total Law Enforcement Cost:</strong> <span id="totalLECost">12 TRX</span></p>
+                        </div>
+                        
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-primary" onclick="updateServiceFee()" id="updateServiceFeeBtn">
+                                <i class="fas fa-save"></i> Update Service Fee
+                            </button>
+                            <button class="btn btn-primary" onclick="updateCreationFee()" id="updateCreationFeeBtn">
+                                <i class="fas fa-save"></i> Update Creation Fee
+                            </button>
+                            <button class="btn btn-primary" onclick="updateSponsorshipFee()" id="updateSponsorshipFeeBtn">
+                                <i class="fas fa-save"></i> Update Sponsorship Fee
+                            </button>
+                        </div>
                         <div id="feeUpdateResult"></div>
                     </div>
 
@@ -1872,8 +1932,12 @@
     <p class="form-help">Enter address or click button to use your connected wallet</p>
 </div>
                         <div class="checkbox-group">
-                            <input type="checkbox" id="feeExemptCheck">
-                            <label for="feeExemptCheck">Grant fee exemption</label>
+                            <input type="checkbox" id="serviceFeeExemptCheck">
+                            <label for="serviceFeeExemptCheck">Grant service fee exemption (Law Enforcement)</label>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="fullFeeExemptCheck">
+                            <label for="fullFeeExemptCheck">Grant full fee exemption (Admin only)</label>
                         </div>
                         <div style="display: flex; gap: 0.5rem;">
                             <button class="btn btn-primary" onclick="grantRole()" id="grantRoleBtn">
@@ -4311,7 +4375,8 @@ function useConnectedAddressForFeeCollector() {
             
             const roleSelect = document.getElementById('roleSelect');
             const address = document.getElementById('roleAddress').value.trim();
-            const feeExempt = document.getElementById('feeExemptCheck').checked;
+            const serviceFeeExempt = document.getElementById('serviceFeeExemptCheck').checked;
+            const fullFeeExempt = document.getElementById('fullFeeExemptCheck').checked;
             
             if (!address) {
                 showAlert('roleResult', 'error', 'Please enter an address');
@@ -4336,11 +4401,19 @@ function useConnectedAddressForFeeCollector() {
                     shouldPollResponse: true
                 });
                 
-                // If fee exemption is checked, set fee exemption
-                if (feeExempt) {
-                    showProcessing('Setting fee exemption...');
+                // Handle fee exemptions
+                if (fullFeeExempt) {
+                    showProcessing('Setting full fee exemption...');
                     
-                    await legalContract.setFeeExemption(address, true).send({
+                    await legalContract.setFullFeeExemption(address, true).send({
+                        feeLimit: 100_000_000,
+                        callValue: 0,
+                        shouldPollResponse: true
+                    });
+                } else if (serviceFeeExempt) {
+                    showProcessing('Setting service fee exemption...');
+                    
+                    await legalContract.setServiceFeeExemption(address, true).send({
                         feeLimit: 100_000_000,
                         callValue: 0,
                         shouldPollResponse: true
@@ -4348,11 +4421,20 @@ function useConnectedAddressForFeeCollector() {
                 }
                 
                 hideProcessing();
-                showAlert('roleResult', 'success', `Role ${roleSelect.options[roleSelect.selectedIndex].text} granted to ${formatAddress(address)}`);
+                
+                let message = `Role ${roleSelect.options[roleSelect.selectedIndex].text} granted to ${formatAddress(address)}`;
+                if (fullFeeExempt) {
+                    message += ' with full fee exemption';
+                } else if (serviceFeeExempt) {
+                    message += ' with service fee exemption';
+                }
+                
+                showAlert('roleResult', 'success', message);
                 
                 // Clear inputs
                 document.getElementById('roleAddress').value = '';
-                document.getElementById('feeExemptCheck').checked = false;
+                document.getElementById('serviceFeeExemptCheck').checked = false;
+                document.getElementById('fullFeeExemptCheck').checked = false;
                 
                 // Add to recent activity
                 addRecentActivity('role', 'Role granted', {
@@ -4601,6 +4683,133 @@ function useConnectedAddressForFeeCollector() {
             }
         }
 
+        // Update Service Fee (Profit)
+        async function updateServiceFee() {
+            if (!legalContract) {
+                showAlert('feeUpdateResult', 'error', 'Contract not connected');
+                return;
+            }
+            
+            const newFee = document.getElementById('serviceFee').value;
+            
+            if (!newFee || isNaN(newFee) || newFee < 0) {
+                showAlert('feeUpdateResult', 'error', 'Please enter a valid service fee');
+                return;
+            }
+            
+            try {
+                showProcessing('Updating service fee...');
+                
+                const feeInSun = tronWeb.toSun(newFee);
+                
+                await legalContract.updateServiceFee(feeInSun).send({
+                    feeLimit: 100_000_000,
+                    callValue: 0,
+                    shouldPollResponse: true
+                });
+                
+                hideProcessing();
+                showAlert('feeUpdateResult', 'success', `Service fee updated to ${newFee} TRX`);
+                
+                document.getElementById('currentServiceFee').textContent = `Current: ${newFee} TRX`;
+                updateFeeSummary();
+                
+            } catch (error) {
+                hideProcessing();
+                console.error('Error updating service fee:', error);
+                showAlert('feeUpdateResult', 'error', 'Failed to update service fee: ' + getErrorMessage(error));
+            }
+        }
+
+        // Update Creation Fee (Operations) 
+        async function updateCreationFee() {
+            if (!legalContract) {
+                showAlert('feeUpdateResult', 'error', 'Contract not connected');
+                return;
+            }
+            
+            const newFee = document.getElementById('creationFee').value;
+            
+            if (!newFee || isNaN(newFee) || newFee < 0) {
+                showAlert('feeUpdateResult', 'error', 'Please enter a valid creation fee');
+                return;
+            }
+            
+            try {
+                showProcessing('Updating creation fee...');
+                
+                const feeInSun = tronWeb.toSun(newFee);
+                
+                await legalContract.updateCreationFee(feeInSun).send({
+                    feeLimit: 100_000_000,
+                    callValue: 0,
+                    shouldPollResponse: true
+                });
+                
+                hideProcessing();
+                showAlert('feeUpdateResult', 'success', `Creation fee updated to ${newFee} TRX`);
+                
+                document.getElementById('currentCreationFee').textContent = `Current: ${newFee} TRX`;
+                updateFeeSummary();
+                
+            } catch (error) {
+                hideProcessing();
+                console.error('Error updating creation fee:', error);
+                showAlert('feeUpdateResult', 'error', 'Failed to update creation fee: ' + getErrorMessage(error));
+            }
+        }
+
+        // Update Sponsorship Fee
+        async function updateSponsorshipFee() {
+            if (!legalContract) {
+                showAlert('feeUpdateResult', 'error', 'Contract not connected');
+                return;
+            }
+            
+            const newFee = document.getElementById('sponsorshipFee').value;
+            
+            if (!newFee || isNaN(newFee) || newFee < 0) {
+                showAlert('feeUpdateResult', 'error', 'Please enter a valid sponsorship fee');
+                return;
+            }
+            
+            try {
+                showProcessing('Updating sponsorship fee...');
+                
+                const feeInSun = tronWeb.toSun(newFee);
+                
+                await legalContract.updateSponsorshipFee(feeInSun).send({
+                    feeLimit: 100_000_000,
+                    callValue: 0,
+                    shouldPollResponse: true
+                });
+                
+                hideProcessing();
+                showAlert('feeUpdateResult', 'success', `Sponsorship fee updated to ${newFee} TRX`);
+                
+                document.getElementById('currentSponsorshipFee').textContent = `Current: ${newFee} TRX`;
+                updateFeeSummary();
+                
+            } catch (error) {
+                hideProcessing();
+                console.error('Error updating sponsorship fee:', error);
+                showAlert('feeUpdateResult', 'error', 'Failed to update sponsorship fee: ' + getErrorMessage(error));
+            }
+        }
+
+        // Update fee summary display
+        function updateFeeSummary() {
+            const serviceFee = parseFloat(document.getElementById('serviceFee').value || 20);
+            const creationFee = parseFloat(document.getElementById('creationFee').value || 10);
+            const sponsorshipFee = parseFloat(document.getElementById('sponsorshipFee').value || 2);
+            
+            const totalRegular = serviceFee + creationFee + sponsorshipFee;
+            const totalLE = creationFee + sponsorshipFee; // Law enforcement exempt from service fee
+            
+            document.getElementById('totalRegularCost').textContent = `${totalRegular} TRX`;
+            document.getElementById('totalLECost').textContent = `${totalLE} TRX`;
+        }
+
         // Contract connection functions
         async function connectContracts() {
             const contractAddress = document.getElementById('contractAddress').value.trim();
@@ -4767,11 +4976,30 @@ async function updateWalletStatus() {
             roleElement.innerHTML = '<span class="badge badge-secondary">None</span>';
         }
         
-        // Check fee exemption
-        const isFeeExempt = await legalContract.feeExemptions(address).call();
+        // Check fee exemptions
+        let isServiceFeeExempt = false;
+        let isFullFeeExempt = false;
+        
+        try {
+            // Check for service fee exemption
+            if (legalContract.serviceFeeExemptions) {
+                isServiceFeeExempt = await legalContract.serviceFeeExemptions(address).call();
+            }
+            // Check for full fee exemption
+            if (legalContract.fullFeeExemptions) {
+                isFullFeeExempt = await legalContract.fullFeeExemptions(address).call();
+            }
+        } catch (e) {
+            // Fallback to old contract method
+            const isFeeExempt = await legalContract.feeExemptions(address).call();
+            isFullFeeExempt = isFeeExempt;
+        }
+        
         const feeStatusElement = document.getElementById('feeExemptStatus');
-        if (isFeeExempt) {
-            feeStatusElement.innerHTML = '<span class="badge badge-success">Fee Exempt</span>';
+        if (isFullFeeExempt) {
+            feeStatusElement.innerHTML = '<span class="badge badge-success">Full Exempt</span>';
+        } else if (isServiceFeeExempt) {
+            feeStatusElement.innerHTML = '<span class="badge badge-primary">Service Fee Exempt</span>';
         } else {
             feeStatusElement.innerHTML = '<span class="badge badge-warning">Not Exempt</span>';
         }
