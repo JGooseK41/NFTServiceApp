@@ -1,0 +1,22 @@
+<!-- Add this script right before the closing </body> tag to fix the loader issue -->
+<script>
+// Fallback to ensure loader is hidden even if there's an error
+window.addEventListener('load', function() {
+    setTimeout(function() {
+        const loader = document.getElementById('loader');
+        if (loader && loader.style.display !== 'none') {
+            console.log('Force hiding loader');
+            loader.style.display = 'none';
+        }
+    }, 2000); // Hide after 2 seconds max
+});
+
+// Also add error handling
+window.addEventListener('error', function(e) {
+    console.error('Page error:', e);
+    const loader = document.getElementById('loader');
+    if (loader) {
+        loader.style.display = 'none';
+    }
+});
+</script>

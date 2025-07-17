@@ -20,11 +20,15 @@ class DocumentConverter {
         if (typeof pdfjsLib !== 'undefined') {
             this.pdfjs = pdfjsLib;
             this.pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            console.log('PDF.js initialized');
+        } else {
+            console.error('PDF.js library not loaded');
         }
         
         // Load Mammoth for Word docs
         if (typeof mammoth !== 'undefined') {
             this.mammoth = mammoth;
+            console.log('Mammoth.js initialized');
         }
         
         this.initialized = true;
@@ -60,32 +64,43 @@ class DocumentConverter {
      */
     async convertPDF(file) {
         if (!this.pdfjs) {
-            throw new Error('PDF.js not loaded');
+            throw new Error('PDF.js not loaded. Please refresh the page and try again.');
         }
         
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await this.pdfjs.getDocument(arrayBuffer).promise;
+        console.log('Converting PDF:', file.name, 'Size:', file.size);
         
-        // Generate preview from first page
-        const previewImage = await this.generatePDFPreview(pdf, 1);
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            console.log('ArrayBuffer created, size:', arrayBuffer.byteLength);
+            
+            const loadingTask = this.pdfjs.getDocument(arrayBuffer);
+            const pdf = await loadingTask.promise;
+            console.log('PDF loaded, pages:', pdf.numPages);
         
-        // Convert all pages to images for full document
-        const fullPages = [];
-        for (let i = 1; i <= pdf.numPages; i++) {
-            const pageImage = await this.renderPDFPage(pdf, i, 1200); // Higher res for full doc
-            fullPages.push(pageImage);
+            // Generate preview from first page
+            const previewImage = await this.generatePDFPreview(pdf, 1);
+            
+            // Convert all pages to images for full document
+            const fullPages = [];
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const pageImage = await this.renderPDFPage(pdf, i, 1200); // Higher res for full doc
+                fullPages.push(pageImage);
+            }
+            
+            // Create a combined image or PDF for IPFS
+            const fullDocument = await this.combinePagesToDocument(fullPages, 'pdf');
+            
+            return {
+                preview: previewImage,
+                fullDocument: fullDocument,
+                documentHash: await this.hashDocument(arrayBuffer),
+                pageCount: pdf.numPages,
+                fileType: 'pdf'
+            };
+        } catch (error) {
+            console.error('PDF conversion error:', error);
+            throw error;
         }
-        
-        // Create a combined image or PDF for IPFS
-        const fullDocument = await this.combinePagesToDocument(fullPages, 'pdf');
-        
-        return {
-            preview: previewImage,
-            fullDocument: fullDocument,
-            documentHash: await this.hashDocument(arrayBuffer),
-            pageCount: pdf.numPages,
-            fileType: 'pdf'
-        };
     }
     
     /**

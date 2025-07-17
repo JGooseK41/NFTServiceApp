@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PDF Debug Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body>
+    <h1>PDF Upload Debug Test</h1>
+    <input type="file" id="pdfFile" accept=".pdf">
+    <div id="output"></div>
+    
+    <script>
+    // Set worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    
+    document.getElementById('pdfFile').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        const output = document.getElementById('output');
+        
+        try {
+            output.innerHTML = 'Loading PDF...';
+            
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+            
+            output.innerHTML = `PDF loaded! Pages: ${pdf.numPages}`;
+            
+            // Try to render first page
+            const page = await pdf.getPage(1);
+            const viewport = page.getViewport({ scale: 1 });
+            
+            output.innerHTML += `<br>Page 1 dimensions: ${viewport.width} x ${viewport.height}`;
+            
+        } catch (error) {
+            output.innerHTML = `Error: ${error.message}<br>Stack: ${error.stack}`;
+            console.error('PDF Error:', error);
+        }
+    });
+    </script>
+</body>
+</html>

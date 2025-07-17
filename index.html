@@ -3153,6 +3153,7 @@ function useConnectedAddressForFeeCollector() {
             try {
                 // Initialize document converter
                 const converter = new DocumentConverter();
+                await converter.init();
                 
                 // Start processing
                 updateCompressionProgress(10, 'Reading file...');
@@ -3195,6 +3196,8 @@ function useConnectedAddressForFeeCollector() {
                         uiManager.showNotification('success', 'Document converted and ready for service');
                         
                     } catch (conversionError) {
+                        console.error('Document conversion error:', conversionError);
+                        console.error('Stack trace:', conversionError.stack);
                         throw new Error('Failed to convert document: ' + conversionError.message);
                     }
                 } else {
