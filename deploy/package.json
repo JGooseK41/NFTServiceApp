@@ -1,0 +1,16 @@
+{
+  "name": "legalnotice-deployment",
+  "version": "1.0.0",
+  "description": "Deployment scripts for LegalNotice NFT contracts",
+  "scripts": {
+    "deploy:nile": "TRON_NETWORK=nile node deploy-viewgated.js",
+    "deploy:mainnet": "TRON_NETWORK=mainnet node deploy-viewgated.js",
+    "compile": "node compile-contract.js"
+  },
+  "dependencies": {
+    "tronweb": "^5.3.0"
+  },
+  "devDependencies": {
+    "dotenv": "^16.0.3"
+  }
+}

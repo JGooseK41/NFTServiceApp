@@ -1324,6 +1324,351 @@
             margin-bottom: 1.5rem;
         }
 
+        /* Delivery Options Styles */
+        .delivery-options {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        
+        .delivery-option {
+            flex: 1;
+            min-width: 200px;
+            padding: 15px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            background: var(--card-bg);
+        }
+        
+        .delivery-option:hover {
+            border-color: var(--accent-blue);
+            background: var(--hover-bg);
+        }
+        
+        .delivery-option.selected {
+            border-color: var(--accent-blue);
+            background: rgba(14, 165, 233, 0.1);
+        }
+        
+        .delivery-option input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+        }
+        
+        .delivery-option-title {
+            font-weight: bold;
+            color: var(--text-primary);
+            margin-bottom: 5px;
+        }
+        
+        .delivery-option-cost {
+            color: var(--success);
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        
+        .delivery-option-desc {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+        }
+        
+        .text-notice-input {
+            display: none;
+            margin-top: 15px;
+        }
+        
+        .text-notice-input.active {
+            display: block;
+        }
+        
+        .text-notice-input label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        
+        .text-notice-input input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+            color: var(--text-primary);
+            border-radius: 8px;
+            font-size: 0.938rem;
+            transition: all 0.2s ease;
+        }
+
+        .text-notice-input input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+        }
+        
+        .text-notice-input .char-count {
+            text-align: right;
+            font-size: 0.85em;
+            color: var(--text-muted);
+            margin-top: 5px;
+        }
+
+        .text-notice-input .char-count.warning {
+            color: var(--warning);
+        }
+
+        .text-notice-input .char-count.error {
+            color: var(--error);
+        }
+
+        /* Delivery Status Styles */
+        .delivery-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .delivery-status.pending {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+        
+        .delivery-status.delivered {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        
+        .delivery-item {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.2s ease;
+        }
+        
+        .delivery-item:hover {
+            border-color: var(--accent-blue);
+            transform: translateY(-1px);
+        }
+        
+        .delivery-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        
+        .delivery-item-id {
+            font-family: monospace;
+            color: var(--accent-blue);
+            font-size: 0.875rem;
+        }
+        
+        .delivery-item-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.75rem;
+            font-size: 0.875rem;
+        }
+        
+        .delivery-detail {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .delivery-detail-label {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+        
+        .delivery-detail-value {
+            color: var(--text-primary);
+        }
+        
+        .delivery-timeline {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .timeline-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .timeline-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+        }
+        
+        .timeline-icon.sent {
+            background: var(--accent-blue);
+            color: white;
+        }
+        
+        .timeline-icon.delivered {
+            background: var(--success);
+            color: white;
+        }
+        
+        .timeline-icon.pending {
+            background: var(--gray-700);
+            color: var(--text-muted);
+        }
+        
+        /* FAQ Styles */
+        .process-steps {
+            margin: 20px 0;
+        }
+        
+        .step {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 25px;
+            padding-bottom: 25px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .step:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .step-number {
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            background: var(--accent-blue);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        
+        .step-content {
+            flex: 1;
+        }
+        
+        .step-content strong {
+            display: block;
+            margin-bottom: 10px;
+            color: var(--text-primary);
+            font-size: 1.1em;
+        }
+        
+        .example-notice {
+            background: var(--card-bg);
+            border: 2px solid var(--accent-blue);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+        
+        .recipient-journey h5 {
+            color: var(--accent-blue);
+            margin: 20px 0 10px 0;
+        }
+        
+        .fee-table {
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+        
+        .fee-table table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--card-bg);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .fee-table th {
+            background: var(--primary-navy);
+            color: var(--text-primary);
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        .fee-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .fee-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .fee-table tr:hover {
+            background: var(--hover-bg);
+        }
+        
+        .workflow-guide h5 {
+            color: var(--accent-blue);
+            margin: 25px 0 15px 0;
+        }
+        
+        .workflow-guide ol {
+            padding-left: 20px;
+        }
+        
+        .workflow-guide ol li {
+            margin-bottom: 10px;
+        }
+        
+        .best-practices h5 {
+            color: var(--accent-blue);
+            margin: 20px 0 15px 0;
+        }
+        
+        .technical-info h5 {
+            color: var(--accent-blue);
+            margin: 20px 0 15px 0;
+        }
+        
+        .warning-box {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            display: flex;
+            gap: 15px;
+            align-items: start;
+        }
+        
+        .warning-box i {
+            color: var(--error);
+            font-size: 1.2em;
+            flex-shrink: 0;
+        }
+
         /* Animations */
         @keyframes spin {
             to { transform: rotate(360deg); }
@@ -1937,6 +2282,10 @@
                 <i class="fas fa-user"></i> Process Server
                 <span class="badge" id="userBadge" style="display: none;">0</span>
             </button>
+            <button class="tab-button" onclick="switchTab('delivery')">
+                <i class="fas fa-truck"></i> Delivery Status
+                <span class="badge" id="deliveryBadge" style="display: none;">0</span>
+            </button>
             <button class="tab-button" onclick="switchTab('admin')">
                 <i class="fas fa-user-shield"></i> Admin Panel
             </button>
@@ -2072,6 +2421,62 @@
                         <i class="fas fa-clipboard"></i>
                         <h3>No recent activity</h3>
                         <p>Your recent transactions will appear here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delivery Status Tab -->
+        <div id="deliveryTab" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-truck"></i> Delivery Tracking Dashboard</h2>
+                    <button class="btn btn-icon" onclick="refreshDeliveryStatus()" title="Refresh">
+                        <i class="fas fa-sync"></i>
+                    </button>
+                </div>
+                
+                <!-- Delivery Stats Overview -->
+                <div class="stats-section" style="margin-bottom: 2rem;">
+                    <div class="stat-card">
+                        <i class="fas fa-paper-plane"></i>
+                        <div class="stat-value" id="totalSentNotices">0</div>
+                        <div class="stat-label">Notices Sent</div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-check-double"></i>
+                        <div class="stat-value" id="deliveredNotices">0</div>
+                        <div class="stat-label">Delivered</div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-hourglass-half"></i>
+                        <div class="stat-value" id="pendingDelivery">0</div>
+                        <div class="stat-label">Pending</div>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fas fa-percentage"></i>
+                        <div class="stat-value" id="deliveryRate">0%</div>
+                        <div class="stat-label">Delivery Rate</div>
+                    </div>
+                </div>
+                
+                <!-- Filter Options -->
+                <div class="form-group">
+                    <label class="form-label">Filter by Status</label>
+                    <select id="deliveryStatusFilter" onchange="filterDeliveryResults()" class="form-select">
+                        <option value="all">All Notices</option>
+                        <option value="pending">Pending Delivery</option>
+                        <option value="delivered">Delivered (Accepted)</option>
+                        <option value="recent">Last 7 Days</option>
+                    </select>
+                </div>
+                
+                <!-- Delivery Results -->
+                <div id="deliveryResults">
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <h3>No notices to track</h3>
+                        <p>Your sent notices will appear here</p>
                     </div>
                 </div>
             </div>
@@ -2271,51 +2676,314 @@
             <div class="faq-container">
                 <h2 style="margin-bottom: 2rem;"><i class="fas fa-question-circle"></i> Frequently Asked Questions</h2>
                 
-                <!-- Payment Structure Section -->
+                <!-- View-Gated Notice Process -->
                 <div class="faq-section">
                     <button class="faq-header active" onclick="toggleFAQ(this)">
                         <i class="fas fa-chevron-down"></i>
-                        <span>Understanding the Payment Structure</span>
+                        <span>How View-Gated Legal Notices Work</span>
                     </button>
                     <div class="faq-content" style="display: block;">
-                        <h4>Why are there fees?</h4>
-                        <p>The fee structure ensures the sustainability and reliability of the legal notice service:</p>
+                        <h4>What is a View-Gated Legal Notice?</h4>
+                        <p>A revolutionary approach to serving legal documents via blockchain that ensures certified delivery while protecting document privacy.</p>
                         
-                        <div class="fee-explanation">
-                            <div class="fee-item">
-                                <strong>Service Fee (20 TRX)</strong>
-                                <p>This is the platform's operational revenue that funds ongoing development, maintenance, and support. Law enforcement agencies can be exempted from this fee.</p>
+                        <div class="process-steps">
+                            <div class="step">
+                                <div class="step-number">1</div>
+                                <div class="step-content">
+                                    <strong>Process Server Creates Notice</strong>
+                                    <p>The server uploads the legal document (encrypted) and provides:</p>
+                                    <ul>
+                                        <li>Issuing agency (e.g., "U.S. Department of Justice")</li>
+                                        <li>Notice type (e.g., "Notice of Seizure")</li>
+                                        <li>Case number (e.g., "CV-2024-001234")</li>
+                                        <li>Specific details (e.g., "245,000 USDT")</li>
+                                        <li>Legal rights statement</li>
+                                    </ul>
+                                </div>
                             </div>
                             
-                            <div class="fee-item">
-                                <strong>Creation Fee (5-10 TRX)</strong>
-                                <p>Covers the blockchain transaction costs for creating and storing the notice on the TRON network. This ensures permanent, tamper-proof records.</p>
+                            <div class="step">
+                                <div class="step-number">2</div>
+                                <div class="step-content">
+                                    <strong>Recipient Receives Alert NFT</strong>
+                                    <p>An alert appears in their wallet showing:</p>
+                                    <div class="example-notice">
+                                        <strong>Notice of Seizure</strong><br>
+                                        U.S. Department of Justice Notice of Seizure - Case CV-2024-001234. 245,000 USDT. 
+                                        You have the right to contest this seizure. All fees have been paid. 
+                                        You can accept this notice with no charge. Instructions and documentation included.
+                                    </div>
+                                </div>
                             </div>
                             
-                            <div class="fee-item">
-                                <strong>Alert Fee (10 TRX)</strong>
-                                <p>Only charged when sending preview images. Storing images on-chain is expensive due to data size, but provides instant visual confirmation.</p>
+                            <div class="step">
+                                <div class="step-number">3</div>
+                                <div class="step-content">
+                                    <strong>Recipient Must Accept to View</strong>
+                                    <p>To access the full document, the recipient must:</p>
+                                    <ul>
+                                        <li>Sign a blockchain transaction (proves receipt)</li>
+                                        <li>No fees if server sponsored acceptance</li>
+                                        <li>Creates permanent proof of delivery</li>
+                                    </ul>
+                                </div>
                             </div>
                             
-                            <div class="fee-item">
-                                <strong>Sponsorship Fee (2 TRX)</strong>
-                                <p>This innovative fee stays in the smart contract to sponsor recipients' acceptance transactions. Recipients can acknowledge receipt without paying any fees.</p>
+                            <div class="step">
+                                <div class="step-number">4</div>
+                                <div class="step-content">
+                                    <strong>Document Access Granted</strong>
+                                    <p>After acceptance:</p>
+                                    <ul>
+                                        <li>Decryption key is revealed</li>
+                                        <li>Full document becomes viewable</li>
+                                        <li>Timestamp recorded on blockchain</li>
+                                        <li>Certified delivery is complete</li>
+                                    </ul>
+                                </div>
                             </div>
-                        </div>
-                        
-                        <div class="info-box">
-                            <i class="fas fa-lightbulb"></i>
-                            <p><strong>Why Sponsorship Matters:</strong> Traditional blockchain services require recipients to have cryptocurrency to interact. Our sponsorship system removes this barrier, making legal notices accessible to everyone.</p>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Delivery Options Section -->
+                <!-- Recipient's Perspective -->
                 <div class="faq-section">
                     <button class="faq-header" onclick="toggleFAQ(this)">
                         <i class="fas fa-chevron-right"></i>
-                        <span>Delivery Options Explained</span>
+                        <span>Recipient's Experience</span>
                     </button>
+                    <div class="faq-content">
+                        <h4>What Recipients See and Do</h4>
+                        
+                        <div class="recipient-journey">
+                            <h5>1. Initial Alert in Wallet</h5>
+                            <p>Recipients see a new NFT in their wallet with complete information about the legal notice. The title clearly states the notice type, and the description includes all essential details.</p>
+                            
+                            <h5>2. No Crypto Knowledge Required</h5>
+                            <p>The alert works in ANY wallet that supports NFTs. Recipients don't need to understand blockchain - they just see they've received an important legal document.</p>
+                            
+                            <h5>3. Free to Accept (When Sponsored)</h5>
+                            <p>If the server paid sponsorship fees, recipients can accept without any blockchain fees. They simply approve the transaction with no cost.</p>
+                            
+                            <h5>4. Privacy Protected</h5>
+                            <p>The document remains encrypted until accepted. Only the recipient can decrypt and view the full contents after acceptance.</p>
+                            
+                            <h5>5. Permanent Record</h5>
+                            <p>Once accepted, both parties have permanent blockchain proof of delivery with exact timestamp.</p>
+                        </div>
+                        
+                        <div class="warning-box">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p><strong>Important:</strong> Recipients should only accept notices from verified sources. The blockchain ensures authenticity but recipients should verify the serving party's identity.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Fee Structure -->
+                <div class="faq-section">
+                    <button class="faq-header" onclick="toggleFAQ(this)">
+                        <i class="fas fa-chevron-right"></i>
+                        <span>Fee Structure Breakdown</span>
+                    </button>
+                    <div class="faq-content">
+                        <h4>Understanding the Costs</h4>
+                        
+                        <div class="fee-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Delivery Method</th>
+                                        <th>Base Fee</th>
+                                        <th>Sponsorship</th>
+                                        <th>Total</th>
+                                        <th>Best For</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>View-Gated Notice</strong></td>
+                                        <td>20 TRX</td>
+                                        <td>+2 TRX (optional)</td>
+                                        <td>20-22 TRX</td>
+                                        <td>Legal compliance, certified delivery</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Simple Text</td>
+                                        <td>15 TRX</td>
+                                        <td>N/A</td>
+                                        <td>15 TRX</td>
+                                        <td>Basic notifications</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Image Preview</td>
+                                        <td>55 TRX</td>
+                                        <td>N/A</td>
+                                        <td>55 TRX</td>
+                                        <td>Visual confirmation</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <h5>Why View-Gated Costs More Than Text:</h5>
+                        <ul>
+                            <li>Stores comprehensive metadata on-chain</li>
+                            <li>Implements access control logic</li>
+                            <li>Tracks acceptance status</li>
+                            <li>Provides certified delivery proof</li>
+                        </ul>
+                        
+                        <h5>Sponsorship Fee Benefits:</h5>
+                        <ul>
+                            <li>Recipients accept with zero fees</li>
+                            <li>Removes barriers for non-crypto users</li>
+                            <li>Ensures delivery completion</li>
+                            <li>Only 2 TRX extra per notice</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Workflow Guide -->
+                <div class="faq-section">
+                    <button class="faq-header" onclick="toggleFAQ(this)">
+                        <i class="fas fa-chevron-right"></i>
+                        <span>Step-by-Step Workflow Guide</span>
+                    </button>
+                    <div class="faq-content">
+                        <h4>Complete Process for Serving Legal Notices</h4>
+                        
+                        <div class="workflow-guide">
+                            <h5>Before You Start:</h5>
+                            <ul>
+                                <li>Ensure you have the recipient's wallet address</li>
+                                <li>Have your legal document ready (PDF, DOC, or images)</li>
+                                <li>Prepare case information (agency, case number, etc.)</li>
+                                <li>Have sufficient TRX in your wallet (22 TRX recommended)</li>
+                            </ul>
+                            
+                            <h5>Step 1: Connect Your Wallet</h5>
+                            <ol>
+                                <li>Click "Connect Wallet" in the top right</li>
+                                <li>Select TRON network</li>
+                                <li>Approve connection in your wallet</li>
+                            </ol>
+                            
+                            <h5>Step 2: Create Legal Notice</h5>
+                            <ol>
+                                <li>Click "Create Legal Notice" button</li>
+                                <li>Upload your legal document</li>
+                                <li>Enter recipient's wallet address</li>
+                                <li>Select "View-Gated Notice" as delivery method</li>
+                                <li>Fill in notice details:
+                                    <ul>
+                                        <li>Select or enter notice type</li>
+                                        <li>Enter issuing agency name</li>
+                                        <li>Provide case number</li>
+                                        <li>Add specific details (amounts, property, etc.)</li>
+                                        <li>Review legal rights statement</li>
+                                    </ul>
+                                </li>
+                                <li>Check "Pay Recipient's Acceptance Fees" (recommended)</li>
+                                <li>Review total cost (typically 22 TRX)</li>
+                                <li>Click "Create Notice" and confirm transaction</li>
+                            </ol>
+                            
+                            <h5>Step 3: Track Delivery</h5>
+                            <ol>
+                                <li>Go to "Delivery Status" tab</li>
+                                <li>Find your notice in the list</li>
+                                <li>Monitor status (Pending → Delivered)</li>
+                                <li>View acceptance timestamp when complete</li>
+                            </ol>
+                            
+                            <h5>Step 4: Obtain Proof</h5>
+                            <ul>
+                                <li>Transaction hash serves as proof of service</li>
+                                <li>Acceptance transaction provides proof of delivery</li>
+                                <li>All records are permanently stored on blockchain</li>
+                                <li>Export delivery certificate for court filing</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Best Practices -->
+                <div class="faq-section">
+                    <button class="faq-header" onclick="toggleFAQ(this)">
+                        <i class="fas fa-chevron-right"></i>
+                        <span>Best Practices & Tips</span>
+                    </button>
+                    <div class="faq-content">
+                        <h4>Maximizing Success with Blockchain Service</h4>
+                        
+                        <div class="best-practices">
+                            <h5>For Process Servers:</h5>
+                            <ul>
+                                <li><strong>Always sponsor acceptance fees</strong> - This ensures recipients can accept without barriers</li>
+                                <li><strong>Use descriptive case details</strong> - Help recipients understand the notice importance</li>
+                                <li><strong>Include clear legal rights</strong> - Inform recipients of their options</li>
+                                <li><strong>Verify wallet addresses</strong> - Double-check before sending (transactions are irreversible)</li>
+                                <li><strong>Document everything</strong> - Keep records of wallet ownership verification</li>
+                            </ul>
+                            
+                            <h5>For Law Enforcement:</h5>
+                            <ul>
+                                <li><strong>Request fee exemption</strong> - Contact admin for service fee waiver</li>
+                                <li><strong>Use official agency names</strong> - Ensure proper identification</li>
+                                <li><strong>Include badge/case numbers</strong> - Provide verifiable references</li>
+                                <li><strong>Consider bulk operations</strong> - Plan multiple notices together</li>
+                            </ul>
+                            
+                            <h5>Common Mistakes to Avoid:</h5>
+                            <ul>
+                                <li>❌ Sending to wrong wallet address</li>
+                                <li>❌ Forgetting to sponsor acceptance fees</li>
+                                <li>❌ Using vague descriptions</li>
+                                <li>❌ Not including case numbers</li>
+                                <li>❌ Uploading unencrypted sensitive documents</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Technical Details -->
+                <div class="faq-section">
+                    <button class="faq-header" onclick="toggleFAQ(this)">
+                        <i class="fas fa-chevron-right"></i>
+                        <span>Technical Information</span>
+                    </button>
+                    <div class="faq-content">
+                        <h4>How It Works Under the Hood</h4>
+                        
+                        <div class="technical-info">
+                            <h5>Blockchain Technology:</h5>
+                            <ul>
+                                <li>Built on TRON blockchain for low fees and fast transactions</li>
+                                <li>Uses TRC-721 NFT standard for maximum wallet compatibility</li>
+                                <li>Documents stored on IPFS (InterPlanetary File System)</li>
+                                <li>Smart contracts ensure tamper-proof records</li>
+                            </ul>
+                            
+                            <h5>Security Features:</h5>
+                            <ul>
+                                <li>Documents encrypted before upload</li>
+                                <li>Decryption keys revealed only after acceptance</li>
+                                <li>Cryptographic proof of delivery</li>
+                                <li>Immutable audit trail</li>
+                                <li>No central point of failure</li>
+                            </ul>
+                            
+                            <h5>Legal Validity:</h5>
+                            <ul>
+                                <li>Blockchain records are increasingly recognized in courts</li>
+                                <li>Provides stronger proof than traditional methods</li>
+                                <li>Timestamp accuracy to the second</li>
+                                <li>Cannot be altered or deleted</li>
+                                <li>Global accessibility</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
                     <div class="faq-content">
                         <h4>What are the different delivery options?</h4>
                         
@@ -2775,12 +3443,133 @@
                                 </select>
                             </div>
                             
+                            <!-- Delivery Method Selection -->
+                            <div class="form-group">
+                                <label class="form-label">Delivery Method</label>
+                                <div class="delivery-options">
+                                    <label class="delivery-option selected">
+                                        <input type="radio" name="deliveryMethod" value="viewgated" checked>
+                                        <div class="delivery-option-title">
+                                            <i class="fas fa-lock"></i> View-Gated Notice
+                                        </div>
+                                        <div class="delivery-option-cost">~20 TRX</div>
+                                        <div class="delivery-option-desc">
+                                            <strong>Recommended:</strong> Recipient must accept to view document
+                                            <br><small>✓ Maximum wallet compatibility</small>
+                                            <br><small>✓ Certified delivery proof</small>
+                                            <br><small>✓ Document remains private until accepted</small>
+                                        </div>
+                                    </label>
+                                    
+                                    <label class="delivery-option">
+                                        <input type="radio" name="deliveryMethod" value="text">
+                                        <div class="delivery-option-title">
+                                            <i class="fas fa-font"></i> Simple Text
+                                        </div>
+                                        <div class="delivery-option-cost">~15 TRX</div>
+                                        <div class="delivery-option-desc">Basic text notice - No view protection</div>
+                                    </label>
+                                    
+                                    <label class="delivery-option">
+                                        <input type="radio" name="deliveryMethod" value="image">
+                                        <div class="delivery-option-title">
+                                            <i class="fas fa-image"></i> Direct Image
+                                        </div>
+                                        <div class="delivery-option-cost">~55 TRX</div>
+                                        <div class="delivery-option-desc">Immediate visibility - No acceptance required</div>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <!-- View-Gated Notice Details -->
+                            <div class="view-gated-details" id="viewGatedDetails" style="display: block;">
+                                <div class="form-group">
+                                    <label class="form-label">Notice Type</label>
+                                    <select id="noticeType" class="form-select" onchange="updateNoticeTemplate()">
+                                        <option value="Notice of Seizure">Notice of Seizure</option>
+                                        <option value="Summons">Summons</option>
+                                        <option value="Subpoena">Subpoena</option>
+                                        <option value="Restraining Order">Restraining Order</option>
+                                        <option value="Eviction Notice">Eviction Notice</option>
+                                        <option value="Legal Hold">Legal Hold</option>
+                                        <option value="Asset Freeze">Asset Freeze</option>
+                                        <option value="Custom" selected>Custom Notice</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group" id="customNoticeTypeGroup" style="display: block;">
+                                    <label class="form-label">Custom Notice Type</label>
+                                    <input type="text" id="customNoticeType" class="form-input" 
+                                           placeholder="e.g., Notice of Forfeiture" maxlength="50">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Issuing Agency</label>
+                                    <input type="text" id="issuingAgency" class="form-input" 
+                                           placeholder="e.g., U.S. Department of Justice, IRS, SEC" 
+                                           maxlength="100" required>
+                                    <p class="form-help">Government agency or court issuing this notice</p>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Case Number</label>
+                                    <input type="text" id="caseNumber" class="form-input" 
+                                           placeholder="e.g., CV-2024-001234 or 24-CR-5678" 
+                                           maxlength="50" required>
+                                    <p class="form-help">Official case or docket number</p>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Specific Details / Amount</label>
+                                    <input type="text" id="caseDetails" class="form-input" 
+                                           placeholder="e.g., 245,000 USDT or Property at 123 Main St" 
+                                           maxlength="100">
+                                    <p class="form-help">Amount seized, property address, or other specifics</p>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Legal Rights Statement</label>
+                                    <input type="text" id="legalRights" class="form-input" 
+                                           placeholder="e.g., You have a right to contest this seizure" 
+                                           maxlength="100"
+                                           value="You have the right to contest this action">
+                                    <p class="form-help">Inform recipient of their legal rights</p>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">
+                                        <input type="checkbox" id="sponsorAcceptanceFees" checked style="margin-right: 8px;">
+                                        Pay Recipient's Acceptance Fees (+2 TRX)
+                                    </label>
+                                    <p class="form-help">When checked, recipient can accept with no blockchain fees</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Simple Text Notice Input (hidden by default) -->
+                            <div class="text-notice-input" id="textNoticeGroup" style="display: none;">
+                                <label for="noticeText">Notice Text</label>
+                                <input type="text" class="form-input" id="noticeText" 
+                                       placeholder="Legal Notice: Case #CV-2024-001234"
+                                       maxlength="100">
+                                <div class="char-count"><span id="charCount">0</span> / 100 characters</div>
+                                <p class="form-help">This text will display directly in the recipient's wallet</p>
+                            </div>
+                            
                             <div class="alert alert-warning">
                                 <i class="fas fa-coins"></i>
                                 <div>
-                                    <strong>Fee Required:</strong> <span id="creationFeeDisplay">0.1 TRX</span>
-                                    <br><small>This fee covers blockchain transaction costs</small>
+                                    <strong>Estimated Fee:</strong> <span id="creationFeeDisplay">15 TRX</span>
+                                    <br><small id="feeDescription">Text notice with IPFS document reference</small>
                                 </div>
+                            </div>
+                            
+                            <!-- Delivery Confirmation Options -->
+                            <div class="form-group">
+                                <label class="form-label">
+                                    <input type="checkbox" id="requireDeliveryConfirmation" style="margin-right: 8px;">
+                                    Require Delivery Confirmation
+                                </label>
+                                <p class="form-help">When enabled, you'll receive on-chain proof when the recipient accepts the notice</p>
                             </div>
                         </div>
                     </div>
@@ -3461,7 +4250,7 @@ function useConnectedAddressForFeeCollector() {
 
         // Tab switching function
         function switchTab(tabName) {
-            const tabs = ['user', 'admin', 'help'];
+            const tabs = ['user', 'delivery', 'admin', 'help'];
             
             tabs.forEach(tab => {
                 const tabButton = document.querySelector(`[onclick="switchTab('${tab}')"]`);
@@ -3479,6 +4268,11 @@ function useConnectedAddressForFeeCollector() {
             // Check admin access when switching to admin tab
             if (tabName === 'admin') {
                 checkAdminAccess();
+            }
+            
+            // Load delivery status when switching to delivery tab
+            if (tabName === 'delivery') {
+                refreshDeliveryStatus();
             }
         }
 
@@ -4225,6 +5019,15 @@ function useConnectedAddressForFeeCollector() {
         function generateContentHash(data) {
             return tronWeb.sha3(data);
         }
+        
+        // Generate encryption key for view-gated notices
+        function generateEncryptionKey() {
+            // Generate a random encryption key
+            // In production, use proper cryptographic key generation
+            const array = new Uint8Array(32);
+            crypto.getRandomValues(array);
+            return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+        }
 
         // Create Legal Notice function
         async function createLegalNotice() {
@@ -4264,16 +5067,81 @@ function useConnectedAddressForFeeCollector() {
                 showProcessing('Preparing legal notice...');
                 console.log('Starting transaction process with uploadedImage size:', uploadedImage ? uploadedImage.length : 'null');
                 
-                // Generate a smaller preview image for the alert token
-                console.log('Generating thumbnail...');
-                const previewImage = await generateThumbnail(uploadedImage);
-                console.log('Thumbnail generated, size:', previewImage.length);
+                // Get delivery method
+                const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked').value;
+                
+                // Get view-gated notice details
+                let issuingAgency = '';
+                let noticeType = '';
+                let caseDetailsText = '';
+                let legalRights = '';
+                let sponsorFees = false;
+                let noticeText = '';
+                
+                if (deliveryMethod === 'viewgated') {
+                    // Get notice type
+                    const noticeTypeSelect = document.getElementById('noticeType').value;
+                    if (noticeTypeSelect === 'Custom') {
+                        noticeType = document.getElementById('customNoticeType').value.trim();
+                        if (!noticeType) {
+                            uiManager.showNotification('error', 'Custom notice type is required');
+                            createBtn.disabled = false;
+                            return;
+                        }
+                    } else {
+                        noticeType = noticeTypeSelect;
+                    }
+                    
+                    // Get other fields
+                    issuingAgency = document.getElementById('issuingAgency').value.trim();
+                    const caseNumberValue = document.getElementById('caseNumber').value.trim();
+                    caseDetailsText = document.getElementById('caseDetails').value.trim();
+                    legalRights = document.getElementById('legalRights').value.trim();
+                    sponsorFees = document.getElementById('sponsorAcceptanceFees').checked;
+                    
+                    // Validate required fields
+                    if (!issuingAgency) {
+                        uiManager.showNotification('error', 'Issuing agency is required');
+                        createBtn.disabled = false;
+                        return;
+                    }
+                    if (!caseNumberValue) {
+                        uiManager.showNotification('error', 'Case number is required');
+                        createBtn.disabled = false;
+                        return;
+                    }
+                    
+                    // Override caseNumber variable with the actual case number for view-gated
+                    caseNumber = caseNumberValue;
+                } else if (deliveryMethod === 'text') {
+                    noticeText = document.getElementById('noticeText').value.trim();
+                    if (!noticeText) {
+                        uiManager.showNotification('error', 'Notice text is required for text delivery method');
+                        createBtn.disabled = false;
+                        return;
+                    }
+                }
                 
                 // Upload the full-size document to IPFS
                 showProcessing('Uploading document to IPFS...');
                 console.log('Starting IPFS upload...');
                 const ipfsHash = await uploadToIPFS(uploadedImage);
                 console.log('IPFS upload complete, hash:', ipfsHash);
+                
+                // Prepare preview data based on delivery method
+                let previewData = '';
+                if (deliveryMethod === 'image') {
+                    // Generate a smaller preview image for the alert token
+                    console.log('Generating thumbnail...');
+                    previewData = await generateThumbnail(uploadedImage);
+                    console.log('Thumbnail generated, size:', previewData.length);
+                } else if (deliveryMethod === 'text') {
+                    // Use the notice text as preview
+                    previewData = noticeText;
+                } else {
+                    // Reference only - no preview data
+                    previewData = '';
+                }
                 
                 // Generate content hash
                 const contentHash = generateContentHash(ipfsHash + caseNumber);
@@ -4283,23 +5151,51 @@ function useConnectedAddressForFeeCollector() {
                 let tx;
                 
                 if (currentChainType === 'tron') {
-                    // Get fee in Sun
-                    const feeInSun = tronWeb.toSun(currentCreationFee);
-                    
-                    // Call the contract with both IPFS hash and base64 preview
-                    tx = await legalContract.createLegalNotice(
-                        recipient,
-                        ipfsHash,             // Full document on IPFS
-                        previewImage,         // Base64 preview for the alert
-                        contentHash,
-                        caseNumber,
-                        jurisdictionIndex,
-                        documentType
-                    ).send({
-                        feeLimit: 50_000_000, // 50 TRX max
-                        callValue: feeInSun,
-                        shouldPollResponse: true
-                    });
+                    if (deliveryMethod === 'viewgated') {
+                        // Calculate fee including sponsorship if selected
+                        let totalFee = 20; // Base fee
+                        if (sponsorFees) totalFee += 2; // Sponsorship fee
+                        const feeInSun = tronWeb.toSun(totalFee);
+                        
+                        // For view-gated, we need to encrypt the document first
+                        // In production, use proper encryption
+                        const encryptionKey = generateEncryptionKey();
+                        const encryptedIPFS = ipfsHash; // In production, encrypt before upload
+                        
+                        // Call the view-gated contract
+                        tx = await legalContract.serveNotice(
+                            recipient,
+                            encryptedIPFS,
+                            encryptionKey,
+                            issuingAgency,
+                            noticeType,
+                            caseNumber,
+                            caseDetailsText,
+                            legalRights || 'You have the right to respond to this legal notice',
+                            sponsorFees
+                        ).send({
+                            feeLimit: 100_000_000, // 100 TRX max for view-gated
+                            callValue: feeInSun,
+                            shouldPollResponse: true
+                        });
+                    } else {
+                        // Original contract call for other methods
+                        const feeInSun = tronWeb.toSun(currentCreationFee);
+                        
+                        tx = await legalContract.createLegalNotice(
+                            recipient,
+                            ipfsHash,
+                            previewData,
+                            contentHash,
+                            caseNumber,
+                            jurisdictionIndex,
+                            documentType
+                        ).send({
+                            feeLimit: 50_000_000,
+                            callValue: feeInSun,
+                            shouldPollResponse: true
+                        });
+                    }
                 } else {
                     // EVM chains
                     const accounts = await web3Instance.eth.getAccounts();
@@ -4309,7 +5205,7 @@ function useConnectedAddressForFeeCollector() {
                     const gasEstimate = await legalContract.methods.createLegalNotice(
                         recipient,
                         ipfsHash,
-                        previewImage,
+                        previewData,
                         contentHash,
                         caseNumber,
                         jurisdictionIndex,
@@ -4323,7 +5219,7 @@ function useConnectedAddressForFeeCollector() {
                     tx = await legalContract.methods.createLegalNotice(
                         recipient,
                         ipfsHash,
-                        previewImage,
+                        previewData,
                         contentHash,
                         caseNumber,
                         jurisdictionIndex,
@@ -4855,6 +5751,196 @@ function useConnectedAddressForFeeCollector() {
                 console.error('Error getting notice details:', error);
                 return null;
             }
+        }
+        
+        // Delivery tracking functions
+        async function refreshDeliveryStatus() {
+            if (!legalContract || !tronWeb || !tronWeb.defaultAddress.base58) {
+                document.getElementById('deliveryResults').innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-wallet"></i>
+                        <h3>Connect wallet to view delivery status</h3>
+                    </div>
+                `;
+                return;
+            }
+            
+            try {
+                // Get all notices sent by the current user
+                const sentNotices = await getSentNotices();
+                
+                // Calculate statistics
+                const totalSent = sentNotices.length;
+                const delivered = sentNotices.filter(n => n.status == 2).length; // Status 2 = accepted
+                const pending = sentNotices.filter(n => n.status == 0).length;
+                const deliveryRate = totalSent > 0 ? Math.round((delivered / totalSent) * 100) : 0;
+                
+                // Update stats display
+                document.getElementById('totalSentNotices').textContent = totalSent;
+                document.getElementById('deliveredNotices').textContent = delivered;
+                document.getElementById('pendingDelivery').textContent = pending;
+                document.getElementById('deliveryRate').textContent = deliveryRate + '%';
+                
+                // Update delivery badge
+                const badge = document.getElementById('deliveryBadge');
+                if (pending > 0) {
+                    badge.textContent = pending;
+                    badge.style.display = 'inline-block';
+                } else {
+                    badge.style.display = 'none';
+                }
+                
+                // Display notices
+                displayDeliveryResults(sentNotices);
+                
+            } catch (error) {
+                console.error('Error refreshing delivery status:', error);
+                uiManager.showNotification('error', 'Failed to load delivery status');
+            }
+        }
+        
+        async function getSentNotices() {
+            try {
+                // Get all LegalNoticeCreated events where the server is the current user
+                const events = await legalContract.getPastEvents('LegalNoticeCreated', {
+                    filter: { server: tronWeb.defaultAddress.base58 },
+                    fromBlock: 0,
+                    toBlock: 'latest'
+                });
+                
+                const notices = [];
+                for (const event of events) {
+                    const noticeId = event.returnValues.noticeId;
+                    const details = await getNoticeDetails(noticeId);
+                    if (details && details.server === tronWeb.defaultAddress.base58) {
+                        notices.push(details);
+                    }
+                }
+                
+                // Sort by timestamp (newest first)
+                notices.sort((a, b) => b.timestamp - a.timestamp);
+                
+                return notices;
+            } catch (error) {
+                console.error('Error getting sent notices:', error);
+                return [];
+            }
+        }
+        
+        function displayDeliveryResults(notices) {
+            const resultsDiv = document.getElementById('deliveryResults');
+            const filter = document.getElementById('deliveryStatusFilter').value;
+            
+            // Apply filter
+            let filteredNotices = notices;
+            if (filter === 'pending') {
+                filteredNotices = notices.filter(n => n.status == 0);
+            } else if (filter === 'delivered') {
+                filteredNotices = notices.filter(n => n.status == 2);
+            } else if (filter === 'recent') {
+                const sevenDaysAgo = Date.now() / 1000 - (7 * 24 * 60 * 60);
+                filteredNotices = notices.filter(n => n.timestamp > sevenDaysAgo);
+            }
+            
+            if (filteredNotices.length === 0) {
+                resultsDiv.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-search"></i>
+                        <h3>No notices found</h3>
+                        <p>Try adjusting your filter criteria</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            resultsDiv.innerHTML = filteredNotices.map(notice => {
+                const isDelivered = notice.status == 2;
+                const statusClass = isDelivered ? 'delivered' : 'pending';
+                const statusText = isDelivered ? 'Delivered' : 'Pending';
+                const statusIcon = isDelivered ? 'check-double' : 'hourglass-half';
+                
+                const sentDate = new Date(parseInt(notice.timestamp) * 1000);
+                const daysSince = Math.floor((Date.now() - sentDate) / (1000 * 60 * 60 * 24));
+                
+                return `
+                    <div class="delivery-item">
+                        <div class="delivery-item-header">
+                            <span class="delivery-item-id">Notice #${notice.id}</span>
+                            <span class="delivery-status ${statusClass}">
+                                <i class="fas fa-${statusIcon}"></i>
+                                ${statusText}
+                            </span>
+                        </div>
+                        
+                        <div class="delivery-item-details">
+                            <div class="delivery-detail">
+                                <span class="delivery-detail-label">Recipient</span>
+                                <span class="delivery-detail-value">${createAddressDisplay(notice.recipient)}</span>
+                            </div>
+                            <div class="delivery-detail">
+                                <span class="delivery-detail-label">Document Type</span>
+                                <span class="delivery-detail-value">${getDocumentTypeString(notice.documentType)}</span>
+                            </div>
+                            <div class="delivery-detail">
+                                <span class="delivery-detail-label">Sent</span>
+                                <span class="delivery-detail-value">${sentDate.toLocaleDateString()} (${daysSince} days ago)</span>
+                            </div>
+                            <div class="delivery-detail">
+                                <span class="delivery-detail-label">Case #</span>
+                                <span class="delivery-detail-value">${notice.caseNumberHash || 'N/A'}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="delivery-timeline">
+                            <div class="timeline-item">
+                                <div class="timeline-icon sent">
+                                    <i class="fas fa-paper-plane"></i>
+                                </div>
+                                <span>Notice sent on ${sentDate.toLocaleString()}</span>
+                            </div>
+                            ${isDelivered ? `
+                                <div class="timeline-item">
+                                    <div class="timeline-icon delivered">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                    <span>Notice accepted by recipient</span>
+                                </div>
+                            ` : `
+                                <div class="timeline-item">
+                                    <div class="timeline-icon pending">
+                                        <i class="fas fa-clock"></i>
+                                    </div>
+                                    <span>Awaiting recipient acceptance</span>
+                                </div>
+                            `}
+                        </div>
+                        
+                        <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                            <button class="btn btn-secondary" onclick="viewOnIPFS('${notice.ipfsHash}')">
+                                <i class="fas fa-external-link-alt"></i> View Document
+                            </button>
+                            <button class="btn btn-secondary" onclick="viewOnTronscan('${notice.id}')">
+                                <i class="fas fa-link"></i> View on Explorer
+                            </button>
+                            ${!isDelivered ? `
+                                <button class="btn btn-primary" onclick="sendDeliveryReminder('${notice.id}')">
+                                    <i class="fas fa-bell"></i> Send Reminder
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function filterDeliveryResults() {
+            refreshDeliveryStatus();
+        }
+        
+        function sendDeliveryReminder(noticeId) {
+            // This could be implemented to send off-chain reminders
+            // For now, just show a message
+            uiManager.showNotification('info', 'Reminder feature coming soon');
         }
 
         async function getAlertDetails(alertId) {
@@ -5953,6 +7039,137 @@ if (recipientInput) {
     recipientInput.addEventListener('input', validateRecipientAddress);
 }
 
+// Setup delivery method selection
+const deliveryOptions = document.querySelectorAll('input[name="deliveryMethod"]');
+const textNoticeGroup = document.getElementById('textNoticeGroup');
+const noticeTextInput = document.getElementById('noticeText');
+const charCountSpan = document.getElementById('charCount');
+
+deliveryOptions.forEach(option => {
+    option.addEventListener('change', function() {
+        // Update selected class
+        document.querySelectorAll('.delivery-option').forEach(label => {
+            label.classList.remove('selected');
+        });
+        this.closest('.delivery-option').classList.add('selected');
+        
+        // Show/hide form sections based on selection
+        const viewGatedDetails = document.getElementById('viewGatedDetails');
+        
+        if (this.value === 'viewgated') {
+            viewGatedDetails.style.display = 'block';
+            textNoticeGroup.style.display = 'none';
+        } else if (this.value === 'text') {
+            viewGatedDetails.style.display = 'none';
+            textNoticeGroup.style.display = 'block';
+            textNoticeGroup.classList.add('active');
+        } else {
+            viewGatedDetails.style.display = 'none';
+            textNoticeGroup.style.display = 'none';
+            textNoticeGroup.classList.remove('active');
+        }
+        
+        // Update fee estimate
+        updateFeeEstimate();
+    });
+});
+
+// Character counter for text notice
+if (noticeTextInput && charCountSpan) {
+    noticeTextInput.addEventListener('input', function() {
+        const length = this.value.length;
+        charCountSpan.textContent = length;
+        
+        const charCountDiv = this.nextElementSibling;
+        if (length >= 90) {
+            charCountDiv.classList.add('error');
+            charCountDiv.classList.remove('warning');
+        } else if (length >= 70) {
+            charCountDiv.classList.add('warning');
+            charCountDiv.classList.remove('error');
+        } else {
+            charCountDiv.classList.remove('warning', 'error');
+        }
+    });
+}
+
+// Function to update fee estimate based on delivery method
+function updateFeeEstimate() {
+    const selectedMethod = document.querySelector('input[name="deliveryMethod"]:checked').value;
+    const feeDisplay = document.querySelector('#creationFeeDisplay');
+    const feeDescription = document.querySelector('#feeDescription');
+    const sponsorFees = document.getElementById('sponsorAcceptanceFees');
+    
+    if (feeDisplay) {
+        let baseFee = 20; // Base fee in TRX
+        let description = 'Document reference only';
+        
+        switch(selectedMethod) {
+            case 'viewgated':
+                baseFee = 20;
+                description = 'View-gated notice with certified delivery';
+                break;
+            case 'text':
+                baseFee = 15;
+                description = 'Text notice with IPFS document reference';
+                break;
+            case 'image':
+                baseFee = 55;
+                description = 'Visual preview with IPFS document';
+                break;
+            case 'reference':
+                baseFee = 5;
+                description = 'IPFS document reference only';
+                break;
+        }
+        
+        // Add sponsorship fee if checked
+        let totalFee = baseFee;
+        if (selectedMethod === 'viewgated' && sponsorFees && sponsorFees.checked) {
+            totalFee += 2;
+            description += ' (fees sponsored)';
+        }
+        
+        feeDisplay.textContent = totalFee + ' TRX';
+        if (feeDescription) {
+            feeDescription.textContent = description;
+        }
+    }
+}
+
+// Update notice template based on type selection
+function updateNoticeTemplate() {
+    const noticeType = document.getElementById('noticeType').value;
+    const customGroup = document.getElementById('customNoticeTypeGroup');
+    const legalRights = document.getElementById('legalRights');
+    
+    // Show/hide custom notice type input
+    if (noticeType === 'Custom') {
+        customGroup.style.display = 'block';
+    } else {
+        customGroup.style.display = 'none';
+    }
+    
+    // Update legal rights template based on notice type
+    const rightsTemplates = {
+        'Notice of Seizure': 'You have the right to contest this seizure',
+        'Summons': 'You must respond within the time specified or judgment may be entered against you',
+        'Subpoena': 'You are required to appear or produce documents as specified',
+        'Restraining Order': 'Violation of this order may result in arrest and prosecution',
+        'Eviction Notice': 'You have the right to contest this eviction in court',
+        'Legal Hold': 'You must preserve all relevant documents and data',
+        'Asset Freeze': 'You have the right to petition for release of frozen assets',
+        'Custom': 'You have the right to respond to this legal notice'
+    };
+    
+    if (rightsTemplates[noticeType]) {
+        legalRights.value = rightsTemplates[noticeType];
+    }
+}
+
+// Add event listener for sponsor fees checkbox
+document.getElementById('sponsorAcceptanceFees')?.addEventListener('change', updateFeeEstimate);
+
 // Initialize admin panel inputs properly
 setTimeout(() => {
     // Add role address validation
@@ -6117,6 +7334,10 @@ document.addEventListener('keydown', function(event) {
         window.viewOnIPFS = viewOnIPFS;
         window.grantRole = grantRole;
         window.checkRole = checkRole;
+        window.refreshDeliveryStatus = refreshDeliveryStatus;
+        window.filterDeliveryResults = filterDeliveryResults;
+        window.sendDeliveryReminder = sendDeliveryReminder;
+        window.updateNoticeTemplate = updateNoticeTemplate;
         window.updateFee = updateFee;
         window.updateFeeCollector = updateFeeCollector;
         async function withdrawFromContract() {

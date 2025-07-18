@@ -1,62 +1,81 @@
-# Legal Service NFT Platform
+# LegalNotice NFT - Blockchain Legal Document Service
 
-A blockchain-based legal document service platform that enables law enforcement to serve legal documents as NFTs with verifiable proof of delivery.
+A revolutionary blockchain-based system for serving legal documents with certified delivery proof. Features view-gated notices that display complete information while protecting document privacy until acceptance.
 
-## Features
+## 🚀 Key Features
 
-- 📄 **Document Conversion**: Supports PDF, Word, and image files
-- 🔐 **Dual NFT System**: Preview NFT for wallets + Full document NFT upon acceptance
-- 🌐 **Multi-chain Support**: TRON, Ethereum, Polygon, and BSC
-- ✅ **Proof of Service**: Blockchain-verified delivery and acceptance
-- 🖼️ **Readable Previews**: High-quality document previews visible in any wallet
+- 🔒 **View-Gated Notices**: Recipients see agency, case number, and details before accepting
+- 📄 **Multi-Format Support**: PDF, Word documents, and images with automatic conversion
+- ✅ **Certified Delivery**: Blockchain proof of service and acceptance with timestamps
+- 💰 **Zero Fees for Recipients**: Process servers can sponsor acceptance costs
+- 🌐 **Universal Wallet Support**: Works with any wallet supporting TRC-721 NFTs
+- 🔍 **Complete Tracking**: Real-time delivery status and audit trail
 
-## Live Demo
+## 🎯 Perfect For
 
-- Testnet: [Your Netlify URL]
-- Contract: [TKNNQhLqwE2k9botmQs2LuC3msno8YkLfY](https://nile.tronscan.org/#/contract/TKNNQhLqwE2k9botmQs2LuC3msno8YkLfY)
+- **Law Enforcement**: Serving seizure notices, subpoenas, and legal holds
+- **Courts**: Delivering summons and court orders
+- **Process Servers**: Certified service of legal documents
+- **Government Agencies**: Official notifications requiring proof of delivery
 
-## Technology Stack
+## 📸 How It Works
 
-- **Frontend**: HTML5, CSS3, JavaScript (Vanilla)
-- **Blockchain**: TRON (TRC-721), Web3.js for EVM chains
-- **Storage**: IPFS via Pinata
-- **Document Processing**: PDF.js, Mammoth.js, html2canvas
+### For Process Servers:
+1. **Upload Document** - PDF, Word, or image files
+2. **Enter Details** - Agency, case number, recipient info
+3. **Send Notice** - Pay ~22 TRX (includes recipient's fees)
+4. **Track Delivery** - Monitor acceptance status
 
-## Setup
+### For Recipients:
+1. **Receive Alert** - NFT appears in wallet with full details
+2. **Review Info** - See agency, case number, and rights
+3. **Accept Notice** - Sign transaction (free if sponsored)
+4. **Access Document** - View encrypted document
 
-1. Clone the repository
-2. Set up environment variables in Netlify:
-   - `PINATA_API_KEY`: Your Pinata API key
-   - `PINATA_SECRET_KEY`: Your Pinata secret key
+## 💰 Fee Structure
 
-3. Deploy to Netlify (automatic via GitHub integration)
+| Service | Cost | Purpose |
+|---------|------|---------|
+| Base Fee | 20 TRX | Contract execution |
+| Sponsorship | 2 TRX | Recipient's fees |
+| **Total** | **22 TRX** | Complete service |
 
-## Smart Contract
+## 🛠️ Technology Stack
 
-The platform uses a dual-NFT system:
-- **Service NFT**: Automatically sent to recipient's wallet with document preview
-- **Document NFT**: Full document access granted upon recipient acceptance
+- **Blockchain**: TRON (TRC-721 NFTs)
+- **Smart Contracts**: Solidity 0.8.6 with view-gating
+- **Storage**: IPFS (encrypted documents)
+- **Frontend**: Pure JavaScript, no frameworks
+- **Document Processing**: PDF.js, Mammoth.js
+- **Wallet Integration**: TronLink
 
-### Contract Addresses
+## 🚀 Quick Start
 
-- **TRON Nile Testnet**: `TKNNQhLqwE2k9botmQs2LuC3msno8YkLfY`
-- **TRON Mainnet**: Coming soon
-- **Ethereum**: Coming soon
-- **Polygon**: Coming soon
+### Deploy to Netlify
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/yourusername/NFTServiceApp)
 
-## Usage
+### Local Development
+```bash
+# Clone repository
+git clone https://github.com/yourusername/NFTServiceApp.git
+cd NFTServiceApp
 
-1. **For Law Enforcement**:
-   - Connect wallet (TronLink for TRON, MetaMask for EVM)
-   - Upload legal document (PDF/Word/Image)
-   - Enter recipient wallet address
-   - Submit to create service NFT
+# Run local server
+python3 -m http.server 8000
+# Visit http://localhost:8000
+```
 
-2. **For Recipients**:
-   - View service NFT in wallet
-   - Read document preview
-   - Accept service to receive full document
-   - Access complete document via IPFS
+## 📄 Smart Contract
+
+### Current Deployments
+- **TRON Nile Testnet**: `TNaps6xxSCuCvjxDyM2M5rhutuwq93xaLh` (Basic)
+- **TRON Mainnet**: [Deploy ViewGated contract]
+
+### Features
+- View-gated document access
+- Comprehensive metadata storage
+- Sponsorship mechanism
+- Certified delivery tracking
 
 ## Development
 
