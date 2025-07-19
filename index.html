@@ -2280,7 +2280,7 @@
 
         <!-- Stats Section -->
         <div id="statsContainer" style="display: none;">
-            <div class="stats-header" onclick="toggleStats()" style="cursor: pointer; padding: 1rem; background: var(--secondary-navy); border-radius: 8px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between;">
+            <div class="stats-header" id="statsHeader" style="cursor: pointer; padding: 1rem; background: var(--secondary-navy); border-radius: 8px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between;">
                 <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-primary);">
                     <i class="fas fa-chart-bar" style="margin-right: 0.5rem;"></i>
                     Dashboard Statistics
@@ -8036,6 +8036,12 @@ async function checkUserRoles() {
             // Initialize data from localStorage
             refreshPendingRegistrations();
             updateStatsFromLocalStorage();
+            
+            // Add click event listener to stats header
+            const statsHeader = document.getElementById('statsHeader');
+            if (statsHeader) {
+                statsHeader.addEventListener('click', toggleStats);
+            }
             
             // Check if TronWeb is available
             if (window.tronWeb && window.tronWeb.ready) {
