@@ -8467,13 +8467,33 @@ document.addEventListener('keydown', function(event) {
         
         async function fetchAllRegistrations() {
             const token = GITHUB_CONFIG.token;
+            const contentDiv = document.getElementById('allRegistrationsContent');
+            showProcessing('Loading registrations...');
+            
+            // Load from localStorage first
+            const localRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+            const localRegs = Object.entries(localRegistrations).map(([id, reg]) => ({
+                ...reg,
+                id,
+                _source: 'local'
+            }));
+            
             if (!token) {
-                uiManager.showNotification('error', 'Please configure GitHub token first');
+                // No GitHub token - show only local registrations
+                allRegistrations = localRegs;
+                hideProcessing();
+                displayAllRegistrations();
+                document.getElementById('exportBtn').style.display = 'inline-flex';
+                
+                if (allRegistrations.length === 0) {
+                    contentDiv.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><h3>No registrations found</h3><p>Registrations will appear here after approval</p></div>';
+                } else {
+                    uiManager.showNotification('info', 'Showing local registrations only. Configure GitHub token to sync with cloud.');
+                }
                 return;
             }
             
             showProcessing('Fetching registrations from GitHub...');
-            const contentDiv = document.getElementById('allRegistrationsContent');
             
             try {
                 // Fetch directory contents
@@ -8485,6 +8505,23 @@ document.addEventListener('keydown', function(event) {
                 });
                 
                 if (!response.ok) {
+                    if (response.status === 404) {
+                        // Folder doesn't exist yet - no registrations saved to GitHub
+                        console.log('Registrations folder not found on GitHub');
+                        
+                        // Show local registrations if any
+                        if (localRegs.length > 0) {
+                            allRegistrations = localRegs;
+                            hideProcessing();
+                            displayAllRegistrations();
+                            document.getElementById('exportBtn').style.display = 'inline-flex';
+                            uiManager.showNotification('info', 'No cloud registrations found. Showing local registrations only.');
+                        } else {
+                            contentDiv.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><h3>No registrations found</h3><p>Registrations will appear here after approval</p></div>';
+                            hideProcessing();
+                        }
+                        return;
+                    }
                     throw new Error(`GitHub API error: ${response.status}`);
                 }
                 
@@ -8524,6 +8561,11 @@ document.addEventListener('keydown', function(event) {
                     showProcessing(`Processing registrations... ${processed}/${encFiles.length}`);
                 }
                 
+                // Merge with local registrations (prefer GitHub version if duplicate)
+                const githubAddresses = new Set(allRegistrations.map(r => r.address || r.wallet));
+                const uniqueLocalRegs = localRegs.filter(r => !githubAddresses.has(r.address || r.wallet));
+                allRegistrations = [...allRegistrations, ...uniqueLocalRegs];
+                
                 hideProcessing();
                 displayAllRegistrations();
                 document.getElementById('exportBtn').style.display = 'inline-flex';
@@ -8531,7 +8573,16 @@ document.addEventListener('keydown', function(event) {
             } catch (error) {
                 hideProcessing();
                 console.error('Error fetching registrations:', error);
-                contentDiv.innerHTML = `<div class="error-state"><i class="fas fa-exclamation-triangle"></i><h3>Error loading registrations</h3><p>${error.message}</p></div>`;
+                
+                // Fall back to local registrations
+                if (localRegs.length > 0) {
+                    allRegistrations = localRegs;
+                    displayAllRegistrations();
+                    document.getElementById('exportBtn').style.display = 'inline-flex';
+                    uiManager.showNotification('warning', 'GitHub sync failed. Showing local registrations only.');
+                } else {
+                    contentDiv.innerHTML = `<div class="error-state"><i class="fas fa-exclamation-triangle"></i><h3>Error loading registrations</h3><p>${error.message}</p></div>`;
+                }
             }
         }
         
@@ -8582,6 +8633,7 @@ document.addEventListener('keydown', function(event) {
                             <span class="status-badge ${statusClass}">
                                 <i class="fas fa-${statusIcon}"></i> ${reg.status || 'pending'}
                             </span>
+                            ${reg._source === 'local' ? '<span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 0.5rem;" title="Stored locally only"><i class="fas fa-database"></i></span>' : ''}
                         </td>
                         <td style="padding: 1rem;">${new Date(reg.registeredAt || reg.timestamp).toLocaleDateString()}</td>
                         <td style="padding: 1rem;">
