@@ -2312,11 +2312,11 @@
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
                         <input type="text" class="form-input" id="contractAddress" 
                                placeholder="Enter contract address (e.g., TXxxx...)"
-                               value="TWdZdDUk3yW1KRUPxo4gHySDRjBjMPQJ3n" style="flex: 1;">
+                               value="TFVXBcEobgRvRj9PWqQNWJTeqN5GkLyAuW" style="flex: 1;">
                         <button class="btn btn-secondary" onclick="copyAddress(document.getElementById('contractAddress').value)" title="Copy address">
                             <i class="fas fa-copy"></i>
                         </button>
-                        <a href="https://nile.tronscan.org/#/contract/TWdZdDUk3yW1KRUPxo4gHySDRjBjMPQJ3n" target="_blank" class="btn btn-secondary" title="View on TronScan">
+                        <a href="https://nile.tronscan.org/#/contract/TFVXBcEobgRvRj9PWqQNWJTeqN5GkLyAuW" target="_blank" class="btn btn-secondary" title="View on TronScan">
                             <i class="fas fa-external-link-alt"></i>
                         </a>
                     </div>
@@ -3364,8 +3364,8 @@
         </div>
     </div>
 
-    <!-- Registration Modal -->
-    <div id="registrationModal" class="modal">
+    <!-- User Registration Modal -->
+    <div id="userRegistrationModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h3 class="modal-title">
@@ -3823,16 +3823,16 @@
         </div>
     </div>
 
-    <!-- Process Server Registration Modal -->
-    <div id="registrationModal" class="modal">
+    <!-- Admin Process Server Registration Modal -->
+    <div id="adminRegistrationModal" class="modal">
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">
                 <h2><i class="fas fa-user-tie"></i> Process Server Registration</h2>
-                <span class="close-btn" onclick="closeRegistrationModal()">&times;</span>
+                <span class="close-btn" onclick="closeAdminRegistrationModal()">&times;</span>
             </div>
             <div class="modal-body">
                 <p style="margin-bottom: 1.5rem;">Please provide your professional information to complete process server registration. 
-                <a href="#" onclick="closeRegistrationModal(); switchTab('help'); document.getElementById('faq-process-server').scrollIntoView();" style="color: var(--accent-blue);">
+                <a href="#" onclick="closeAdminRegistrationModal(); switchTab('help'); document.getElementById('faq-process-server').scrollIntoView();" style="color: var(--accent-blue);">
                     Learn more about being a process server →
                 </a></p>
                 
@@ -3874,7 +3874,7 @@
                 </div>
                 
                 <div style="margin-top: 1.5rem; display: flex; justify-content: space-between;">
-                    <button class="btn btn-secondary" onclick="closeRegistrationModal()">
+                    <button class="btn btn-secondary" onclick="closeAdminRegistrationModal()">
                         <i class="fas fa-times"></i>
                         Cancel
                     </button>
@@ -3951,7 +3951,7 @@
         let currentNoticeId = null;
         
         // Contract ABI - Updated to match deployed contract
-        const CONTRACT_ABI = [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"approved","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"operator","type":"address"},{"indexed":false,"internalType":"bool","name":"approved","type":"bool"}],"name":"ApprovalForAll","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"bool","name":"serviceFeeExempt","type":"bool"},{"indexed":false,"internalType":"bool","name":"fullFeeExempt","type":"bool"}],"name":"FeeExemptionSet","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"alertId","type":"uint256"},{"indexed":true,"internalType":"address","name":"recipient","type":"address"}],"name":"NoticeAcknowledged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"alertId","type":"uint256"},{"indexed":true,"internalType":"uint256","name":"documentId","type":"uint256"},{"indexed":true,"internalType":"address","name":"recipient","type":"address"}],"name":"NoticeServed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"energy","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"bandwidth","type":"uint256"}],"name":"ResourceSponsored","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"bytes32","name":"role","type":"bytes32"},{"indexed":true,"internalType":"address","name":"account","type":"address"}],"name":"RoleGranted","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"Transfer","type":"event"},{"inputs":[],"name":"ADMIN_ROLE","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"PROCESS_SERVER_ROLE","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"SERVICE_FEE","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"alertId","type":"uint256"}],"name":"acceptNotice","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"alertNotices","outputs":[{"internalType":"address","name":"recipient","type":"address"},{"internalType":"address","name":"sender","type":"address"},{"internalType":"uint256","name":"documentId","type":"uint256"},{"internalType":"uint256","name":"timestamp","type":"uint256"},{"internalType":"bool","name":"acknowledged","type":"bool"},{"internalType":"string","name":"issuingAgency","type":"string"},{"internalType":"string","name":"noticeType","type":"string"},{"internalType":"string","name":"caseNumber","type":"string"},{"internalType":"string","name":"caseDetails","type":"string"},{"internalType":"string","name":"legalRights","type":"string"},{"internalType":"uint256","name":"responseDeadline","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"approve","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"calculateFee","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"documentNotices","outputs":[{"internalType":"string","name":"encryptedIPFS","type":"string"},{"internalType":"string","name":"decryptionKey","type":"string"},{"internalType":"address","name":"authorizedViewer","type":"address"},{"internalType":"uint256","name":"alertId","type":"uint256"},{"internalType":"bool","name":"isRestricted","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"fullFeeExemptions","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"alertId","type":"uint256"}],"name":"getAlertDetails","outputs":[{"internalType":"address","name":"recipient","type":"address"},{"internalType":"address","name":"sender","type":"address"},{"internalType":"uint256","name":"documentId","type":"uint256"},{"internalType":"uint256","name":"timestamp","type":"uint256"},{"internalType":"bool","name":"acknowledged","type":"bool"},{"internalType":"string","name":"issuingAgency","type":"string"},{"internalType":"string","name":"noticeType","type":"string"},{"internalType":"string","name":"caseNumber","type":"string"},{"internalType":"string","name":"caseDetails","type":"string"},{"internalType":"string","name":"legalRights","type":"string"},{"internalType":"uint256","name":"responseDeadline","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"getApproved","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"recipient","type":"address"}],"name":"getRecipientAlerts","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"role","type":"bytes32"},{"internalType":"address","name":"account","type":"address"}],"name":"grantRole","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes32","name":"role","type":"bytes32"},{"internalType":"address","name":"account","type":"address"}],"name":"hasRole","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"operator","type":"address"}],"name":"isApprovedForAll","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"name","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"pure","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"}],"name":"recipientAlerts","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"role","type":"bytes32"},{"internalType":"address","name":"account","type":"address"}],"name":"revokeRole","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"bytes","name":"_data","type":"bytes"}],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"recipient","type":"address"},{"internalType":"string","name":"encryptedIPFS","type":"string"},{"internalType":"string","name":"decryptionKey","type":"string"},{"internalType":"string","name":"issuingAgency","type":"string"},{"internalType":"string","name":"noticeType","type":"string"},{"internalType":"string","name":"caseNumber","type":"string"},{"internalType":"string","name":"caseDetails","type":"string"},{"internalType":"string","name":"legalRights","type":"string"},{"internalType":"bool","name":"sponsorFees","type":"bool"}],"name":"serveNotice","outputs":[{"internalType":"uint256","name":"alertId","type":"uint256"},{"internalType":"uint256","name":"documentId","type":"uint256"}],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"serviceFeeExemptions","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"operator","type":"address"},{"internalType":"bool","name":"approved","type":"bool"}],"name":"setApprovalForAll","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"},{"internalType":"bool","name":"serviceFeeExempt","type":"bool"},{"internalType":"bool","name":"fullFeeExempt","type":"bool"}],"name":"setFeeExemption","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"sponsoredBandwidth","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"sponsoredEnergy","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes4","name":"interfaceId","type":"bytes4"}],"name":"supportsInterface","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"pure","type":"function"},{"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"pure","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"tokenTypes","outputs":[{"internalType":"enum LegalNoticeNFT_Deploy.NoticeType","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"transferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"documentId","type":"uint256"}],"name":"viewDocument","outputs":[{"internalType":"string","name":"encryptedIPFS","type":"string"},{"internalType":"string","name":"decryptionKey","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"}];
+        const CONTRACT_ABI = [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"approved","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"operator","type":"address"},{"indexed":false,"internalType":"bool","name":"approved","type":"bool"}],"name":"ApprovalForAll","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"address","name":"oldCollector","type":"address"},{"indexed":false,"internalType":"address","name":"newCollector","type":"address"}],"name":"FeeCollectorUpdated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"bool","name":"serviceFeeExempt","type":"bool"},{"indexed":false,"internalType":"bool","name":"fullFeeExempt","type":"bool"}],"name":"FeeExemptionSet","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"string","name":"feeType","type":"string"},{"indexed":false,"internalType":"uint256","name":"oldFee","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"newFee","type":"uint256"}],"name":"FeeUpdated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"noticeId","type":"uint256"},{"indexed":true,"internalType":"address","name":"server","type":"address"},{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"LegalNoticeCreated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"alertId","type":"uint256"},{"indexed":true,"internalType":"address","name":"recipient","type":"address"}],"name":"NoticeAcknowledged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"alertId","type":"uint256"},{"indexed":true,"internalType":"uint256","name":"documentId","type":"uint256"},{"indexed":true,"internalType":"address","name":"recipient","type":"address"}],"name":"NoticeServed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"energy","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"bandwidth","type":"uint256"}],"name":"ResourceSponsored","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"bytes32","name":"role","type":"bytes32"},{"indexed":true,"internalType":"address","name":"account","type":"address"}],"name":"RoleGranted","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"Transfer","type":"event"},{"inputs":[],"name":"ADMIN_ROLE","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"PROCESS_SERVER_ROLE","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"SERVICE_FEE","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"alertId","type":"uint256"}],"name":"acceptNotice","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"alertNotices","outputs":[{"internalType":"address","name":"recipient","type":"address"},{"internalType":"address","name":"sender","type":"address"},{"internalType":"uint256","name":"documentId","type":"uint256"},{"internalType":"uint256","name":"timestamp","type":"uint256"},{"internalType":"bool","name":"acknowledged","type":"bool"},{"internalType":"string","name":"issuingAgency","type":"string"},{"internalType":"string","name":"noticeType","type":"string"},{"internalType":"string","name":"caseNumber","type":"string"},{"internalType":"string","name":"caseDetails","type":"string"},{"internalType":"string","name":"legalRights","type":"string"},{"internalType":"uint256","name":"responseDeadline","type":"uint256"},{"internalType":"string","name":"previewImage","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"alertId","type":"uint256"}],"name":"alerts","outputs":[{"internalType":"address","name":"recipient","type":"address"},{"internalType":"address","name":"sender","type":"address"},{"internalType":"uint256","name":"documentId","type":"uint256"},{"internalType":"uint256","name":"timestamp","type":"uint256"},{"internalType":"bool","name":"acknowledged","type":"bool"},{"internalType":"string","name":"issuingAgency","type":"string"},{"internalType":"string","name":"noticeType","type":"string"},{"internalType":"string","name":"caseNumber","type":"string"},{"internalType":"string","name":"caseDetails","type":"string"},{"internalType":"string","name":"legalRights","type":"string"},{"internalType":"uint256","name":"responseDeadline","type":"uint256"},{"internalType":"string","name":"previewImage","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"approve","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"calculateFee","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"creationFee","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"documentNotices","outputs":[{"internalType":"string","name":"encryptedIPFS","type":"string"},{"internalType":"string","name":"decryptionKey","type":"string"},{"internalType":"address","name":"authorizedViewer","type":"address"},{"internalType":"uint256","name":"alertId","type":"uint256"},{"internalType":"bool","name":"isRestricted","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"feeCollector","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"fullFeeExemptions","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"alertId","type":"uint256"}],"name":"getAlertDetails","outputs":[{"internalType":"address","name":"recipient","type":"address"},{"internalType":"address","name":"sender","type":"address"},{"internalType":"uint256","name":"documentId","type":"uint256"},{"internalType":"uint256","name":"timestamp","type":"uint256"},{"internalType":"bool","name":"acknowledged","type":"bool"},{"internalType":"string","name":"issuingAgency","type":"string"},{"internalType":"string","name":"noticeType","type":"string"},{"internalType":"string","name":"caseNumber","type":"string"},{"internalType":"string","name":"caseDetails","type":"string"},{"internalType":"string","name":"legalRights","type":"string"},{"internalType":"uint256","name":"responseDeadline","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"getApproved","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"recipient","type":"address"}],"name":"getRecipientAlerts","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"server","type":"address"}],"name":"getServerNotices","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getUserNotices","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"role","type":"bytes32"},{"internalType":"address","name":"account","type":"address"}],"name":"grantRole","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes32","name":"role","type":"bytes32"},{"internalType":"address","name":"account","type":"address"}],"name":"hasRole","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"operator","type":"address"}],"name":"isApprovedForAll","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"name","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"pure","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"notices","outputs":[{"internalType":"uint256","name":"alertId","type":"uint256"},{"internalType":"uint256","name":"documentId","type":"uint256"},{"internalType":"address","name":"server","type":"address"},{"internalType":"address","name":"recipient","type":"address"},{"internalType":"uint256","name":"timestamp","type":"uint256"},{"internalType":"bool","name":"acknowledged","type":"bool"},{"internalType":"string","name":"noticeType","type":"string"},{"internalType":"string","name":"caseNumber","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"}],"name":"recipientAlerts","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"resourceSponsorshipEnabled","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"role","type":"bytes32"},{"internalType":"address","name":"account","type":"address"}],"name":"revokeRole","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"bytes","name":"_data","type":"bytes"}],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"recipient","type":"address"},{"internalType":"string","name":"encryptedIPFS","type":"string"},{"internalType":"string","name":"decryptionKey","type":"string"},{"internalType":"string","name":"issuingAgency","type":"string"},{"internalType":"string","name":"noticeType","type":"string"},{"internalType":"string","name":"caseNumber","type":"string"},{"internalType":"string","name":"caseDetails","type":"string"},{"internalType":"string","name":"legalRights","type":"string"},{"internalType":"bool","name":"sponsorFees","type":"bool"}],"name":"serveNotice","outputs":[{"internalType":"uint256","name":"alertId","type":"uint256"},{"internalType":"uint256","name":"documentId","type":"uint256"}],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"}],"name":"serverNotices","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"serviceFee","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"serviceFeeExemptions","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"operator","type":"address"},{"internalType":"bool","name":"approved","type":"bool"}],"name":"setApprovalForAll","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"},{"internalType":"bool","name":"serviceFeeExempt","type":"bool"},{"internalType":"bool","name":"fullFeeExempt","type":"bool"}],"name":"setFeeExemption","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bool","name":"enabled","type":"bool"}],"name":"setResourceSponsorship","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"sponsoredBandwidth","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"sponsoredEnergy","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"sponsorshipFee","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes4","name":"interfaceId","type":"bytes4"}],"name":"supportsInterface","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"pure","type":"function"},{"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"pure","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"tokenTypes","outputs":[{"internalType":"enum LegalNoticeNFT_Complete.NoticeType","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalNotices","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"transferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"newFee","type":"uint256"}],"name":"updateCreationFee","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"newFee","type":"uint256"}],"name":"updateFee","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"newCollector","type":"address"}],"name":"updateFeeCollector","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"newFee","type":"uint256"}],"name":"updateServiceFee","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"newFee","type":"uint256"}],"name":"updateSponsorshipFee","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"documentId","type":"uint256"}],"name":"viewDocument","outputs":[{"internalType":"string","name":"encryptedIPFS","type":"string"},{"internalType":"string","name":"decryptionKey","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"withdrawTRX","outputs":[],"stateMutability":"nonpayable","type":"function"}];
 
         // Multi-chain configuration
         const CHAIN_CONFIG = {
@@ -3965,7 +3965,7 @@
                 },
                 nile: {
                     name: 'TRON Nile Testnet',
-                    contractAddress: 'TWdZdDUk3yW1KRUPxo4gHySDRjBjMPQJ3n',
+                    contractAddress: 'TFVXBcEobgRvRj9PWqQNWJTeqN5GkLyAuW',
                     explorerUrl: 'https://nile.tronscan.org',
                     nativeToken: 'TRX',
                     chainId: null
@@ -4517,7 +4517,7 @@ function useConnectedAddressForFeeCollector() {
 
         // Modal functions
         function openRegistrationModal() {
-            const modal = document.getElementById('registrationModal');
+            const modal = document.getElementById('userRegistrationModal');
             modal.style.display = 'block';
             
             // Auto-fill wallet address if connected
@@ -4527,7 +4527,8 @@ function useConnectedAddressForFeeCollector() {
         }
 
         function closeRegistrationModal() {
-            document.getElementById('registrationModal').style.display = 'none';
+            document.getElementById('userRegistrationModal').style.display = 'none';
+            document.getElementById('adminRegistrationModal').style.display = 'none';
             clearRegistrationForm();
         }
 
@@ -4627,9 +4628,9 @@ function useConnectedAddressForFeeCollector() {
             document.getElementById('txModal').style.display = 'none';
         }
         
-        // Registration modal functions
-        function closeRegistrationModal() {
-            document.getElementById('registrationModal').style.display = 'none';
+        // Admin registration modal functions
+        function closeAdminRegistrationModal() {
+            document.getElementById('adminRegistrationModal').style.display = 'none';
             // Clear form
             document.getElementById('modalAgencyName').value = '';
             document.getElementById('modalAgencyEmail').value = '';
@@ -4679,7 +4680,7 @@ function useConnectedAddressForFeeCollector() {
             localStorage.setItem('serverRegistrations', JSON.stringify(serverRegistrations));
             
             // Close modal
-            closeRegistrationModal();
+            closeAdminRegistrationModal();
             
             // Continue with role granting
             await grantProcessServerRole(
@@ -4693,6 +4694,15 @@ function useConnectedAddressForFeeCollector() {
             try {
                 showAlert('roleResult', 'info', 'Processing transaction...');
                 
+                // First check if current user is admin
+                const adminRoleBytes = tronWeb.sha3('ADMIN_ROLE');
+                const isAdmin = await legalContract.hasRole(adminRoleBytes, tronWeb.defaultAddress.base58).call();
+                
+                if (!isAdmin) {
+                    showAlert('roleResult', 'error', 'You must be an admin to grant roles');
+                    return;
+                }
+                
                 const roleBytes = tronWeb.sha3('PROCESS_SERVER_ROLE');
                 const tx = await legalContract.grantRole(roleBytes, address).send({
                     feeLimit: 100_000_000,
@@ -4700,12 +4710,16 @@ function useConnectedAddressForFeeCollector() {
                 });
                 
                 // Set fee exemptions if requested
+                // TODO: The deployed contract has a different setFeeExemption signature
+                // Commenting out until we determine the correct function to call
+                /*
                 if (serviceFeeExempt || fullFeeExempt) {
                     await legalContract.setFeeExemption(address, serviceFeeExempt, fullFeeExempt).send({
                         feeLimit: 100_000_000,
                         shouldPollResponse: true
                     });
                 }
+                */
                 
                 showAlert('roleResult', 'success', 'Process Server role granted successfully!');
                 
@@ -4723,7 +4737,26 @@ function useConnectedAddressForFeeCollector() {
                 
             } catch (error) {
                 console.error('Error granting role:', error);
-                showAlert('roleResult', 'error', 'Failed to grant role: ' + getErrorMessage(error));
+                
+                // Check if it's a permission error
+                if (error.message && error.message.includes('Not admin')) {
+                    showAlert('roleResult', 'error', 'Only the contract admin can grant roles. Current account may not be the admin.');
+                } else if (error.message && error.message.includes('REVERT')) {
+                    // Try to get more info
+                    const adminRoleBytes = tronWeb.sha3('ADMIN_ROLE');
+                    try {
+                        const isAdmin = await legalContract.hasRole(adminRoleBytes, tronWeb.defaultAddress.base58).call();
+                        if (!isAdmin) {
+                            showAlert('roleResult', 'error', 'You are not an admin. Only the contract deployer can grant roles.');
+                        } else {
+                            showAlert('roleResult', 'error', 'Transaction failed. The contract may not support this operation.');
+                        }
+                    } catch (e) {
+                        showAlert('roleResult', 'error', 'Failed to grant role: ' + getErrorMessage(error));
+                    }
+                } else {
+                    showAlert('roleResult', 'error', 'Failed to grant role: ' + getErrorMessage(error));
+                }
             }
         }
         
@@ -4746,8 +4779,8 @@ function useConnectedAddressForFeeCollector() {
                 window.pendingServiceFeeExempt = false;
                 window.pendingFullFeeExempt = false;
                 
-                // Show the registration modal
-                document.getElementById('registrationModal').style.display = 'flex';
+                // Show the user registration modal
+                document.getElementById('userRegistrationModal').style.display = 'flex';
             });
         }
         
@@ -4824,9 +4857,6 @@ function useConnectedAddressForFeeCollector() {
                 status: 'pending'
             };
             
-            // Store registration
-            registrations.push(registration);
-            
             // Store in localStorage for persistence
             const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
             serverRegistrations[wallet] = {
@@ -4863,9 +4893,12 @@ function useConnectedAddressForFeeCollector() {
         
         function refreshPendingRegistrations() {
             const pendingDiv = document.getElementById('pendingRegistrations');
-            // TODO: Implement fetching pending registrations from blockchain events or storage
-            // For now, show empty state
-            const pending = [];
+            
+            // Get registrations from localStorage
+            const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+            const pending = Object.entries(serverRegistrations).filter(([address, reg]) => 
+                reg.status === 'pending' || !reg.status
+            );
             
             if (pending.length === 0) {
                 pendingDiv.innerHTML = `
@@ -4879,41 +4912,41 @@ function useConnectedAddressForFeeCollector() {
             }
             
             let html = '<div class="token-list">';
-            pending.forEach(reg => {
-                const shortWallet = createAddressDisplay(reg.wallet);
+            pending.forEach(([address, reg]) => {
+                const shortWallet = createAddressDisplay(address);
                 html += `
                     <div class="token-item">
                         <div class="token-item-header">
                             <div>
-                                <strong>${escapeHtml(reg.agency)}</strong>
+                                <strong>${escapeHtml(reg.agencyName || reg.agency || 'Unknown Agency')}</strong>
                                 <div style="font-size: 0.875rem; color: var(--text-secondary);">
-                                    ${escapeHtml(reg.email)} • ${new Date(reg.timestamp).toLocaleDateString()}
+                                    ${escapeHtml(reg.agencyEmail || reg.email || '')} • ${new Date(reg.registeredAt || reg.timestamp || Date.now()).toLocaleDateString()}
                                 </div>
                             </div>
-                            <button class="btn btn-success btn-small" onclick="approveRegistration(${reg.id})">
+                            <button class="btn btn-success btn-small" onclick="approveRegistration('${address}')">
                                 <i class="fas fa-check"></i> Approve
                             </button>
                         </div>
                         <div class="token-details">
                             <div class="token-detail">
                                 <span>License/Cert:</span>
-                                <span>${escapeHtml(reg.license || 'Not provided')}</span>
+                                <span>${escapeHtml(reg.licenseNumber || reg.license || 'Not provided')}</span>
                             </div>
                             <div class="token-detail">
                                 <span>Phone:</span>
-                                <span>${escapeHtml(reg.phone || 'Not provided')}</span>
+                                <span>${escapeHtml(reg.serverPhone || reg.phone || 'Not provided')}</span>
                             </div>
                             <div class="token-detail">
-                                <span>Purpose:</span>
-                                <span>${escapeHtml(reg.purpose)}</span>
+                                <span>Server Name:</span>
+                                <span>${escapeHtml(reg.serverName || 'Not provided')}</span>
                             </div>
                             <div class="token-detail">
                                 <span>Wallet:</span>
-                                <span title="${reg.wallet}">${shortWallet}</span>
+                                <span title="${address}">${shortWallet}</span>
                             </div>
                             <div class="token-detail">
                                 <span>Submitted:</span>
-                                <span>${new Date(reg.timestamp).toLocaleString()}</span>
+                                <span>${new Date(reg.registeredAt || reg.timestamp || Date.now()).toLocaleString()}</span>
                             </div>
                         </div>
                     </div>
@@ -4924,27 +4957,50 @@ function useConnectedAddressForFeeCollector() {
             pendingDiv.innerHTML = html;
         }
 
-        async function approveRegistration(regId) {
+        async function approveRegistration(address) {
             if (!legalContract) {
                 uiManager.showNotification('error', 'Contract not connected');
                 return;
             }
             
-            const registration = registrations.find(r => r.id == regId);
-            if (!registration) return;
+            const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+            const registration = serverRegistrations[address];
+            if (!registration) {
+                uiManager.showNotification('error', 'Registration not found');
+                return;
+            }
             
             try {
                 showProcessing('Granting process server role...');
                 
                 // Grant PROCESS_SERVER_ROLE to the user
                 const roleBytes = tronWeb.sha3('PROCESS_SERVER_ROLE');
-                const tx = await legalContract.grantRole(roleBytes, registration.wallet).send({
+                const tx = await legalContract.grantRole(roleBytes, address).send({
                     feeLimit: 100_000_000,
                     callValue: 0,
                     shouldPollResponse: true
                 });
                 
+                // Update status in localStorage
                 registration.status = 'approved';
+                registration.approvedAt = new Date().toISOString();
+                serverRegistrations[address] = registration;
+                localStorage.setItem('serverRegistrations', JSON.stringify(serverRegistrations));
+                
+                // Grant fee exemptions if they were set
+                // TODO: The deployed contract has a different setFeeExemption signature
+                // Commenting out until we determine the correct function to call
+                /*
+                if (window.pendingServiceFeeExempt || window.pendingFullFeeExempt) {
+                    await legalContract.setFeeExemption(address, 
+                        window.pendingServiceFeeExempt || false, 
+                        window.pendingFullFeeExempt || false
+                    ).send({
+                        feeLimit: 100_000_000,
+                        shouldPollResponse: true
+                    });
+                }
+                */
                 
                 hideProcessing();
                 uiManager.showNotification('success', 'Registration approved and role granted!');
@@ -4952,8 +5008,8 @@ function useConnectedAddressForFeeCollector() {
                 
                 // Add to recent activity
                 addRecentActivity('approval', 'Registration approved', { 
-                    agency: registration.agency,
-                    wallet: registration.wallet 
+                    agency: registration.agencyName || registration.agency,
+                    wallet: address 
                 });
                 
             } catch (error) {
@@ -6493,17 +6549,9 @@ function useConnectedAddressForFeeCollector() {
                 window.pendingServiceFeeExempt = serviceFeeExempt;
                 window.pendingFullFeeExempt = fullFeeExempt;
                 
-                // Show the registration modal
-                document.getElementById('registrationModal').style.display = 'flex';
+                // Show the admin registration modal
+                document.getElementById('adminRegistrationModal').style.display = 'flex';
                 return;
-                }
-                
-                // Validate email format
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(agencyEmail)) {
-                    showAlert('roleResult', 'error', 'Please enter a valid email address');
-                    return;
-                }
             }
             
             try {
@@ -7075,13 +7123,13 @@ showAlert('contractStatus', 'success', 'Contract connected successfully!');
 // Auto-refresh alerts if user has process server role
 if (isProcessServer || isAdmin) {
     setTimeout(() => refreshMyAlerts(), 1000);
-}
+                }
 
-// Show wallet status card and update status
-document.getElementById('walletStatusCard').style.display = 'block';
-await updateWalletStatus();
+                // Show wallet status card and update status
+                document.getElementById('walletStatusCard').style.display = 'block';
+                await updateWalletStatus();
 
-} catch (error) {
+            } catch (error) {
     console.error('Contract connection error:', error);
     showAlert('contractStatus', 'error', 'Failed to connect to contract: ' + getErrorMessage(error));
 }
@@ -7992,7 +8040,9 @@ document.addEventListener('keydown', function(event) {
         window.acceptNotice = acceptNotice;
         window.closeTxModal = closeTxModal;
         window.closeRegistrationModal = closeRegistrationModal;
+        window.closeAdminRegistrationModal = closeAdminRegistrationModal;
         window.submitRegistration = submitRegistration;
+        window.submitAdminRegistration = submitAdminRegistration;
         window.openRegistrationForUser = openRegistrationForUser;
         window.updateAuditSearch = updateAuditSearch;
         window.performAudit = performAudit;
