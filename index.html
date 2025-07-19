@@ -4563,7 +4563,9 @@ function useConnectedAddressForFeeCollector() {
         
         function refreshPendingRegistrations() {
             const pendingDiv = document.getElementById('pendingRegistrations');
-            const pending = registrations.filter(r => r.status === 'pending');
+            // TODO: Implement fetching pending registrations from blockchain events or storage
+            // For now, show empty state
+            const pending = [];
             
             if (pending.length === 0) {
                 pendingDiv.innerHTML = `
@@ -5664,7 +5666,7 @@ function useConnectedAddressForFeeCollector() {
 
         async function getMyAlerts() {
             try {
-                const alerts = await legalContract.getUserAlerts(tronWeb.defaultAddress.base58).call();
+                const alerts = await legalContract.getRecipientAlerts(tronWeb.defaultAddress.base58).call();
                 
                 const noticeDetails = [];
                 for (const alertId of alerts) {
@@ -6316,11 +6318,11 @@ function useConnectedAddressForFeeCollector() {
                 let tokenSymbol;
                 
                 if (currentChainType === 'tron') {
-                    fee = await legalContract.creationFee().call();
+                    fee = await legalContract.SERVICE_FEE().call();
                     currentCreationFee = parseFloat(tronWeb.fromSun(fee));
                     tokenSymbol = 'TRX';
                 } else {
-                    fee = await legalContract.methods.creationFee().call();
+                    fee = await legalContract.methods.SERVICE_FEE().call();
                     currentCreationFee = parseFloat(web3Instance.utils.fromWei(fee, 'ether'));
                     tokenSymbol = CHAIN_CONFIG.evm[currentNetwork].nativeToken;
                 }
