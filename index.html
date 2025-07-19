@@ -5176,6 +5176,11 @@ try {
                 registration.approvedBy = tronWeb.defaultAddress.base58;
                 registration.txHash = tx;
                 
+                // Generate Process Server ID if not exists
+                if (!registration.serverId) {
+                    registration.serverId = await generateProcessServerId();
+                }
+                
                 // Save encrypted registration to GitHub
                 await saveEncryptedRegistration(registration);
                 
@@ -8380,6 +8385,36 @@ document.addEventListener('keydown', function(event) {
         // Registration viewer functions
         let allRegistrations = [];
         
+        // Process Server ID Generation
+        async function generateProcessServerId() {
+            // Get the last used ID from localStorage
+            let lastId = parseInt(localStorage.getItem('lastProcessServerId') || '0');
+            
+            // If we have registrations loaded, check for highest ID
+            if (allRegistrations.length > 0) {
+                allRegistrations.forEach(reg => {
+                    if (reg.serverId) {
+                        const match = reg.serverId.match(/PS-(\d+)/);
+                        if (match) {
+                            const id = parseInt(match[1]);
+                            if (id > lastId) {
+                                lastId = id;
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Increment for new ID
+            lastId++;
+            
+            // Save to localStorage
+            localStorage.setItem('lastProcessServerId', lastId.toString());
+            
+            // Return formatted ID
+            return `PS-${String(lastId).padStart(3, '0')}`;
+        }
+        
         async function fetchAllRegistrations() {
             const token = GITHUB_CONFIG.token;
             if (!token) {
@@ -8463,6 +8498,7 @@ document.addEventListener('keydown', function(event) {
                     <table style="width: 100%; border-collapse: collapse;">
                         <thead>
                             <tr style="background: var(--secondary-navy); border-bottom: 1px solid var(--border);">
+                                <th style="padding: 1rem; text-align: left;">Server ID</th>
                                 <th style="padding: 1rem; text-align: left;">Agency</th>
                                 <th style="padding: 1rem; text-align: left;">License</th>
                                 <th style="padding: 1rem; text-align: left;">Email</th>
@@ -8482,6 +8518,9 @@ document.addEventListener('keydown', function(event) {
                 
                 html += `
                     <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 1rem; font-weight: 600; color: var(--accent-blue);">
+                            ${reg.serverId || '<span style="color: var(--text-muted);">Pending</span>'}
+                        </td>
                         <td style="padding: 1rem;">${escapeHtml(reg.agencyName || reg.agency || 'N/A')}</td>
                         <td style="padding: 1rem;">${escapeHtml(reg.licenseNumber || reg.license || 'N/A')}</td>
                         <td style="padding: 1rem;">${escapeHtml(reg.agencyEmail || reg.email || 'N/A')}</td>
@@ -8533,6 +8572,11 @@ document.addEventListener('keydown', function(event) {
                         <button class="btn-close" onclick="this.closest('.modal').remove()">×</button>
                     </div>
                     <div class="form-group">
+                        <label class="form-label">Server ID</label>
+                        <input type="text" class="form-input" id="editServerId" value="${escapeHtml(reg.serverId || '')}" placeholder="PS-001" ${reg.status === 'approved' ? '' : 'readonly'}>
+                        <small class="form-help">${reg.status === 'approved' ? 'Process Server ID' : 'ID will be assigned upon approval'}</small>
+                    </div>
+                    <div class="form-group">
                         <label class="form-label">Agency Name</label>
                         <input type="text" class="form-input" id="editAgency" value="${escapeHtml(reg.agencyName || reg.agency || '')}">
                     </div>
@@ -8572,12 +8616,18 @@ document.addEventListener('keydown', function(event) {
             const reg = allRegistrations[index];
             
             // Get edited values
+            reg.serverId = document.getElementById('editServerId').value;
             reg.agencyName = reg.agency = document.getElementById('editAgency').value;
             reg.licenseNumber = reg.license = document.getElementById('editLicense').value;
             reg.agencyEmail = reg.email = document.getElementById('editEmail').value;
             reg.serverPhone = reg.phone = document.getElementById('editPhone').value;
             reg.status = document.getElementById('editStatus').value;
             reg.lastModified = new Date().toISOString();
+            
+            // If status changed to approved and no server ID, generate one
+            if (reg.status === 'approved' && !reg.serverId) {
+                reg.serverId = await generateProcessServerId();
+            }
             
             try {
                 showProcessing('Saving changes...');
@@ -8667,8 +8717,9 @@ document.addEventListener('keydown', function(event) {
             if (allRegistrations.length === 0) return;
             
             // Create CSV
-            const headers = ['Agency', 'License', 'Email', 'Phone', 'Address', 'Status', 'Date', 'Purpose'];
+            const headers = ['Server ID', 'Agency', 'License', 'Email', 'Phone', 'Address', 'Status', 'Date', 'Purpose'];
             const rows = allRegistrations.map(reg => [
+                reg.serverId || '',
                 reg.agencyName || reg.agency || '',
                 reg.licenseNumber || reg.license || '',
                 reg.agencyEmail || reg.email || '',
