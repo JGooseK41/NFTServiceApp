@@ -3364,8 +3364,8 @@
         </div>
     </div>
 
-    <!-- Registration Modal -->
-    <div id="registrationModal" class="modal">
+    <!-- User Registration Modal -->
+    <div id="userRegistrationModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h3 class="modal-title">
@@ -3823,16 +3823,16 @@
         </div>
     </div>
 
-    <!-- Process Server Registration Modal -->
-    <div id="registrationModal" class="modal">
+    <!-- Admin Process Server Registration Modal -->
+    <div id="adminRegistrationModal" class="modal">
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">
                 <h2><i class="fas fa-user-tie"></i> Process Server Registration</h2>
-                <span class="close-btn" onclick="closeRegistrationModal()">&times;</span>
+                <span class="close-btn" onclick="closeAdminRegistrationModal()">&times;</span>
             </div>
             <div class="modal-body">
                 <p style="margin-bottom: 1.5rem;">Please provide your professional information to complete process server registration. 
-                <a href="#" onclick="closeRegistrationModal(); switchTab('help'); document.getElementById('faq-process-server').scrollIntoView();" style="color: var(--accent-blue);">
+                <a href="#" onclick="closeAdminRegistrationModal(); switchTab('help'); document.getElementById('faq-process-server').scrollIntoView();" style="color: var(--accent-blue);">
                     Learn more about being a process server →
                 </a></p>
                 
@@ -3874,7 +3874,7 @@
                 </div>
                 
                 <div style="margin-top: 1.5rem; display: flex; justify-content: space-between;">
-                    <button class="btn btn-secondary" onclick="closeRegistrationModal()">
+                    <button class="btn btn-secondary" onclick="closeAdminRegistrationModal()">
                         <i class="fas fa-times"></i>
                         Cancel
                     </button>
@@ -4517,7 +4517,7 @@ function useConnectedAddressForFeeCollector() {
 
         // Modal functions
         function openRegistrationModal() {
-            const modal = document.getElementById('registrationModal');
+            const modal = document.getElementById('userRegistrationModal');
             modal.style.display = 'block';
             
             // Auto-fill wallet address if connected
@@ -4527,7 +4527,8 @@ function useConnectedAddressForFeeCollector() {
         }
 
         function closeRegistrationModal() {
-            document.getElementById('registrationModal').style.display = 'none';
+            document.getElementById('userRegistrationModal').style.display = 'none';
+            document.getElementById('adminRegistrationModal').style.display = 'none';
             clearRegistrationForm();
         }
 
@@ -4627,9 +4628,9 @@ function useConnectedAddressForFeeCollector() {
             document.getElementById('txModal').style.display = 'none';
         }
         
-        // Registration modal functions
-        function closeRegistrationModal() {
-            document.getElementById('registrationModal').style.display = 'none';
+        // Admin registration modal functions
+        function closeAdminRegistrationModal() {
+            document.getElementById('adminRegistrationModal').style.display = 'none';
             // Clear form
             document.getElementById('modalAgencyName').value = '';
             document.getElementById('modalAgencyEmail').value = '';
@@ -4679,7 +4680,7 @@ function useConnectedAddressForFeeCollector() {
             localStorage.setItem('serverRegistrations', JSON.stringify(serverRegistrations));
             
             // Close modal
-            closeRegistrationModal();
+            closeAdminRegistrationModal();
             
             // Continue with role granting
             await grantProcessServerRole(
@@ -4746,8 +4747,8 @@ function useConnectedAddressForFeeCollector() {
                 window.pendingServiceFeeExempt = false;
                 window.pendingFullFeeExempt = false;
                 
-                // Show the registration modal
-                document.getElementById('registrationModal').style.display = 'flex';
+                // Show the user registration modal
+                document.getElementById('userRegistrationModal').style.display = 'flex';
             });
         }
         
@@ -6512,8 +6513,8 @@ function useConnectedAddressForFeeCollector() {
                 window.pendingServiceFeeExempt = serviceFeeExempt;
                 window.pendingFullFeeExempt = fullFeeExempt;
                 
-                // Show the registration modal
-                document.getElementById('registrationModal').style.display = 'flex';
+                // Show the admin registration modal
+                document.getElementById('adminRegistrationModal').style.display = 'flex';
                 return;
             }
             
@@ -8003,6 +8004,7 @@ document.addEventListener('keydown', function(event) {
         window.acceptNotice = acceptNotice;
         window.closeTxModal = closeTxModal;
         window.closeRegistrationModal = closeRegistrationModal;
+        window.closeAdminRegistrationModal = closeAdminRegistrationModal;
         window.submitRegistration = submitRegistration;
         window.submitAdminRegistration = submitAdminRegistration;
         window.openRegistrationForUser = openRegistrationForUser;
