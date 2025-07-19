@@ -6689,8 +6689,22 @@ try {
                 };
                 showTxModal(displayTxId, 'Legal notice created successfully!', txDetails, ipfsData);
                 
-                // Refresh my notices after a delay
-                setTimeout(() => refreshMyNotices(), 2000);
+                // Add to recent activity with proper IDs
+                addRecentActivity('notice', `Legal notice created for ${recipient}`, {
+                    noticeId: noticeId,
+                    alertId: alertId,
+                    recipient: recipient,
+                    caseNumber: caseNumber,
+                    txHash: displayTxId
+                });
+                
+                // Refresh my notices and delivery status after a delay
+                setTimeout(() => {
+                    refreshMyNotices();
+                    if (isProcessServer || isAdmin) {
+                        refreshDeliveryStatus();
+                    }
+                }, 2000);
                 
             } catch (error) {
                 console.error('Error creating legal notice:', error);
@@ -7148,18 +7162,21 @@ try {
         async function getNoticeDetails(noticeId) {
             try {
                 const notice = await legalContract.notices(noticeId).call();
+                console.log('Notice data from contract:', notice);
+                
+                // The contract returns: alertId, documentId, server, recipient, timestamp, acknowledged, noticeType, caseNumber
                 return {
                     id: noticeId,
-                    recipient: notice.recipient,
-                    server: notice.server,
-                    ipfsHash: notice.ipfsHash,
-                    contentHash: notice.contentHash,
-                    timestamp: notice.timestamp,
-                    caseNumberHash: notice.caseNumberHash,
-                    alertTokenId: notice.alertTokenId,
-                    jurisdictionIndex: notice.jurisdictionIndex,
-                    documentType: notice.documentType,
-                    status: notice.status
+                    noticeId: noticeId,
+                    alertId: notice.alertId?.toString() || notice[0]?.toString(),
+                    documentId: notice.documentId?.toString() || notice[1]?.toString(),
+                    server: notice.server || notice[2],
+                    recipient: notice.recipient || notice[3],
+                    timestamp: notice.timestamp || notice[4],
+                    acknowledged: notice.acknowledged || notice[5],
+                    status: notice.acknowledged || notice[5] ? 2 : 0, // 2 = accepted, 0 = pending
+                    noticeType: notice.noticeType || notice[6],
+                    caseNumber: notice.caseNumber || notice[7]
                 };
             } catch (error) {
                 console.error('Error getting notice details:', error);
@@ -7215,18 +7232,14 @@ try {
         
         async function getSentNotices() {
             try {
-                // Get all LegalNoticeCreated events where the server is the current user
-                const events = await legalContract.getPastEvents('LegalNoticeCreated', {
-                    filter: { server: tronWeb.defaultAddress.base58 },
-                    fromBlock: 0,
-                    toBlock: 'latest'
-                });
+                // Use the contract's getServerNotices function
+                const noticeIds = await legalContract.getServerNotices(tronWeb.defaultAddress.base58).call();
+                console.log('Server notice IDs:', noticeIds);
                 
                 const notices = [];
-                for (const event of events) {
-                    const noticeId = event.returnValues.noticeId;
+                for (const noticeId of noticeIds) {
                     const details = await getNoticeDetails(noticeId);
-                    if (details && details.server === tronWeb.defaultAddress.base58) {
+                    if (details) {
                         notices.push(details);
                     }
                 }
