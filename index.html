@@ -2427,6 +2427,10 @@
                     <i class="fas fa-sync-alt"></i>
                     Refresh Status
                 </button>
+                <button class="btn btn-primary" onclick="debugCheckRoles()" style="margin-top: 1rem; margin-left: 0.5rem;">
+                    <i class="fas fa-bug"></i>
+                    Debug Check
+                </button>
                 
                 <!-- Detailed Role Check -->
                 <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
@@ -8152,6 +8156,73 @@ async function checkUserRoles() {
             const adminTabButton = document.getElementById('adminTabButton');
             if (adminTabButton) {
                 adminTabButton.style.display = isAdmin ? 'inline-flex' : 'none';
+            }
+        }
+
+        // Debug function to check roles and registrations
+        async function debugCheckRoles() {
+            const detailsDiv = document.getElementById('roleCheckDetails');
+            
+            if (!legalContract || !tronWeb || !tronWeb.defaultAddress) {
+                detailsDiv.innerHTML = '<span style="color: var(--error);">Contract not connected or wallet not connected</span>';
+                return;
+            }
+            
+            detailsDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking roles and registrations...';
+            
+            try {
+                const address = tronWeb.defaultAddress.base58;
+                let debugInfo = '<div style="font-family: monospace; font-size: 0.8rem;">';
+                
+                debugInfo += `<strong>Your Address:</strong> ${address}<br><br>`;
+                
+                // Check roles
+                const adminRoleBytes = tronWeb.sha3('ADMIN_ROLE');
+                const processServerRoleBytes = tronWeb.sha3('PROCESS_SERVER_ROLE');
+                
+                const hasAdminRole = await legalContract.hasRole(adminRoleBytes, address).call();
+                const hasProcessServerRole = await legalContract.hasRole(processServerRoleBytes, address).call();
+                
+                debugInfo += `<strong>Roles:</strong><br>`;
+                debugInfo += `- Admin Role: ${hasAdminRole ? '✓ YES' : '✗ NO'}<br>`;
+                debugInfo += `- Process Server Role: ${hasProcessServerRole ? '✓ YES' : '✗ NO'}<br><br>`;
+                
+                // Check fee exemptions
+                const serviceFeeExempt = await legalContract.serviceFeeExemptions(address).call();
+                const fullFeeExempt = await legalContract.fullFeeExemptions(address).call();
+                
+                debugInfo += `<strong>Fee Exemptions:</strong><br>`;
+                debugInfo += `- Service Fee Exempt: ${serviceFeeExempt ? '✓ YES' : '✗ NO'}<br>`;
+                debugInfo += `- Full Fee Exempt: ${fullFeeExempt ? '✓ YES' : '✗ NO'}<br><br>`;
+                
+                // Calculate actual fee
+                const calculatedFee = await legalContract.calculateFee(address).call();
+                debugInfo += `<strong>Your Fee:</strong> ${tronWeb.fromSun(calculatedFee)} TRX<br><br>`;
+                
+                // Check localStorage registrations
+                const localRegs = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+                const yourReg = localRegs[address];
+                
+                debugInfo += `<strong>Local Registration:</strong><br>`;
+                if (yourReg) {
+                    debugInfo += `- Status: ${yourReg.status}<br>`;
+                    debugInfo += `- Server ID: ${yourReg.serverId || 'Not assigned'}<br>`;
+                    debugInfo += `- Agency: ${yourReg.agencyName || yourReg.agency}<br>`;
+                } else {
+                    debugInfo += `- No registration found for ${address}<br>`;
+                    debugInfo += `- All keys in localStorage: ${Object.keys(localRegs).join(', ') || 'None'}<br>`;
+                }
+                
+                debugInfo += '</div>';
+                
+                detailsDiv.innerHTML = debugInfo;
+                
+                // Also refresh the main wallet status
+                await updateWalletStatus();
+                
+            } catch (error) {
+                console.error('Debug check error:', error);
+                detailsDiv.innerHTML = `<span style="color: var(--error);">Error: ${error.message}</span>`;
             }
         }
 
