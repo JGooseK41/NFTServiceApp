@@ -4867,15 +4867,20 @@ function useConnectedAddressForFeeCollector() {
                 showAlert('roleResult', 'info', 'Processing transaction...');
                 
                 const roleBytes = tronWeb.sha3('PROCESS_SERVER_ROLE');
+                
+                // Lower fee limit to 20 TRX (more reasonable for role granting)
                 const tx = await legalContract.grantRole(roleBytes, address).send({
-                    feeLimit: 100_000_000,
+                    feeLimit: 20_000_000,  // 20 TRX instead of 100 TRX
                     shouldPollResponse: true
                 });
                 
                 // Set fee exemptions if requested
                 if (serviceFeeExempt || fullFeeExempt) {
+                    showAlert('roleResult', 'info', 'Setting fee exemptions...');
+                    
+                    // Lower fee limit for exemption setting too
                     await legalContract.setFeeExemption(address, serviceFeeExempt, fullFeeExempt).send({
-                        feeLimit: 100_000_000,
+                        feeLimit: 20_000_000,  // 20 TRX instead of 100 TRX
                         shouldPollResponse: true
                     });
                 }
@@ -5292,7 +5297,7 @@ try {
                 // Grant PROCESS_SERVER_ROLE to the user
                 const roleBytes = tronWeb.sha3('PROCESS_SERVER_ROLE');
                 const tx = await legalContract.grantRole(roleBytes, registration.address || regId).send({
-                    feeLimit: 100_000_000,
+                    feeLimit: 20_000_000,  // 20 TRX - reduced from 100 TRX
                     callValue: 0,
                     shouldPollResponse: true
                 });
@@ -5956,7 +5961,7 @@ try {
                         legalRights || 'You have the right to respond to this legal notice',
                         sponsorFees
                     ).send({
-                        feeLimit: 100_000_000,
+                        feeLimit: 50_000_000,  // 50 TRX - reasonable for notice serving
                         callValue: feeInSun,
                         shouldPollResponse: true
                     });
@@ -6088,7 +6093,7 @@ try {
                 
                 // Call the contract to accept the notice
                 const tx = await legalContract.acceptNotice(currentNoticeId).send({
-                    feeLimit: 100_000_000,
+                    feeLimit: 20_000_000,  // 20 TRX - simple state change
                     callValue: 0,
                     shouldPollResponse: true
                 });
@@ -6875,7 +6880,7 @@ try {
                 
                 // Call the contract to grant the role
                 await legalContract.grantRole(roleBytes, address).send({
-                    feeLimit: 100_000_000,
+                    feeLimit: 20_000_000,  // 20 TRX - role granting
                     callValue: 0,
                     shouldPollResponse: true
                 });
@@ -7045,7 +7050,7 @@ try {
                 
                 // Call the contract to update the fee
                 await legalContract.updateFee(feeInSun).send({
-                    feeLimit: 100_000_000,
+                    feeLimit: 10_000_000,  // 10 TRX - simple variable update
                     callValue: 0,
                     shouldPollResponse: true
                 });
@@ -7093,7 +7098,7 @@ try {
                 
                 // Call the contract to update the fee collector
                 await legalContract.updateFeeCollector(newCollector).send({
-                    feeLimit: 100_000_000,
+                    feeLimit: 10_000_000,  // 10 TRX - simple address update
                     callValue: 0,
                     shouldPollResponse: true
                 });
@@ -7142,7 +7147,7 @@ try {
                 console.log('Sending setResourceSponsorship transaction, enabled:', enabled);
                 
                 const tx = await legalContract.setResourceSponsorship(enabled).send({
-                    feeLimit: 100_000_000,
+                    feeLimit: 10_000_000,  // 10 TRX - simple boolean update
                     callValue: 0,
                     shouldPollResponse: false // Don't auto-poll, we'll do it manually
                 });
@@ -7207,7 +7212,7 @@ try {
                 const feeInSun = tronWeb.toSun(newFee);
                 
                 await legalContract.updateServiceFee(feeInSun).send({
-                    feeLimit: 100_000_000,
+                    feeLimit: 10_000_000,  // 10 TRX - simple fee update
                     callValue: 0,
                     shouldPollResponse: true
                 });
@@ -7245,7 +7250,7 @@ try {
                 const feeInSun = tronWeb.toSun(newFee);
                 
                 await legalContract.updateCreationFee(feeInSun).send({
-                    feeLimit: 100_000_000,
+                    feeLimit: 10_000_000,  // 10 TRX - simple fee update
                     callValue: 0,
                     shouldPollResponse: true
                 });
@@ -7283,7 +7288,7 @@ try {
                 const feeInSun = tronWeb.toSun(newFee);
                 
                 await legalContract.updateSponsorshipFee(feeInSun).send({
-                    feeLimit: 100_000_000,
+                    feeLimit: 10_000_000,  // 10 TRX - simple fee update
                     callValue: 0,
                     shouldPollResponse: true
                 });
