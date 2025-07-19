@@ -6905,8 +6905,14 @@ try {
                     shouldPollResponse: true
                 });
                 
-                // Handle fee exemptions (skip for now as methods are empty in contract)
-                // TODO: Implement fee exemption logic when contract methods are functional
+                // Automatically apply full fee exemption for admin roles
+                if (roleSelect.value === 'ADMIN_ROLE') {
+                    showAlert('roleResult', 'info', 'Applying full fee exemption for admin...');
+                    await legalContract.setFeeExemption(address, true, true).send({
+                        feeLimit: 20_000_000,
+                        shouldPollResponse: true
+                    });
+                }
                 
                 hideProcessing();
                 
@@ -8261,10 +8267,15 @@ async function checkUserRoles() {
                 
                 // Check if we need to show the fix button
                 const fixBtn = document.getElementById('fixExemptionBtn');
-                if (hasProcessServerRole && !serviceFeeExempt && !fullFeeExempt && yourReg && yourReg.status === 'approved') {
+                if ((hasProcessServerRole && !serviceFeeExempt && !fullFeeExempt && yourReg && yourReg.status === 'approved') || 
+                    (hasAdminRole && !fullFeeExempt)) {
                     // User has role but no exemptions - show fix button
                     fixBtn.style.display = 'inline-flex';
-                    debugInfo += '<br><div style="color: var(--warning); font-weight: bold;">⚠️ Fee exemptions not applied! Click "Fix Exemption" to apply them.</div>';
+                    if (hasAdminRole && !fullFeeExempt) {
+                        debugInfo += '<br><div style="color: var(--warning); font-weight: bold;">⚠️ Admin accounts should have full fee exemption! Click "Fix Exemption" to apply it.</div>';
+                    } else {
+                        debugInfo += '<br><div style="color: var(--warning); font-weight: bold;">⚠️ Fee exemptions not applied! Click "Fix Exemption" to apply them.</div>';
+                    }
                     debugContent.innerHTML = debugInfo + '</div>';
                 } else {
                     fixBtn.style.display = 'none';
@@ -8315,20 +8326,37 @@ async function checkUserRoles() {
                     return;
                 }
                 
-                // Get registration info
+                // Check if user is admin first
+                const adminRoleBytes = tronWeb.sha3('ADMIN_ROLE');
+                const hasAdminRole = await legalContract.hasRole(adminRoleBytes, address).call();
+                
+                // Get registration info (not required for admins)
                 const localRegs = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
                 const yourReg = localRegs[address];
                 
-                if (!yourReg) {
+                if (!hasAdminRole && !yourReg) {
                     uiManager.showNotification('error', 'No registration found for your address');
                     return;
                 }
                 
-                // Determine exemption type based on registration
-                const serviceFeeExempt = yourReg.serviceFeeExempt !== false;
-                const fullFeeExempt = yourReg.fullFeeExempt === true;
+                // Determine exemption type based on role and registration
+                let serviceFeeExempt = false;
+                let fullFeeExempt = false;
                 
-                uiManager.showNotification('info', 'Applying fee exemptions...');
+                if (hasAdminRole) {
+                    // Admins always get full fee exemption
+                    serviceFeeExempt = true;
+                    fullFeeExempt = true;
+                    uiManager.showNotification('info', 'Applying full fee exemption for admin...');
+                } else if (yourReg) {
+                    // Process servers get exemptions based on registration
+                    serviceFeeExempt = yourReg.serviceFeeExempt !== false;
+                    fullFeeExempt = yourReg.fullFeeExempt === true;
+                    uiManager.showNotification('info', 'Applying fee exemptions...');
+                } else {
+                    uiManager.showNotification('error', 'No registration found and not an admin');
+                    return;
+                }
                 
                 // Apply the fee exemptions
                 await legalContract.setFeeExemption(address, serviceFeeExempt, fullFeeExempt).send({
