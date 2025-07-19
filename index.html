@@ -7405,18 +7405,16 @@ async function updateWalletStatus() {
         
         // Check roles
         const adminRoleBytes = tronWeb.sha3('ADMIN_ROLE');
-        const serverRoleBytes = tronWeb.sha3('SERVER_ROLE');
         const processServerRoleBytes = tronWeb.sha3('PROCESS_SERVER_ROLE');
         
         const isAdmin = await legalContract.hasRole(adminRoleBytes, address).call();
-        const isServer = await legalContract.hasRole(serverRoleBytes, address).call();
         const isProcessServer = await legalContract.hasRole(processServerRoleBytes, address).call();
         
         // Update role display
         const roleElement = document.getElementById('walletRole');
         if (isAdmin) {
             roleElement.innerHTML = '<span class="badge badge-admin">Admin</span>';
-        } else if (isProcessServer || isServer) {
+        } else if (isProcessServer) {
             roleElement.innerHTML = '<span class="badge badge-server">Process Server</span>';
         } else {
             roleElement.innerHTML = '<span class="badge badge-secondary">None</span>';
@@ -7461,7 +7459,6 @@ async function updateWalletStatus() {
         // Check all possible roles
         detailsHtml += `<div><strong>Admin Role:</strong> ${isAdmin ? '<span style="color: var(--success);">✓ Yes</span>' : '<span style="color: var(--error);">✗ No</span>'}</div>`;
         detailsHtml += `<div><strong>Process Server Role:</strong> ${isProcessServer ? '<span style="color: var(--success);">✓ Yes</span>' : '<span style="color: var(--error);">✗ No</span>'}</div>`;
-        detailsHtml += `<div><strong>Legacy Server Role:</strong> ${isServer ? '<span style="color: var(--success);">✓ Yes</span>' : '<span style="color: var(--error);">✗ No</span>'}</div>`;
         detailsHtml += `<div style="margin-top: 0.5rem;"><strong>Fee Exemptions:</strong></div>`;
         detailsHtml += `<div style="margin-left: 1rem;">Service Fee Exempt: ${isServiceFeeExempt ? '<span style="color: var(--success);">✓ Yes (50% discount)</span>' : '<span style="color: var(--error);">✗ No</span>'}</div>`;
         detailsHtml += `<div style="margin-left: 1rem;">Full Fee Exempt: ${isFullFeeExempt ? '<span style="color: var(--success);">✓ Yes (Only creation fee)</span>' : '<span style="color: var(--error);">✗ No</span>'}</div>`;
