@@ -4710,12 +4710,16 @@ function useConnectedAddressForFeeCollector() {
                 });
                 
                 // Set fee exemptions if requested
+                // TODO: The deployed contract has a different setFeeExemption signature
+                // Commenting out until we determine the correct function to call
+                /*
                 if (serviceFeeExempt || fullFeeExempt) {
                     await legalContract.setFeeExemption(address, serviceFeeExempt, fullFeeExempt).send({
                         feeLimit: 100_000_000,
                         shouldPollResponse: true
                     });
                 }
+                */
                 
                 showAlert('roleResult', 'success', 'Process Server role granted successfully!');
                 
@@ -4984,6 +4988,9 @@ function useConnectedAddressForFeeCollector() {
                 localStorage.setItem('serverRegistrations', JSON.stringify(serverRegistrations));
                 
                 // Grant fee exemptions if they were set
+                // TODO: The deployed contract has a different setFeeExemption signature
+                // Commenting out until we determine the correct function to call
+                /*
                 if (window.pendingServiceFeeExempt || window.pendingFullFeeExempt) {
                     await legalContract.setFeeExemption(address, 
                         window.pendingServiceFeeExempt || false, 
@@ -4993,6 +5000,7 @@ function useConnectedAddressForFeeCollector() {
                         shouldPollResponse: true
                     });
                 }
+                */
                 
                 hideProcessing();
                 uiManager.showNotification('success', 'Registration approved and role granted!');
