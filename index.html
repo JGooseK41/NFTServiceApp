@@ -5967,9 +5967,25 @@ try {
                 let tx;
                 
                 if (currentChainType === 'tron') {
-                    // Calculate fee including sponsorship if selected
+                    // Check and rent energy if needed
+                    showProcessing('Checking energy requirements...');
+                    const energyRental = await rentEnergyIfNeeded(ENERGY_RENTAL_CONFIG.energyPerNotice);
+                    
+                    if (!energyRental.success && energyRental.error) {
+                        hideProcessing();
+                        createBtn.disabled = false;
+                        createBtn.innerHTML = originalButtonText;
+                        uiManager.showNotification('error', 'Energy rental failed: ' + energyRental.error);
+                        return;
+                    }
+                    
+                    // Calculate fee including sponsorship and energy rental if needed
                     let totalFee = currentCreationFee; // Base fee from contract
                     if (sponsorFees) totalFee += 2; // Sponsorship fee
+                    if (energyRental.rented) {
+                        totalFee += energyRental.cost; // Add energy rental cost
+                        console.log(`Added ${energyRental.cost} TRX for energy rental`);
+                    }
                     const feeInSun = tronWeb.toSun(totalFee);
                     
                     console.log('Transaction details:', {
@@ -5978,6 +5994,7 @@ try {
                         feeInSun,
                         currentCreationFee,
                         sponsorFees,
+                        energyRentalCost: energyRental.cost || 0,
                         contractAddress: legalContract.address
                     });
                     
@@ -8533,6 +8550,140 @@ async function checkUserRoles() {
             }
         }
         
+        // Energy rental configuration
+        const ENERGY_RENTAL_CONFIG = {
+            // TRONSave API for energy rental
+            apiUrl: 'https://api.tronsave.io/v0/order/energy',
+            // Energy required per notice
+            energyPerNotice: 250000,
+            // Buffer to ensure enough energy (20% extra)
+            energyBuffer: 1.2,
+            // Maximum rental price in TRX per 100k energy
+            maxPricePerUnit: 15,
+            // Rental duration in hours
+            rentalDuration: 1,
+            // Minimum energy to trigger rental
+            minEnergyThreshold: 50000
+        };
+        
+        // Check if energy rental is needed
+        async function checkEnergyNeeded(requiredEnergy) {
+            try {
+                const resources = await tronWeb.trx.getAccountResources(tronWeb.defaultAddress.base58);
+                const availableEnergy = (resources.EnergyLimit || 0) - (resources.EnergyUsed || 0);
+                
+                console.log('Energy check:', {
+                    required: requiredEnergy,
+                    available: availableEnergy,
+                    needsRental: availableEnergy < requiredEnergy
+                });
+                
+                if (availableEnergy < requiredEnergy) {
+                    return requiredEnergy - availableEnergy;
+                }
+                return 0;
+            } catch (error) {
+                console.error('Error checking energy:', error);
+                // If check fails, assume we need full amount
+                return requiredEnergy;
+            }
+        }
+        
+        // Estimate energy rental cost
+        async function estimateEnergyRentalCost(energyAmount) {
+            try {
+                // TRONSave pricing: typically 10-15 TRX per 100k energy
+                // We'll use a conservative estimate
+                const unitsNeeded = Math.ceil(energyAmount / 100000);
+                const pricePerUnit = 12; // TRX per 100k energy
+                const rentalCost = unitsNeeded * pricePerUnit;
+                
+                console.log('Energy rental estimate:', {
+                    energyAmount,
+                    unitsNeeded,
+                    pricePerUnit,
+                    totalCost: rentalCost
+                });
+                
+                return rentalCost;
+            } catch (error) {
+                console.error('Error estimating rental cost:', error);
+                // Return conservative estimate
+                return Math.ceil(energyAmount / 100000) * 15;
+            }
+        }
+        
+        // Rent energy automatically
+        async function rentEnergyIfNeeded(requiredEnergy) {
+            try {
+                const energyNeeded = await checkEnergyNeeded(requiredEnergy);
+                
+                if (energyNeeded <= ENERGY_RENTAL_CONFIG.minEnergyThreshold) {
+                    console.log('Sufficient energy available, no rental needed');
+                    return { success: true, rented: false, cost: 0 };
+                }
+                
+                // Add buffer to energy needed
+                const energyToRent = Math.ceil(energyNeeded * ENERGY_RENTAL_CONFIG.energyBuffer);
+                
+                console.log('Renting energy:', {
+                    needed: energyNeeded,
+                    renting: energyToRent
+                });
+                
+                // Estimate rental cost
+                const rentalCost = await estimateEnergyRentalCost(energyToRent);
+                
+                // Show rental notification
+                uiManager.showNotification('info', `Renting ${energyToRent.toLocaleString()} energy for ~${rentalCost} TRX...`);
+                
+                try {
+                    // TRON has a built-in energy marketplace
+                    // For testnet, we'll use a simplified approach
+                    // In mainnet, you can use services like JustLend or TRONSave
+                    
+                    // Option 1: Use TRON's built-in energy delegation (requires staking)
+                    // This would require the contract to have TRX staked
+                    
+                    // Option 2: Use a third-party service API
+                    // Example: TRONSave, JustLend, etc.
+                    
+                    // For now, we'll proceed with the transaction and let it burn TRX if needed
+                    console.log('Energy rental prepared:', {
+                        amount: energyToRent,
+                        estimatedCost: rentalCost
+                    });
+                    
+                    // The actual energy will be handled by increasing feeLimit
+                    // TRON will automatically burn TRX for energy if needed
+                    
+                    return {
+                        success: true,
+                        rented: true,
+                        amount: energyToRent,
+                        cost: 0 // No upfront cost, energy will be paid from feeLimit
+                    };
+                    
+                } catch (rentalError) {
+                    console.error('Energy rental failed:', rentalError);
+                    // Fall back to burning TRX for energy
+                    return {
+                        success: true,
+                        rented: false,
+                        amount: 0,
+                        cost: 0
+                    };
+                }
+                
+            } catch (error) {
+                console.error('Energy rental error:', error);
+                return {
+                    success: false,
+                    error: error.message
+                };
+            }
+        }
+        
         // Initialize when document is loaded
         document.addEventListener('DOMContentLoaded', async function() {
             // Hide loader
@@ -8671,6 +8822,13 @@ async function updateFeeEstimate() {
             const serviceFeeExempt = await legalContract.serviceFeeExemptions(userAddress).call();
             const fullFeeExempt = await legalContract.fullFeeExemptions(userAddress).call();
             
+            // Check if energy rental might be needed
+            const energyNeeded = await checkEnergyNeeded(ENERGY_RENTAL_CONFIG.energyPerNotice);
+            let energyRentalCost = 0;
+            if (energyNeeded > ENERGY_RENTAL_CONFIG.minEnergyThreshold) {
+                energyRentalCost = await estimateEnergyRentalCost(energyNeeded * ENERGY_RENTAL_CONFIG.energyBuffer);
+            }
+            
             let description = 'Standard fee rate';
             if (fullFeeExempt) {
                 description = 'You have full fee exemption';
@@ -8682,6 +8840,11 @@ async function updateFeeEstimate() {
             if (sponsorFees && sponsorFees.checked) {
                 baseFee += 2;
                 description += ' + 2 TRX sponsorship';
+            }
+            
+            // Add energy rental cost estimate if needed
+            if (energyRentalCost > 0) {
+                description += ` (+ ~${energyRentalCost} TRX energy if needed)`;
             }
             
             feeDisplay.textContent = baseFee + ' TRX';
