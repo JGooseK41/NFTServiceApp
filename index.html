@@ -1171,6 +1171,36 @@
             word-break: break-all;
             color: var(--accent-light);
             margin: 0.5rem 0;
+            background: var(--hover-bg);
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+        }
+        
+        /* Enhanced transaction modal styles */
+        #txModal .modal-content {
+            max-width: 700px;
+        }
+        
+        #txModal .token-details {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 1rem;
+        }
+        
+        #txModal .btn {
+            min-width: 140px;
+            justify-content: center;
+        }
+        
+        #txModal img {
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        
+        #txModal img:hover {
+            transform: scale(1.02);
         }
 
         .server-id-display {
@@ -4091,13 +4121,13 @@
                     <strong>Transaction Hash:</strong>
                     <div class="tx-hash" id="txHash"></div>
                 </div>
-                <a id="txLink" href="#" target="_blank" class="btn btn-secondary" style="margin-top: 1rem;">
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap;">
+                <a id="txLink" href="#" target="_blank" class="btn btn-primary" style="text-decoration: none;">
                     <i class="fas fa-external-link-alt"></i>
                     View on Tronscan
                 </a>
-            </div>
-            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
-                <button class="btn btn-primary" onclick="copyTxHash()">
+                <button class="btn btn-secondary" onclick="copyTxHash()">
                     <i class="fas fa-copy"></i>
                     Copy Hash
                 </button>
@@ -6357,6 +6387,40 @@ try {
                             <span>Document Type:</span>
                             <span>${getDocumentTypeString(documentType)}</span>
                         </div>
+                        <div class="token-detail">
+                            <span>Contract:</span>
+                            <span style="font-family: monospace; font-size: 0.9rem;">
+                                <a href="${getContractScanUrl()}" target="_blank" style="color: var(--accent-blue); text-decoration: none;">
+                                    ${legalContract.address}
+                                </a>
+                            </span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+                        <h4 style="margin-bottom: 1rem; color: var(--text-primary);">View Your NFT</h4>
+                        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                            <a href="https://gateway.pinata.cloud/ipfs/${ipfsHash}" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
+                                <i class="fas fa-image"></i> View on IPFS
+                            </a>
+                            <a href="https://ipfs.io/ipfs/${ipfsHash}" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
+                                <i class="fas fa-globe"></i> View on IPFS.io
+                            </a>
+                        </div>
+                        ${uploadedImage ? `
+                            <div style="margin-top: 1.5rem;">
+                                <h5 style="margin-bottom: 0.5rem; color: var(--text-secondary);">Document Preview:</h5>
+                                <div style="max-height: 300px; overflow: hidden; border-radius: 0.5rem; border: 1px solid var(--border-color);">
+                                    <img src="${uploadedImage}" 
+                                         style="width: 100%; height: auto; display: block; cursor: pointer;" 
+                                         alt="Legal Notice Document"
+                                         onclick="window.open('${uploadedImage}', '_blank')"
+                                         title="Click to view full size">
+                                </div>
+                                <p style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-muted); text-align: center;">
+                                    <i class="fas fa-expand"></i> Click image to view full size
+                                </p>
+                            </div>
+                        ` : ''}
                     </div>
                 `;
                 
@@ -6371,7 +6435,12 @@ try {
                     displayTxId = tx[0];
                 }
                 
-                showTxModal(displayTxId, 'Legal notice created successfully!', txDetails);
+                // Pass IPFS data to show in the modal
+                const ipfsData = {
+                    ipfsHash: ipfsHash,
+                    imageUrl: uploadedImage
+                };
+                showTxModal(displayTxId, 'Legal notice created successfully!', txDetails, ipfsData);
                 
                 // Refresh my notices after a delay
                 setTimeout(() => refreshMyNotices(), 2000);
@@ -7973,7 +8042,7 @@ async function checkUserRoles() {
         }
 
         // Transaction modal
-        function showTxModal(txHash, message, details = '') {
+        function showTxModal(txHash, message, details = '', ipfsData = null) {
             const modal = document.getElementById('txModal');
             const txHashElement = document.getElementById('txHash');
             const txMessage = document.getElementById('txMessage');
@@ -7982,7 +8051,57 @@ async function checkUserRoles() {
             
             txMessage.textContent = message || 'Your transaction has been successfully confirmed!';
             txHashElement.textContent = txHash;
-            txDetails.innerHTML = details;
+            
+            // Build enhanced details with IPFS info if available
+            let enhancedDetails = details;
+            if (ipfsData && ipfsData.ipfsHash) {
+                const ipfsPreview = `
+                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                        <h4 style="margin-bottom: 0.75rem; color: var(--text-primary);">NFT Document</h4>
+                        ${ipfsData.imageUrl ? `
+                            <div style="margin-bottom: 1rem;">
+                                <img src="${ipfsData.imageUrl}" 
+                                     style="max-width: 100%; max-height: 300px; border-radius: 8px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"
+                                     onclick="window.open('${ipfsData.imageUrl}', '_blank')" 
+                                     title="Click to view full size" />
+                            </div>
+                        ` : ''}
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem;">
+                            <a href="https://gateway.pinata.cloud/ipfs/${ipfsData.ipfsHash}" target="_blank" class="btn btn-secondary btn-small">
+                                <i class="fas fa-image"></i> View on Pinata
+                            </a>
+                            <a href="https://ipfs.io/ipfs/${ipfsData.ipfsHash}" target="_blank" class="btn btn-secondary btn-small">
+                                <i class="fas fa-globe"></i> View on IPFS.io
+                            </a>
+                        </div>
+                        <div class="token-detail">
+                            <span>IPFS Hash:</span>
+                            <span style="font-family: monospace; font-size: 0.875rem;">${ipfsData.ipfsHash}</span>
+                        </div>
+                    </div>
+                `;
+                enhancedDetails = details + ipfsPreview;
+            }
+            
+            // Add contract address link if available
+            if (CONTRACT_ADDRESS) {
+                const contractLink = `
+                    <div style="margin-top: 0.75rem;">
+                        <div class="token-detail">
+                            <span>Contract:</span>
+                            <span>
+                                <a href="${getContractScanUrl()}" target="_blank" style="color: var(--accent-blue); text-decoration: none;">
+                                    ${CONTRACT_ADDRESS.substring(0, 10)}...${CONTRACT_ADDRESS.substring(CONTRACT_ADDRESS.length - 8)}
+                                    <i class="fas fa-external-link-alt" style="font-size: 0.75rem; margin-left: 0.25rem;"></i>
+                                </a>
+                            </span>
+                        </div>
+                    </div>
+                `;
+                enhancedDetails += contractLink;
+            }
+            
+            txDetails.innerHTML = enhancedDetails;
             
             // Get network for Tronscan link
             const network = document.getElementById('networkName').textContent;
@@ -8008,6 +8127,20 @@ async function checkUserRoles() {
                 console.error('Failed to copy:', err);
                 uiManager.showNotification('error', 'Failed to copy transaction hash');
             });
+        }
+
+        // Helper function to get contract explorer URL
+        function getContractScanUrl(address = CONTRACT_ADDRESS) {
+            const network = document.getElementById('networkName')?.textContent || 'Mainnet';
+            let explorerUrl = 'https://tronscan.org';
+            
+            if (network.includes('Nile')) {
+                explorerUrl = 'https://nile.tronscan.org';
+            } else if (network.includes('Shasta')) {
+                explorerUrl = 'https://shasta.tronscan.org';
+            }
+            
+            return `${explorerUrl}/#/contract/${address}`;
         }
 
         function viewContractOnTronscan(type) {
@@ -8327,6 +8460,19 @@ async function checkUserRoles() {
                 'Other'
             ];
             return jurisdictions[jurisdictionIndex] || 'Unknown';
+        }
+        
+        function getContractScanUrl() {
+            const network = document.getElementById('networkName').textContent;
+            let baseUrl = 'https://tronscan.org/#/contract/';
+            
+            if (network.includes('Nile')) {
+                baseUrl = 'https://nile.tronscan.org/#/contract/';
+            } else if (network.includes('Shasta')) {
+                baseUrl = 'https://shasta.tronscan.org/#/contract/';
+            }
+            
+            return baseUrl + (legalContract ? legalContract.address : '');
         }
 
         function getStatusString(status) {
