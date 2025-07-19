@@ -325,6 +325,10 @@
             gap: 1.5rem;
             margin-bottom: 2rem;
         }
+        
+        .stats-header:hover {
+            background: rgba(255, 255, 255, 0.05) !important;
+        }
 
         .stat-card {
             background: var(--card-bg);
@@ -2275,26 +2279,35 @@
         </div>
 
         <!-- Stats Section -->
-        <div class="stats-section" id="statsSection" style="display: none;">
-            <div class="stat-card">
-                <i class="fas fa-file-alt"></i>
-                <div class="stat-value" id="totalNotices">0</div>
-                <div class="stat-label">Total Notices</div>
+        <div id="statsContainer" style="display: none;">
+            <div class="stats-header" onclick="toggleStats()" style="cursor: pointer; padding: 1rem; background: var(--secondary-navy); border-radius: 8px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between;">
+                <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-primary);">
+                    <i class="fas fa-chart-bar" style="margin-right: 0.5rem;"></i>
+                    Dashboard Statistics
+                </h3>
+                <i id="statsToggleIcon" class="fas fa-chevron-down" style="transition: transform 0.3s ease;"></i>
             </div>
-            <div class="stat-card">
-                <i class="fas fa-check-circle"></i>
-                <div class="stat-value" id="acceptedNotices">0</div>
-                <div class="stat-label">Accepted</div>
-            </div>
-            <div class="stat-card">
-                <i class="fas fa-clock"></i>
-                <div class="stat-value" id="pendingNotices">0</div>
-                <div class="stat-label">Pending</div>
-            </div>
-            <div class="stat-card">
-                <i class="fas fa-users"></i>
-                <div class="stat-value" id="activeServers">0</div>
-                <div class="stat-label">Process Servers</div>
+            <div class="stats-section" id="statsSection" style="display: none;">
+                <div class="stat-card">
+                    <i class="fas fa-file-alt"></i>
+                    <div class="stat-value" id="totalNotices">0</div>
+                    <div class="stat-label">Total Notices</div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-check-circle"></i>
+                    <div class="stat-value" id="acceptedNotices">0</div>
+                    <div class="stat-label">Accepted</div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-clock"></i>
+                    <div class="stat-value" id="pendingNotices">0</div>
+                    <div class="stat-label">Pending</div>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-users"></i>
+                    <div class="stat-value" id="activeServers">0</div>
+                    <div class="stat-label">Process Servers</div>
+                </div>
             </div>
         </div>
 
@@ -4184,10 +4197,10 @@
                 document.getElementById('pendingNotices').textContent = stats.pending || '0';
                 document.getElementById('activeServers').textContent = stats.servers || '0';
                 
-                // Show stats section if hidden
-                const statsSection = document.getElementById('statsSection');
-                if (statsSection.style.display === 'none') {
-                    statsSection.style.display = 'grid';
+                // Show stats container if hidden (but keep collapsed state)
+                const statsContainer = document.getElementById('statsContainer');
+                if (statsContainer.style.display === 'none') {
+                    statsContainer.style.display = 'block';
                 }
             }
 
@@ -7803,6 +7816,20 @@ async function checkUserRoles() {
             }
         }
         
+        // Toggle stats section
+        function toggleStats() {
+            const statsSection = document.getElementById('statsSection');
+            const toggleIcon = document.getElementById('statsToggleIcon');
+            
+            if (statsSection.style.display === 'none' || statsSection.style.display === '') {
+                statsSection.style.display = 'grid';
+                toggleIcon.style.transform = 'rotate(180deg)';
+            } else {
+                statsSection.style.display = 'none';
+                toggleIcon.style.transform = 'rotate(0deg)';
+            }
+        }
+        
         // Get current network based on chain type
         function getCurrentNetwork() {
             // For TRON, we're using Nile testnet by default
@@ -8915,6 +8942,7 @@ document.addEventListener('keydown', function(event) {
 	window.useConnectedAddressForFeeCollector = useConnectedAddressForFeeCollector;
 	window.uiManager = uiManager;
 	window.handleChainChange = handleChainChange;
+	window.toggleStats = toggleStats;
     </script>
 </body>
 </html>
