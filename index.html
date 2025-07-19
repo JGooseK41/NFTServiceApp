@@ -2730,6 +2730,52 @@
                             </button>
                         </div>
                     </div>
+
+                    <!-- GitHub Storage Settings -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2><i class="fas fa-lock"></i> Encrypted Storage Settings</h2>
+                        </div>
+                        
+                        <!-- GitHub Token -->
+                        <div class="form-group">
+                            <label class="form-label">GitHub Personal Access Token</label>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <input type="password" class="form-input" id="githubToken" 
+                                       placeholder="ghp_..." style="flex: 1;">
+                                <button class="btn btn-secondary btn-small" onclick="toggleTokenVisibility()" title="Show/Hide">
+                                    <i class="fas fa-eye" id="tokenVisibilityIcon"></i>
+                                </button>
+                            </div>
+                            <p class="form-help">Token for saving encrypted registrations to GitHub</p>
+                        </div>
+                        
+                        <!-- Encryption Key Display -->
+                        <div class="form-group">
+                            <label class="form-label">Encryption Key (Auto-generated)</label>
+                            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                <input type="text" class="form-input" id="encryptionKey" 
+                                       readonly style="flex: 1; background: var(--secondary-navy); cursor: not-allowed;">
+                                <button class="btn btn-secondary btn-small" onclick="copyEncryptionKey()" title="Copy key">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                            <p class="form-help">Save this key securely - needed to decrypt registration files</p>
+                        </div>
+                        
+                        <!-- Test Connection -->
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-primary" onclick="saveGitHubSettings()">
+                                <i class="fas fa-save"></i>
+                                Save Settings
+                            </button>
+                            <button class="btn btn-secondary" onclick="testGitHubConnection()">
+                                <i class="fas fa-check-circle"></i>
+                                Test Connection
+                            </button>
+                        </div>
+                        <div id="githubSettingsResult"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -4510,6 +4556,7 @@ function useConnectedAddressForFeeCollector() {
                 adminAccessDenied.style.display = 'none';
                 adminContent.style.display = 'block';
                 refreshPendingRegistrations();
+                loadGitHubSettings();
             } else {
                 adminAccessDenied.style.display = 'block';
                 adminContent.style.display = 'none';
@@ -4928,8 +4975,14 @@ function useConnectedAddressForFeeCollector() {
             repo: 'NFTServiceApp',
             path: 'registrations',
             branch: 'main',
-            token: '', // You'll need to add a GitHub token with repo access
-            encryptionKey: 'NFTServiceApp-ProcessServer-SecureKey-2024' // Change this to your secret key
+            get token() {
+                // Try to get token from localStorage first
+                return localStorage.getItem('githubToken') || '';
+            },
+            set token(value) {
+                localStorage.setItem('githubToken', value);
+            },
+            encryptionKey: 'NFTServiceApp-ProcessServer-' + Date.now() // Unique key generated
         };
 
         async function saveEncryptedRegistration(registration) {
@@ -8181,10 +8234,111 @@ document.addEventListener('keydown', function(event) {
             }
         }
         
+        // GitHub Settings Functions
+        function loadGitHubSettings() {
+            // Load token if exists
+            const savedToken = localStorage.getItem('githubToken');
+            if (savedToken) {
+                document.getElementById('githubToken').value = savedToken;
+            }
+            
+            // Display encryption key
+            document.getElementById('encryptionKey').value = GITHUB_CONFIG.encryptionKey;
+        }
+
+        function toggleTokenVisibility() {
+            const tokenInput = document.getElementById('githubToken');
+            const icon = document.getElementById('tokenVisibilityIcon');
+            
+            if (tokenInput.type === 'password') {
+                tokenInput.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                tokenInput.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        function copyEncryptionKey() {
+            const keyInput = document.getElementById('encryptionKey');
+            keyInput.select();
+            document.execCommand('copy');
+            uiManager.showNotification('success', 'Encryption key copied to clipboard');
+        }
+
+        function saveGitHubSettings() {
+            const token = document.getElementById('githubToken').value.trim();
+            
+            if (!token) {
+                uiManager.showNotification('error', 'Please enter a GitHub token');
+                return;
+            }
+            
+            if (!token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
+                uiManager.showNotification('error', 'Invalid token format. Should start with ghp_ or github_pat_');
+                return;
+            }
+            
+            // Save to localStorage
+            GITHUB_CONFIG.token = token;
+            uiManager.showNotification('success', 'GitHub settings saved successfully');
+            
+            // Update UI
+            showAlert('githubSettingsResult', 'success', 'Settings saved! Token will be used for future registrations.');
+        }
+
+        async function testGitHubConnection() {
+            const token = document.getElementById('githubToken').value.trim() || GITHUB_CONFIG.token;
+            
+            if (!token) {
+                uiManager.showNotification('error', 'Please enter a GitHub token first');
+                return;
+            }
+            
+            showProcessing('Testing GitHub connection...');
+            
+            try {
+                // Test API connection
+                const response = await fetch(`https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}`, {
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                
+                hideProcessing();
+                
+                if (response.ok) {
+                    const repo = await response.json();
+                    showAlert('githubSettingsResult', 'success', 
+                        `✓ Connected to ${repo.full_name}<br>` +
+                        `✓ Token has repository access<br>` +
+                        `✓ Ready to save encrypted registrations`
+                    );
+                } else if (response.status === 401) {
+                    showAlert('githubSettingsResult', 'error', 'Invalid token or token expired');
+                } else if (response.status === 404) {
+                    showAlert('githubSettingsResult', 'error', 'Repository not found or no access');
+                } else {
+                    showAlert('githubSettingsResult', 'error', `Connection failed: ${response.status}`);
+                }
+            } catch (error) {
+                hideProcessing();
+                console.error('GitHub test error:', error);
+                showAlert('githubSettingsResult', 'error', 'Connection test failed: ' + error.message);
+            }
+        }
+
         window.withdrawFromContract = withdrawFromContract;
         window.updateResourceSponsorship = updateResourceSponsorship;
         window.connectContracts = connectContracts;
-	window.copyWalletAddress = copyWalletAddress;
+        window.copyWalletAddress = copyWalletAddress;
+        window.toggleTokenVisibility = toggleTokenVisibility;
+        window.copyEncryptionKey = copyEncryptionKey;
+        window.saveGitHubSettings = saveGitHubSettings;
+        window.testGitHubConnection = testGitHubConnection;
 	window.copyAddress = copyAddress;
 	window.useConnectedAddress = useConnectedAddress;
 	window.useConnectedAddressForFeeCollector = useConnectedAddressForFeeCollector;
