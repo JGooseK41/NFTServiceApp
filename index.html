@@ -5980,6 +5980,17 @@ try {
                     
                     // Call serveNotice for all delivery methods
                     try {
+                        // Check user's energy and bandwidth
+                        const account = await tronWeb.trx.getAccount(tronWeb.defaultAddress.base58);
+                        const accountResources = await tronWeb.trx.getAccountResources(tronWeb.defaultAddress.base58);
+                        
+                        console.log('Account resources:', {
+                            energy: accountResources.EnergyLimit || 0,
+                            energyUsed: accountResources.EnergyUsed || 0,
+                            bandwidth: accountResources.NetLimit || 0,
+                            bandwidthUsed: accountResources.NetUsed || 0
+                        });
+                        
                         console.log('Sending transaction with params:', {
                             recipient,
                             encryptedIPFS,
@@ -5990,7 +6001,7 @@ try {
                             noticeText: noticeText.substring(0, 50) + '...',
                             legalRights: legalRights || 'You have the right to respond to this legal notice',
                             sponsorFees,
-                            feeLimit: 50_000_000,
+                            feeLimit: 100_000_000,
                             callValue: feeInSun
                         });
                         
@@ -6005,7 +6016,7 @@ try {
                             legalRights || 'You have the right to respond to this legal notice',
                             sponsorFees
                         ).send({
-                            feeLimit: 50_000_000,  // 50 TRX - reasonable for notice serving
+                            feeLimit: 100_000_000,  // 100 TRX max - increased for energy needs
                             callValue: feeInSun,
                             shouldPollResponse: true
                         });
