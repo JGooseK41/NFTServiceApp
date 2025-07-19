@@ -2293,7 +2293,7 @@
                     <i class="fas fa-chart-bar" style="margin-right: 0.5rem;"></i>
                     Dashboard Statistics
                 </h3>
-                <i id="statsToggleIcon" class="fas fa-chevron-up" style="transition: transform 0.3s ease;"></i>
+                <i id="statsToggleIcon" class="fas fa-chevron-up"></i>
             </div>
             <div class="stats-section" id="statsSection" style="display: grid;">
                 <div class="stat-card">
@@ -2343,7 +2343,7 @@
             <div class="card" id="contractManagementCard">
                 <div class="card-header" id="contractHeader" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
                     <h2><i class="fas fa-file-contract"></i> Contract Connection</h2>
-                    <i id="contractToggleIcon" class="fas fa-chevron-up" style="transition: transform 0.3s ease;"></i>
+                    <i id="contractToggleIcon" class="fas fa-chevron-up"></i>
                 </div>
                 <div id="contractContent">
                 <div class="form-group">
@@ -2373,7 +2373,7 @@
             <div class="card" id="walletStatusCard" style="display: none;">
                 <div class="card-header" id="walletStatusHeader" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
                     <h2><i class="fas fa-wallet"></i> Wallet Status</h2>
-                    <i id="walletToggleIcon" class="fas fa-chevron-down" style="transition: transform 0.3s ease;"></i>
+                    <i id="walletToggleIcon" class="fas fa-chevron-down"></i>
                 </div>
                 <div id="walletStatusContent" style="display: none;">
                 <div class="wallet-info-grid">
@@ -7408,7 +7408,7 @@ setTimeout(() => {
     const contractToggleIcon = document.getElementById('contractToggleIcon');
     if (contractContent && contractToggleIcon) {
         contractContent.style.display = 'none';
-        contractToggleIcon.style.transform = 'rotate(180deg)';
+        contractToggleIcon.className = 'fas fa-chevron-down';
     }
 }, 1500);
 
@@ -7861,10 +7861,10 @@ async function checkUserRoles() {
             
             if (statsSection.style.display === 'none' || statsSection.style.display === '') {
                 statsSection.style.display = 'grid';
-                toggleIcon.style.transform = 'rotate(180deg)';
+                toggleIcon.className = 'fas fa-chevron-up';
             } else {
                 statsSection.style.display = 'none';
-                toggleIcon.style.transform = 'rotate(0deg)';
+                toggleIcon.className = 'fas fa-chevron-down';
             }
         }
         
@@ -7879,12 +7879,16 @@ async function checkUserRoles() {
                 return;
             }
             
+            console.log('Current display:', walletContent.style.display);
+            
             if (walletContent.style.display === 'none' || walletContent.style.display === '') {
                 walletContent.style.display = 'block';
-                toggleIcon.style.transform = 'rotate(180deg)';
+                toggleIcon.className = 'fas fa-chevron-up';
+                console.log('Expanded wallet status');
             } else {
                 walletContent.style.display = 'none';
-                toggleIcon.style.transform = 'rotate(0deg)';
+                toggleIcon.className = 'fas fa-chevron-down';
+                console.log('Collapsed wallet status');
             }
         }
         
@@ -7901,10 +7905,10 @@ async function checkUserRoles() {
             
             if (contractContent.style.display === 'none' || contractContent.style.display === '') {
                 contractContent.style.display = 'block';
-                toggleIcon.style.transform = 'rotate(0deg)';
+                toggleIcon.className = 'fas fa-chevron-up';
             } else {
                 contractContent.style.display = 'none';
-                toggleIcon.style.transform = 'rotate(180deg)';
+                toggleIcon.className = 'fas fa-chevron-down';
             }
         }
         
