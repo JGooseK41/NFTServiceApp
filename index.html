@@ -330,12 +330,37 @@
             background: rgba(255, 255, 255, 0.05) !important;
         }
         
-        #walletStatusHeader:hover {
-            background: rgba(255, 255, 255, 0.02);
+        #walletStatusHeader:hover,
+        #contractHeader:hover {
+            background: rgba(255, 255, 255, 0.03);
         }
         
-        #contractHeader:hover {
-            background: rgba(255, 255, 255, 0.02);
+        /* Make entire header clickable */
+        #walletStatusHeader,
+        #contractHeader,
+        .stats-header {
+            user-select: none;
+            -webkit-user-select: none;
+            position: relative;
+        }
+        
+        /* Add active state for better feedback */
+        #walletStatusHeader:active,
+        #contractHeader:active,
+        .stats-header:active {
+            background: rgba(255, 255, 255, 0.08) !important;
+        }
+        
+        #walletStatusHeader h2,
+        #contractHeader h2,
+        .stats-header h3 {
+            pointer-events: none;
+        }
+        
+        #walletToggleIcon,
+        #contractToggleIcon,
+        #statsToggleIcon {
+            pointer-events: none;
         }
 
         .stat-card {
@@ -2341,8 +2366,8 @@
         <div id="userTab" class="tab-content active">
             <!-- Contract Management Card -->
             <div class="card" id="contractManagementCard">
-                <div class="card-header" id="contractHeader" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
-                    <h2><i class="fas fa-file-contract"></i> Contract Connection</h2>
+                <div class="card-header" id="contractHeader" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; padding: 1.25rem;">
+                    <h2 style="margin: 0;"><i class="fas fa-file-contract"></i> Contract Connection</h2>
                     <i id="contractToggleIcon" class="fas fa-chevron-up"></i>
                 </div>
                 <div id="contractContent">
@@ -2371,8 +2396,8 @@
 
             <!-- Wallet Status Card -->
             <div class="card" id="walletStatusCard" style="display: none;">
-                <div class="card-header" id="walletStatusHeader" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
-                    <h2><i class="fas fa-wallet"></i> Wallet Status</h2>
+                <div class="card-header" id="walletStatusHeader" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; padding: 1.25rem;">
+                    <h2 style="margin: 0;"><i class="fas fa-wallet"></i> Wallet Status</h2>
                     <i id="walletToggleIcon" class="fas fa-chevron-down"></i>
                 </div>
                 <div id="walletStatusContent" style="display: none;">
