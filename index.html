@@ -5057,14 +5057,14 @@ function useConnectedAddressForFeeCollector() {
             const registrations = Object.values(serverRegistrations);
             
             const stats = {
+                total: 0,  // Will be updated from contract
+                accepted: 0,  // Will be updated from contract
+                pending: 0,  // Will be updated from contract
                 servers: registrations.filter(r => r.status === 'approved').length
             };
             
-            // Update the active servers count
-            const activeServersElement = document.getElementById('activeServers');
-            if (activeServersElement) {
-                activeServersElement.textContent = stats.servers;
-            }
+            // Use the UI manager to update stats, which will also show the container
+            uiManager.updateStats(stats);
         }
 
         // GitHub encrypted storage configuration
@@ -7818,8 +7818,14 @@ async function checkUserRoles() {
         
         // Toggle stats section
         function toggleStats() {
+            console.log('Toggle stats called');
             const statsSection = document.getElementById('statsSection');
             const toggleIcon = document.getElementById('statsToggleIcon');
+            
+            if (!statsSection || !toggleIcon) {
+                console.error('Stats elements not found:', { statsSection, toggleIcon });
+                return;
+            }
             
             if (statsSection.style.display === 'none' || statsSection.style.display === '') {
                 statsSection.style.display = 'grid';
