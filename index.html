@@ -6285,8 +6285,10 @@ function useConnectedAddressForFeeCollector() {
                 // Call the contract to check the role
                 const hasRole = await legalContract.hasRole(roleBytes, address).call();
                 
-                // Check fee exemption
-                const isFeeExempt = await legalContract.feeExemptions(address);
+                // Check fee exemption - new contract has separate service and full exemptions
+                const isServiceExempt = await legalContract.serviceFeeExemptions(address).call();
+                const isFullExempt = await legalContract.fullFeeExemptions(address).call();
+                const isFeeExempt = isServiceExempt || isFullExempt;
                 
                 // Show result
                 const roleName = roleSelect.options[roleSelect.selectedIndex].text;
@@ -6809,9 +6811,8 @@ async function updateWalletStatus() {
                 isFullFeeExempt = await legalContract.fullFeeExemptions(address).call();
             }
         } catch (e) {
-            // Fallback to old contract method
-            const isFeeExempt = await legalContract.feeExemptions(address);
-            isFullFeeExempt = isFeeExempt;
+            // Contract doesn't have the old feeExemptions method
+            console.warn('Fee exemption check failed:', e);
         }
         
         const feeStatusElement = document.getElementById('feeExemptStatus');
