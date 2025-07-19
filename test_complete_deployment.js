@@ -17,7 +17,7 @@ async function testDeployment() {
     
     try {
         // Load the ABI
-        const abi = JSON.parse(fs.readFileSync('./contracts/LegalNoticeNFT_Complete_NEW.abi', 'utf8'));
+        const abi = JSON.parse(fs.readFileSync('./contracts/LegalNoticeNFT_Complete.abi', 'utf8'));
         
         // Get contract instance with ABI
         const contract = await tronWeb.contract(abi, contractAddress);

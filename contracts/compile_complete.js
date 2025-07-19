@@ -47,9 +47,9 @@ const abi = contract.abi;
 const bytecode = contract.evm.bytecode.object;
 
 // Save ABI and bytecode
-fs.writeFileSync('LegalNoticeNFT_Complete_NEW.abi', JSON.stringify(abi, null, 2));
-fs.writeFileSync('LegalNoticeNFT_Complete_NEW.bin', bytecode);
+fs.writeFileSync('LegalNoticeNFT_Complete.abi', JSON.stringify(abi, null, 2));
+fs.writeFileSync('LegalNoticeNFT_Complete.bin', bytecode);
 
 console.log('Compilation successful!');
-console.log('ABI saved to: LegalNoticeNFT_Complete_NEW.abi');
-console.log('Bytecode saved to: LegalNoticeNFT_Complete_NEW.bin');
+console.log('ABI saved to: LegalNoticeNFT_Complete.abi');
+console.log('Bytecode saved to: LegalNoticeNFT_Complete.bin');

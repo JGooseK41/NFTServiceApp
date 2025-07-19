@@ -9,8 +9,8 @@
 ## Files Needed
 
 1. **Source Code:** `/home/jesse/projects/NFTServiceApp/contracts/LegalNoticeNFT_Complete.sol`
-2. **ABI:** `/home/jesse/projects/NFTServiceApp/contracts/LegalNoticeNFT_Complete_NEW.abi`
-3. **Bytecode:** `/home/jesse/projects/NFTServiceApp/contracts/LegalNoticeNFT_Complete_NEW.bin`
+2. **ABI:** `/home/jesse/projects/NFTServiceApp/contracts/LegalNoticeNFT_Complete.abi`
+3. **Bytecode:** `/home/jesse/projects/NFTServiceApp/contracts/LegalNoticeNFT_Complete.bin`
 
 ## Deployment Steps on TronScan
 
