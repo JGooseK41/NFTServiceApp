@@ -8,6 +8,7 @@
     "deploy:mainnet": "NETWORK=mainnet node deploy_contract.js"
   },
   "dependencies": {
-    "tronweb": "^5.3.0"
+    "tronweb": "^5.3.0",
+    "@pinata/sdk": "^2.1.0"
   }
 }
