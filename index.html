@@ -2578,7 +2578,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Select Role</label>
-                            <select class="form-input" id="roleSelect">
+                            <select class="form-input" id="roleSelect" onchange="toggleRegistrationForm()">
                                 <option value="PROCESS_SERVER_ROLE">Process Server</option>
                                 <option value="ADMIN_ROLE">Admin</option>
                             </select>
@@ -2594,6 +2594,25 @@
     </div>
     <p class="form-help">Enter address or click button to use your connected wallet</p>
 </div>
+                        <!-- Process Server Registration Form -->
+                        <div id="serverRegistrationForm" style="display: none;">
+                            <div class="form-group">
+                                <label class="form-label">Agency Name</label>
+                                <input type="text" class="form-input" id="agencyName" placeholder="e.g., Smith & Associates Process Service">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Agency Email</label>
+                                <input type="email" class="form-input" id="agencyEmail" placeholder="agency@example.com">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Server Name</label>
+                                <input type="text" class="form-input" id="serverName" placeholder="Full name of process server">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Phone Number</label>
+                                <input type="tel" class="form-input" id="serverPhone" placeholder="(555) 123-4567">
+                            </div>
+                        </div>
                         <div class="checkbox-group">
                             <input type="checkbox" id="serviceFeeExemptCheck">
                             <label for="serviceFeeExemptCheck">Grant service fee exemption (Law Enforcement)</label>
@@ -2610,6 +2629,10 @@
                             <button class="btn btn-secondary" onclick="checkRole()" id="checkRoleBtn">
                                 <i class="fas fa-user-check"></i>
                                 Check Role
+                            </button>
+                            <button class="btn btn-secondary" onclick="exportRegistrations()" id="exportRegistrationsBtn" title="Export all server registrations">
+                                <i class="fas fa-download"></i>
+                                Export Servers
                             </button>
                         </div>
                         <div id="roleResult"></div>
@@ -3738,9 +3761,13 @@
         let isAdmin = false;
         let isProcessServer = false;
         
-        // In-memory storage (since localStorage is not available in sandbox)
-        let registrations = [];
-        let serverIds = {};
+        // Server registration management
+        let serverRegistrations = {};
+        try {
+            serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+        } catch (e) {
+            serverRegistrations = {};
+        }
         let recentActivity = [];
         
         // Fee configuration
@@ -5037,7 +5064,7 @@ function useConnectedAddressForFeeCollector() {
             }
             
             const recipient = document.getElementById('mintRecipient').value.trim();
-            const caseNumber = document.getElementById('mintCaseNumber').value.trim();
+            let caseNumber = document.getElementById('mintCaseNumber').value.trim();
             const jurisdictionIndex = document.getElementById('mintJurisdiction').value;
             const documentType = document.getElementById('mintDocumentType').value;
             
@@ -5980,6 +6007,26 @@ function useConnectedAddressForFeeCollector() {
                 return;
             }
             
+            // If granting PROCESS_SERVER_ROLE, validate registration form
+            if (roleSelect.value === 'PROCESS_SERVER_ROLE') {
+                const agencyName = document.getElementById('agencyName').value.trim();
+                const agencyEmail = document.getElementById('agencyEmail').value.trim();
+                const serverName = document.getElementById('serverName').value.trim();
+                const serverPhone = document.getElementById('serverPhone').value.trim();
+                
+                if (!agencyName || !agencyEmail || !serverName || !serverPhone) {
+                    showAlert('roleResult', 'error', 'Please fill in all registration fields');
+                    return;
+                }
+                
+                // Validate email format
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(agencyEmail)) {
+                    showAlert('roleResult', 'error', 'Please enter a valid email address');
+                    return;
+                }
+            }
+            
             try {
                 showProcessing('Granting role...');
                 
@@ -5998,6 +6045,31 @@ function useConnectedAddressForFeeCollector() {
                 
                 hideProcessing();
                 
+                // Save process server registration data
+                if (roleSelect.value === 'PROCESS_SERVER_ROLE') {
+                    const serverId = generateServerId();
+                    const registrationData = {
+                        serverId,
+                        address,
+                        agencyName: document.getElementById('agencyName').value.trim(),
+                        agencyEmail: document.getElementById('agencyEmail').value.trim(),
+                        serverName: document.getElementById('serverName').value.trim(),
+                        serverPhone: document.getElementById('serverPhone').value.trim(),
+                        registeredAt: new Date().toISOString(),
+                        registeredBy: tronWeb.defaultAddress.base58,
+                        feeExempt: fullFeeExempt || serviceFeeExempt
+                    };
+                    
+                    // Save to localStorage
+                    saveServerRegistration(address, registrationData);
+                    
+                    // Update the displayed server ID
+                    if (address === tronWeb.defaultAddress.base58) {
+                        const userServerId = document.getElementById('userServerId');
+                        if (userServerId) userServerId.textContent = serverId.split('-').pop();
+                    }
+                }
+                
                 let message = `Role ${roleSelect.options[roleSelect.selectedIndex].text} granted to ${formatAddress(address)}`;
                 if (fullFeeExempt) {
                     message += ' with full fee exemption';
@@ -6011,6 +6083,10 @@ function useConnectedAddressForFeeCollector() {
                 document.getElementById('roleAddress').value = '';
                 document.getElementById('serviceFeeExemptCheck').checked = false;
                 document.getElementById('fullFeeExemptCheck').checked = false;
+                document.getElementById('agencyName').value = '';
+                document.getElementById('agencyEmail').value = '';
+                document.getElementById('serverName').value = '';
+                document.getElementById('serverPhone').value = '';
                 
                 // Add to recent activity
                 addRecentActivity('role', 'Role granted', {
@@ -6636,10 +6712,17 @@ async function checkUserRoles() {
                 
                 // Show server ID if assigned
                 if (isProcessServer || isAdmin) {
-                    // For now, show a placeholder ID
                     const userServerId = document.getElementById('userServerId');
                     const serverIdDisplay = document.getElementById('serverIdDisplay');
-                    if (userServerId) userServerId.textContent = '01';
+                    
+                    // Get server ID from registration data
+                    const serverData = serverRegistrations[tronWeb.defaultAddress.base58];
+                    if (serverData && serverData.serverId) {
+                        if (userServerId) userServerId.textContent = serverData.serverId.split('-').pop();
+                    } else {
+                        if (userServerId) userServerId.textContent = '0000';
+                    }
+                    
                     if (serverIdDisplay) serverIdDisplay.style.display = 'block';
                 }
                 
@@ -6815,6 +6898,69 @@ async function checkUserRoles() {
         function formatAddress(address) {
             if (!address) return 'N/A';
             return address.substring(0, 8) + '...' + address.substring(address.length - 6);
+        }
+        
+        // Server registration helper functions
+        function generateServerId() {
+            const year = new Date().getFullYear();
+            const count = Object.keys(serverRegistrations).length + 1;
+            return `PS-${year}-${String(count).padStart(4, '0')}`;
+        }
+        
+        function saveServerRegistration(address, data) {
+            serverRegistrations[address] = data;
+            try {
+                localStorage.setItem('serverRegistrations', JSON.stringify(serverRegistrations));
+            } catch (e) {
+                console.error('Failed to save to localStorage:', e);
+            }
+        }
+        
+        function exportRegistrations() {
+            const data = Object.values(serverRegistrations);
+            if (data.length === 0) {
+                uiManager.showNotification('info', 'No server registrations to export');
+                return;
+            }
+            
+            // Convert to CSV
+            const headers = ['Server ID', 'Address', 'Agency Name', 'Agency Email', 'Server Name', 'Phone', 'Registered At', 'Registered By', 'Fee Exempt'];
+            const csvData = [
+                headers.join(','),
+                ...data.map(reg => [
+                    reg.serverId,
+                    reg.address,
+                    `"${reg.agencyName}"`,
+                    reg.agencyEmail,
+                    `"${reg.serverName}"`,
+                    reg.serverPhone,
+                    reg.registeredAt,
+                    reg.registeredBy,
+                    reg.feeExempt ? 'Yes' : 'No'
+                ].join(','))
+            ].join('\n');
+            
+            // Download file
+            const blob = new Blob([csvData], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `process_servers_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            uiManager.showNotification('success', `Exported ${data.length} server registration(s)`);
+        }
+        
+        // Toggle registration form visibility
+        function toggleRegistrationForm() {
+            const roleSelect = document.getElementById('roleSelect');
+            const registrationForm = document.getElementById('serverRegistrationForm');
+            if (registrationForm) {
+                registrationForm.style.display = roleSelect.value === 'PROCESS_SERVER_ROLE' ? 'block' : 'none';
+            }
         }
         
         // Get current network based on chain type
@@ -7331,6 +7477,8 @@ document.addEventListener('keydown', function(event) {
         window.updateNoticeTemplate = updateNoticeTemplate;
         window.updateFee = updateFee;
         window.updateFeeCollector = updateFeeCollector;
+        window.exportRegistrations = exportRegistrations;
+        window.toggleRegistrationForm = toggleRegistrationForm;
         async function withdrawFromContract() {
             if (!legalContract) {
                 uiManager.showNotification('error', 'Contract not connected');

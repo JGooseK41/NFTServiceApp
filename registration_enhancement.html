@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Process Server Registration Enhancement</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        h2 { color: #0066cc; margin-top: 30px; }
+        .code-block {
+            background: #f0f0f0;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+        .feature {
+            background: #e3f2fd;
+            padding: 15px;
+            border-left: 4px solid #0066cc;
+            margin: 15px 0;
+        }
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+        }
+        .warning {
+            background: #fff3cd;
+            padding: 15px;
+            border-left: 4px solid #ff9800;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Process Server Registration Enhancement Plan</h1>
+        
+        <h2>Current Issues:</h2>
+        <ul>
+            <li>Server ID is just a placeholder (always "01")</li>
+            <li>No registration form to collect server details</li>
+            <li>No way to export/view registered servers</li>
+            <li>Registration data is lost on page refresh</li>
+        </ul>
+
+        <h2>Proposed Solution:</h2>
+        
+        <div class="feature">
+            <h3>1. Add Registration Modal</h3>
+            <p>When admin clicks "Grant Role" for PROCESS_SERVER_ROLE, show a modal to collect:</p>
+            <ul>
+                <li>Full Name</li>
+                <li>Email</li>
+                <li>Phone</li>
+                <li>License Number</li>
+                <li>Service Areas (jurisdictions)</li>
+                <li>Company Name (optional)</li>
+            </ul>
+        </div>
+
+        <div class="feature">
+            <h3>2. Store Registration Data</h3>
+            <p>Options:</p>
+            <ul>
+                <li><strong>Quick Fix:</strong> Store in browser's localStorage (survives refresh)</li>
+                <li><strong>Better:</strong> Add to smart contract as metadata</li>
+                <li><strong>Best:</strong> External database with API</li>
+            </ul>
+        </div>
+
+        <div class="feature">
+            <h3>3. Auto-Generate Server IDs</h3>
+            <p>Format: PS-YYYY-XXXX (e.g., PS-2025-0001)</p>
+        </div>
+
+        <div class="feature">
+            <h3>4. Export Functionality</h3>
+            <p>Admin can download CSV/JSON of all registered servers with their info</p>
+        </div>
+
+        <h2>Quick Implementation (localStorage):</h2>
+        
+        <div class="code-block">
+            <pre>// Add to index.html
+
+// Registration data structure
+const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+
+// Generate server ID
+function generateServerId() {
+    const year = new Date().getFullYear();
+    const count = Object.keys(serverRegistrations).length + 1;
+    return `PS-${year}-${String(count).padStart(4, '0')}`;
+}
+
+// Save registration
+function saveServerRegistration(address, data) {
+    const serverId = generateServerId();
+    serverRegistrations[address] = {
+        serverId,
+        address,
+        ...data,
+        registeredAt: new Date().toISOString(),
+        registeredBy: tronWeb.defaultAddress.base58
+    };
+    localStorage.setItem('serverRegistrations', JSON.stringify(serverRegistrations));
+    return serverId;
+}
+
+// Export registrations
+function exportRegistrations() {
+    const data = Object.values(serverRegistrations);
+    const csv = convertToCSV(data);
+    downloadFile('process_servers.csv', csv);
+}</pre>
+        </div>
+
+        <h2>Enhanced Registration Form:</h2>
+        
+        <div class="code-block">
+            <pre>&lt;!-- Add to role management modal --&gt;
+&lt;div id="serverRegistrationForm" style="display: none;"&gt;
+    &lt;h3&gt;Process Server Details&lt;/h3&gt;
+    &lt;input type="text" id="serverName" placeholder="Full Name" required&gt;
+    &lt;input type="email" id="serverEmail" placeholder="Email" required&gt;
+    &lt;input type="tel" id="serverPhone" placeholder="Phone" required&gt;
+    &lt;input type="text" id="serverLicense" placeholder="License Number"&gt;
+    &lt;input type="text" id="serverCompany" placeholder="Company (optional)"&gt;
+    &lt;textarea id="serverAreas" placeholder="Service Areas (one per line)"&gt;&lt;/textarea&gt;
+&lt;/div&gt;</pre>
+        </div>
+
+        <div class="warning">
+            <h3>⚠️ Important Considerations:</h3>
+            <ul>
+                <li>localStorage is browser-specific (not shared between users)</li>
+                <li>Data privacy regulations may apply to storing personal info</li>
+                <li>Consider encryption for sensitive data</li>
+                <li>Implement data retention policies</li>
+            </ul>
+        </div>
+
+        <h2>Would you like me to:</h2>
+        <ol>
+            <li>Implement the localStorage solution for immediate use?</li>
+            <li>Design a smart contract extension to store metadata on-chain?</li>
+            <li>Create a separate backend service for registration management?</li>
+        </ol>
+    </div>
+</body>
+</html>
