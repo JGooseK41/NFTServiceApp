@@ -4967,40 +4967,40 @@ function useConnectedAddressForFeeCollector() {
             
             let html = '<div class="token-list">';
             pending.forEach(reg => {
-                const shortWallet = createAddressDisplay(reg.wallet);
+                const shortWallet = createAddressDisplay(reg.address || reg.wallet || reg.id);
                 html += `
                     <div class="token-item">
                         <div class="token-item-header">
                             <div>
-                                <strong>${escapeHtml(reg.agency)}</strong>
+                                <strong>${escapeHtml(reg.agencyName || reg.agency)}</strong>
                                 <div style="font-size: 0.875rem; color: var(--text-secondary);">
-                                    ${escapeHtml(reg.email)} • ${new Date(reg.timestamp).toLocaleDateString()}
+                                    ${escapeHtml(reg.agencyEmail || reg.email)} • ${new Date(reg.registeredAt || reg.timestamp).toLocaleDateString()}
                                 </div>
                             </div>
-                            <button class="btn btn-success btn-small" onclick="approveRegistration(${reg.id})">
+                            <button class="btn btn-success btn-small" onclick="approveRegistration('${escapeHtml(reg.id)}')">
                                 <i class="fas fa-check"></i> Approve
                             </button>
                         </div>
                         <div class="token-details">
                             <div class="token-detail">
                                 <span>License/Cert:</span>
-                                <span>${escapeHtml(reg.license || 'Not provided')}</span>
+                                <span>${escapeHtml(reg.licenseNumber || reg.license || 'Not provided')}</span>
                             </div>
                             <div class="token-detail">
                                 <span>Phone:</span>
-                                <span>${escapeHtml(reg.phone || 'Not provided')}</span>
+                                <span>${escapeHtml(reg.serverPhone || reg.phone || 'Not provided')}</span>
                             </div>
                             <div class="token-detail">
                                 <span>Purpose:</span>
-                                <span>${escapeHtml(reg.purpose)}</span>
+                                <span>${escapeHtml(reg.purpose || 'Not provided')}</span>
                             </div>
                             <div class="token-detail">
                                 <span>Wallet:</span>
-                                <span title="${reg.wallet}">${shortWallet}</span>
+                                <span title="${reg.address || reg.wallet || reg.id}">${shortWallet}</span>
                             </div>
                             <div class="token-detail">
                                 <span>Submitted:</span>
-                                <span>${new Date(reg.timestamp).toLocaleString()}</span>
+                                <span>${new Date(reg.registeredAt || reg.timestamp).toLocaleString()}</span>
                             </div>
                         </div>
                     </div>
@@ -7853,6 +7853,7 @@ async function checkUserRoles() {
         }
 
         function escapeHtml(text) {
+            if (!text) return '';
             const map = {
                 '&': '&amp;',
                 '<': '&lt;',
@@ -7860,7 +7861,7 @@ async function checkUserRoles() {
                 '"': '&quot;',
                 "'": '&#039;'
             };
-            return text.replace(/[&<>"']/g, m => map[m]);
+            return String(text).replace(/[&<>"']/g, m => map[m]);
         }
 
         function isValidEmail(email) {
