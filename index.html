@@ -6245,6 +6245,10 @@ try {
                             callValue: feeInSun,
                             shouldPollResponse: true
                         });
+                        
+                        console.log('Transaction response:', tx);
+                        console.log('Transaction type:', typeof tx);
+                        console.log('Is array:', Array.isArray(tx));
                     } catch (txError) {
                         console.error('Transaction error details:', txError);
                         throw txError;
@@ -6292,16 +6296,30 @@ try {
                 let alertId = 'N/A';
                 
                 if (currentChainType === 'tron') {
-                    if (tx && tx.length > 0) {
-                        // Look for NoticeServed event
-                        const events = await tronWeb.getEventByTransactionID(tx);
-                        if (events && events.length > 0) {
-                            const createEvent = events.find(e => e.name === 'NoticeServed');
-                            if (createEvent) {
-                                noticeId = createEvent.result.documentId;
-                                alertId = createEvent.result.alertId;
+                    try {
+                        // Extract transaction ID from the response
+                        let txId = tx;
+                        if (typeof tx === 'object' && tx.txid) {
+                            txId = tx.txid;
+                        } else if (Array.isArray(tx) && tx.length > 0) {
+                            txId = tx[0];
+                        }
+                        
+                        if (txId) {
+                            console.log('Getting events for transaction:', txId);
+                            // Look for NoticeServed event
+                            const events = await tronWeb.getEventByTransactionID(txId);
+                            if (events && events.length > 0) {
+                                const createEvent = events.find(e => e.name === 'NoticeServed');
+                                if (createEvent) {
+                                    noticeId = createEvent.result.documentId;
+                                    alertId = createEvent.result.alertId;
+                                }
                             }
                         }
+                    } catch (eventError) {
+                        console.warn('Could not retrieve transaction events:', eventError);
+                        // Continue without event data - transaction was still successful
                     }
                 } else {
                     // EVM chains - parse events from transaction receipt
@@ -6344,7 +6362,16 @@ try {
                 
                 // Show success notification and transaction modal
                 uiManager.showNotification('success', 'Legal notice created successfully!');
-                showTxModal(tx, 'Legal notice created successfully!', txDetails);
+                
+                // Extract transaction ID for display
+                let displayTxId = tx;
+                if (typeof tx === 'object' && tx.txid) {
+                    displayTxId = tx.txid;
+                } else if (Array.isArray(tx) && tx.length > 0) {
+                    displayTxId = tx[0];
+                }
+                
+                showTxModal(displayTxId, 'Legal notice created successfully!', txDetails);
                 
                 // Refresh my notices after a delay
                 setTimeout(() => refreshMyNotices(), 2000);
