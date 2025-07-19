@@ -2539,6 +2539,9 @@
                     <button class="btn btn-secondary btn-small" onclick="refreshMyAlerts()">
                         <i class="fas fa-sync"></i> Refresh
                     </button>
+                    <button class="btn btn-secondary btn-small" onclick="debugAlerts()">
+                        <i class="fas fa-bug"></i> Debug
+                    </button>
                 </div>
                 <div id="myAlertsContent">
                     <div class="empty-state">
@@ -6967,13 +6970,31 @@ try {
         async function getMyAlerts() {
             try {
                 const alerts = await legalContract.getRecipientAlerts(tronWeb.defaultAddress.base58).call();
+                console.log('Recipient alerts:', alerts);
                 
                 const noticeDetails = [];
                 for (const alertId of alerts) {
                     const alert = await getAlertDetails(alertId);
-                    if (alert && alert.noticeId) {
-                        const notice = await getNoticeDetails(alert.noticeId);
-                        if (notice) noticeDetails.push(notice);
+                    console.log('Alert details:', alert);
+                    if (alert) {
+                        // The alert contains the full notice data already
+                        noticeDetails.push({
+                            id: alertId,
+                            alertId: alertId,
+                            documentId: alert.documentId,
+                            server: alert.sender,
+                            recipient: alert.recipient,
+                            timestamp: alert.timestamp,
+                            status: alert.acknowledged ? 2 : 0,
+                            acknowledged: alert.acknowledged,
+                            noticeType: alert.noticeType,
+                            caseNumber: alert.caseNumber,
+                            issuingAgency: alert.issuingAgency,
+                            caseDetails: alert.caseDetails,
+                            legalRights: alert.legalRights,
+                            responseDeadline: alert.responseDeadline,
+                            previewImage: alert.previewImage
+                        });
                     }
                 }
                 
@@ -9739,6 +9760,66 @@ document.addEventListener('keydown', function(event) {
         window.updateAuditSearch = updateAuditSearch;
         window.performAudit = performAudit;
         window.refreshMyAlerts = refreshMyAlerts;
+        
+        // Debug alerts function
+        async function debugAlerts() {
+            if (!legalContract || !tronWeb.defaultAddress) {
+                uiManager.showNotification('error', 'Please connect wallet and contract first');
+                return;
+            }
+            
+            try {
+                console.log('=== ALERT DEBUG INFO ===');
+                console.log('Your address:', tronWeb.defaultAddress.base58);
+                
+                // Get total notices
+                const totalNotices = await legalContract.totalNotices().call();
+                console.log('Total notices in contract:', totalNotices.toString());
+                
+                // Get recipient alerts
+                const alerts = await legalContract.getRecipientAlerts(tronWeb.defaultAddress.base58).call();
+                console.log('Your alert IDs:', alerts.map(a => a.toString()));
+                
+                // Check a few recent notices to see if you're the recipient
+                if (totalNotices > 0) {
+                    console.log('Checking recent notices...');
+                    const checkCount = Math.min(5, totalNotices);
+                    for (let i = totalNotices - 1; i >= totalNotices - checkCount && i >= 0; i--) {
+                        try {
+                            const notice = await legalContract.notices(i).call();
+                            console.log(`Notice ${i}:`, {
+                                recipient: notice.recipient,
+                                server: notice.server,
+                                alertId: notice.alertId?.toString(),
+                                isYourNotice: notice.recipient.toLowerCase() === tronWeb.defaultAddress.base58.toLowerCase()
+                            });
+                        } catch (e) {
+                            console.log(`Could not read notice ${i}:`, e.message);
+                        }
+                    }
+                }
+                
+                // Show debug info in UI
+                const debugInfo = `
+                    <div style="background: #f0f0f0; padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.875rem;">
+                        <h4>Alert Debug Information</h4>
+                        <p><strong>Your Address:</strong> ${tronWeb.defaultAddress.base58}</p>
+                        <p><strong>Total Notices:</strong> ${totalNotices}</p>
+                        <p><strong>Your Alert Count:</strong> ${alerts.length}</p>
+                        <p><strong>Alert IDs:</strong> ${alerts.length > 0 ? alerts.join(', ') : 'None'}</p>
+                        <p style="margin-top: 1rem;">Check console for detailed information.</p>
+                    </div>
+                `;
+                
+                document.getElementById('myAlertsContent').innerHTML = debugInfo;
+                
+            } catch (error) {
+                console.error('Debug error:', error);
+                uiManager.showNotification('error', 'Debug failed: ' + error.message);
+            }
+        }
+        
+        window.debugAlerts = debugAlerts;
         window.copyTxHash = copyTxHash;
         window.viewContractOnTronscan = viewContractOnTronscan;
         window.viewOnTronscan = viewOnTronscan;
