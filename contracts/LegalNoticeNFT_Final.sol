@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.6;
+pragma solidity ^0.8.0;
 
-contract LegalNoticeNFT {
+contract LegalNoticeNFT_Final {
     // Events
     event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
     event AlertCreated(uint256 indexed alertId, address indexed recipient, uint256 documentId);
