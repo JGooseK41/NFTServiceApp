@@ -3492,6 +3492,15 @@
                                         <div class="delivery-option-cost">~15 TRX</div>
                                         <div class="delivery-option-desc">Basic text notice - No view protection</div>
                                     </label>
+                                    
+                                    <label class="delivery-option">
+                                        <input type="radio" name="deliveryMethod" value="full">
+                                        <div class="delivery-option-title">
+                                            <i class="fas fa-shield-alt"></i> Full Service
+                                        </div>
+                                        <div class="delivery-option-cost">~37 TRX</div>
+                                        <div class="delivery-option-desc">Both text summary AND view-gated document</div>
+                                    </label>
                                 </div>
                             </div>
                             
@@ -3561,12 +3570,12 @@
                             
                             <!-- Simple Text Notice Input (hidden by default) -->
                             <div class="text-notice-input" id="textNoticeGroup" style="display: none;">
-                                <label for="noticeText">Notice Text</label>
+                                <label for="noticeText" id="noticeTextLabel">Notice Text</label>
                                 <input type="text" class="form-input" id="noticeText" 
                                        placeholder="Legal Notice: Case #CV-2024-001234"
                                        maxlength="100">
                                 <div class="char-count"><span id="charCount">0</span> / 100 characters</div>
-                                <p class="form-help">This text will display directly in the recipient's wallet</p>
+                                <p class="form-help" id="noticeTextHelp">This text will display directly in the recipient's wallet</p>
                             </div>
                             
                             <div class="alert alert-warning">
@@ -5096,7 +5105,7 @@ function useConnectedAddressForFeeCollector() {
                 let sponsorFees = false;
                 let noticeText = '';
                 
-                if (deliveryMethod === 'viewgated') {
+                if (deliveryMethod === 'viewgated' || deliveryMethod === 'full') {
                     // Get notice type
                     const noticeTypeSelect = document.getElementById('noticeType').value;
                     if (noticeTypeSelect === 'Custom') {
@@ -5131,10 +5140,12 @@ function useConnectedAddressForFeeCollector() {
                     
                     // Override caseNumber variable with the actual case number for view-gated
                     caseNumber = caseNumberValue;
-                } else if (deliveryMethod === 'text') {
+                }
+                
+                if (deliveryMethod === 'text' || deliveryMethod === 'full') {
                     noticeText = document.getElementById('noticeText').value.trim();
                     if (!noticeText) {
-                        uiManager.showNotification('error', 'Notice text is required for text delivery method');
+                        uiManager.showNotification('error', 'Notice text is required');
                         createBtn.disabled = false;
                         return;
                     }
@@ -5148,11 +5159,11 @@ function useConnectedAddressForFeeCollector() {
                 
                 // Prepare preview data based on delivery method
                 let previewData = '';
-                if (deliveryMethod === 'text') {
+                if (deliveryMethod === 'text' || deliveryMethod === 'full') {
                     // Use the notice text as preview
                     previewData = noticeText;
                 } else {
-                    // View-gated or reference only - no preview data
+                    // View-gated only - no preview data
                     previewData = '';
                 }
                 
@@ -5164,9 +5175,9 @@ function useConnectedAddressForFeeCollector() {
                 let tx;
                 
                 if (currentChainType === 'tron') {
-                    if (deliveryMethod === 'viewgated') {
+                    if (deliveryMethod === 'viewgated' || deliveryMethod === 'full') {
                         // Calculate fee including sponsorship if selected
-                        let totalFee = 20; // Base fee
+                        let totalFee = deliveryMethod === 'full' ? 35 : 20; // Base fee
                         if (sponsorFees) totalFee += 2; // Sponsorship fee
                         const feeInSun = tronWeb.toSun(totalFee);
                         
@@ -7178,14 +7189,23 @@ deliveryOptions.forEach(option => {
         
         // Show/hide form sections based on selection
         const viewGatedDetails = document.getElementById('viewGatedDetails');
+        const noticeTextLabel = document.getElementById('noticeTextLabel');
+        const noticeTextHelp = document.getElementById('noticeTextHelp');
         
-        if (this.value === 'viewgated') {
+        if (this.value === 'viewgated' || this.value === 'full') {
             viewGatedDetails.style.display = 'block';
-            textNoticeGroup.style.display = 'none';
+            textNoticeGroup.style.display = this.value === 'full' ? 'block' : 'none';
+            if (this.value === 'full') {
+                textNoticeGroup.classList.add('active');
+                noticeTextLabel.textContent = 'Public Notice Summary';
+                noticeTextHelp.textContent = 'This summary appears immediately in wallet (full document requires acceptance)';
+            }
         } else if (this.value === 'text') {
             viewGatedDetails.style.display = 'none';
             textNoticeGroup.style.display = 'block';
             textNoticeGroup.classList.add('active');
+            noticeTextLabel.textContent = 'Notice Text';
+            noticeTextHelp.textContent = 'This text will display directly in the recipient\'s wallet';
         } else {
             viewGatedDetails.style.display = 'none';
             textNoticeGroup.style.display = 'none';
@@ -7235,6 +7255,10 @@ function updateFeeEstimate() {
             case 'text':
                 baseFee = 15;
                 description = 'Text notice with IPFS document reference';
+                break;
+            case 'full':
+                baseFee = 35;
+                description = 'Full service: Text summary + View-gated document';
                 break;
             case 'reference':
                 baseFee = 5;
