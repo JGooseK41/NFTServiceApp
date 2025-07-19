@@ -7651,7 +7651,7 @@ async function checkUserRoles() {
         }
 
         // Initialize when document is loaded
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             // Hide loader
             setTimeout(() => {
                 uiManager.hideLoader();
@@ -7659,7 +7659,11 @@ async function checkUserRoles() {
             
             // Check if TronWeb is available
             if (window.tronWeb && window.tronWeb.ready) {
-                connectWallet();
+                try {
+                    await connectWallet();
+                } catch (error) {
+                    console.error('Error auto-connecting wallet:', error);
+                }
             }
             
             // Load saved Pinata keys if in admin panel
