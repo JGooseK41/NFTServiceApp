@@ -6286,7 +6286,7 @@ function useConnectedAddressForFeeCollector() {
                 const hasRole = await legalContract.hasRole(roleBytes, address).call();
                 
                 // Check fee exemption
-                const isFeeExempt = await legalContract.feeExemptions(address).call();
+                const isFeeExempt = await legalContract.feeExemptions(address);
                 
                 // Show result
                 const roleName = roleSelect.options[roleSelect.selectedIndex].text;
@@ -6810,7 +6810,7 @@ async function updateWalletStatus() {
             }
         } catch (e) {
             // Fallback to old contract method
-            const isFeeExempt = await legalContract.feeExemptions(address).call();
+            const isFeeExempt = await legalContract.feeExemptions(address);
             isFullFeeExempt = isFeeExempt;
         }
         
@@ -7676,7 +7676,6 @@ document.addEventListener('keydown', function(event) {
         window.refreshDeliveryStatus = refreshDeliveryStatus;
         window.filterDeliveryResults = filterDeliveryResults;
         window.sendDeliveryReminder = sendDeliveryReminder;
-        window.updateNoticeTemplate = updateNoticeTemplate;
         window.updateFee = updateFee;
         window.updateFeeCollector = updateFeeCollector;
         window.exportRegistrations = exportRegistrations;
