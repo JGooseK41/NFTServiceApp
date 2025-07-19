@@ -329,6 +329,10 @@
         .stats-header:hover {
             background: rgba(255, 255, 255, 0.05) !important;
         }
+        
+        #walletStatusHeader:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
 
         .stat-card {
             background: var(--card-bg);
@@ -2360,9 +2364,11 @@
 
             <!-- Wallet Status Card -->
             <div class="card" id="walletStatusCard" style="display: none;">
-                <div class="card-header">
+                <div class="card-header" id="walletStatusHeader" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
                     <h2><i class="fas fa-wallet"></i> Wallet Status</h2>
+                    <i id="walletToggleIcon" class="fas fa-chevron-down" style="transition: transform 0.3s ease;"></i>
                 </div>
+                <div id="walletStatusContent" style="display: none;">
                 <div class="wallet-info-grid">
                     <div class="info-item">
                         <span class="info-label">Address:</span>
@@ -2396,6 +2402,7 @@
                     <div id="roleCheckDetails" style="font-size: 0.875rem; color: var(--text-secondary);">
                         Click refresh to check all roles...
                     </div>
+                </div>
                 </div>
             </div>
 
@@ -7836,6 +7843,26 @@ async function checkUserRoles() {
             }
         }
         
+        // Toggle wallet status section
+        function toggleWalletStatus() {
+            console.log('Toggle wallet status called');
+            const walletContent = document.getElementById('walletStatusContent');
+            const toggleIcon = document.getElementById('walletToggleIcon');
+            
+            if (!walletContent || !toggleIcon) {
+                console.error('Wallet elements not found:', { walletContent, toggleIcon });
+                return;
+            }
+            
+            if (walletContent.style.display === 'none' || walletContent.style.display === '') {
+                walletContent.style.display = 'block';
+                toggleIcon.style.transform = 'rotate(180deg)';
+            } else {
+                walletContent.style.display = 'none';
+                toggleIcon.style.transform = 'rotate(0deg)';
+            }
+        }
+        
         // Get current network based on chain type
         function getCurrentNetwork() {
             // For TRON, we're using Nile testnet by default
@@ -8047,6 +8074,12 @@ async function checkUserRoles() {
             const statsHeader = document.getElementById('statsHeader');
             if (statsHeader) {
                 statsHeader.addEventListener('click', toggleStats);
+            }
+            
+            // Add click event listener to wallet status header
+            const walletStatusHeader = document.getElementById('walletStatusHeader');
+            if (walletStatusHeader) {
+                walletStatusHeader.addEventListener('click', toggleWalletStatus);
             }
             
             // Check if TronWeb is available
@@ -8955,6 +8988,7 @@ document.addEventListener('keydown', function(event) {
 	window.uiManager = uiManager;
 	window.handleChainChange = handleChainChange;
 	window.toggleStats = toggleStats;
+	window.toggleWalletStatus = toggleWalletStatus;
     </script>
 </body>
 </html>
