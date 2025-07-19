@@ -4694,6 +4694,15 @@ function useConnectedAddressForFeeCollector() {
             try {
                 showAlert('roleResult', 'info', 'Processing transaction...');
                 
+                // First check if current user is admin
+                const adminRoleBytes = tronWeb.sha3('ADMIN_ROLE');
+                const isAdmin = await legalContract.hasRole(adminRoleBytes, tronWeb.defaultAddress.base58).call();
+                
+                if (!isAdmin) {
+                    showAlert('roleResult', 'error', 'You must be an admin to grant roles');
+                    return;
+                }
+                
                 const roleBytes = tronWeb.sha3('PROCESS_SERVER_ROLE');
                 const tx = await legalContract.grantRole(roleBytes, address).send({
                     feeLimit: 100_000_000,
@@ -4724,7 +4733,26 @@ function useConnectedAddressForFeeCollector() {
                 
             } catch (error) {
                 console.error('Error granting role:', error);
-                showAlert('roleResult', 'error', 'Failed to grant role: ' + getErrorMessage(error));
+                
+                // Check if it's a permission error
+                if (error.message && error.message.includes('Not admin')) {
+                    showAlert('roleResult', 'error', 'Only the contract admin can grant roles. Current account may not be the admin.');
+                } else if (error.message && error.message.includes('REVERT')) {
+                    // Try to get more info
+                    const adminRoleBytes = tronWeb.sha3('ADMIN_ROLE');
+                    try {
+                        const isAdmin = await legalContract.hasRole(adminRoleBytes, tronWeb.defaultAddress.base58).call();
+                        if (!isAdmin) {
+                            showAlert('roleResult', 'error', 'You are not an admin. Only the contract deployer can grant roles.');
+                        } else {
+                            showAlert('roleResult', 'error', 'Transaction failed. The contract may not support this operation.');
+                        }
+                    } catch (e) {
+                        showAlert('roleResult', 'error', 'Failed to grant role: ' + getErrorMessage(error));
+                    }
+                } else {
+                    showAlert('roleResult', 'error', 'Failed to grant role: ' + getErrorMessage(error));
+                }
             }
         }
         
