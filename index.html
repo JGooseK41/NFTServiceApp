@@ -4860,9 +4860,12 @@ function useConnectedAddressForFeeCollector() {
         
         function refreshPendingRegistrations() {
             const pendingDiv = document.getElementById('pendingRegistrations');
-            // TODO: Implement fetching pending registrations from blockchain events or storage
-            // For now, show empty state
-            const pending = [];
+            
+            // Get registrations from localStorage
+            const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+            const pending = Object.entries(serverRegistrations).filter(([address, reg]) => 
+                reg.status === 'pending' || !reg.status
+            );
             
             if (pending.length === 0) {
                 pendingDiv.innerHTML = `
@@ -4876,41 +4879,41 @@ function useConnectedAddressForFeeCollector() {
             }
             
             let html = '<div class="token-list">';
-            pending.forEach(reg => {
-                const shortWallet = createAddressDisplay(reg.wallet);
+            pending.forEach(([address, reg]) => {
+                const shortWallet = createAddressDisplay(address);
                 html += `
                     <div class="token-item">
                         <div class="token-item-header">
                             <div>
-                                <strong>${escapeHtml(reg.agency)}</strong>
+                                <strong>${escapeHtml(reg.agencyName || reg.agency || 'Unknown Agency')}</strong>
                                 <div style="font-size: 0.875rem; color: var(--text-secondary);">
-                                    ${escapeHtml(reg.email)} • ${new Date(reg.timestamp).toLocaleDateString()}
+                                    ${escapeHtml(reg.agencyEmail || reg.email || '')} • ${new Date(reg.registeredAt || reg.timestamp || Date.now()).toLocaleDateString()}
                                 </div>
                             </div>
-                            <button class="btn btn-success btn-small" onclick="approveRegistration(${reg.id})">
+                            <button class="btn btn-success btn-small" onclick="approveRegistration('${address}')">
                                 <i class="fas fa-check"></i> Approve
                             </button>
                         </div>
                         <div class="token-details">
                             <div class="token-detail">
                                 <span>License/Cert:</span>
-                                <span>${escapeHtml(reg.license || 'Not provided')}</span>
+                                <span>${escapeHtml(reg.licenseNumber || reg.license || 'Not provided')}</span>
                             </div>
                             <div class="token-detail">
                                 <span>Phone:</span>
-                                <span>${escapeHtml(reg.phone || 'Not provided')}</span>
+                                <span>${escapeHtml(reg.serverPhone || reg.phone || 'Not provided')}</span>
                             </div>
                             <div class="token-detail">
-                                <span>Purpose:</span>
-                                <span>${escapeHtml(reg.purpose)}</span>
+                                <span>Server Name:</span>
+                                <span>${escapeHtml(reg.serverName || 'Not provided')}</span>
                             </div>
                             <div class="token-detail">
                                 <span>Wallet:</span>
-                                <span title="${reg.wallet}">${shortWallet}</span>
+                                <span title="${address}">${shortWallet}</span>
                             </div>
                             <div class="token-detail">
                                 <span>Submitted:</span>
-                                <span>${new Date(reg.timestamp).toLocaleString()}</span>
+                                <span>${new Date(reg.registeredAt || reg.timestamp || Date.now()).toLocaleString()}</span>
                             </div>
                         </div>
                     </div>
@@ -4921,27 +4924,46 @@ function useConnectedAddressForFeeCollector() {
             pendingDiv.innerHTML = html;
         }
 
-        async function approveRegistration(regId) {
+        async function approveRegistration(address) {
             if (!legalContract) {
                 uiManager.showNotification('error', 'Contract not connected');
                 return;
             }
             
-            const registration = registrations.find(r => r.id == regId);
-            if (!registration) return;
+            const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+            const registration = serverRegistrations[address];
+            if (!registration) {
+                uiManager.showNotification('error', 'Registration not found');
+                return;
+            }
             
             try {
                 showProcessing('Granting process server role...');
                 
                 // Grant PROCESS_SERVER_ROLE to the user
                 const roleBytes = tronWeb.sha3('PROCESS_SERVER_ROLE');
-                const tx = await legalContract.grantRole(roleBytes, registration.wallet).send({
+                const tx = await legalContract.grantRole(roleBytes, address).send({
                     feeLimit: 100_000_000,
                     callValue: 0,
                     shouldPollResponse: true
                 });
                 
+                // Update status in localStorage
                 registration.status = 'approved';
+                registration.approvedAt = new Date().toISOString();
+                serverRegistrations[address] = registration;
+                localStorage.setItem('serverRegistrations', JSON.stringify(serverRegistrations));
+                
+                // Grant fee exemptions if they were set
+                if (window.pendingServiceFeeExempt || window.pendingFullFeeExempt) {
+                    await legalContract.setFeeExemption(address, 
+                        window.pendingServiceFeeExempt || false, 
+                        window.pendingFullFeeExempt || false
+                    ).send({
+                        feeLimit: 100_000_000,
+                        shouldPollResponse: true
+                    });
+                }
                 
                 hideProcessing();
                 uiManager.showNotification('success', 'Registration approved and role granted!');
@@ -4949,8 +4971,8 @@ function useConnectedAddressForFeeCollector() {
                 
                 // Add to recent activity
                 addRecentActivity('approval', 'Registration approved', { 
-                    agency: registration.agency,
-                    wallet: registration.wallet 
+                    agency: registration.agencyName || registration.agency,
+                    wallet: address 
                 });
                 
             } catch (error) {
