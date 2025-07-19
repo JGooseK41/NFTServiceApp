@@ -5993,24 +5993,8 @@ function useConnectedAddressForFeeCollector() {
                     shouldPollResponse: true
                 });
                 
-                // Handle fee exemptions
-                if (fullFeeExempt) {
-                    showProcessing('Setting full fee exemption...');
-                    
-                    await legalContract.setFullFeeExemption(address, true).send({
-                        feeLimit: 100_000_000,
-                        callValue: 0,
-                        shouldPollResponse: true
-                    });
-                } else if (serviceFeeExempt) {
-                    showProcessing('Setting service fee exemption...');
-                    
-                    await legalContract.setServiceFeeExemption(address, true).send({
-                        feeLimit: 100_000_000,
-                        callValue: 0,
-                        shouldPollResponse: true
-                    });
-                }
+                // Handle fee exemptions (skip for now as methods are empty in contract)
+                // TODO: Implement fee exemption logic when contract methods are functional
                 
                 hideProcessing();
                 
@@ -6032,7 +6016,7 @@ function useConnectedAddressForFeeCollector() {
                 addRecentActivity('role', 'Role granted', {
                     role: roleSelect.options[roleSelect.selectedIndex].text,
                     address: formatAddress(address),
-                    feeExempt
+                    feeExempt: fullFeeExempt || serviceFeeExempt
                 });
                 
             } catch (error) {
@@ -6635,21 +6619,28 @@ async function checkUserRoles() {
                 isProcessServer = await legalContract.hasRole(processServerRoleBytes, tronWeb.defaultAddress.base58).call();
                 
                 // Enable admin-only buttons if user is admin
-                document.getElementById('updateFeeBtn').disabled = !isAdmin;
-                document.getElementById('updateFeeCollectorBtn').disabled = !isAdmin;
+                const updateFeeBtn = document.getElementById('updateFeeBtn');
+                const updateFeeCollectorBtn = document.getElementById('updateFeeCollectorBtn');
+                if (updateFeeBtn) updateFeeBtn.disabled = !isAdmin;
+                if (updateFeeCollectorBtn) updateFeeCollectorBtn.disabled = !isAdmin;
                 
                 // Update UI based on roles
-                if (!isProcessServer && !isAdmin) {
-                    document.getElementById('registrationNotice').style.display = 'flex';
-                } else {
-                    document.getElementById('registrationNotice').style.display = 'none';
+                const registrationNotice = document.getElementById('registrationNotice');
+                if (registrationNotice) {
+                    if (!isProcessServer && !isAdmin) {
+                        registrationNotice.style.display = 'flex';
+                    } else {
+                        registrationNotice.style.display = 'none';
+                    }
                 }
                 
                 // Show server ID if assigned
                 if (isProcessServer || isAdmin) {
                     // For now, show a placeholder ID
-                    document.getElementById('userServerId').textContent = '01';
-                    document.getElementById('serverIdDisplay').style.display = 'block';
+                    const userServerId = document.getElementById('userServerId');
+                    const serverIdDisplay = document.getElementById('serverIdDisplay');
+                    if (userServerId) userServerId.textContent = '01';
+                    if (serverIdDisplay) serverIdDisplay.style.display = 'block';
                 }
                 
             } catch (error) {
@@ -7138,7 +7129,7 @@ function updateFeeEstimate() {
 }
 
 // Update notice template based on type selection
-function updateNoticeTemplate() {
+window.updateNoticeTemplate = function() {
     const noticeType = document.getElementById('noticeType').value;
     const customGroup = document.getElementById('customNoticeTypeGroup');
     const legalRights = document.getElementById('legalRights');
