@@ -3550,8 +3550,8 @@
     </div>
 
     <!-- Registration Modal -->
-    <div id="registrationModal" class="modal" onclick="handleModalBackdropClick(event, 'registrationModal')">
-        <div class="modal-content" onclick="event.stopPropagation()">
+    <div id="registrationModal" class="modal">
+        <div class="modal-content">
             <div class="modal-header">
                 <h3 class="modal-title">
                     <i class="fas fa-user-plus"></i>
@@ -3642,8 +3642,8 @@
     </div>
 
     <!-- Mint Modal -->
-    <div id="mintModal" class="modal" onclick="handleModalBackdropClick(event, 'mintModal')">
-        <div class="modal-content" onclick="event.stopPropagation()">
+    <div id="mintModal" class="modal">
+        <div class="modal-content">
             <div class="modal-header">
                 <h3 class="modal-title">
                     <i class="fas fa-file-upload"></i>
@@ -8754,12 +8754,59 @@ async function checkUserRoles() {
             }
         }
         
+        // Set up modal protection to prevent accidental closes
+        function setupModalProtection() {
+            // Remove any inline onclick handlers and use event listeners
+            const mintModal = document.getElementById('mintModal');
+            const registrationModal = document.getElementById('registrationModal');
+            
+            if (mintModal) {
+                // Remove inline onclick
+                mintModal.onclick = null;
+                
+                // Add proper event listener
+                mintModal.addEventListener('click', function(event) {
+                    // Only trigger if clicking the modal backdrop itself
+                    if (event.target === mintModal) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        closeMintModal();
+                    }
+                });
+            }
+            
+            if (registrationModal) {
+                // Remove inline onclick
+                registrationModal.onclick = null;
+                
+                // Add proper event listener
+                registrationModal.addEventListener('click', function(event) {
+                    // Only trigger if clicking the modal backdrop itself
+                    if (event.target === registrationModal) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        closeRegistrationModal();
+                    }
+                });
+            }
+            
+            // Prevent all modal content from closing the modal
+            document.querySelectorAll('.modal-content').forEach(content => {
+                content.addEventListener('click', function(event) {
+                    event.stopPropagation();
+                });
+            });
+        }
+        
         // Initialize when document is loaded
         document.addEventListener('DOMContentLoaded', async function() {
             // Hide loader
             setTimeout(() => {
                 uiManager.hideLoader();
             }, 500);
+            
+            // Set up modal protection
+            setupModalProtection();
             
             // Initialize data from localStorage
             refreshPendingRegistrations();
