@@ -2312,11 +2312,11 @@
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
                         <input type="text" class="form-input" id="contractAddress" 
                                placeholder="Enter contract address (e.g., TXxxx...)"
-                               value="TMv8Xmf6MbeJSQH4av375kq1sL3jDRFwyo" style="flex: 1;">
+                               value="TXtSpuVBTnsvCwuqDYXtiZXTpgSXZSb2Bd" style="flex: 1;">
                         <button class="btn btn-secondary" onclick="copyAddress(document.getElementById('contractAddress').value)" title="Copy address">
                             <i class="fas fa-copy"></i>
                         </button>
-                        <a href="https://nile.tronscan.org/#/contract/TMv8Xmf6MbeJSQH4av375kq1sL3jDRFwyo" target="_blank" class="btn btn-secondary" title="View on TronScan">
+                        <a href="https://nile.tronscan.org/#/contract/TXtSpuVBTnsvCwuqDYXtiZXTpgSXZSb2Bd" target="_blank" class="btn btn-secondary" title="View on TronScan">
                             <i class="fas fa-external-link-alt"></i>
                         </a>
                     </div>
@@ -3965,7 +3965,7 @@
                 },
                 nile: {
                     name: 'TRON Nile Testnet',
-                    contractAddress: 'TMv8Xmf6MbeJSQH4av375kq1sL3jDRFwyo',
+                    contractAddress: 'TXtSpuVBTnsvCwuqDYXtiZXTpgSXZSb2Bd',
                     explorerUrl: 'https://nile.tronscan.org',
                     nativeToken: 'TRX',
                     chainId: null
@@ -6340,7 +6340,21 @@ function useConnectedAddressForFeeCollector() {
 
         async function getAlertDetails(alertId) {
             try {
-                const alert = await legalContract.alerts(alertId).call();
+                const alertData = await legalContract.alerts(alertId).call();
+                const alert = {
+                    recipient: alertData.recipient,
+                    sender: alertData.sender,
+                    documentId: alertData.documentId,
+                    timestamp: alertData.timestamp,
+                    acknowledged: alertData.acknowledged,
+                    issuingAgency: alertData.issuingAgency,
+                    noticeType: alertData.noticeType,
+                    caseNumber: alertData.caseNumber,
+                    caseDetails: alertData.caseDetails,
+                    legalRights: alertData.legalRights,
+                    responseDeadline: alertData.responseDeadline,
+                    previewImage: alertData.previewImage || ''
+                };
                 // The new contract structure has different fields
                 return {
                     id: alertId,
@@ -7996,6 +8010,7 @@ document.addEventListener('keydown', function(event) {
         window.updateFeeCollector = updateFeeCollector;
         window.exportRegistrations = exportRegistrations;
         window.toggleRegistrationForm = toggleRegistrationForm;
+        
         async function withdrawFromContract() {
             if (!legalContract) {
                 uiManager.showNotification('error', 'Contract not connected');

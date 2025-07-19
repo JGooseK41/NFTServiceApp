@@ -1,80 +1,103 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.6;
+pragma solidity ^0.8.0;
 
-/**
- * @title LegalNoticeNFT
- * @dev Complete implementation with all features, optimized to avoid stack depth issues
- */
-contract LegalNoticeNFT {
-    // Events
-    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
-    event AlertCreated(uint256 indexed alertId, address indexed recipient, uint256 documentId);
-    event DocumentAccepted(uint256 indexed documentId, address indexed recipient, uint256 timestamp);
-    event DocumentViewed(uint256 indexed documentId, address indexed viewer);
+contract LegalNoticeNFT_Complete {
+    // Token tracking
+    uint256 private _currentTokenId = 1;
+    mapping(uint256 => address) private _owners;
+    mapping(address => uint256) private _balances;
+    mapping(uint256 => address) private _tokenApprovals;
+    mapping(address => mapping(address => bool)) private _operatorApprovals;
     
-    // Structs
+    // Notice types
+    enum NoticeType { ALERT, DOCUMENT }
+    
+    // Notice data structures
     struct AlertNotice {
-        uint256 documentId;
         address recipient;
+        address sender;
+        uint256 documentId;
+        uint256 timestamp;
+        bool acknowledged;
         string issuingAgency;
         string noticeType;
         string caseNumber;
         string caseDetails;
         string legalRights;
-        bool feesSponsored;
-        uint256 timestamp;
+        uint256 responseDeadline;
+        string previewImage; // Added for UI compatibility
     }
     
-    struct LegalDocument {
-        address server;
-        address recipient;
-        string ipfsHash;
-        string caseInfo;
-        uint256 timestamp;
-        bool accepted;
-        uint256 acceptedTime;
+    struct DocumentNotice {
+        string encryptedIPFS;
         string decryptionKey;
+        address authorizedViewer;
+        uint256 alertId;
+        bool isRestricted;
     }
     
+    // Unified notice structure for easier access
     struct Notice {
-        address recipient;
+        uint256 alertId;
+        uint256 documentId;
         address server;
-        string ipfsHash;
-        bytes32 contentHash;
-        uint128 timestamp;
-        uint64 caseNumberHash;
-        uint32 alertTokenId;
-        uint16 jurisdictionIndex;
-        uint8 documentType;
-        uint8 status;
+        address recipient;
+        uint256 timestamp;
+        bool acknowledged;
+        string noticeType;
+        string caseNumber;
     }
     
-    // State variables
-    mapping(uint256 => AlertNotice) public alerts;
-    mapping(uint256 => LegalDocument) public documents;
-    mapping(uint256 => Notice) public notices;
-    mapping(uint256 => address) private _tokenOwners;
+    // Storage mappings
+    mapping(uint256 => NoticeType) public tokenTypes;
+    mapping(uint256 => AlertNotice) public alertNotices;
+    mapping(uint256 => DocumentNotice) public documentNotices;
     mapping(address => uint256[]) public recipientAlerts;
-    mapping(address => uint256[]) public recipientDocuments;
-    mapping(uint256 => mapping(address => bool)) public documentViewers;
+    mapping(address => uint256[]) public serverNotices; // Track notices by server
+    mapping(uint256 => Notice) public notices; // Unified notice access
+    uint256 public totalNotices;
     
-    uint256 private _alertCounter;
-    uint256 private _documentCounter;
-    address public admin;
-    uint256 public serviceFee = 20000000; // 20 TRX
+    // Fee management - now updatable
+    uint256 public serviceFee = 20 * 10**6; // 20 TRX in SUN (updatable)
+    uint256 public creationFee = 0; // Additional creation fee
+    uint256 public sponsorshipFee = 2 * 10**6; // 2 TRX for sponsorship
+    address public feeCollector; // Where fees go
+    mapping(address => bool) public serviceFeeExemptions;
+    mapping(address => bool) public fullFeeExemptions;
     
-    modifier onlyAdmin() {
-        require(msg.sender == admin, "Not admin");
-        _;
-    }
+    // Role management
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    bytes32 public constant PROCESS_SERVER_ROLE = keccak256("PROCESS_SERVER_ROLE");
+    mapping(bytes32 => mapping(address => bool)) private _roles;
     
+    // Resource sponsorship
+    mapping(address => uint256) public sponsoredEnergy;
+    mapping(address => uint256) public sponsoredBandwidth;
+    bool public resourceSponsorshipEnabled = true;
+    
+    // Events - TRC721
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+    
+    // Events - Legal Notice
+    event NoticeServed(uint256 indexed alertId, uint256 indexed documentId, address indexed recipient);
+    event LegalNoticeCreated(uint256 indexed noticeId, address indexed server, address indexed recipient, uint256 timestamp);
+    event NoticeAcknowledged(uint256 indexed alertId, address indexed recipient);
+    event ResourceSponsored(address indexed recipient, uint256 energy, uint256 bandwidth);
+    event RoleGranted(bytes32 indexed role, address indexed account);
+    event FeeExemptionSet(address indexed user, bool serviceFeeExempt, bool fullFeeExempt);
+    event FeeUpdated(string feeType, uint256 oldFee, uint256 newFee);
+    event FeeCollectorUpdated(address oldCollector, address newCollector);
+    
+    // Constructor
     constructor() {
-        admin = msg.sender;
+        _roles[ADMIN_ROLE][msg.sender] = true;
+        feeCollector = msg.sender;
+        emit RoleGranted(ADMIN_ROLE, msg.sender);
     }
     
-    /**
-     * @dev Main serve notice function - optimized with local variable management
-     */
+    // Main function: Serve notice with view-gating
     function serveNotice(
         address recipient,
         string memory encryptedIPFS,
@@ -86,310 +109,482 @@ contract LegalNoticeNFT {
         string memory legalRights,
         bool sponsorFees
     ) public payable returns (uint256 alertId, uint256 documentId) {
-        // Payment validation
-        {
-            uint256 required = serviceFee;
-            if (sponsorFees) required += 2000000;
-            require(msg.value >= required, "Insufficient fee");
-            require(recipient != address(0), "Invalid recipient");
+        // Calculate required fee
+        uint256 requiredFee = calculateFee(msg.sender);
+        if (sponsorFees && resourceSponsorshipEnabled) {
+            requiredFee += sponsorshipFee;
         }
+        require(msg.value >= requiredFee, "Insufficient fee");
         
-        // String length validation in separate scope
-        {
-            require(bytes(issuingAgency).length <= 100, "Agency too long");
-            require(bytes(noticeType).length <= 50, "Type too long");
-            require(bytes(caseNumber).length <= 50, "Case too long");
-            require(bytes(caseDetails).length <= 100, "Details too long");
-            require(bytes(legalRights).length <= 100, "Rights too long");
-        }
+        // Create tokens
+        alertId = _currentTokenId++;
+        documentId = _currentTokenId++;
         
-        // Create document
-        documentId = ++_documentCounter;
-        {
-            LegalDocument storage doc = documents[documentId];
-            doc.server = msg.sender;
-            doc.recipient = recipient;
-            doc.ipfsHash = encryptedIPFS;
-            doc.caseInfo = string(abi.encodePacked(issuingAgency, " - ", noticeType, " - Case ", caseNumber));
-            doc.timestamp = block.timestamp;
-            doc.decryptionKey = decryptionKey;
-            recipientDocuments[recipient].push(documentId);
-        }
+        // Mint NFTs
+        _mint(recipient, alertId);
+        _mint(address(this), documentId);
         
-        // Create alert
-        alertId = ++_alertCounter;
-        {
-            AlertNotice storage alert = alerts[alertId];
-            alert.documentId = documentId;
-            alert.recipient = recipient;
-            alert.issuingAgency = issuingAgency;
-            alert.noticeType = noticeType;
-            alert.caseNumber = caseNumber;
-            alert.caseDetails = caseDetails;
-            alert.legalRights = legalRights;
-            alert.feesSponsored = sponsorFees;
-            alert.timestamp = block.timestamp;
-            recipientAlerts[recipient].push(alertId);
-            _tokenOwners[alertId] = recipient;
-        }
+        // Set token types
+        tokenTypes[alertId] = NoticeType.ALERT;
+        tokenTypes[documentId] = NoticeType.DOCUMENT;
         
-        // Create notice for compatibility
-        {
-            Notice storage notice = notices[documentId];
-            notice.recipient = recipient;
-            notice.server = msg.sender;
-            notice.ipfsHash = encryptedIPFS;
-            notice.contentHash = keccak256(abi.encodePacked(encryptedIPFS));
-            notice.timestamp = uint128(block.timestamp);
-            notice.caseNumberHash = uint64(uint256(keccak256(abi.encodePacked(caseNumber))) >> 192);
-            notice.alertTokenId = uint32(alertId);
-            notice.jurisdictionIndex = 0;
-            notice.documentType = 1;
-            notice.status = 0;
-        }
-        
-        emit Transfer(address(0), recipient, alertId);
-        emit AlertCreated(alertId, recipient, documentId);
-    }
-    
-    /**
-     * @dev Accept a document
-     */
-    function acceptDocument(uint256 documentId) public {
-        LegalDocument storage doc = documents[documentId];
-        require(msg.sender == doc.recipient, "Not recipient");
-        require(!doc.accepted, "Already accepted");
-        
-        doc.accepted = true;
-        doc.acceptedTime = block.timestamp;
-        
-        uint256 docTokenId = 1000000 + documentId;
-        _tokenOwners[docTokenId] = msg.sender;
-        notices[documentId].status = 2;
-        
-        emit DocumentAccepted(documentId, msg.sender, block.timestamp);
-        emit Transfer(address(0), msg.sender, docTokenId);
-    }
-    
-    /**
-     * @dev View document with access control
-     */
-    function viewDocument(uint256 documentId) external returns (
-        string memory ipfsHash,
-        string memory decryptionKey,
-        string memory caseInfo,
-        uint256 acceptedTime
-    ) {
-        LegalDocument storage doc = documents[documentId];
-        
-        require(
-            msg.sender == doc.server || 
-            (msg.sender == doc.recipient && doc.accepted),
-            "Not authorized"
+        // Store alert data
+        _storeAlertData(
+            alertId, 
+            recipient, 
+            documentId, 
+            issuingAgency, 
+            noticeType, 
+            caseNumber, 
+            caseDetails, 
+            legalRights
         );
         
-        if (!documentViewers[documentId][msg.sender]) {
-            documentViewers[documentId][msg.sender] = true;
-            emit DocumentViewed(documentId, msg.sender);
+        // Store document data
+        _storeDocumentData(documentId, encryptedIPFS, decryptionKey, recipient, alertId);
+        
+        // Track notices
+        recipientAlerts[recipient].push(alertId);
+        serverNotices[msg.sender].push(alertId);
+        
+        // Create unified notice
+        _createUnifiedNotice(alertId, documentId, msg.sender, recipient, noticeType, caseNumber);
+        
+        // Handle sponsorship
+        if (sponsorFees && resourceSponsorshipEnabled) {
+            _handleSponsorship(recipient);
         }
         
-        return (
-            doc.ipfsHash,
-            doc.accepted || msg.sender == doc.server ? doc.decryptionKey : "",
-            doc.caseInfo,
-            doc.acceptedTime
-        );
+        // Transfer fees
+        if (feeCollector != address(0) && requiredFee > 0) {
+            payable(feeCollector).transfer(requiredFee);
+        }
+        
+        // Emit events
+        emit NoticeServed(alertId, documentId, recipient);
+        emit LegalNoticeCreated(totalNotices - 1, msg.sender, recipient, block.timestamp);
+        
+        // Refund excess
+        if (msg.value > requiredFee) {
+            payable(msg.sender).transfer(msg.value - requiredFee);
+        }
+        
+        return (alertId, documentId);
     }
     
-    /**
-     * @dev Legacy createLegalNotice - optimized implementation
-     */
-    function createLegalNotice(
+    // Helper function to store alert data
+    function _storeAlertData(
+        uint256 alertId,
         address recipient,
-        string memory ipfsHash,
-        string memory previewImage,
-        bytes32 contentHash,
+        uint256 documentId,
+        string memory issuingAgency,
+        string memory noticeType,
         string memory caseNumber,
-        uint16 jurisdictionIndex,
-        uint8 documentType
-    ) external payable returns (uint256 noticeId, uint256 alertId) {
-        // Reuse serveNotice with default values
-        (alertId, noticeId) = serveNotice(
-            recipient,
-            ipfsHash,
-            "", // empty decryption key
-            "Legal Authority",
-            "Legal Notice",
-            caseNumber,
-            "Document attached",
-            "You have legal rights regarding this notice",
-            true // sponsor fees
-        );
-        
-        // Update notice with additional fields
-        Notice storage notice = notices[noticeId];
-        notice.contentHash = contentHash;
-        notice.jurisdictionIndex = jurisdictionIndex;
-        notice.documentType = documentType;
+        string memory caseDetails,
+        string memory legalRights
+    ) private {
+        alertNotices[alertId] = AlertNotice({
+            recipient: recipient,
+            sender: msg.sender,
+            documentId: documentId,
+            timestamp: block.timestamp,
+            acknowledged: false,
+            issuingAgency: issuingAgency,
+            noticeType: noticeType,
+            caseNumber: caseNumber,
+            caseDetails: caseDetails,
+            legalRights: legalRights,
+            responseDeadline: block.timestamp + 30 days,
+            previewImage: ""
+        });
     }
     
-    /**
-     * @dev Accept notice by alert ID
-     */
-    function acceptNotice(uint256 tokenId) external {
-        AlertNotice storage alert = alerts[tokenId];
-        acceptDocument(alert.documentId);
+    // Helper function to store document data
+    function _storeDocumentData(
+        uint256 documentId,
+        string memory encryptedIPFS,
+        string memory decryptionKey,
+        address recipient,
+        uint256 alertId
+    ) private {
+        documentNotices[documentId] = DocumentNotice({
+            encryptedIPFS: encryptedIPFS,
+            decryptionKey: decryptionKey,
+            authorizedViewer: recipient,
+            alertId: alertId,
+            isRestricted: true
+        });
     }
     
-    /**
-     * @dev Get token metadata
-     */
-    function tokenURI(uint256 tokenId) external view returns (string memory) {
-        if (tokenId <= _alertCounter) {
-            AlertNotice storage alert = alerts[tokenId];
-            
-            // Build description in chunks to avoid stack issues
-            string memory part1 = string(abi.encodePacked(
-                alert.issuingAgency, " ",
-                alert.noticeType, " - Case ", alert.caseNumber, ". ",
-                alert.caseDetails, ". "
-            ));
-            
-            string memory part2 = string(abi.encodePacked(
-                alert.legalRights, ". ",
-                alert.feesSponsored ? 
-                    "All fees have been paid. You can accept this notice with no charge." : 
-                    "Acceptance requires transaction fee.",
-                " Instructions and documentation included."
-            ));
-            
-            // Build attributes
-            string memory attrs1 = string(abi.encodePacked(
-                '{"trait_type":"Issuing Agency","value":"', alert.issuingAgency, '"},',
-                '{"trait_type":"Notice Type","value":"', alert.noticeType, '"},'
-            ));
-            
-            string memory attrs2 = string(abi.encodePacked(
-                '{"trait_type":"Case Number","value":"', alert.caseNumber, '"},',
-                '{"trait_type":"Details","value":"', alert.caseDetails, '"},',
-                '{"trait_type":"Fees Paid","value":"', alert.feesSponsored ? "Yes" : "No", '"}'
-            ));
-            
-            return string(abi.encodePacked(
-                'data:application/json;utf8,{',
-                '"name":"', alert.noticeType, '",',
-                '"description":"', part1, part2, '",',
-                '"external_url":"https://legalnotice.app/accept/', _toString(alert.documentId), '",',
-                '"attributes":[', attrs1, attrs2, ']}'
-            ));
-        } else {
-            uint256 docId = tokenId - 1000000;
-            LegalDocument storage doc = documents[docId];
-            require(doc.accepted, "Document not accepted");
-            
-            return string(abi.encodePacked(
-                'data:application/json;utf8,{"name":"Legal Document #', _toString(docId), '",',
-                '"description":"', doc.caseInfo, ' - Accepted on ', _toString(doc.acceptedTime), '",',
-                '"external_url":"https://legalnotice.app/document/', _toString(docId), '",',
-                '"attributes":[',
-                '{"trait_type":"Accepted","value":"Yes"},',
-                '{"trait_type":"Acceptance Date","value":"', _toString(doc.acceptedTime), '"}',
-                ']}'
-            ));
-        }
-    }
-    
-    /**
-     * @dev Get pending documents for recipient
-     */
-    function getPendingDocuments(address recipient) external view returns (
-        uint256[] memory documentIds,
-        string[] memory caseInfos,
-        uint256[] memory timestamps
-    ) {
-        uint256[] storage allDocs = recipientDocuments[recipient];
-        uint256 pendingCount = 0;
-        
-        // Count pending
-        for (uint i = 0; i < allDocs.length; i++) {
-            if (!documents[allDocs[i]].accepted) {
-                pendingCount++;
-            }
-        }
-        
-        // Allocate arrays
-        documentIds = new uint256[](pendingCount);
-        caseInfos = new string[](pendingCount);
-        timestamps = new uint256[](pendingCount);
-        
-        // Fill arrays
-        uint256 index = 0;
-        for (uint i = 0; i < allDocs.length; i++) {
-            uint256 docId = allDocs[i];
-            if (!documents[docId].accepted) {
-                documentIds[index] = docId;
-                caseInfos[index] = documents[docId].caseInfo;
-                timestamps[index] = documents[docId].timestamp;
-                index++;
-            }
-        }
-    }
-    
-    /**
-     * @dev Get delivery proof
-     */
-    function getDeliveryProof(uint256 documentId) external view returns (
+    // Helper function to create unified notice
+    function _createUnifiedNotice(
+        uint256 alertId,
+        uint256 documentId,
         address server,
         address recipient,
-        uint256 servedTime,
-        uint256 acceptedTime,
-        bool isAccepted
+        string memory noticeType,
+        string memory caseNumber
+    ) private {
+        uint256 noticeId = totalNotices++;
+        notices[noticeId] = Notice({
+            alertId: alertId,
+            documentId: documentId,
+            server: server,
+            recipient: recipient,
+            timestamp: block.timestamp,
+            acknowledged: false,
+            noticeType: noticeType,
+            caseNumber: caseNumber
+        });
+    }
+    
+    // Helper function to handle sponsorship
+    function _handleSponsorship(address recipient) private {
+        uint256 sponsorAmount = sponsorshipFee;
+        sponsoredEnergy[recipient] += sponsorAmount / 2;
+        sponsoredBandwidth[recipient] += sponsorAmount / 2;
+        emit ResourceSponsored(recipient, sponsorAmount / 2, sponsorAmount / 2);
+    }
+    
+    // Accept/acknowledge notice
+    function acceptNotice(uint256 alertId) public {
+        AlertNotice storage alert = alertNotices[alertId];
+        require(alert.recipient == msg.sender, "Not the recipient");
+        require(!alert.acknowledged, "Already acknowledged");
+        
+        alert.acknowledged = true;
+        
+        // Update unified notice
+        for (uint256 i = 0; i < totalNotices; i++) {
+            if (notices[i].alertId == alertId) {
+                notices[i].acknowledged = true;
+                break;
+            }
+        }
+        
+        // Transfer document NFT to recipient
+        _transfer(address(this), msg.sender, alert.documentId);
+        
+        emit NoticeAcknowledged(alertId, msg.sender);
+    }
+    
+    // View document (requires ownership)
+    function viewDocument(uint256 documentId) public view returns (
+        string memory encryptedIPFS,
+        string memory decryptionKey
     ) {
-        LegalDocument storage doc = documents[documentId];
-        return (doc.server, doc.recipient, doc.timestamp, doc.acceptedTime, doc.accepted);
+        require(ownerOf(documentId) == msg.sender, "Not authorized");
+        DocumentNotice memory doc = documentNotices[documentId];
+        return (doc.encryptedIPFS, doc.decryptionKey);
     }
     
-    // Helper functions
-    function getUserNotices(address user) external view returns (uint256[] memory) {
-        return recipientDocuments[user];
+    // Get alert details (public function matching UI expectations)
+    function alerts(uint256 alertId) public view returns (
+        address recipient,
+        address sender,
+        uint256 documentId,
+        uint256 timestamp,
+        bool acknowledged,
+        string memory issuingAgency,
+        string memory noticeType,
+        string memory caseNumber,
+        string memory caseDetails,
+        string memory legalRights,
+        uint256 responseDeadline,
+        string memory previewImage
+    ) {
+        AlertNotice memory alert = alertNotices[alertId];
+        return (
+            alert.recipient,
+            alert.sender,
+            alert.documentId,
+            alert.timestamp,
+            alert.acknowledged,
+            alert.issuingAgency,
+            alert.noticeType,
+            alert.caseNumber,
+            alert.caseDetails,
+            alert.legalRights,
+            alert.responseDeadline,
+            alert.previewImage
+        );
     }
     
-    function getUserAlerts(address user) external view returns (uint256[] memory) {
+    // Maintain compatibility with old function name
+    function getAlertDetails(uint256 alertId) public view returns (
+        address recipient,
+        address sender,
+        uint256 documentId,
+        uint256 timestamp,
+        bool acknowledged,
+        string memory issuingAgency,
+        string memory noticeType,
+        string memory caseNumber,
+        string memory caseDetails,
+        string memory legalRights,
+        uint256 responseDeadline
+    ) {
+        AlertNotice memory alert = alertNotices[alertId];
+        return (
+            alert.recipient,
+            alert.sender,
+            alert.documentId,
+            alert.timestamp,
+            alert.acknowledged,
+            alert.issuingAgency,
+            alert.noticeType,
+            alert.caseNumber,
+            alert.caseDetails,
+            alert.legalRights,
+            alert.responseDeadline
+        );
+    }
+    
+    // Get notices by user (recipient)
+    function getUserNotices(address user) public view returns (uint256[] memory) {
         return recipientAlerts[user];
     }
     
-    function balanceOf(address owner) external view returns (uint256) {
-        return recipientAlerts[owner].length;
+    // Get notices by server
+    function getServerNotices(address server) public view returns (uint256[] memory) {
+        return serverNotices[server];
     }
     
-    function ownerOf(uint256 tokenId) external view returns (address) {
-        return _tokenOwners[tokenId];
+    // Fee calculation
+    function calculateFee(address user) public view returns (uint256) {
+        if (fullFeeExemptions[user]) {
+            return creationFee; // Only pay creation fee if fully exempt from service fee
+        } else if (serviceFeeExemptions[user]) {
+            return creationFee + (serviceFee / 2); // Half service fee + creation fee
+        }
+        return creationFee + serviceFee; // Full fees
+    }
+    
+    // Get total fee components
+    function SERVICE_FEE() public view returns (uint256) {
+        return serviceFee;
     }
     
     // Admin functions
-    function grantRole(bytes32 role, address account) external onlyAdmin {}
-    function hasRole(bytes32 role, address account) external view returns (bool) { return account == admin; }
-    function feeExemptions(address user) external view returns (bool) { return false; }
-    function serviceFeeExemptions(address user) external view returns (bool) { return false; }
-    function fullFeeExemptions(address user) external view returns (bool) { return false; }
-    function creationFee() external view returns (uint256) { return serviceFee; }
-    function updateFee(uint256 newFee) external onlyAdmin { serviceFee = newFee; }
-    function updateFeeCollector(address payable newCollector) external onlyAdmin { admin = newCollector; }
-    function resourceSponsorshipEnabled() external pure returns (bool) { return true; }
-    function setResourceSponsorship(bool enabled) external onlyAdmin {}
-    function updateServiceFee(uint256 newFee) external onlyAdmin { serviceFee = newFee; }
-    function updateCreationFee(uint256 newFee) external onlyAdmin { serviceFee = newFee; }
-    function updateSponsorshipFee(uint256 newFee) external onlyAdmin {}
-    function withdrawTRX(uint256 amount) external onlyAdmin { payable(admin).transfer(amount); }
-    function setFeeExemption(address user, bool exempt) external onlyAdmin {}
-    function setFullFeeExemption(address user, bool exempt) external onlyAdmin {}
-    function setServiceFeeExemption(address user, bool exempt) external onlyAdmin {}
+    function setFeeExemption(address user, bool serviceFeeExempt, bool fullFeeExempt) external {
+        require(hasRole(ADMIN_ROLE, msg.sender), "Not admin");
+        serviceFeeExemptions[user] = serviceFeeExempt;
+        fullFeeExemptions[user] = fullFeeExempt;
+        emit FeeExemptionSet(user, serviceFeeExempt, fullFeeExempt);
+    }
     
-    /**
-     * @dev Convert uint to string
-     */
-    function _toString(uint256 value) private pure returns (string memory) {
-        if (value == 0) return "0";
+    // Update fees
+    function updateServiceFee(uint256 newFee) external {
+        require(hasRole(ADMIN_ROLE, msg.sender), "Not admin");
+        uint256 oldFee = serviceFee;
+        serviceFee = newFee;
+        emit FeeUpdated("service", oldFee, newFee);
+    }
+    
+    function updateCreationFee(uint256 newFee) external {
+        require(hasRole(ADMIN_ROLE, msg.sender), "Not admin");
+        uint256 oldFee = creationFee;
+        creationFee = newFee;
+        emit FeeUpdated("creation", oldFee, newFee);
+    }
+    
+    function updateSponsorshipFee(uint256 newFee) external {
+        require(hasRole(ADMIN_ROLE, msg.sender), "Not admin");
+        uint256 oldFee = sponsorshipFee;
+        sponsorshipFee = newFee;
+        emit FeeUpdated("sponsorship", oldFee, newFee);
+    }
+    
+    // Backwards compatibility
+    function updateFee(uint256 newFee) external {
+        require(hasRole(ADMIN_ROLE, msg.sender), "Not admin");
+        uint256 oldFee = serviceFee;
+        serviceFee = newFee;
+        emit FeeUpdated("service", oldFee, newFee);
+    }
+    
+    // Update fee collector
+    function updateFeeCollector(address newCollector) external {
+        require(hasRole(ADMIN_ROLE, msg.sender), "Not admin");
+        require(newCollector != address(0), "Invalid collector");
+        address oldCollector = feeCollector;
+        feeCollector = newCollector;
+        emit FeeCollectorUpdated(oldCollector, newCollector);
+    }
+    
+    // Resource sponsorship control
+    function setResourceSponsorship(bool enabled) external {
+        require(hasRole(ADMIN_ROLE, msg.sender), "Not admin");
+        resourceSponsorshipEnabled = enabled;
+    }
+    
+    // Role management
+    function grantRole(bytes32 role, address account) external {
+        require(hasRole(ADMIN_ROLE, msg.sender), "Not admin");
+        _roles[role][account] = true;
+        emit RoleGranted(role, account);
+    }
+    
+    function revokeRole(bytes32 role, address account) external {
+        require(hasRole(ADMIN_ROLE, msg.sender), "Not admin");
+        _roles[role][account] = false;
+    }
+    
+    function hasRole(bytes32 role, address account) public view returns (bool) {
+        return _roles[role][account];
+    }
+    
+    // Withdraw functions
+    function withdraw() external {
+        require(hasRole(ADMIN_ROLE, msg.sender), "Not admin");
+        uint256 balance = address(this).balance;
+        require(balance > 0, "No balance");
+        payable(msg.sender).transfer(balance);
+    }
+    
+    function withdrawTRX(uint256 amount) external {
+        require(hasRole(ADMIN_ROLE, msg.sender), "Not admin");
+        require(amount <= address(this).balance, "Insufficient balance");
+        payable(msg.sender).transfer(amount);
+    }
+    
+    // Get recipient's alerts
+    function getRecipientAlerts(address recipient) public view returns (uint256[] memory) {
+        return recipientAlerts[recipient];
+    }
+    
+    // TRC-721 Implementation
+    function balanceOf(address owner) public view returns (uint256) {
+        require(owner != address(0), "Invalid address");
+        return _balances[owner];
+    }
+    
+    function ownerOf(uint256 tokenId) public view returns (address) {
+        address owner = _owners[tokenId];
+        require(owner != address(0), "Token does not exist");
+        return owner;
+    }
+    
+    function approve(address to, uint256 tokenId) public {
+        address owner = ownerOf(tokenId);
+        require(to != owner, "Approval to current owner");
+        require(msg.sender == owner || isApprovedForAll(owner, msg.sender), "Not authorized");
+        
+        _tokenApprovals[tokenId] = to;
+        emit Approval(owner, to, tokenId);
+    }
+    
+    function getApproved(uint256 tokenId) public view returns (address) {
+        require(_owners[tokenId] != address(0), "Token does not exist");
+        return _tokenApprovals[tokenId];
+    }
+    
+    function setApprovalForAll(address operator, bool approved) public {
+        require(operator != msg.sender, "Approve to caller");
+        _operatorApprovals[msg.sender][operator] = approved;
+        emit ApprovalForAll(msg.sender, operator, approved);
+    }
+    
+    function isApprovedForAll(address owner, address operator) public view returns (bool) {
+        return _operatorApprovals[owner][operator];
+    }
+    
+    function transferFrom(address from, address to, uint256 tokenId) public {
+        require(_isApprovedOrOwner(msg.sender, tokenId), "Not authorized");
+        _transfer(from, to, tokenId);
+    }
+    
+    function safeTransferFrom(address from, address to, uint256 tokenId) public {
+        safeTransferFrom(from, to, tokenId, "");
+    }
+    
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory _data) public {
+        transferFrom(from, to, tokenId);
+        require(_checkOnTRC721Received(from, to, tokenId, _data), "Transfer to non TRC721Receiver");
+    }
+    
+    // TRC-721 Metadata
+    function name() public pure returns (string memory) {
+        return "Legal Notice NFT";
+    }
+    
+    function symbol() public pure returns (string memory) {
+        return "LEGAL";
+    }
+    
+    function tokenURI(uint256 tokenId) public view returns (string memory) {
+        require(_owners[tokenId] != address(0), "Token does not exist");
+        
+        if (tokenTypes[tokenId] == NoticeType.ALERT) {
+            AlertNotice memory alert = alertNotices[tokenId];
+            return string(abi.encodePacked("data:application/json;base64,", 
+                _encodeBase64(abi.encodePacked(
+                    '{"name":"', alert.noticeType, ' #', _toString(tokenId), 
+                    '","description":"', alert.issuingAgency, ' - ', alert.caseNumber,
+                    '","attributes":[{"trait_type":"Type","value":"Alert"},',
+                    '{"trait_type":"Agency","value":"', alert.issuingAgency, '"},',
+                    '{"trait_type":"Case","value":"', alert.caseNumber, '"}]}'
+                ))
+            ));
+        } else {
+            return string(abi.encodePacked("data:application/json;base64,", 
+                _encodeBase64(abi.encodePacked(
+                    '{"name":"Legal Document #', _toString(tokenId), 
+                    '","description":"View-gated legal document",',
+                    '"attributes":[{"trait_type":"Type","value":"Document"}]}'
+                ))
+            ));
+        }
+    }
+    
+    // TRC-165 Support
+    function supportsInterface(bytes4 interfaceId) public pure returns (bool) {
+        return interfaceId == 0x80ac58cd || // TRC721
+               interfaceId == 0x5b5e139f || // TRC721Metadata
+               interfaceId == 0x01ffc9a7;   // TRC165
+    }
+    
+    // Internal functions
+    function _mint(address to, uint256 tokenId) internal {
+        require(to != address(0), "Mint to zero address");
+        require(_owners[tokenId] == address(0), "Token already exists");
+        
+        _balances[to]++;
+        _owners[tokenId] = to;
+        
+        emit Transfer(address(0), to, tokenId);
+    }
+    
+    function _transfer(address from, address to, uint256 tokenId) internal {
+        require(ownerOf(tokenId) == from, "Transfer of token that is not own");
+        require(to != address(0), "Transfer to zero address");
+        
+        // Clear approvals
+        _tokenApprovals[tokenId] = address(0);
+        
+        _balances[from]--;
+        _balances[to]++;
+        _owners[tokenId] = to;
+        
+        emit Transfer(from, to, tokenId);
+    }
+    
+    function _isApprovedOrOwner(address spender, uint256 tokenId) internal view returns (bool) {
+        address owner = ownerOf(tokenId);
+        return (spender == owner || getApproved(tokenId) == spender || isApprovedForAll(owner, spender));
+    }
+    
+    function _checkOnTRC721Received(address from, address to, uint256 tokenId, bytes memory _data) 
+        private pure returns (bool) {
+        // Simplified check - in production would call onTRC721Received
+        return true;
+    }
+    
+    // Helper functions
+    function _toString(uint256 value) internal pure returns (string memory) {
+        if (value == 0) {
+            return "0";
+        }
         uint256 temp = value;
         uint256 digits;
         while (temp != 0) {
@@ -403,5 +598,10 @@ contract LegalNoticeNFT {
             value /= 10;
         }
         return string(buffer);
+    }
+    
+    function _encodeBase64(bytes memory data) internal pure returns (string memory) {
+        // Simplified base64 encoding - in production use proper library
+        return string(data);
     }
 }
