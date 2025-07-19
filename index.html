@@ -496,6 +496,12 @@
             grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
             gap: 1.5rem;
         }
+        
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
 
         .action-card {
             background: var(--card-bg);
@@ -2380,7 +2386,7 @@
             </div>
 
             <!-- Quick Actions -->
-            <div class="grid-2" style="margin-bottom: 2rem;">
+            <div class="grid-3" style="margin-bottom: 2rem;">
                 <div class="action-card primary" onclick="openMintModal()">
                     <i class="fas fa-file-upload"></i>
                     <h3>Create Legal Notice</h3>
@@ -2391,6 +2397,12 @@
                     <i class="fas fa-clipboard-check"></i>
                     <h3>Audit Issued Notices</h3>
                     <p>View all notices, delivery status, and transaction details</p>
+                </div>
+                
+                <div class="action-card" onclick="openRegistrationForUser()">
+                    <i class="fas fa-user-tie"></i>
+                    <h3>Become a Process Server</h3>
+                    <p>Register to serve legal documents professionally</p>
                 </div>
             </div>
 
@@ -3284,6 +3296,57 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Process Server FAQ -->
+                <div class="faq-section">
+                    <button class="faq-header" onclick="toggleFAQ(this)">
+                        <i class="fas fa-chevron-right"></i>
+                        <span>Becoming a Process Server</span>
+                    </button>
+                    <div class="faq-content">
+                        <h4>How to Register as a Process Server</h4>
+                        
+                        <div class="process-server-info">
+                            <h5>Requirements:</h5>
+                            <ul>
+                                <li>Valid professional credentials (license number, certification, etc.)</li>
+                                <li>Active TronLink wallet with TRX for transaction fees</li>
+                                <li>Contact information for verification purposes</li>
+                            </ul>
+                            
+                            <h5>Registration Process:</h5>
+                            <ol class="step-list">
+                                <li>Click "Become a Process Server" on the main dashboard</li>
+                                <li>Fill out the registration form with your professional details</li>
+                                <li>Provide your license/certification number</li>
+                                <li>Submit contact information for verification</li>
+                                <li>Wait for admin approval (typically 24-48 hours)</li>
+                            </ol>
+                            
+                            <h5>Benefits of Registration:</h5>
+                            <ul>
+                                <li><strong>Professional Dashboard:</strong> Access to advanced serving features</li>
+                                <li><strong>Batch Processing:</strong> Serve multiple notices efficiently</li>
+                                <li><strong>Fee Discounts:</strong> Reduced service fees for verified servers</li>
+                                <li><strong>Priority Support:</strong> Direct access to technical assistance</li>
+                                <li><strong>Analytics:</strong> Track your service history and success rates</li>
+                            </ul>
+                            
+                            <h5>Responsibilities:</h5>
+                            <ul>
+                                <li>Maintain accurate and up-to-date credentials</li>
+                                <li>Follow all applicable laws and regulations</li>
+                                <li>Ensure proper service of legal documents</li>
+                                <li>Sponsor recipient fees when appropriate</li>
+                            </ul>
+                            
+                            <div class="info-box" style="margin-top: 20px;">
+                                <i class="fas fa-info-circle"></i>
+                                <p>Need to register? <a href="#" onclick="openRegistrationForUser(); return false;">Click here to start the registration process</a></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -3316,12 +3379,23 @@
                     <i class="fas fa-info-circle"></i>
                     <div>
                         <strong>Important:</strong> Registration requires admin approval. You'll be notified once approved.
+                        <br><small style="margin-top: 0.5rem; display: block;">
+                            <a href="#" onclick="closeRegistrationModal(); showTab('help'); setTimeout(() => { document.querySelector('.faq-header').parentElement.querySelectorAll('.faq-header')[document.querySelector('.faq-header').parentElement.querySelectorAll('.faq-header').length - 2].click(); }, 100); return false;">
+                                Learn more about becoming a Process Server <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </small>
                     </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Agency/Company Name</label>
                     <input type="text" class="form-input" id="regAgency" 
                            placeholder="Enter your agency or company name">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">License/Certification Number</label>
+                    <input type="text" class="form-input" id="regLicense" 
+                           placeholder="Enter your professional license or certification number">
+                    <p class="form-help">Required for verification of process server credentials</p>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Purpose/Use Case</label>
@@ -3332,6 +3406,12 @@
                     <label class="form-label">Contact Email</label>
                     <input type="email" class="form-input" id="regEmail" 
                            placeholder="your@email.com">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Phone Number</label>
+                    <input type="tel" class="form-input" id="regPhone" 
+                           placeholder="(555) 123-4567">
+                    <p class="form-help">For verification purposes only</p>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Wallet Address</label>
@@ -3751,7 +3831,10 @@
                 <span class="close-btn" onclick="closeRegistrationModal()">&times;</span>
             </div>
             <div class="modal-body">
-                <p style="margin-bottom: 1.5rem;">Please provide your professional information to complete process server registration.</p>
+                <p style="margin-bottom: 1.5rem;">Please provide your professional information to complete process server registration. 
+                <a href="#" onclick="closeRegistrationModal(); switchTab('help'); document.getElementById('faq-process-server').scrollIntoView();" style="color: var(--accent-blue);">
+                    Learn more about being a process server →
+                </a></p>
                 
                 <div class="form-group">
                     <label class="form-label">Agency Name *</label>
@@ -4643,6 +4726,42 @@ function useConnectedAddressForFeeCollector() {
                 showAlert('roleResult', 'error', 'Failed to grant role: ' + getErrorMessage(error));
             }
         }
+        
+        // Function for regular users to open registration
+        function openRegistrationForUser() {
+            if (!tronWeb || !tronWeb.defaultAddress) {
+                uiManager.showNotification('error', 'Please connect your wallet first');
+                return;
+            }
+            
+            // Check if already a process server
+            checkIfProcessServer().then(isServer => {
+                if (isServer) {
+                    uiManager.showNotification('info', 'You are already registered as a process server');
+                    return;
+                }
+                
+                // Set the user's own address
+                window.pendingProcessServerAddress = tronWeb.defaultAddress.base58;
+                window.pendingServiceFeeExempt = false;
+                window.pendingFullFeeExempt = false;
+                
+                // Show the registration modal
+                document.getElementById('registrationModal').style.display = 'flex';
+            });
+        }
+        
+        async function checkIfProcessServer() {
+            if (!legalContract || !tronWeb.defaultAddress) return false;
+            
+            try {
+                const roleBytes = tronWeb.sha3('PROCESS_SERVER_ROLE');
+                return await legalContract.hasRole(roleBytes, tronWeb.defaultAddress.base58).call();
+            } catch (error) {
+                console.error('Error checking process server role:', error);
+                return false;
+            }
+        }
 
         // Processing overlay
         function showProcessing(message) {
@@ -4672,15 +4791,19 @@ function useConnectedAddressForFeeCollector() {
         // Registration functions
         async function submitRegistration() {
             const agency = document.getElementById('regAgency').value.trim();
+            const license = document.getElementById('regLicense').value.trim();
             const purpose = document.getElementById('regPurpose').value.trim();
             const email = document.getElementById('regEmail').value.trim();
+            const phone = document.getElementById('regPhone').value.trim();
             const wallet = document.getElementById('regWallet').value;
             
             // Validation
             const errors = [];
             if (!agency) errors.push('Agency/Company name is required');
+            if (!license) errors.push('License/Certification number is required');
             if (!purpose) errors.push('Purpose/Use case is required');
             if (!email) errors.push('Email is required');
+            if (!phone) errors.push('Phone number is required');
             if (email && !isValidEmail(email)) errors.push('Invalid email format');
             
             if (errors.length > 0) {
@@ -4692,8 +4815,10 @@ function useConnectedAddressForFeeCollector() {
             const registration = {
                 id: Date.now(),
                 agency,
+                license,
                 purpose,
                 email,
+                phone,
                 wallet,
                 timestamp: new Date(),
                 status: 'pending'
@@ -4701,6 +4826,20 @@ function useConnectedAddressForFeeCollector() {
             
             // Store registration
             registrations.push(registration);
+            
+            // Store in localStorage for persistence
+            const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+            serverRegistrations[wallet] = {
+                agencyName: agency,
+                licenseNumber: license,
+                purpose: purpose,
+                agencyEmail: email,
+                serverPhone: phone,
+                registeredAt: new Date().toISOString(),
+                address: wallet,
+                status: 'pending'
+            };
+            localStorage.setItem('serverRegistrations', JSON.stringify(serverRegistrations));
             
             // Add to recent activity
             addRecentActivity('registration', 'Registration submitted', { agency });
@@ -4756,6 +4895,14 @@ function useConnectedAddressForFeeCollector() {
                             </button>
                         </div>
                         <div class="token-details">
+                            <div class="token-detail">
+                                <span>License/Cert:</span>
+                                <span>${escapeHtml(reg.license || 'Not provided')}</span>
+                            </div>
+                            <div class="token-detail">
+                                <span>Phone:</span>
+                                <span>${escapeHtml(reg.phone || 'Not provided')}</span>
+                            </div>
                             <div class="token-detail">
                                 <span>Purpose:</span>
                                 <span>${escapeHtml(reg.purpose)}</span>
@@ -7828,6 +7975,7 @@ document.addEventListener('keydown', function(event) {
         window.closeTxModal = closeTxModal;
         window.closeRegistrationModal = closeRegistrationModal;
         window.submitRegistration = submitRegistration;
+        window.openRegistrationForUser = openRegistrationForUser;
         window.updateAuditSearch = updateAuditSearch;
         window.performAudit = performAudit;
         window.refreshMyAlerts = refreshMyAlerts;
