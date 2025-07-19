@@ -4551,6 +4551,8 @@ function useConnectedAddressForFeeCollector() {
             // Check admin access when switching to admin tab
             if (tabName === 'admin') {
                 checkAdminAccess();
+                refreshPendingRegistrations();
+                updateStatsFromLocalStorage();
             }
             
             // Load delivery status when switching to delivery tab
@@ -4945,9 +4947,12 @@ function useConnectedAddressForFeeCollector() {
         
         function refreshPendingRegistrations() {
             const pendingDiv = document.getElementById('pendingRegistrations');
-            // TODO: Implement fetching pending registrations from blockchain events or storage
-            // For now, show empty state
-            const pending = [];
+            
+            // Get registrations from localStorage
+            const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+            const pending = Object.entries(serverRegistrations)
+                .filter(([id, reg]) => reg.status === 'pending')
+                .map(([id, reg]) => ({ ...reg, id }));
             
             if (pending.length === 0) {
                 pendingDiv.innerHTML = `
@@ -5005,6 +5010,21 @@ function useConnectedAddressForFeeCollector() {
             
             pendingDiv.innerHTML = html;
         }
+        
+        function updateStatsFromLocalStorage() {
+            const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+            const registrations = Object.values(serverRegistrations);
+            
+            const stats = {
+                servers: registrations.filter(r => r.status === 'approved').length
+            };
+            
+            // Update the active servers count
+            const activeServersElement = document.getElementById('activeServers');
+            if (activeServersElement) {
+                activeServersElement.textContent = stats.servers;
+            }
+        }
 
         // GitHub encrypted storage configuration
         const GITHUB_CONFIG = {
@@ -5019,11 +5039,31 @@ function useConnectedAddressForFeeCollector() {
             set token(value) {
                 localStorage.setItem('githubToken', value);
             },
-            encryptionKey: 'NFTServiceApp-ProcessServer-' + Date.now() // Unique key generated
+            get encryptionKey() {
+                // Use a fixed key stored in localStorage, or generate one if it doesn't exist
+                let key = localStorage.getItem('encryptionKey');
+                if (!key) {
+                    key = 'NFTServiceApp-ProcessServer-' + Date.now();
+                    localStorage.setItem('encryptionKey', key);
+                }
+                return key;
+            }
         };
 
         async function saveEncryptedRegistration(registration) {
             try {
+                // Check if GitHub token is configured
+                if (!GITHUB_CONFIG.token) {
+                    console.log('GitHub token not configured, skipping cloud save');
+                    // Update status in localStorage
+                    const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+                    if (registration.id) {
+                        serverRegistrations[registration.id] = registration;
+                        localStorage.setItem('serverRegistrations', JSON.stringify(serverRegistrations));
+                    }
+                    return;
+                }
+                
                 // Encrypt the registration data
                 const dataStr = JSON.stringify(registration, null, 2);
                 const encrypted = CryptoJS.AES.encrypt(dataStr, GITHUB_CONFIG.encryptionKey).toString();
@@ -5181,7 +5221,12 @@ try {
                     registration.serverId = await generateProcessServerId();
                 }
                 
+                // Update localStorage
+                serverRegistrations[regId] = registration;
+                localStorage.setItem('serverRegistrations', JSON.stringify(serverRegistrations));
+                
                 // Save encrypted registration to GitHub
+                registration.id = regId; // Pass the ID for localStorage update
                 await saveEncryptedRegistration(registration);
                 
                 hideProcessing();
@@ -7900,6 +7945,10 @@ async function checkUserRoles() {
             setTimeout(() => {
                 uiManager.hideLoader();
             }, 500);
+            
+            // Initialize data from localStorage
+            refreshPendingRegistrations();
+            updateStatsFromLocalStorage();
             
             // Check if TronWeb is available
             if (window.tronWeb && window.tronWeb.ready) {
