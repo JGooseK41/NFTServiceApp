@@ -6309,19 +6309,29 @@ function useConnectedAddressForFeeCollector() {
             
             try {
                 let fee;
+                let userFee;
                 let tokenSymbol;
                 
                 if (currentChainType === 'tron') {
                     fee = await legalContract.SERVICE_FEE().call();
-                    currentCreationFee = parseFloat(tronWeb.fromSun(fee));
+                    // Get user's actual fee after exemptions
+                    userFee = await legalContract.calculateFee(tronWeb.defaultAddress.base58).call();
+                    currentCreationFee = parseFloat(tronWeb.fromSun(userFee));
                     tokenSymbol = 'TRX';
                 } else {
                     fee = await legalContract.methods.SERVICE_FEE().call();
-                    currentCreationFee = parseFloat(web3Instance.utils.fromWei(fee, 'ether'));
+                    userFee = await legalContract.methods.calculateFee(web3Instance.eth.defaultAccount).call();
+                    currentCreationFee = parseFloat(web3Instance.utils.fromWei(userFee, 'ether'));
                     tokenSymbol = CHAIN_CONFIG.evm[currentNetwork].nativeToken;
                 }
                 
-                document.getElementById('currentCreationFee').textContent = `Current: ${currentCreationFee} ${tokenSymbol}`;
+                // Update display to show user's actual fee
+                const baseFee = parseFloat(currentChainType === 'tron' ? tronWeb.fromSun(fee) : web3Instance.utils.fromWei(fee, 'ether'));
+                if (currentCreationFee < baseFee) {
+                    document.getElementById('currentCreationFee').textContent = `Your Fee: ${currentCreationFee} ${tokenSymbol} (Base: ${baseFee} ${tokenSymbol})`;
+                } else {
+                    document.getElementById('currentCreationFee').textContent = `Current: ${currentCreationFee} ${tokenSymbol}`;
+                }
                 document.getElementById('creationFee').value = currentCreationFee;
                 
             } catch (error) {
@@ -6850,6 +6860,22 @@ async function checkUserRoles() {
                 
                 isAdmin = await legalContract.hasRole(adminRoleBytes, tronWeb.defaultAddress.base58).call();
                 isProcessServer = await legalContract.hasRole(processServerRoleBytes, tronWeb.defaultAddress.base58).call();
+                
+                // Check fee exemption status
+                const serviceFeeExempt = await legalContract.serviceFeeExemptions(tronWeb.defaultAddress.base58).call();
+                const fullFeeExempt = await legalContract.fullFeeExemptions(tronWeb.defaultAddress.base58).call();
+                
+                // Update fee status display
+                const feeStatusElement = document.getElementById('feeExemptStatus');
+                if (feeStatusElement) {
+                    if (fullFeeExempt) {
+                        feeStatusElement.innerHTML = '<span class="badge badge-success">Full Exempt</span>';
+                    } else if (serviceFeeExempt) {
+                        feeStatusElement.innerHTML = '<span class="badge badge-primary">Service Fee Exempt</span>';
+                    } else {
+                        feeStatusElement.innerHTML = '<span class="badge badge-warning">Not Exempt</span>';
+                    }
+                }
                 
                 // Enable admin-only buttons if user is admin
                 const updateFeeBtn = document.getElementById('updateFeeBtn');
