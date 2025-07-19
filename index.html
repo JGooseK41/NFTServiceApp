@@ -13,6 +13,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script src="js/documentConverter.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -4921,6 +4922,143 @@ function useConnectedAddressForFeeCollector() {
             pendingDiv.innerHTML = html;
         }
 
+        // GitHub encrypted storage configuration
+        const GITHUB_CONFIG = {
+            owner: 'JGooseK41',
+            repo: 'NFTServiceApp',
+            path: 'registrations',
+            branch: 'main',
+            token: '', // You'll need to add a GitHub token with repo access
+            encryptionKey: 'NFTServiceApp-ProcessServer-SecureKey-2024' // Change this to your secret key
+        };
+
+        async function saveEncryptedRegistration(registration) {
+            try {
+                // Encrypt the registration data
+                const dataStr = JSON.stringify(registration, null, 2);
+                const encrypted = CryptoJS.AES.encrypt(dataStr, GITHUB_CONFIG.encryptionKey).toString();
+                
+                // Create filename with timestamp
+                const filename = `${registration.address}_${Date.now()}.enc`;
+                const filepath = `${GITHUB_CONFIG.path}/${filename}`;
+                
+                // Prepare the content
+                const content = btoa(encrypted); // Base64 encode for GitHub API
+                
+                // GitHub API request to create file
+                const response = await fetch(`https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${filepath}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${GITHUB_CONFIG.token}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: `Add encrypted registration for ${registration.agencyName}`,
+                        content: content,
+                        branch: GITHUB_CONFIG.branch
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`GitHub API error: ${response.status}`);
+                }
+                
+                console.log('Registration saved to GitHub:', filename);
+                
+                // Also create a decryption helper file if it doesn't exist
+                await createDecryptionHelper();
+                
+            } catch (error) {
+                console.error('Error saving to GitHub:', error);
+                // Fall back to local download
+                downloadEncryptedRegistration(registration);
+            }
+        }
+
+        function downloadEncryptedRegistration(registration) {
+            try {
+                const dataStr = JSON.stringify(registration, null, 2);
+                const encrypted = CryptoJS.AES.encrypt(dataStr, GITHUB_CONFIG.encryptionKey).toString();
+                
+                const blob = new Blob([encrypted], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `registration_${registration.address}_${Date.now()}.enc`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                uiManager.showNotification('info', 'Encrypted registration downloaded to your computer');
+            } catch (error) {
+                console.error('Error downloading registration:', error);
+            }
+        }
+
+        async function createDecryptionHelper() {
+            const helperContent = `// Decryption Helper for Process Server Registrations
+// Usage: node decrypt.js <encrypted-file>
+
+const CryptoJS = require('crypto-js');
+const fs = require('fs');
+
+const ENCRYPTION_KEY = '${GITHUB_CONFIG.encryptionKey}';
+
+if (process.argv.length < 3) {
+    console.log('Usage: node decrypt.js <encrypted-file>');
+    process.exit(1);
+}
+
+try {
+    const encryptedData = fs.readFileSync(process.argv[2], 'utf8');
+    const decrypted = CryptoJS.AES.decrypt(encryptedData, ENCRYPTION_KEY);
+    const decryptedData = decrypted.toString(CryptoJS.enc.Utf8);
+    
+    const registration = JSON.parse(decryptedData);
+    console.log('Decrypted Registration:', registration);
+    
+    // Save decrypted file
+    const outputFile = process.argv[2].replace('.enc', '.json');
+    fs.writeFileSync(outputFile, JSON.stringify(registration, null, 2));
+    console.log('Decrypted data saved to:', outputFile);
+} catch (error) {
+    console.error('Decryption error:', error.message);
+}`;
+
+            // Save helper file only once
+            const helperPath = `${GITHUB_CONFIG.path}/decrypt.js`;
+            try {
+                // Check if file already exists
+                const checkResponse = await fetch(`https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${helperPath}`, {
+                    headers: {
+                        'Authorization': `token ${GITHUB_CONFIG.token}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                
+                if (checkResponse.ok) {
+                    return; // File already exists
+                }
+                
+                // Create the helper file
+                await fetch(`https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/contents/${helperPath}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `token ${GITHUB_CONFIG.token}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: 'Add decryption helper for encrypted registrations',
+                        content: btoa(helperContent),
+                        branch: GITHUB_CONFIG.branch
+                    })
+                });
+            } catch (error) {
+                console.error('Error creating decryption helper:', error);
+            }
+        }
+
         async function approveRegistration(regId) {
             if (!legalContract) {
                 uiManager.showNotification('error', 'Contract not connected');
@@ -4944,6 +5082,12 @@ function useConnectedAddressForFeeCollector() {
                 });
                 
                 registration.status = 'approved';
+                registration.approvedAt = new Date().toISOString();
+                registration.approvedBy = tronWeb.defaultAddress.base58;
+                registration.txHash = tx;
+                
+                // Save encrypted registration to GitHub
+                await saveEncryptedRegistration(registration);
                 
                 hideProcessing();
                 uiManager.showNotification('success', 'Registration approved and role granted!');
