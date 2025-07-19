@@ -4824,9 +4824,6 @@ function useConnectedAddressForFeeCollector() {
                 status: 'pending'
             };
             
-            // Store registration
-            registrations.push(registration);
-            
             // Store in localStorage for persistence
             const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
             serverRegistrations[wallet] = {
@@ -4930,7 +4927,9 @@ function useConnectedAddressForFeeCollector() {
                 return;
             }
             
-            const registration = registrations.find(r => r.id == regId);
+            // Get registration from localStorage
+            const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+            const registration = serverRegistrations[regId];
             if (!registration) return;
             
             try {
@@ -4938,7 +4937,7 @@ function useConnectedAddressForFeeCollector() {
                 
                 // Grant PROCESS_SERVER_ROLE to the user
                 const roleBytes = tronWeb.sha3('PROCESS_SERVER_ROLE');
-                const tx = await legalContract.grantRole(roleBytes, registration.wallet).send({
+                const tx = await legalContract.grantRole(roleBytes, registration.address || regId).send({
                     feeLimit: 100_000_000,
                     callValue: 0,
                     shouldPollResponse: true
