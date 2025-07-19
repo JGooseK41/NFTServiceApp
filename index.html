@@ -333,6 +333,10 @@
         #walletStatusHeader:hover {
             background: rgba(255, 255, 255, 0.02);
         }
+        
+        #contractHeader:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
 
         .stat-card {
             background: var(--card-bg);
@@ -2289,9 +2293,9 @@
                     <i class="fas fa-chart-bar" style="margin-right: 0.5rem;"></i>
                     Dashboard Statistics
                 </h3>
-                <i id="statsToggleIcon" class="fas fa-chevron-down" style="transition: transform 0.3s ease;"></i>
+                <i id="statsToggleIcon" class="fas fa-chevron-up" style="transition: transform 0.3s ease;"></i>
             </div>
-            <div class="stats-section" id="statsSection" style="display: none;">
+            <div class="stats-section" id="statsSection" style="display: grid;">
                 <div class="stat-card">
                     <i class="fas fa-file-alt"></i>
                     <div class="stat-value" id="totalNotices">0</div>
@@ -2337,9 +2341,11 @@
         <div id="userTab" class="tab-content active">
             <!-- Contract Management Card -->
             <div class="card" id="contractManagementCard">
-                <div class="card-header">
+                <div class="card-header" id="contractHeader" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
                     <h2><i class="fas fa-file-contract"></i> Contract Connection</h2>
+                    <i id="contractToggleIcon" class="fas fa-chevron-up" style="transition: transform 0.3s ease;"></i>
                 </div>
+                <div id="contractContent">
                 <div class="form-group">
                     <label class="form-label">Legal Notice Contract Address</label>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
@@ -2360,6 +2366,7 @@
                     Connect Contract
                 </button>
                 <div id="contractStatus"></div>
+                </div>
             </div>
 
             <!-- Wallet Status Card -->
@@ -7395,6 +7402,16 @@ connectBtn.parentNode.insertBefore(disconnectBtn, connectBtn.nextSibling);
 
 showAlert('contractStatus', 'success', 'Contract connected successfully!');
 
+// Auto-collapse contract card after successful connection
+setTimeout(() => {
+    const contractContent = document.getElementById('contractContent');
+    const contractToggleIcon = document.getElementById('contractToggleIcon');
+    if (contractContent && contractToggleIcon) {
+        contractContent.style.display = 'none';
+        contractToggleIcon.style.transform = 'rotate(180deg)';
+    }
+}, 1500);
+
 // Auto-refresh alerts if user has process server role
 if (isProcessServer || isAdmin) {
     setTimeout(() => refreshMyAlerts(), 1000);
@@ -7402,6 +7419,14 @@ if (isProcessServer || isAdmin) {
 
 // Show wallet status card and update status
 document.getElementById('walletStatusCard').style.display = 'block';
+
+// Add wallet status toggle listener now that the card is visible
+const walletStatusHeader = document.getElementById('walletStatusHeader');
+if (walletStatusHeader && !walletStatusHeader.hasAttribute('data-listener-added')) {
+    walletStatusHeader.addEventListener('click', toggleWalletStatus);
+    walletStatusHeader.setAttribute('data-listener-added', 'true');
+}
+
 await updateWalletStatus();
 
 } catch (error) {
@@ -7863,6 +7888,26 @@ async function checkUserRoles() {
             }
         }
         
+        // Toggle contract section
+        function toggleContract() {
+            console.log('Toggle contract called');
+            const contractContent = document.getElementById('contractContent');
+            const toggleIcon = document.getElementById('contractToggleIcon');
+            
+            if (!contractContent || !toggleIcon) {
+                console.error('Contract elements not found:', { contractContent, toggleIcon });
+                return;
+            }
+            
+            if (contractContent.style.display === 'none' || contractContent.style.display === '') {
+                contractContent.style.display = 'block';
+                toggleIcon.style.transform = 'rotate(0deg)';
+            } else {
+                contractContent.style.display = 'none';
+                toggleIcon.style.transform = 'rotate(180deg)';
+            }
+        }
+        
         // Get current network based on chain type
         function getCurrentNetwork() {
             // For TRON, we're using Nile testnet by default
@@ -8080,6 +8125,12 @@ async function checkUserRoles() {
             const walletStatusHeader = document.getElementById('walletStatusHeader');
             if (walletStatusHeader) {
                 walletStatusHeader.addEventListener('click', toggleWalletStatus);
+            }
+            
+            // Add click event listener to contract header
+            const contractHeader = document.getElementById('contractHeader');
+            if (contractHeader) {
+                contractHeader.addEventListener('click', toggleContract);
             }
             
             // Check if TronWeb is available
@@ -8989,6 +9040,7 @@ document.addEventListener('keydown', function(event) {
 	window.handleChainChange = handleChainChange;
 	window.toggleStats = toggleStats;
 	window.toggleWalletStatus = toggleWalletStatus;
+	window.toggleContract = toggleContract;
     </script>
 </body>
 </html>
