@@ -4111,6 +4111,15 @@
     <!-- BEGIN JAVASCRIPT IN PART 3 -->
 <!-- PART 3: JAVASCRIPT -->
     <script>
+        // Configuration - Set your Pinata API keys here for production
+        // Better approach: Use environment variables or server-side proxy
+        window.PINATA_CONFIG = {
+            // Replace these with your actual Pinata API keys
+            // Or leave empty to use localStorage configuration
+            apiKey: '',
+            secretKey: ''
+        };
+        
         // Global variables
         let tronWeb = null;
         let legalContract = null;
@@ -5823,13 +5832,20 @@ try {
             try {
                 console.log('Starting IPFS upload, image size:', base64Image.length);
                 
-                // Try Pinata first
-                const PINATA_API_KEY = localStorage.getItem('pinataApiKey') || '';
-                const PINATA_SECRET_KEY = localStorage.getItem('pinataSecretKey') || '';
+                // Try Pinata first - check both localStorage and hardcoded keys
+                let PINATA_API_KEY = localStorage.getItem('pinataApiKey') || '';
+                let PINATA_SECRET_KEY = localStorage.getItem('pinataSecretKey') || '';
+                
+                // Fallback to hardcoded keys for production (should be moved to server-side)
+                // These are placeholder keys - replace with your actual keys or use environment variables
+                if (!PINATA_API_KEY && window.PINATA_CONFIG) {
+                    PINATA_API_KEY = window.PINATA_CONFIG.apiKey || '';
+                    PINATA_SECRET_KEY = window.PINATA_CONFIG.secretKey || '';
+                }
                 
                 if (PINATA_API_KEY && PINATA_SECRET_KEY) {
                     try {
-                        console.log('Attempting Pinata upload...');
+                        console.log('Attempting Pinata upload with API key:', PINATA_API_KEY.substring(0, 10) + '...');
                         
                         // Convert base64 to blob
                         const byteCharacters = atob(base64Image.split(',')[1]);
@@ -5856,9 +5872,34 @@ try {
                             const data = await pinataResponse.json();
                             console.log('Pinata upload successful:', data.IpfsHash);
                             return data.IpfsHash;
+                        } else {
+                            const errorText = await pinataResponse.text();
+                            console.error('Pinata API error:', pinataResponse.status, errorText);
+                            
+                            // Check for common errors
+                            if (pinataResponse.status === 401) {
+                                throw new Error('Pinata authentication failed. Please check your API keys in the Settings tab.');
+                            } else if (pinataResponse.status === 400) {
+                                throw new Error('Invalid request to Pinata. The file may be too large or in an unsupported format.');
+                            }
+                            throw new Error(`Pinata API error: ${pinataResponse.status} - ${errorText}`);
                         }
                     } catch (pinataError) {
                         console.warn('Pinata upload failed:', pinataError);
+                        
+                        // If authentication failed, show a more helpful message
+                        if (pinataError.message.includes('authentication')) {
+                            uiManager.showNotification('warning', 'Pinata authentication failed. Configure your API keys in the Settings tab.');
+                        }
+                        
+                        // Continue to fallback method
+                    }
+                } else {
+                    console.log('Pinata API keys not configured, using fallback method');
+                    // Show a one-time notification about configuring Pinata
+                    if (!localStorage.getItem('pinataNotificationShown')) {
+                        uiManager.showNotification('info', 'For better IPFS uploads, configure Pinata API keys in the Settings tab.');
+                        localStorage.setItem('pinataNotificationShown', 'true');
                     }
                 }
                 
@@ -5867,37 +5908,57 @@ try {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
                 
-                const response = await fetch('/.netlify/functions/upload-to-ipfs', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ image: base64Image }),
-                    signal: controller.signal
-                });
-                
-                clearTimeout(timeoutId);
-                console.log('IPFS upload response status:', response.status);
-                
-                const data = await response.json();
-                console.log('IPFS upload response data:', data);
-                
-                if (!response.ok) {
-                    throw new Error(data.message || 'Failed to upload to IPFS');
+                try {
+                    const response = await fetch('/.netlify/functions/upload-to-ipfs', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ image: base64Image }),
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    console.log('IPFS upload response status:', response.status);
+                    
+                    if (!response.ok) {
+                        let errorMessage = 'Failed to upload to IPFS';
+                        try {
+                            const errorData = await response.json();
+                            errorMessage = errorData.message || errorMessage;
+                        } catch (e) {
+                            // If response is not JSON, use status text
+                            errorMessage = `Upload failed: ${response.status} ${response.statusText}`;
+                        }
+                        throw new Error(errorMessage);
+                    }
+                    
+                    const data = await response.json();
+                    console.log('IPFS upload response data:', data);
+                    
+                    if (!data.ipfsHash) {
+                        throw new Error('No IPFS hash returned from upload');
+                    }
+                    
+                    return data.ipfsHash;
+                } catch (netlifyError) {
+                    console.error('Netlify function error:', netlifyError);
+                    
+                    if (netlifyError.name === 'AbortError') {
+                        throw new Error('IPFS upload timed out. Please try again.');
+                    }
+                    
+                    // If Netlify function also fails, throw the error
+                    throw netlifyError;
                 }
-                
-                return data.ipfsHash;
             } catch (error) {
                 console.error('IPFS upload error:', error);
                 console.error('Error stack:', error.stack);
                 
-                if (error.name === 'AbortError') {
-                    throw new Error('IPFS upload timed out. Please try again.');
-                }
-                console.error('IPFS upload error:', error);
+                // Final fallback: use a mock IPFS hash for testing
+                console.log('All upload methods failed. Using mock IPFS hash for testing.');
+                uiManager.showNotification('warning', 'IPFS upload failed. Using test mode. Configure Pinata in Settings for production use.');
                 
-                // Fallback: use a mock IPFS hash for testing
-                console.log('Using mock IPFS hash for testing');
                 return 'Qm' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
             }
         }
@@ -6011,11 +6072,41 @@ try {
                     }
                 }
                 
+                // Validate uploadedImage before upload
+                if (!uploadedImage) {
+                    hideProcessing();
+                    createBtn.disabled = false;
+                    createBtn.innerHTML = originalButtonText;
+                    uiManager.showNotification('error', 'No document uploaded. Please upload a document first.');
+                    return;
+                }
+                
                 // Upload the full-size document to IPFS
                 showProcessing('Uploading document to IPFS...');
                 console.log('Starting IPFS upload...');
-                const ipfsHash = await uploadToIPFS(uploadedImage);
-                console.log('IPFS upload complete, hash:', ipfsHash);
+                
+                let ipfsHash;
+                try {
+                    ipfsHash = await uploadToIPFS(uploadedImage);
+                    console.log('IPFS upload complete, hash:', ipfsHash);
+                } catch (uploadError) {
+                    console.error('IPFS upload failed:', uploadError);
+                    hideProcessing();
+                    createBtn.disabled = false;
+                    createBtn.innerHTML = originalButtonText;
+                    
+                    // Show specific error message based on the error
+                    if (uploadError.message.includes('400')) {
+                        uiManager.showNotification('error', 'IPFS upload failed: Invalid request. Please check your image file.');
+                    } else if (uploadError.message.includes('401')) {
+                        uiManager.showNotification('error', 'IPFS upload failed: Authentication error. Please configure Pinata API keys in Settings.');
+                    } else if (uploadError.message.includes('timeout')) {
+                        uiManager.showNotification('error', 'IPFS upload timed out. Please try again.');
+                    } else {
+                        uiManager.showNotification('error', `IPFS upload failed: ${uploadError.message}`);
+                    }
+                    return;
+                }
                 
                 // Prepare preview data based on delivery method
                 let previewData = '';
