@@ -2439,6 +2439,18 @@
                         Click refresh to check all roles...
                     </div>
                 </div>
+                
+                <!-- Debug Output (separate div to prevent overwriting) -->
+                <div id="debugOutput" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--accent-blue);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h4 style="margin: 0;">Debug Information</h4>
+                        <button class="btn btn-sm btn-secondary" onclick="copyDebugInfo()">
+                            <i class="fas fa-copy"></i> Copy
+                        </button>
+                    </div>
+                    <div id="debugContent" style="font-size: 0.875rem; color: var(--text-secondary);">
+                    </div>
+                </div>
                 </div>
             </div>
 
@@ -8161,20 +8173,25 @@ async function checkUserRoles() {
 
         // Debug function to check roles and registrations
         async function debugCheckRoles() {
-            const detailsDiv = document.getElementById('roleCheckDetails');
+            const debugDiv = document.getElementById('debugOutput');
+            const debugContent = document.getElementById('debugContent');
             
             if (!legalContract || !tronWeb || !tronWeb.defaultAddress) {
-                detailsDiv.innerHTML = '<span style="color: var(--error);">Contract not connected or wallet not connected</span>';
+                debugContent.innerHTML = '<span style="color: var(--error);">Contract not connected or wallet not connected</span>';
+                debugDiv.style.display = 'block';
                 return;
             }
             
-            detailsDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking roles and registrations...';
+            debugContent.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking roles and registrations...';
+            debugDiv.style.display = 'block';
             
             try {
                 const address = tronWeb.defaultAddress.base58;
                 let debugInfo = '<div style="font-family: monospace; font-size: 0.8rem;">';
+                let plainTextDebug = ''; // For copying
                 
                 debugInfo += `<strong>Your Address:</strong> ${address}<br><br>`;
+                plainTextDebug += `Your Address: ${address}\n\n`;
                 
                 // Check roles
                 const adminRoleBytes = tronWeb.sha3('ADMIN_ROLE');
@@ -8187,6 +8204,10 @@ async function checkUserRoles() {
                 debugInfo += `- Admin Role: ${hasAdminRole ? '✓ YES' : '✗ NO'}<br>`;
                 debugInfo += `- Process Server Role: ${hasProcessServerRole ? '✓ YES' : '✗ NO'}<br><br>`;
                 
+                plainTextDebug += `Roles:\n`;
+                plainTextDebug += `- Admin Role: ${hasAdminRole ? 'YES' : 'NO'}\n`;
+                plainTextDebug += `- Process Server Role: ${hasProcessServerRole ? 'YES' : 'NO'}\n\n`;
+                
                 // Check fee exemptions
                 const serviceFeeExempt = await legalContract.serviceFeeExemptions(address).call();
                 const fullFeeExempt = await legalContract.fullFeeExemptions(address).call();
@@ -8195,34 +8216,64 @@ async function checkUserRoles() {
                 debugInfo += `- Service Fee Exempt: ${serviceFeeExempt ? '✓ YES' : '✗ NO'}<br>`;
                 debugInfo += `- Full Fee Exempt: ${fullFeeExempt ? '✓ YES' : '✗ NO'}<br><br>`;
                 
+                plainTextDebug += `Fee Exemptions:\n`;
+                plainTextDebug += `- Service Fee Exempt: ${serviceFeeExempt ? 'YES' : 'NO'}\n`;
+                plainTextDebug += `- Full Fee Exempt: ${fullFeeExempt ? 'YES' : 'NO'}\n\n`;
+                
                 // Calculate actual fee
                 const calculatedFee = await legalContract.calculateFee(address).call();
                 debugInfo += `<strong>Your Fee:</strong> ${tronWeb.fromSun(calculatedFee)} TRX<br><br>`;
+                plainTextDebug += `Your Fee: ${tronWeb.fromSun(calculatedFee)} TRX\n\n`;
                 
                 // Check localStorage registrations
                 const localRegs = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
                 const yourReg = localRegs[address];
                 
                 debugInfo += `<strong>Local Registration:</strong><br>`;
+                plainTextDebug += `Local Registration:\n`;
+                
                 if (yourReg) {
                     debugInfo += `- Status: ${yourReg.status}<br>`;
                     debugInfo += `- Server ID: ${yourReg.serverId || 'Not assigned'}<br>`;
                     debugInfo += `- Agency: ${yourReg.agencyName || yourReg.agency}<br>`;
+                    
+                    plainTextDebug += `- Status: ${yourReg.status}\n`;
+                    plainTextDebug += `- Server ID: ${yourReg.serverId || 'Not assigned'}\n`;
+                    plainTextDebug += `- Agency: ${yourReg.agencyName || yourReg.agency}\n`;
                 } else {
                     debugInfo += `- No registration found for ${address}<br>`;
                     debugInfo += `- All keys in localStorage: ${Object.keys(localRegs).join(', ') || 'None'}<br>`;
+                    
+                    plainTextDebug += `- No registration found for ${address}\n`;
+                    plainTextDebug += `- All keys in localStorage: ${Object.keys(localRegs).join(', ') || 'None'}\n`;
                 }
                 
                 debugInfo += '</div>';
                 
-                detailsDiv.innerHTML = debugInfo;
+                debugContent.innerHTML = debugInfo;
+                
+                // Store plain text for copying
+                window.debugInfoPlainText = plainTextDebug;
                 
                 // Also refresh the main wallet status
                 await updateWalletStatus();
                 
             } catch (error) {
                 console.error('Debug check error:', error);
-                detailsDiv.innerHTML = `<span style="color: var(--error);">Error: ${error.message}</span>`;
+                debugContent.innerHTML = `<span style="color: var(--error);">Error: ${error.message}</span>`;
+                window.debugInfoPlainText = `Error: ${error.message}`;
+            }
+        }
+        
+        // Copy debug info to clipboard
+        function copyDebugInfo() {
+            if (window.debugInfoPlainText) {
+                navigator.clipboard.writeText(window.debugInfoPlainText).then(() => {
+                    uiManager.showNotification('success', 'Debug info copied to clipboard!');
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                    uiManager.showNotification('error', 'Failed to copy to clipboard');
+                });
             }
         }
 
