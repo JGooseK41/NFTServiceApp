@@ -5951,6 +5951,15 @@ try {
                     if (sponsorFees) totalFee += 2; // Sponsorship fee
                     const feeInSun = tronWeb.toSun(totalFee);
                     
+                    console.log('Transaction details:', {
+                        recipient,
+                        totalFee,
+                        feeInSun,
+                        currentCreationFee,
+                        sponsorFees,
+                        contractAddress: legalContract.address
+                    });
+                    
                     // For all delivery methods, we use serveNotice
                     const encryptionKey = generateEncryptionKey();
                     let encryptedIPFS = ipfsHash;
@@ -5970,21 +5979,40 @@ try {
                     }
                     
                     // Call serveNotice for all delivery methods
-                    tx = await legalContract.serveNotice(
-                        recipient,
-                        encryptedIPFS,
-                        decryptKey,
-                        issuingAgency,
-                        noticeType,
-                        caseNumber,
-                        noticeText,
-                        legalRights || 'You have the right to respond to this legal notice',
-                        sponsorFees
-                    ).send({
-                        feeLimit: 50_000_000,  // 50 TRX - reasonable for notice serving
-                        callValue: feeInSun,
-                        shouldPollResponse: true
-                    });
+                    try {
+                        console.log('Sending transaction with params:', {
+                            recipient,
+                            encryptedIPFS,
+                            decryptKey,
+                            issuingAgency,
+                            noticeType,
+                            caseNumber,
+                            noticeText: noticeText.substring(0, 50) + '...',
+                            legalRights: legalRights || 'You have the right to respond to this legal notice',
+                            sponsorFees,
+                            feeLimit: 50_000_000,
+                            callValue: feeInSun
+                        });
+                        
+                        tx = await legalContract.serveNotice(
+                            recipient,
+                            encryptedIPFS,
+                            decryptKey,
+                            issuingAgency,
+                            noticeType,
+                            caseNumber,
+                            noticeText,
+                            legalRights || 'You have the right to respond to this legal notice',
+                            sponsorFees
+                        ).send({
+                            feeLimit: 50_000_000,  // 50 TRX - reasonable for notice serving
+                            callValue: feeInSun,
+                            shouldPollResponse: true
+                        });
+                    } catch (txError) {
+                        console.error('Transaction error details:', txError);
+                        throw txError;
+                    }
                 } else {
                     // EVM chains
                     const accounts = await web3Instance.eth.getAccounts();
