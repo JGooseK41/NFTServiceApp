@@ -5244,51 +5244,45 @@ function useConnectedAddressForFeeCollector() {
                 let tx;
                 
                 if (currentChainType === 'tron') {
+                    // Calculate fee including sponsorship if selected
+                    let totalFee = currentCreationFee; // Base fee from contract
+                    if (sponsorFees) totalFee += 2; // Sponsorship fee
+                    const feeInSun = tronWeb.toSun(totalFee);
+                    
+                    // For all delivery methods, we use serveNotice
+                    const encryptionKey = generateEncryptionKey();
+                    let encryptedIPFS = ipfsHash;
+                    
+                    // Set default values for text-only delivery
+                    let noticeText = '';
+                    let decryptKey = '';
+                    
                     if (deliveryMethod === 'viewgated' || deliveryMethod === 'full') {
-                        // Calculate fee including sponsorship if selected
-                        let totalFee = deliveryMethod === 'full' ? 35 : 20; // Base fee
-                        if (sponsorFees) totalFee += 2; // Sponsorship fee
-                        const feeInSun = tronWeb.toSun(totalFee);
-                        
-                        // For view-gated, we need to encrypt the document first
-                        // In production, use proper encryption
-                        const encryptionKey = generateEncryptionKey();
-                        const encryptedIPFS = ipfsHash; // In production, encrypt before upload
-                        
-                        // Call the view-gated contract with serveNotice
-                        tx = await legalContract.serveNotice(
-                            recipient,
-                            encryptedIPFS,
-                            encryptionKey,
-                            issuingAgency,
-                            noticeType,
-                            caseNumber,
-                            caseDetailsText,
-                            legalRights || 'You have the right to respond to this legal notice',
-                            sponsorFees
-                        ).send({
-                            feeLimit: 100_000_000, // 100 TRX max for view-gated
-                            callValue: feeInSun,
-                            shouldPollResponse: true
-                        });
+                        // Use encryption for view-gated methods
+                        decryptKey = encryptionKey;
+                        noticeText = caseDetailsText || 'Legal notice details in attached document';
                     } else {
-                        // Original contract call for other methods
-                        const feeInSun = tronWeb.toSun(currentCreationFee);
-                        
-                        tx = await legalContract.createLegalNotice(
-                            recipient,
-                            ipfsHash,
-                            previewData,
-                            contentHash,
-                            caseNumber,
-                            jurisdictionIndex,
-                            documentType
-                        ).send({
-                            feeLimit: 50_000_000,
-                            callValue: feeInSun,
-                            shouldPollResponse: true
-                        });
+                        // For text-only, put the notice content in IPFS field
+                        encryptedIPFS = previewData || noticeTextInput;
+                        noticeText = caseDetailsText || noticeTextInput;
                     }
+                    
+                    // Call serveNotice for all delivery methods
+                    tx = await legalContract.serveNotice(
+                        recipient,
+                        encryptedIPFS,
+                        decryptKey,
+                        issuingAgency,
+                        noticeType,
+                        caseNumber,
+                        noticeText,
+                        legalRights || 'You have the right to respond to this legal notice',
+                        sponsorFees
+                    ).send({
+                        feeLimit: 100_000_000,
+                        callValue: feeInSun,
+                        shouldPollResponse: true
+                    });
                 } else {
                     // EVM chains
                     const accounts = await web3Instance.eth.getAccounts();
@@ -5333,21 +5327,21 @@ function useConnectedAddressForFeeCollector() {
                 
                 if (currentChainType === 'tron') {
                     if (tx && tx.length > 0) {
-                        // Look for LegalNoticeCreated event
+                        // Look for NoticeServed event
                         const events = await tronWeb.getEventByTransactionID(tx);
                         if (events && events.length > 0) {
-                            const createEvent = events.find(e => e.name === 'LegalNoticeCreated');
+                            const createEvent = events.find(e => e.name === 'NoticeServed');
                             if (createEvent) {
-                                noticeId = createEvent.result.noticeId;
+                                noticeId = createEvent.result.documentId;
                                 alertId = createEvent.result.alertId;
                             }
                         }
                     }
                 } else {
                     // EVM chains - parse events from transaction receipt
-                    if (tx && tx.events && tx.events.LegalNoticeCreated) {
-                        const event = tx.events.LegalNoticeCreated;
-                        noticeId = event.returnValues.noticeId;
+                    if (tx && tx.events && tx.events.NoticeServed) {
+                        const event = tx.events.NoticeServed;
+                        noticeId = event.returnValues.documentId;
                         alertId = event.returnValues.alertId;
                     }
                 }
