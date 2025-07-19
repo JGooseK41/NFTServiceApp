@@ -1,28 +1,14 @@
 {
-  "name": "legal-service-nft",
+  "name": "nft-service-app",
   "version": "1.0.0",
-  "description": "Legal Service NFT Platform",
+  "description": "Legal Notice NFT Service for TRON",
+  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "deploy:testnet": "NETWORK=shasta node deploy_contract.js",
+    "deploy:mainnet": "NETWORK=mainnet node deploy_contract.js"
   },
   "dependencies": {
-    "@pinata/sdk": "^2.1.0"
-  },
-  "devDependencies": {},
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/JGooseK41/NFTServiceApp.git"
-  },
-  "keywords": [
-    "nft",
-    "legal",
-    "blockchain",
-    "tron"
-  ],
-  "author": "JGooseK41",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/JGooseK41/NFTServiceApp/issues"
-  },
-  "homepage": "https://github.com/JGooseK41/NFTServiceApp#readme"
+    "tronweb": "^5.3.0"
+  }
 }
+EOF < /dev/null

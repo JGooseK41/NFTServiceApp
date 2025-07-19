@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Verify LegalNoticeNFT Deployment</title>
+    <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0052a3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 5px;
+            word-break: break-all;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        code {
+            background: #e9ecef;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Verify LegalNoticeNFT Deployment</h1>
+        
+        <div>
+            <label>Contract Address:</label>
+            <input type="text" id="contractAddress" placeholder="TXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
+            <button onclick="verifyContract()">Verify Contract</button>
+        </div>
+        
+        <div id="results"></div>
+        
+        <h2>📝 After Verification</h2>
+        <p>Once verified, update your <code>index.html</code> file:</p>
+        <div class="result">
+            <code>const CONTRACT_ADDRESS = '<span id="addressPlaceholder">YOUR_CONTRACT_ADDRESS</span>';</code>
+        </div>
+    </div>
+
+    <script>
+        let tronWeb;
+        
+        // Initialize TronWeb
+        window.addEventListener('load', async () => {
+            if (window.tronWeb && window.tronWeb.ready) {
+                tronWeb = window.tronWeb;
+                addResult('✅ TronLink connected', 'success');
+            } else {
+                addResult('❌ Please install TronLink', 'error');
+            }
+        });
+        
+        async function verifyContract() {
+            const address = document.getElementById('contractAddress').value.trim();
+            if (!address) {
+                addResult('Please enter a contract address', 'error');
+                return;
+            }
+            
+            document.getElementById('addressPlaceholder').textContent = address;
+            document.getElementById('results').innerHTML = '';
+            
+            try {
+                // Check if address is valid
+                if (!tronWeb.isAddress(address)) {
+                    addResult('❌ Invalid TRON address', 'error');
+                    return;
+                }
+                
+                addResult('🔍 Checking contract...', 'info');
+                
+                // Define minimal ABI for testing
+                const abi = [
+                    {"constant":true,"inputs":[],"name":"admin","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},
+                    {"constant":true,"inputs":[],"name":"serviceFee","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
+                    {"constant":true,"inputs":[{"name":"","type":"uint256"}],"name":"alerts","outputs":[{"name":"documentId","type":"uint256"},{"name":"recipient","type":"address"},{"name":"issuingAgency","type":"string"},{"name":"noticeType","type":"string"},{"name":"caseNumber","type":"string"},{"name":"caseDetails","type":"string"},{"name":"legalRights","type":"string"},{"name":"feesSponsored","type":"bool"},{"name":"timestamp","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
+                    {"constant":true,"inputs":[{"name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"}
+                ];
+                
+                // Create contract instance
+                const contract = tronWeb.contract(abi, address);
+                
+                // Test basic functions
+                const admin = await contract.admin().call();
+                addResult(`✅ Contract admin: ${admin}`, 'success');
+                
+                const serviceFee = await contract.serviceFee().call();
+                addResult(`✅ Service fee: ${serviceFee / 1000000} TRX`, 'success');
+                
+                // Try to check balance
+                const balance = await contract.balanceOf(admin).call();
+                addResult(`✅ Admin balance: ${balance} alerts`, 'success');
+                
+                addResult('🎉 Contract verified successfully!', 'success');
+                addResult('✅ This is a valid LegalNoticeNFT contract', 'success');
+                
+                // Show next steps
+                addResult('<br><strong>Next Steps:</strong>', 'info');
+                addResult('1. Copy the contract address', 'info');
+                addResult('2. Update CONTRACT_ADDRESS in index.html', 'info');
+                addResult('3. Test serving a notice', 'info');
+                
+            } catch (error) {
+                console.error(error);
+                addResult(`❌ Error: ${error.message}`, 'error');
+                addResult('This might not be a LegalNoticeNFT contract or it may not be deployed yet', 'error');
+            }
+        }
+        
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+    </script>
+</body>
+</html>

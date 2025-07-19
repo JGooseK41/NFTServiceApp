@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Post-Deployment Setup</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .step {
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #0066cc;
+        }
+        code {
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0052a3;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎉 Contract Deployed! Next Steps:</h1>
+    
+    <div class="step">
+        <h2>Step 1: Copy Your Contract Address</h2>
+        <input type="text" id="contractAddress" placeholder="Paste your contract address here (TXxxx...)" />
+        <button onclick="updateFiles()">Generate Updated Files</button>
+    </div>
+    
+    <div class="step">
+        <h2>Step 2: Update index.html</h2>
+        <p>Replace line ~40 in index.html with:</p>
+        <code id="contractLine">const CONTRACT_ADDRESS = 'YOUR_CONTRACT_ADDRESS';</code>
+    </div>
+    
+    <div class="step">
+        <h2>Step 3: Verify Everything Works</h2>
+        <ol>
+            <li>Open <code>verify_deployment.html</code></li>
+            <li>Enter your contract address</li>
+            <li>Click "Verify Contract"</li>
+            <li>You should see <span class="success">✅ Contract verified successfully!</span></li>
+        </ol>
+    </div>
+    
+    <div class="step">
+        <h2>Step 4: Test the App</h2>
+        <ol>
+            <li>Open <code>index.html</code></li>
+            <li>Connect TronLink</li>
+            <li>Try serving a test notice (22 TRX)</li>
+            <li>Check that the notice appears in recipient's alerts</li>
+        </ol>
+    </div>
+    
+    <div class="step">
+        <h2>Quick Links:</h2>
+        <ul>
+            <li><a href="index.html">Main App</a></li>
+            <li><a href="verify_deployment.html">Verify Deployment</a></li>
+            <li><a href="https://shasta.tronscan.org/#/contract/YOUR_CONTRACT_ADDRESS" id="tronscanLink">View on TronScan</a></li>
+        </ul>
+    </div>
+    
+    <script>
+        function updateFiles() {
+            const address = document.getElementById('contractAddress').value.trim();
+            if (!address) {
+                alert('Please enter your contract address');
+                return;
+            }
+            
+            // Update displayed code
+            document.getElementById('contractLine').textContent = `const CONTRACT_ADDRESS = '${address}';`;
+            
+            // Update TronScan link
+            const network = confirm('Is this on mainnet? (Cancel for testnet)') ? '' : 'shasta.';
+            document.getElementById('tronscanLink').href = `https://${network}tronscan.org/#/contract/${address}`;
+            
+            alert(`Files updated!\n\n1. Copy the CONTRACT_ADDRESS line\n2. Update index.html\n3. Open verify_deployment.html to test`);
+        }
+    </script>
+</body>
+</html>

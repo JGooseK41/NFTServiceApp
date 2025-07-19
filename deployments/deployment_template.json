@@ -1,0 +1,21 @@
+{
+  "contractType": "LegalNoticeNFT_ViewGated",
+  "network": "nile",
+  "contractAddress": "UPDATE_WITH_DEPLOYED_ADDRESS",
+  "deployer": "UPDATE_WITH_YOUR_ADDRESS",
+  "deploymentDate": "2025-07-18T00:50:18.657Z",
+  "features": [
+    "View-gated document access",
+    "Two-tier NFT system (Alert + Document)",
+    "Comprehensive metadata with agency/case details",
+    "Fee sponsorship for recipients",
+    "Certified delivery tracking",
+    "IPFS encrypted document storage"
+  ],
+  "nextSteps": [
+    "Update index.html with contract address",
+    "Test with small transaction",
+    "Fund contract for sponsorship pool",
+    "Deploy to production"
+  ]
+}

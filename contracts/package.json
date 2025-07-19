@@ -13,10 +13,10 @@
   "dependencies": {
     "@openzeppelin/contracts": "^5.4.0",
     "dotenv": "^17.2.0",
-    "solc": "^0.8.30",
     "tronweb": "^5.3.4"
   },
   "devDependencies": {
+    "solc": "^0.8.19",
     "tronbox": "^3.2.0"
   },
   "keywords": [

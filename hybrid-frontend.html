@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legal Notice Service - Hybrid Architecture</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            color: #1a1a1a;
+            margin-bottom: 20px;
+        }
+        .info-box {
+            background: #e8f4f8;
+            border: 1px solid #b8e0ea;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover:not(:disabled) {
+            background: #0052a3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .notice-card {
+            background: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            position: relative;
+        }
+        .notice-card h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .status.served {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .status.accepted {
+            background: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .tab-button {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+            transition: all 0.2s;
+        }
+        .tab-button.active {
+            color: #0066cc;
+            border-bottom-color: #0066cc;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        #documentViewer {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Legal Notice Service - Hybrid Architecture</h1>
+    
+    <div class="info-box">
+        <h3>How it Works</h3>
+        <p><strong>🔒 View-Gated Notices:</strong> Documents are encrypted with Lit Protocol. Only authorized recipients can decrypt and view.</p>
+        <p><strong>⛓️ Blockchain Events:</strong> All actions are recorded on TRON blockchain as events.</p>
+        <p><strong>📄 IPFS Storage:</strong> Documents stored encrypted on IPFS for permanence.</p>
+        <p><strong>✅ Certified Delivery:</strong> Recipients must sign to acknowledge receipt.</p>
+    </div>
+
+    <div class="container">
+        <div class="tab-buttons">
+            <button class="tab-button active" onclick="switchTab('serve')">Serve Notice</button>
+            <button class="tab-button" onclick="switchTab('view')">View Notices</button>
+            <button class="tab-button" onclick="switchTab('status')">Check Status</button>
+        </div>
+
+        <!-- Serve Notice Tab -->
+        <div id="serveTab" class="tab-content active">
+            <h2>Serve Legal Notice</h2>
+            
+            <div class="form-group">
+                <label>Recipient Address</label>
+                <input type="text" id="recipientAddress" placeholder="T..." />
+            </div>
+
+            <div class="form-group">
+                <label>Issuing Agency</label>
+                <input type="text" id="issuingAgency" placeholder="e.g., Superior Court of California" />
+            </div>
+
+            <div class="form-group">
+                <label>Notice Type</label>
+                <select id="noticeType">
+                    <option value="Summons">Summons</option>
+                    <option value="Subpoena">Subpoena</option>
+                    <option value="Court Order">Court Order</option>
+                    <option value="Legal Notice">Legal Notice</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Case Number</label>
+                <input type="text" id="caseNumber" placeholder="e.g., 2024-CV-12345" />
+            </div>
+
+            <div class="form-group">
+                <label>Case Details</label>
+                <input type="text" id="caseDetails" placeholder="e.g., Debt collection - $245,000 USDT" />
+            </div>
+
+            <div class="form-group">
+                <label>Legal Rights</label>
+                <textarea id="legalRights" rows="2" placeholder="e.g., You have 30 days to respond..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Document Content</label>
+                <textarea id="documentContent" rows="10" placeholder="Paste the full legal document here..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="sponsorFees" checked />
+                    Sponsor recipient fees (pay for their acceptance transaction)
+                </label>
+            </div>
+
+            <button onclick="serveNotice()">Serve Notice (22 TRX)</button>
+        </div>
+
+        <!-- View Notices Tab -->
+        <div id="viewTab" class="tab-content">
+            <h2>My Notices</h2>
+            
+            <div class="form-group">
+                <label>Your Address</label>
+                <input type="text" id="viewerAddress" placeholder="T..." />
+                <button onclick="loadNotices()" style="margin-top: 10px;">Load Notices</button>
+            </div>
+
+            <div id="noticesList"></div>
+            <div id="documentViewer" style="display: none;"></div>
+        </div>
+
+        <!-- Status Tab -->
+        <div id="statusTab" class="tab-content">
+            <h2>Check Notice Status</h2>
+            
+            <div class="form-group">
+                <label>Notice ID</label>
+                <input type="text" id="statusNoticeId" placeholder="Enter notice ID" />
+                <button onclick="checkStatus()" style="margin-top: 10px;">Check Status</button>
+            </div>
+
+            <div id="statusResult"></div>
+        </div>
+    </div>
+
+    <div id="messages"></div>
+
+    <script>
+        const BACKEND_URL = 'http://localhost:3001';
+        const CONTRACT_ADDRESS = 'YOUR_CONTRACT_ADDRESS_HERE';
+        const CONTRACT_ABI = [
+            "function serveNotice(address recipient, string calldata metadataURI, bool sponsorFees) external payable returns (uint256)",
+            "function acceptNotice(uint256 noticeId, bytes calldata signature) external",
+            "function notices(uint256) external view returns (address server, address recipient, string metadataURI, uint256 servedTime, uint256 acceptedTime, bool feesSponsored)"
+        ];
+
+        let provider;
+        let signer;
+        let contract;
+
+        // Initialize
+        async function init() {
+            if (typeof window.tronWeb !== 'undefined') {
+                // TronLink is installed
+                provider = new ethers.providers.Web3Provider(window.tronWeb);
+                signer = provider.getSigner();
+                contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+                showMessage('Connected to TronLink', 'success');
+            } else {
+                showMessage('Please install TronLink wallet', 'error');
+            }
+        }
+
+        // Switch tabs
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tab + 'Tab').classList.add('active');
+        }
+
+        // Serve notice
+        async function serveNotice() {
+            try {
+                const recipient = document.getElementById('recipientAddress').value;
+                const documentContent = document.getElementById('documentContent').value;
+                const sponsorFees = document.getElementById('sponsorFees').checked;
+
+                if (!recipient || !documentContent) {
+                    showMessage('Please fill all fields', 'error');
+                    return;
+                }
+
+                showMessage('Uploading document to IPFS...', 'info');
+
+                // Upload to IPFS with encryption
+                const uploadResponse = await axios.post(`${BACKEND_URL}/api/upload-document`, {
+                    document: documentContent,
+                    recipient: recipient,
+                    issuingAgency: document.getElementById('issuingAgency').value,
+                    noticeType: document.getElementById('noticeType').value,
+                    caseNumber: document.getElementById('caseNumber').value,
+                    caseDetails: document.getElementById('caseDetails').value,
+                    legalRights: document.getElementById('legalRights').value,
+                    documentType: 'legal_notice'
+                });
+
+                const { ipfsHash } = uploadResponse.data;
+                showMessage('Document encrypted and uploaded. Serving notice...', 'info');
+
+                // Call smart contract
+                const tx = await contract.serveNotice(
+                    recipient,
+                    `ipfs://${ipfsHash}`,
+                    sponsorFees,
+                    {
+                        value: ethers.utils.parseEther(sponsorFees ? "22" : "20")
+                    }
+                );
+
+                const receipt = await tx.wait();
+                const noticeId = receipt.events[0].args.noticeId.toString();
+
+                showMessage(`Notice served successfully! Notice ID: ${noticeId}`, 'success');
+                
+                // Clear form
+                document.getElementById('documentContent').value = '';
+                
+            } catch (error) {
+                console.error(error);
+                showMessage(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Load notices
+        async function loadNotices() {
+            try {
+                const address = document.getElementById('viewerAddress').value;
+                if (!address) {
+                    showMessage('Please enter your address', 'error');
+                    return;
+                }
+
+                const response = await axios.get(`${BACKEND_URL}/api/notices/${address}`);
+                const notices = response.data.notices;
+
+                const noticesList = document.getElementById('noticesList');
+                noticesList.innerHTML = '';
+
+                if (notices.length === 0) {
+                    noticesList.innerHTML = '<p>No notices found</p>';
+                    return;
+                }
+
+                notices.forEach(notice => {
+                    const card = document.createElement('div');
+                    card.className = 'notice-card';
+                    card.innerHTML = `
+                        <h3>Notice #${notice.noticeId}</h3>
+                        <p><strong>From:</strong> ${notice.server}</p>
+                        <p><strong>Served:</strong> ${new Date(parseInt(notice.servedTime) * 1000).toLocaleString()}</p>
+                        <p><strong>Status:</strong> <span class="status ${notice.acceptedTime !== '0' ? 'accepted' : 'served'}">
+                            ${notice.acceptedTime !== '0' ? 'Accepted' : 'Pending'}
+                        </span></p>
+                        <button onclick="viewDocument('${notice.noticeId}')">View Document</button>
+                        ${notice.acceptedTime === '0' ? `<button onclick="acceptNotice('${notice.noticeId}')">Accept Notice</button>` : ''}
+                    `;
+                    noticesList.appendChild(card);
+                });
+
+            } catch (error) {
+                console.error(error);
+                showMessage(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // View document
+        async function viewDocument(noticeId) {
+            try {
+                showMessage('Requesting document access...', 'info');
+
+                // Get auth signature from wallet
+                const address = await signer.getAddress();
+                const message = `View legal notice ${noticeId} at ${Date.now()}`;
+                const signature = await signer.signMessage(message);
+
+                const authSig = {
+                    sig: signature,
+                    derivedVia: 'web3.eth.personal.sign',
+                    signedMessage: message,
+                    address: address.toLowerCase()
+                };
+
+                // Request document from backend
+                const response = await axios.post(`${BACKEND_URL}/api/view-notice`, {
+                    noticeId,
+                    authSig
+                });
+
+                const viewer = document.getElementById('documentViewer');
+                viewer.style.display = 'block';
+
+                if (response.data.decrypted) {
+                    viewer.innerHTML = `
+                        <h3>Document Content</h3>
+                        <p><strong>Agency:</strong> ${response.data.metadata.issuingAgency}</p>
+                        <p><strong>Type:</strong> ${response.data.metadata.noticeType}</p>
+                        <p><strong>Case:</strong> ${response.data.metadata.caseNumber}</p>
+                        <hr>
+                        <pre>${response.data.document}</pre>
+                    `;
+                    showMessage('Document decrypted successfully', 'success');
+                } else {
+                    viewer.innerHTML = `
+                        <h3>Access Denied</h3>
+                        <p>${response.data.error}</p>
+                        <p>Only the recipient can view this document after accepting the notice.</p>
+                    `;
+                    showMessage('Access denied - not authorized', 'error');
+                }
+
+            } catch (error) {
+                console.error(error);
+                showMessage(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Accept notice
+        async function acceptNotice(noticeId) {
+            try {
+                showMessage('Accepting notice...', 'info');
+
+                const message = `I acknowledge receipt of legal notice ${noticeId}`;
+                const signature = await signer.signMessage(message);
+
+                const tx = await contract.acceptNotice(noticeId, ethers.utils.toUtf8Bytes(signature));
+                await tx.wait();
+
+                showMessage('Notice accepted successfully!', 'success');
+                loadNotices(); // Reload the list
+
+            } catch (error) {
+                console.error(error);
+                showMessage(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Check status
+        async function checkStatus() {
+            try {
+                const noticeId = document.getElementById('statusNoticeId').value;
+                if (!noticeId) {
+                    showMessage('Please enter a notice ID', 'error');
+                    return;
+                }
+
+                const notice = await contract.notices(noticeId);
+                
+                const statusResult = document.getElementById('statusResult');
+                statusResult.innerHTML = `
+                    <div class="notice-card">
+                        <h3>Notice #${noticeId}</h3>
+                        <p><strong>Server:</strong> ${notice.server}</p>
+                        <p><strong>Recipient:</strong> ${notice.recipient}</p>
+                        <p><strong>Served:</strong> ${new Date(notice.servedTime * 1000).toLocaleString()}</p>
+                        <p><strong>Status:</strong> <span class="status ${notice.acceptedTime > 0 ? 'accepted' : 'served'}">
+                            ${notice.acceptedTime > 0 ? `Accepted at ${new Date(notice.acceptedTime * 1000).toLocaleString()}` : 'Pending Acceptance'}
+                        </span></p>
+                        <p><strong>Fees Sponsored:</strong> ${notice.feesSponsored ? 'Yes' : 'No'}</p>
+                        <p><strong>Document:</strong> ${notice.metadataURI}</p>
+                    </div>
+                `;
+
+            } catch (error) {
+                console.error(error);
+                showMessage(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Show messages
+        function showMessage(message, type) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type;
+            messageDiv.textContent = message;
+            messagesDiv.appendChild(messageDiv);
+            
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 5000);
+        }
+
+        // Initialize on load
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

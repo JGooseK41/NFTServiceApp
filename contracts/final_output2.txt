@@ -1,0 +1,35 @@
+TypeError: Invalid type for argument in function call. Invalid implicit conversion from literal_string "" to string calldata requested.
+   --> LegalNoticeNFT_Final.sol:312:13:
+    |
+312 |             "",
+    |             ^^
+
+
+TypeError: Invalid type for argument in function call. Invalid implicit conversion from literal_string "Legal Authority" to string calldata requested.
+   --> LegalNoticeNFT_Final.sol:313:13:
+    |
+313 |             "Legal Authority",
+    |             ^^^^^^^^^^^^^^^^^
+
+
+TypeError: Invalid type for argument in function call. Invalid implicit conversion from literal_string "Legal Notice" to string calldata requested.
+   --> LegalNoticeNFT_Final.sol:314:13:
+    |
+314 |             "Legal Notice",
+    |             ^^^^^^^^^^^^^^
+
+
+TypeError: Invalid type for argument in function call. Invalid implicit conversion from literal_string "Document attached" to string calldata requested.
+   --> LegalNoticeNFT_Final.sol:316:13:
+    |
+316 |             "Document attached",
+    |             ^^^^^^^^^^^^^^^^^^^
+
+
+TypeError: Invalid type for argument in function call. Invalid implicit conversion from literal_string "You have legal rights regarding this notice" to string calldata requested.
+   --> LegalNoticeNFT_Final.sol:317:13:
+    |
+317 |             "You have legal rights regarding this notice",
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+

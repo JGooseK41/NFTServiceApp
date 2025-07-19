@@ -45,6 +45,19 @@ contract LegalNoticeNFT {
         uint8 status;
     }
     
+    // Pack the service notice parameters
+    struct NoticeParams {
+        address recipient;
+        string encryptedIPFS;
+        string decryptionKey;
+        string issuingAgency;
+        string noticeType;
+        string caseNumber;
+        string caseDetails;
+        string legalRights;
+        bool sponsorFees;
+    }
+    
     // State variables
     mapping(uint256 => AlertNotice) public alerts;
     mapping(uint256 => LegalDocument) public documents;
@@ -68,75 +81,62 @@ contract LegalNoticeNFT {
         admin = msg.sender;
     }
     
-    // Core functions - placed first to avoid forward references
-    
-    function _createDocument(
-        address recipient,
-        string memory ipfsHash,
-        string memory decryptionKey,
-        string memory caseInfo
-    ) private returns (uint256 documentId) {
+    // Main function with struct parameter to avoid stack depth
+    function serveNotice(NoticeParams memory params) public payable returns (uint256 alertId, uint256 documentId) {
+        uint256 required = serviceFee;
+        if (params.sponsorFees) required += 2000000;
+        require(msg.value >= required, "Insufficient fee");
+        require(params.recipient != address(0), "Invalid recipient");
+        
+        // Validate string lengths
+        require(bytes(params.issuingAgency).length <= 100, "Agency too long");
+        require(bytes(params.noticeType).length <= 50, "Type too long");
+        require(bytes(params.caseNumber).length <= 50, "Case too long");
+        require(bytes(params.caseDetails).length <= 100, "Details too long");
+        require(bytes(params.legalRights).length <= 100, "Rights too long");
+        
+        // Create document
         documentId = ++_documentCounter;
         documents[documentId].server = msg.sender;
-        documents[documentId].recipient = recipient;
-        documents[documentId].ipfsHash = ipfsHash;
-        documents[documentId].caseInfo = caseInfo;
+        documents[documentId].recipient = params.recipient;
+        documents[documentId].ipfsHash = params.encryptedIPFS;
+        documents[documentId].caseInfo = string(abi.encodePacked(params.issuingAgency, " - ", params.noticeType, " - Case ", params.caseNumber));
         documents[documentId].timestamp = block.timestamp;
-        documents[documentId].decryptionKey = decryptionKey;
-        recipientDocuments[recipient].push(documentId);
-    }
-    
-    function _createAlert(
-        uint256 documentId,
-        address recipient,
-        string memory issuingAgency,
-        string memory noticeType,
-        string memory caseNumber
-    ) private returns (uint256 alertId) {
+        documents[documentId].decryptionKey = params.decryptionKey;
+        recipientDocuments[params.recipient].push(documentId);
+        
+        // Create alert
         alertId = ++_alertCounter;
         alerts[alertId].documentId = documentId;
-        alerts[alertId].recipient = recipient;
-        alerts[alertId].issuingAgency = issuingAgency;
-        alerts[alertId].noticeType = noticeType;
-        alerts[alertId].caseNumber = caseNumber;
+        alerts[alertId].recipient = params.recipient;
+        alerts[alertId].issuingAgency = params.issuingAgency;
+        alerts[alertId].noticeType = params.noticeType;
+        alerts[alertId].caseNumber = params.caseNumber;
+        alerts[alertId].caseDetails = params.caseDetails;
+        alerts[alertId].legalRights = params.legalRights;
+        alerts[alertId].feesSponsored = params.sponsorFees;
         alerts[alertId].timestamp = block.timestamp;
-        recipientAlerts[recipient].push(alertId);
-        _tokenOwners[alertId] = recipient;
-    }
-    
-    function _completeAlert(
-        uint256 alertId,
-        string memory caseDetails,
-        string memory legalRights,
-        bool sponsorFees
-    ) private {
-        alerts[alertId].caseDetails = caseDetails;
-        alerts[alertId].legalRights = legalRights;
-        alerts[alertId].feesSponsored = sponsorFees;
-    }
-    
-    function _createNotice(
-        uint256 documentId,
-        uint256 alertId,
-        address recipient,
-        string memory ipfsHash,
-        string memory caseNumber
-    ) private {
-        notices[documentId].recipient = recipient;
+        recipientAlerts[params.recipient].push(alertId);
+        _tokenOwners[alertId] = params.recipient;
+        
+        // Create notice for compatibility
+        notices[documentId].recipient = params.recipient;
         notices[documentId].server = msg.sender;
-        notices[documentId].ipfsHash = ipfsHash;
-        notices[documentId].contentHash = keccak256(abi.encodePacked(ipfsHash));
+        notices[documentId].ipfsHash = params.encryptedIPFS;
+        notices[documentId].contentHash = keccak256(abi.encodePacked(params.encryptedIPFS));
         notices[documentId].timestamp = uint128(block.timestamp);
-        notices[documentId].caseNumberHash = uint64(uint256(keccak256(abi.encodePacked(caseNumber))) >> 192);
+        notices[documentId].caseNumberHash = uint64(uint256(keccak256(abi.encodePacked(params.caseNumber))) >> 192);
         notices[documentId].alertTokenId = uint32(alertId);
         notices[documentId].jurisdictionIndex = 0;
         notices[documentId].documentType = 1;
         notices[documentId].status = 0;
+        
+        emit Transfer(address(0), params.recipient, alertId);
+        emit AlertCreated(alertId, params.recipient, documentId);
     }
     
-    // Main functions
-    
-    function serveNotice(
+    // Wrapper for backwards compatibility
+    function serveNoticeUnpacked(
         address recipient,
         string calldata encryptedIPFS,
         string calldata decryptionKey,
@@ -146,25 +146,19 @@ contract LegalNoticeNFT {
         string calldata caseDetails,
         string calldata legalRights,
         bool sponsorFees
-    ) public payable returns (uint256 alertId, uint256 documentId) {
-        uint256 required = serviceFee;
-        if (sponsorFees) required += 2000000;
-        require(msg.value >= required, "Insufficient fee");
-        require(recipient != address(0), "Invalid recipient");
-        
-        // Create document
-        string memory caseInfo = string(abi.encodePacked(issuingAgency, " - ", noticeType, " - Case ", caseNumber));
-        documentId = _createDocument(recipient, encryptedIPFS, decryptionKey, caseInfo);
-        
-        // Create alert
-        alertId = _createAlert(documentId, recipient, issuingAgency, noticeType, caseNumber);
-        _completeAlert(alertId, caseDetails, legalRights, sponsorFees);
-        
-        // Create notice
-        _createNotice(documentId, alertId, recipient, encryptedIPFS, caseNumber);
-        
-        emit Transfer(address(0), recipient, alertId);
-        emit AlertCreated(alertId, recipient, documentId);
+    ) external payable returns (uint256 alertId, uint256 documentId) {
+        NoticeParams memory params = NoticeParams({
+            recipient: recipient,
+            encryptedIPFS: encryptedIPFS,
+            decryptionKey: decryptionKey,
+            issuingAgency: issuingAgency,
+            noticeType: noticeType,
+            caseNumber: caseNumber,
+            caseDetails: caseDetails,
+            legalRights: legalRights,
+            sponsorFees: sponsorFees
+        });
+        return serveNotice(params);
     }
     
     function acceptDocument(uint256 documentId) public {
@@ -295,8 +289,7 @@ contract LegalNoticeNFT {
         return (doc.server, doc.recipient, doc.timestamp, doc.acceptedTime, doc.accepted);
     }
     
-    // App compatibility functions
-    
+    // App compatibility
     function createLegalNotice(
         address recipient,
         string calldata ipfsHash,
@@ -306,31 +299,24 @@ contract LegalNoticeNFT {
         uint16 jurisdictionIndex,
         uint8 documentType
     ) external payable returns (uint256 noticeId, uint256 alertId) {
-        // Direct implementation to avoid calldata conversion issues
-        uint256 required = serviceFee + 2000000;
-        require(msg.value >= required, "Insufficient fee");
-        require(recipient != address(0), "Invalid recipient");
+        NoticeParams memory params = NoticeParams({
+            recipient: recipient,
+            encryptedIPFS: ipfsHash,
+            decryptionKey: "",
+            issuingAgency: "Legal Authority",
+            noticeType: "Legal Notice",
+            caseNumber: caseNumber,
+            caseDetails: "Document attached",
+            legalRights: "You have legal rights regarding this notice",
+            sponsorFees: true
+        });
         
-        // Create document
-        string memory caseInfo = string(abi.encodePacked("Legal Authority - Legal Notice - Case ", caseNumber));
-        uint256 documentId = _createDocument(recipient, ipfsHash, "", caseInfo);
+        (alertId, noticeId) = serveNotice(params);
         
-        // Create alert
-        alertId = _createAlert(documentId, recipient, "Legal Authority", "Legal Notice", caseNumber);
-        _completeAlert(alertId, "Document attached", "You have legal rights regarding this notice", true);
-        
-        // Create notice
-        _createNotice(documentId, alertId, recipient, ipfsHash, caseNumber);
-        
-        // Also create legacy notice structure
-        notices[documentId].contentHash = contentHash;
-        notices[documentId].jurisdictionIndex = jurisdictionIndex;
-        notices[documentId].documentType = documentType;
-        
-        emit Transfer(address(0), recipient, alertId);
-        emit AlertCreated(alertId, recipient, documentId);
-        
-        noticeId = documentId;
+        // Update notice with additional data
+        notices[noticeId].contentHash = contentHash;
+        notices[noticeId].jurisdictionIndex = jurisdictionIndex;
+        notices[noticeId].documentType = documentType;
     }
     
     function acceptNotice(uint256 tokenId) external {
@@ -338,6 +324,7 @@ contract LegalNoticeNFT {
         acceptDocument(alert.documentId);
     }
     
+    // Helper functions
     function getUserNotices(address user) external view returns (uint256[] memory) {
         return recipientDocuments[user];
     }

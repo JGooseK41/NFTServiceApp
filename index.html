@@ -2571,6 +2571,34 @@
                         <div id="feeUpdateResult"></div>
                     </div>
 
+                    <!-- IPFS Configuration -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2><i class="fas fa-cloud-upload-alt"></i> IPFS Configuration (Pinata)</h2>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Pinata API Key</label>
+                            <input type="text" class="form-input" id="pinataApiKey" 
+                                   placeholder="Enter your Pinata API key">
+                            <p class="form-help">Get your API key from <a href="https://app.pinata.cloud/keys" target="_blank">Pinata Dashboard</a></p>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Pinata Secret API Key</label>
+                            <input type="password" class="form-input" id="pinataSecretKey" 
+                                   placeholder="Enter your Pinata Secret API key">
+                            <p class="form-help">Keep this secret - it will be stored locally in your browser</p>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-primary" onclick="savePinataKeys()">
+                                <i class="fas fa-save"></i> Save Keys
+                            </button>
+                            <button class="btn btn-secondary" onclick="testPinataConnection()">
+                                <i class="fas fa-check-circle"></i> Test Connection
+                            </button>
+                        </div>
+                        <div id="pinataConfigResult"></div>
+                    </div>
+
                     <!-- Role Management -->
                     <div class="card">
                         <div class="card-header">
@@ -3778,8 +3806,8 @@
         let uploadedFileInfo = null;
         let currentNoticeId = null;
         
-        // Contract ABI (minified for production)
-        const CONTRACT_ABI = [{"inputs":[{"internalType":"address payable","name":"_feeCollector","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"acceptNotice","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"alerts","outputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"uint256","name":"noticeId","type":"uint256"},{"internalType":"string","name":"previewImage","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"approve","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"creationFee","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"recipient","type":"address"},{"internalType":"string","name":"ipfsHash","type":"string"},{"internalType":"string","name":"previewImage","type":"string"},{"internalType":"bytes32","name":"contentHash","type":"bytes32"},{"internalType":"string","name":"caseNumber","type":"string"},{"internalType":"uint16","name":"jurisdictionIndex","type":"uint16"},{"internalType":"uint8","name":"documentType","type":"uint8"}],"name":"createLegalNotice","outputs":[{"internalType":"uint256","name":"","type":"uint256"},{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"depositForFees","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"feeExemptions","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"getApproved","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getUserAlerts","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getUserNotices","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"role","type":"bytes32"},{"internalType":"address","name":"account","type":"address"}],"name":"grantRole","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes32","name":"role","type":"bytes32"},{"internalType":"address","name":"account","type":"address"}],"name":"hasRole","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"operator","type":"address"}],"name":"isApprovedForAll","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"notices","outputs":[{"internalType":"address","name":"recipient","type":"address"},{"internalType":"address","name":"server","type":"address"},{"internalType":"string","name":"ipfsHash","type":"string"},{"internalType":"bytes32","name":"contentHash","type":"bytes32"},{"internalType":"uint128","name":"timestamp","type":"uint128"},{"internalType":"uint64","name":"caseNumberHash","type":"uint64"},{"internalType":"uint32","name":"alertTokenId","type":"uint32"},{"internalType":"uint16","name":"jurisdictionIndex","type":"uint16"},{"internalType":"uint8","name":"documentType","type":"uint8"},{"internalType":"uint8","name":"status","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"role","type":"bytes32"},{"internalType":"address","name":"account","type":"address"}],"name":"revokeRole","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"operator","type":"address"},{"internalType":"bool","name":"approved","type":"bool"}],"name":"setApprovalForAll","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"},{"internalType":"bool","name":"exempt","type":"bool"}],"name":"setFeeExemption","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bool","name":"enabled","type":"bool"}],"name":"setResourceSponsorship","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes4","name":"interfaceId","type":"bytes4"}],"name":"supportsInterface","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"pure","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"transferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"newFee","type":"uint256"}],"name":"updateFee","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address payable","name":"newCollector","type":"address"}],"name":"updateFeeCollector","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"withdrawTRX","outputs":[],"stateMutability":"nonpayable","type":"function"}];
+        // Contract ABI - Updated to match deployed contract
+        const CONTRACT_ABI = [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"alertId","type":"uint256"},{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"documentId","type":"uint256"}],"name":"AlertCreated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"documentId","type":"uint256"},{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"DocumentAccepted","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"documentId","type":"uint256"},{"indexed":true,"internalType":"address","name":"viewer","type":"address"}],"name":"DocumentViewed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"Transfer","type":"event"},{"inputs":[{"internalType":"uint256","name":"documentId","type":"uint256"}],"name":"acceptDocument","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"acceptNotice","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"admin","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"alerts","outputs":[{"internalType":"uint256","name":"documentId","type":"uint256"},{"internalType":"address","name":"recipient","type":"address"},{"internalType":"string","name":"issuingAgency","type":"string"},{"internalType":"string","name":"noticeType","type":"string"},{"internalType":"string","name":"caseNumber","type":"string"},{"internalType":"string","name":"caseDetails","type":"string"},{"internalType":"string","name":"legalRights","type":"string"},{"internalType":"bool","name":"feesSponsored","type":"bool"},{"internalType":"uint256","name":"timestamp","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"recipient","type":"address"},{"internalType":"string","name":"ipfsHash","type":"string"},{"internalType":"string","name":"previewImage","type":"string"},{"internalType":"bytes32","name":"contentHash","type":"bytes32"},{"internalType":"string","name":"caseNumber","type":"string"},{"internalType":"uint16","name":"jurisdictionIndex","type":"uint16"},{"internalType":"uint8","name":"documentType","type":"uint8"}],"name":"createLegalNotice","outputs":[{"internalType":"uint256","name":"noticeId","type":"uint256"},{"internalType":"uint256","name":"alertId","type":"uint256"}],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"creationFee","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"},{"internalType":"address","name":"","type":"address"}],"name":"documentViewers","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"documents","outputs":[{"internalType":"address","name":"server","type":"address"},{"internalType":"address","name":"recipient","type":"address"},{"internalType":"string","name":"ipfsHash","type":"string"},{"internalType":"string","name":"caseInfo","type":"string"},{"internalType":"uint256","name":"timestamp","type":"uint256"},{"internalType":"bool","name":"accepted","type":"bool"},{"internalType":"uint256","name":"acceptedTime","type":"uint256"},{"internalType":"string","name":"decryptionKey","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"feeExemptions","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"fullFeeExemptions","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"documentId","type":"uint256"}],"name":"getDeliveryProof","outputs":[{"internalType":"address","name":"server","type":"address"},{"internalType":"address","name":"recipient","type":"address"},{"internalType":"uint256","name":"servedTime","type":"uint256"},{"internalType":"uint256","name":"acceptedTime","type":"uint256"},{"internalType":"bool","name":"isAccepted","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"recipient","type":"address"}],"name":"getPendingDocuments","outputs":[{"internalType":"uint256[]","name":"documentIds","type":"uint256[]"},{"internalType":"string[]","name":"caseInfos","type":"string[]"},{"internalType":"uint256[]","name":"timestamps","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getUserAlerts","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getUserNotices","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"role","type":"bytes32"},{"internalType":"address","name":"account","type":"address"}],"name":"grantRole","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes32","name":"role","type":"bytes32"},{"internalType":"address","name":"account","type":"address"}],"name":"hasRole","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"notices","outputs":[{"internalType":"address","name":"recipient","type":"address"},{"internalType":"address","name":"server","type":"address"},{"internalType":"string","name":"ipfsHash","type":"string"},{"internalType":"bytes32","name":"contentHash","type":"bytes32"},{"internalType":"uint128","name":"timestamp","type":"uint128"},{"internalType":"uint64","name":"caseNumberHash","type":"uint64"},{"internalType":"uint32","name":"alertTokenId","type":"uint32"},{"internalType":"uint16","name":"jurisdictionIndex","type":"uint16"},{"internalType":"uint8","name":"documentType","type":"uint8"},{"internalType":"uint8","name":"status","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"}],"name":"recipientAlerts","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"}],"name":"recipientDocuments","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"resourceSponsorshipEnabled","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"pure","type":"function"},{"inputs":[{"internalType":"address","name":"recipient","type":"address"},{"internalType":"string","name":"encryptedIPFS","type":"string"},{"internalType":"string","name":"decryptionKey","type":"string"},{"internalType":"string","name":"issuingAgency","type":"string"},{"internalType":"string","name":"noticeType","type":"string"},{"internalType":"string","name":"caseNumber","type":"string"},{"internalType":"string","name":"caseDetails","type":"string"},{"internalType":"string","name":"legalRights","type":"string"},{"internalType":"bool","name":"sponsorFees","type":"bool"}],"name":"serveNotice","outputs":[{"internalType":"uint256","name":"alertId","type":"uint256"},{"internalType":"uint256","name":"documentId","type":"uint256"}],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"serviceFee","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"serviceFeeExemptions","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"},{"internalType":"bool","name":"exempt","type":"bool"}],"name":"setFeeExemption","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"},{"internalType":"bool","name":"exempt","type":"bool"}],"name":"setFullFeeExemption","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bool","name":"enabled","type":"bool"}],"name":"setResourceSponsorship","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"},{"internalType":"bool","name":"exempt","type":"bool"}],"name":"setServiceFeeExemption","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"newFee","type":"uint256"}],"name":"updateCreationFee","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"newFee","type":"uint256"}],"name":"updateFee","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address payable","name":"newCollector","type":"address"}],"name":"updateFeeCollector","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"newFee","type":"uint256"}],"name":"updateServiceFee","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"newFee","type":"uint256"}],"name":"updateSponsorshipFee","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"documentId","type":"uint256"}],"name":"viewDocument","outputs":[{"internalType":"string","name":"ipfsHash","type":"string"},{"internalType":"string","name":"decryptionKey","type":"string"},{"internalType":"string","name":"caseInfo","type":"string"},{"internalType":"uint256","name":"acceptedTime","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"withdrawTRX","outputs":[],"stateMutability":"nonpayable","type":"function"}];
 
         // Multi-chain configuration
         const CHAIN_CONFIG = {
@@ -4997,16 +5025,55 @@ function useConnectedAddressForFeeCollector() {
             return URL.createObjectURL(blob);
         }
 
-        // Upload to IPFS (using Netlify Function)
+        // Upload to IPFS (with Pinata fallback)
         async function uploadToIPFS(base64Image) {
             try {
                 console.log('Starting IPFS upload, image size:', base64Image.length);
                 
-                // Add timeout for the fetch request
+                // Try Pinata first
+                const PINATA_API_KEY = localStorage.getItem('pinataApiKey') || '';
+                const PINATA_SECRET_KEY = localStorage.getItem('pinataSecretKey') || '';
+                
+                if (PINATA_API_KEY && PINATA_SECRET_KEY) {
+                    try {
+                        console.log('Attempting Pinata upload...');
+                        
+                        // Convert base64 to blob
+                        const byteCharacters = atob(base64Image.split(',')[1]);
+                        const byteNumbers = new Array(byteCharacters.length);
+                        for (let i = 0; i < byteCharacters.length; i++) {
+                            byteNumbers[i] = byteCharacters.charCodeAt(i);
+                        }
+                        const byteArray = new Uint8Array(byteNumbers);
+                        const blob = new Blob([byteArray], { type: 'image/png' });
+                        
+                        const formData = new FormData();
+                        formData.append('file', blob, 'legal-notice.png');
+                        
+                        const pinataResponse = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
+                            method: 'POST',
+                            headers: {
+                                'pinata_api_key': PINATA_API_KEY,
+                                'pinata_secret_api_key': PINATA_SECRET_KEY
+                            },
+                            body: formData
+                        });
+                        
+                        if (pinataResponse.ok) {
+                            const data = await pinataResponse.json();
+                            console.log('Pinata upload successful:', data.IpfsHash);
+                            return data.IpfsHash;
+                        }
+                    } catch (pinataError) {
+                        console.warn('Pinata upload failed:', pinataError);
+                    }
+                }
+                
+                // Fallback to Netlify function
+                console.log('Trying Netlify function...');
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
                 
-                // Call Netlify function to handle the IPFS upload
                 const response = await fetch('/.netlify/functions/upload-to-ipfs', {
                     method: 'POST',
                     headers: {
@@ -5186,20 +5253,19 @@ function useConnectedAddressForFeeCollector() {
                         const encryptionKey = generateEncryptionKey();
                         const encryptedIPFS = ipfsHash; // In production, encrypt before upload
                         
-                        // For now, use createLegalNotice since ABI doesn't have serveNotice
-                        // This will create a basic notice without the view-gated features
-                        const contentHash = generateContentHash(ipfsHash + caseNumber);
-                        
-                        tx = await legalContract.createLegalNotice(
+                        // Call the view-gated contract with serveNotice
+                        tx = await legalContract.serveNotice(
                             recipient,
-                            ipfsHash,
-                            previewData || "", // Use text as preview for now
-                            contentHash,
+                            encryptedIPFS,
+                            encryptionKey,
+                            issuingAgency,
+                            noticeType,
                             caseNumber,
-                            0, // jurisdiction index
-                            1  // document type (summons)
+                            caseDetailsText,
+                            legalRights || 'You have the right to respond to this legal notice',
+                            sponsorFees
                         ).send({
-                            feeLimit: 100_000_000,
+                            feeLimit: 100_000_000, // 100 TRX max for view-gated
                             callValue: feeInSun,
                             shouldPollResponse: true
                         });
@@ -5971,16 +6037,113 @@ function useConnectedAddressForFeeCollector() {
         async function getAlertDetails(alertId) {
             try {
                 const alert = await legalContract.alerts(alertId).call();
+                // The new contract structure has different fields
                 return {
                     id: alertId,
-                    owner: alert.owner,
-                    noticeId: alert.noticeId,
-                    previewImage: alert.previewImage
+                    documentId: alert.documentId,
+                    recipient: alert.recipient,
+                    issuingAgency: alert.issuingAgency,
+                    noticeType: alert.noticeType,
+                    caseNumber: alert.caseNumber,
+                    caseDetails: alert.caseDetails,
+                    legalRights: alert.legalRights,
+                    feesSponsored: alert.feesSponsored,
+                    timestamp: alert.timestamp,
+                    noticeId: alert.documentId // For compatibility
                 };
             } catch (error) {
                 console.error('Error getting alert details:', error);
                 return null;
             }
+        }
+
+        // Pinata configuration functions
+        function savePinataKeys() {
+            const apiKey = document.getElementById('pinataApiKey').value.trim();
+            const secretKey = document.getElementById('pinataSecretKey').value.trim();
+            
+            if (!apiKey || !secretKey) {
+                uiManager.showNotification('error', 'Please enter both API keys');
+                return;
+            }
+            
+            localStorage.setItem('pinataApiKey', apiKey);
+            localStorage.setItem('pinataSecretKey', secretKey);
+            
+            document.getElementById('pinataConfigResult').innerHTML = `
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    <div>
+                        <strong>Keys Saved</strong>
+                        <p>Pinata API keys saved to browser storage</p>
+                    </div>
+                </div>
+            `;
+            
+            // Clear result after 3 seconds
+            setTimeout(() => {
+                document.getElementById('pinataConfigResult').innerHTML = '';
+            }, 3000);
+        }
+        
+        async function testPinataConnection() {
+            const apiKey = localStorage.getItem('pinataApiKey');
+            const secretKey = localStorage.getItem('pinataSecretKey');
+            
+            if (!apiKey || !secretKey) {
+                uiManager.showNotification('error', 'Please save Pinata keys first');
+                return;
+            }
+            
+            const resultDiv = document.getElementById('pinataConfigResult');
+            resultDiv.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <div>
+                        <strong>Testing Connection...</strong>
+                        <p>Checking Pinata API access</p>
+                    </div>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch('https://api.pinata.cloud/data/testAuthentication', {
+                    method: 'GET',
+                    headers: {
+                        'pinata_api_key': apiKey,
+                        'pinata_secret_api_key': secretKey
+                    }
+                });
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i>
+                            <div>
+                                <strong>Connection Successful!</strong>
+                                <p>Pinata API is working correctly</p>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    throw new Error('Authentication failed');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="alert alert-error">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <div>
+                            <strong>Connection Failed</strong>
+                            <p>Please check your API keys and try again</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Clear result after 5 seconds
+            setTimeout(() => {
+                resultDiv.innerHTML = '';
+            }, 5000);
         }
 
         // Role management functions
@@ -7166,6 +7329,16 @@ async function checkUserRoles() {
             // Check if TronWeb is available
             if (window.tronWeb && window.tronWeb.ready) {
                 connectWallet();
+            }
+            
+            // Load saved Pinata keys if in admin panel
+            const savedApiKey = localStorage.getItem('pinataApiKey');
+            const savedSecretKey = localStorage.getItem('pinataSecretKey');
+            if (savedApiKey && document.getElementById('pinataApiKey')) {
+                document.getElementById('pinataApiKey').value = savedApiKey;
+            }
+            if (savedSecretKey && document.getElementById('pinataSecretKey')) {
+                document.getElementById('pinataSecretKey').value = savedSecretKey;
             }
             
           // Add input validation

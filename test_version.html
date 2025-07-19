@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Version Test</title>
+</head>
+<body>
+    <h1>Test Page - Current Contract Address</h1>
+    <h2>This file was created at: 2025-01-19</h2>
+    <p>The current contract address should be: <strong>TU6ftNn5mx5wEyPbLwGVgetd1LwpRgTk8H</strong></p>
+    <p>If you see this page, the server is serving the correct files.</p>
+    
+    <script>
+        // Let's check what JavaScript sees
+        fetch('index.html')
+            .then(response => response.text())
+            .then(text => {
+                const match = text.match(/contractAddress:\s*'(T[A-Za-z0-9]{33})'/);
+                if (match) {
+                    document.body.innerHTML += '<p>Contract address found in index.html: <strong>' + match[1] + '</strong></p>';
+                }
+                
+                // Check for old address
+                if (text.includes('TNaps6xxSCuCvjxDyM2M5rhutuwq93xaLh')) {
+                    document.body.innerHTML += '<p style="color: red;">WARNING: Old address TNaps... found in index.html!</p>';
+                } else {
+                    document.body.innerHTML += '<p style="color: green;">Good: Old address NOT found in index.html</p>';
+                }
+            });
+    </script>
+</body>
+</html>

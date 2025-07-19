@@ -68,74 +68,72 @@ contract LegalNoticeNFT {
         admin = msg.sender;
     }
     
-    // Core functions - placed first to avoid forward references
-    
-    function _createDocument(
+    // Legacy compatibility - simplified to avoid stack depth
+    function createLegalNotice(
         address recipient,
-        string memory ipfsHash,
-        string memory decryptionKey,
-        string memory caseInfo
-    ) private returns (uint256 documentId) {
-        documentId = ++_documentCounter;
-        documents[documentId].server = msg.sender;
-        documents[documentId].recipient = recipient;
-        documents[documentId].ipfsHash = ipfsHash;
-        documents[documentId].caseInfo = caseInfo;
-        documents[documentId].timestamp = block.timestamp;
-        documents[documentId].decryptionKey = decryptionKey;
-        recipientDocuments[recipient].push(documentId);
-    }
-    
-    function _createAlert(
-        uint256 documentId,
-        address recipient,
-        string memory issuingAgency,
-        string memory noticeType,
-        string memory caseNumber
-    ) private returns (uint256 alertId) {
+        string calldata ipfsHash,
+        string calldata previewImage,
+        bytes32 contentHash,
+        string calldata caseNumber,
+        uint16 jurisdictionIndex,
+        uint8 documentType
+    ) external payable returns (uint256 noticeId, uint256 alertId) {
+        require(msg.value >= serviceFee + 2000000, "Insufficient fee");
+        require(recipient != address(0), "Invalid recipient");
+        
+        // Create document
+        noticeId = ++_documentCounter;
+        documents[noticeId].server = msg.sender;
+        documents[noticeId].recipient = recipient;
+        documents[noticeId].ipfsHash = ipfsHash;
+        documents[noticeId].timestamp = block.timestamp;
+        recipientDocuments[recipient].push(noticeId);
+        
+        // Create alert  
         alertId = ++_alertCounter;
-        alerts[alertId].documentId = documentId;
+        alerts[alertId].documentId = noticeId;
         alerts[alertId].recipient = recipient;
-        alerts[alertId].issuingAgency = issuingAgency;
-        alerts[alertId].noticeType = noticeType;
+        alerts[alertId].issuingAgency = "Legal Authority";
+        alerts[alertId].noticeType = "Legal Notice";
         alerts[alertId].caseNumber = caseNumber;
+        alerts[alertId].feesSponsored = true;
         alerts[alertId].timestamp = block.timestamp;
         recipientAlerts[recipient].push(alertId);
         _tokenOwners[alertId] = recipient;
+        
+        // Create notice
+        notices[noticeId].recipient = recipient;
+        notices[noticeId].server = msg.sender;
+        notices[noticeId].ipfsHash = ipfsHash;
+        notices[noticeId].contentHash = contentHash;
+        notices[noticeId].timestamp = uint128(block.timestamp);
+        notices[noticeId].alertTokenId = uint32(alertId);
+        notices[noticeId].jurisdictionIndex = jurisdictionIndex;
+        notices[noticeId].documentType = documentType;
+        
+        emit Transfer(address(0), recipient, alertId);
+        emit AlertCreated(alertId, recipient, noticeId);
     }
     
-    function _completeAlert(
-        uint256 alertId,
-        string memory caseDetails,
-        string memory legalRights,
-        bool sponsorFees
-    ) private {
-        alerts[alertId].caseDetails = caseDetails;
-        alerts[alertId].legalRights = legalRights;
-        alerts[alertId].feesSponsored = sponsorFees;
+    function acceptNotice(uint256 tokenId) external {
+        AlertNotice storage alert = alerts[tokenId];
+        LegalDocument storage doc = documents[alert.documentId];
+        
+        require(msg.sender == doc.recipient, "Not recipient");
+        require(!doc.accepted, "Already accepted");
+        
+        doc.accepted = true;
+        doc.acceptedTime = block.timestamp;
+        
+        uint256 docTokenId = 1000000 + alert.documentId;
+        _tokenOwners[docTokenId] = msg.sender;
+        notices[alert.documentId].status = 2;
+        
+        emit DocumentAccepted(alert.documentId, msg.sender, block.timestamp);
+        emit Transfer(address(0), msg.sender, docTokenId);
     }
     
-    function _createNotice(
-        uint256 documentId,
-        uint256 alertId,
-        address recipient,
-        string memory ipfsHash,
-        string memory caseNumber
-    ) private {
-        notices[documentId].recipient = recipient;
-        notices[documentId].server = msg.sender;
-        notices[documentId].ipfsHash = ipfsHash;
-        notices[documentId].contentHash = keccak256(abi.encodePacked(ipfsHash));
-        notices[documentId].timestamp = uint128(block.timestamp);
-        notices[documentId].caseNumberHash = uint64(uint256(keccak256(abi.encodePacked(caseNumber))) >> 192);
-        notices[documentId].alertTokenId = uint32(alertId);
-        notices[documentId].jurisdictionIndex = 0;
-        notices[documentId].documentType = 1;
-        notices[documentId].status = 0;
-    }
-    
-    // Main functions
-    
+    // ViewGated functions
     function serveNotice(
         address recipient,
         string calldata encryptedIPFS,
@@ -146,28 +144,52 @@ contract LegalNoticeNFT {
         string calldata caseDetails,
         string calldata legalRights,
         bool sponsorFees
-    ) public payable returns (uint256 alertId, uint256 documentId) {
+    ) external payable returns (uint256 alertId, uint256 documentId) {
         uint256 required = serviceFee;
         if (sponsorFees) required += 2000000;
         require(msg.value >= required, "Insufficient fee");
         require(recipient != address(0), "Invalid recipient");
         
         // Create document
-        string memory caseInfo = string(abi.encodePacked(issuingAgency, " - ", noticeType, " - Case ", caseNumber));
-        documentId = _createDocument(recipient, encryptedIPFS, decryptionKey, caseInfo);
+        documentId = ++_documentCounter;
+        LegalDocument storage doc = documents[documentId];
+        doc.server = msg.sender;
+        doc.recipient = recipient;
+        doc.ipfsHash = encryptedIPFS;
+        doc.caseInfo = string(abi.encodePacked(issuingAgency, " - ", noticeType, " - Case ", caseNumber));
+        doc.timestamp = block.timestamp;
+        doc.decryptionKey = decryptionKey;
+        recipientDocuments[recipient].push(documentId);
         
         // Create alert
-        alertId = _createAlert(documentId, recipient, issuingAgency, noticeType, caseNumber);
-        _completeAlert(alertId, caseDetails, legalRights, sponsorFees);
+        alertId = ++_alertCounter;
+        AlertNotice storage alert = alerts[alertId];
+        alert.documentId = documentId;
+        alert.recipient = recipient;
+        alert.issuingAgency = issuingAgency;
+        alert.noticeType = noticeType;
+        alert.caseNumber = caseNumber;
+        alert.caseDetails = caseDetails;
+        alert.legalRights = legalRights;
+        alert.feesSponsored = sponsorFees;
+        alert.timestamp = block.timestamp;
+        recipientAlerts[recipient].push(alertId);
+        _tokenOwners[alertId] = recipient;
         
-        // Create notice
-        _createNotice(documentId, alertId, recipient, encryptedIPFS, caseNumber);
+        // Create notice for compatibility
+        Notice storage notice = notices[documentId];
+        notice.recipient = recipient;
+        notice.server = msg.sender;
+        notice.ipfsHash = encryptedIPFS;
+        notice.contentHash = keccak256(abi.encodePacked(encryptedIPFS));
+        notice.timestamp = uint128(block.timestamp);
+        notice.alertTokenId = uint32(alertId);
         
         emit Transfer(address(0), recipient, alertId);
         emit AlertCreated(alertId, recipient, documentId);
     }
     
-    function acceptDocument(uint256 documentId) public {
+    function acceptDocument(uint256 documentId) external {
         LegalDocument storage doc = documents[documentId];
         require(msg.sender == doc.recipient, "Not recipient");
         require(!doc.accepted, "Already accepted");
@@ -293,49 +315,6 @@ contract LegalNoticeNFT {
     ) {
         LegalDocument storage doc = documents[documentId];
         return (doc.server, doc.recipient, doc.timestamp, doc.acceptedTime, doc.accepted);
-    }
-    
-    // App compatibility functions
-    
-    function createLegalNotice(
-        address recipient,
-        string calldata ipfsHash,
-        string calldata previewImage,
-        bytes32 contentHash,
-        string calldata caseNumber,
-        uint16 jurisdictionIndex,
-        uint8 documentType
-    ) external payable returns (uint256 noticeId, uint256 alertId) {
-        // Direct implementation to avoid calldata conversion issues
-        uint256 required = serviceFee + 2000000;
-        require(msg.value >= required, "Insufficient fee");
-        require(recipient != address(0), "Invalid recipient");
-        
-        // Create document
-        string memory caseInfo = string(abi.encodePacked("Legal Authority - Legal Notice - Case ", caseNumber));
-        uint256 documentId = _createDocument(recipient, ipfsHash, "", caseInfo);
-        
-        // Create alert
-        alertId = _createAlert(documentId, recipient, "Legal Authority", "Legal Notice", caseNumber);
-        _completeAlert(alertId, "Document attached", "You have legal rights regarding this notice", true);
-        
-        // Create notice
-        _createNotice(documentId, alertId, recipient, ipfsHash, caseNumber);
-        
-        // Also create legacy notice structure
-        notices[documentId].contentHash = contentHash;
-        notices[documentId].jurisdictionIndex = jurisdictionIndex;
-        notices[documentId].documentType = documentType;
-        
-        emit Transfer(address(0), recipient, alertId);
-        emit AlertCreated(alertId, recipient, documentId);
-        
-        noticeId = documentId;
-    }
-    
-    function acceptNotice(uint256 tokenId) external {
-        AlertNotice storage alert = alerts[tokenId];
-        acceptDocument(alert.documentId);
     }
     
     function getUserNotices(address user) external view returns (uint256[] memory) {

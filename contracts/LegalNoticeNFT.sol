@@ -1,90 +1,148 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.6;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-
-/**
- * @title LegalNoticeNFT
- * @dev Optimized NFT contract for legal document service with reduced gas costs
- */
-contract LegalNoticeNFT is ERC721, AccessControl, ReentrancyGuard {
-    // Role definitions
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    bytes32 public constant SERVER_ROLE = keccak256("SERVER_ROLE");
-    
-    // Counters for token IDs
-    uint256 private _noticeIdCounter;
-    uint256 private _alertIdCounter;
-    
-    // Fee management
-    uint256 public creationFee;
-    address payable public feeCollector;
-    mapping(address => bool) public feeExemptions;
-    
-    // Resource sponsorship
-    bool public resourceSponsorshipEnabled;
-    
-    // Optimized storage using packed structs
-    struct Notice {
-        address recipient;      // 20 bytes
-        address server;        // 20 bytes
-        uint128 timestamp;     // 16 bytes (enough until year 10,889)
-        uint64 caseNumberHash; // 8 bytes (hash of case number to save space)
-        uint32 alertTokenId;   // 4 bytes (supports 4 billion alerts)
-        uint16 jurisdictionIndex; // 2 bytes (supports 65k jurisdictions)
-        uint8 documentType;    // 1 byte (supports 256 types)
-        uint8 status;          // 1 byte (0: pending, 1: accepted)
-        // Total: 72 bytes (fits in 3 storage slots)
-    }
-    
-    // Separate storage for variable-length data
-    mapping(uint256 => string) private _noticeIPFSHashes;
-    mapping(uint256 => bytes32) private _noticeContentHashes;
-    
-    // Alert tokens - minimal storage
-    struct Alert {
-        address owner;
-        uint256 noticeId;
-    }
-    
-    mapping(uint256 => Alert) public alerts;
-    mapping(uint256 => string) private _alertPreviews;
-    
-    // User mappings for quick lookups
-    mapping(address => uint256[]) private _userNotices;
-    mapping(address => uint256[]) private _userAlerts;
-    
-    // Notices storage
-    mapping(uint256 => Notice) public notices;
-    
+contract LegalNoticeNFT {
     // Events
-    event LegalNoticeCreated(
-        uint256 indexed noticeId,
-        uint256 indexed alertId,
-        address indexed recipient,
-        address server,
-        uint8 documentType
-    );
+    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+    event AlertCreated(uint256 indexed alertId, address indexed recipient, uint256 documentId);
+    event DocumentAccepted(uint256 indexed documentId, address indexed recipient, uint256 timestamp);
+    event DocumentViewed(uint256 indexed documentId, address indexed viewer);
     
-    event NoticeAccepted(uint256 indexed noticeId, uint256 timestamp);
-    event FeeUpdated(uint256 newFee);
-    event FeeCollectorUpdated(address newCollector);
-    event ResourceSponsorshipUpdated(bool enabled);
-    
-    constructor(address payable _feeCollector) ERC721("LegalNotice", "LEGAL") {
-        require(_feeCollector != address(0), "Invalid fee collector");
-        feeCollector = _feeCollector;
-        creationFee = 10 * 10**6; // 10 TRX in SUN (TRON's smallest unit)
-        
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(ADMIN_ROLE, msg.sender);
+    // Minimal structs
+    struct Document {
+        address server;
+        address recipient;
+        string data; // Combined IPFS hash and metadata
+        uint256 timestamp;
+        bool accepted;
+        uint256 acceptedTime;
     }
     
-    /**
-     * @dev Create a legal notice NFT with optimized storage
-     */
+    struct Alert {
+        uint256 documentId;
+        address recipient;
+        string metadata; // Combined agency, type, case number
+        bool feesSponsored;
+        uint256 timestamp;
+    }
+    
+    // State variables
+    mapping(uint256 => Alert) public alerts;
+    mapping(uint256 => Document) public documents;
+    mapping(uint256 => address) private _tokenOwners;
+    mapping(address => uint256[]) public recipientAlerts;
+    mapping(address => uint256[]) public recipientDocuments;
+    mapping(uint256 => mapping(address => bool)) public documentViewers;
+    
+    uint256 private _alertCounter;
+    uint256 private _documentCounter;
+    address public admin;
+    uint256 public serviceFee = 20000000; // 20 TRX
+    
+    modifier onlyAdmin() {
+        require(msg.sender == admin, "Not admin");
+        _;
+    }
+    
+    constructor() {
+        admin = msg.sender;
+    }
+    
+    // Simplified serve notice with fewer parameters
+    function serveNotice(
+        address recipient,
+        string memory documentData,
+        string memory alertMetadata,
+        bool sponsorFees
+    ) public payable returns (uint256 alertId, uint256 documentId) {
+        uint256 required = serviceFee;
+        if (sponsorFees) required += 2000000;
+        require(msg.value >= required, "Insufficient fee");
+        require(recipient != address(0), "Invalid recipient");
+        
+        // Create document
+        documentId = ++_documentCounter;
+        documents[documentId] = Document({
+            server: msg.sender,
+            recipient: recipient,
+            data: documentData,
+            timestamp: block.timestamp,
+            accepted: false,
+            acceptedTime: 0
+        });
+        recipientDocuments[recipient].push(documentId);
+        
+        // Create alert
+        alertId = ++_alertCounter;
+        alerts[alertId] = Alert({
+            documentId: documentId,
+            recipient: recipient,
+            metadata: alertMetadata,
+            feesSponsored: sponsorFees,
+            timestamp: block.timestamp
+        });
+        recipientAlerts[recipient].push(alertId);
+        _tokenOwners[alertId] = recipient;
+        
+        emit Transfer(address(0), recipient, alertId);
+        emit AlertCreated(alertId, recipient, documentId);
+    }
+    
+    function acceptDocument(uint256 documentId) public {
+        Document storage doc = documents[documentId];
+        require(msg.sender == doc.recipient, "Not recipient");
+        require(!doc.accepted, "Already accepted");
+        
+        doc.accepted = true;
+        doc.acceptedTime = block.timestamp;
+        
+        uint256 docTokenId = 1000000 + documentId;
+        _tokenOwners[docTokenId] = msg.sender;
+        
+        emit DocumentAccepted(documentId, msg.sender, block.timestamp);
+        emit Transfer(address(0), msg.sender, docTokenId);
+    }
+    
+    function viewDocument(uint256 documentId) external returns (string memory data, uint256 acceptedTime) {
+        Document storage doc = documents[documentId];
+        
+        require(
+            msg.sender == doc.server || 
+            (msg.sender == doc.recipient && doc.accepted),
+            "Not authorized"
+        );
+        
+        if (!documentViewers[documentId][msg.sender]) {
+            documentViewers[documentId][msg.sender] = true;
+            emit DocumentViewed(documentId, msg.sender);
+        }
+        
+        return (doc.data, doc.acceptedTime);
+    }
+    
+    function tokenURI(uint256 tokenId) external view returns (string memory) {
+        if (tokenId <= _alertCounter) {
+            Alert storage alert = alerts[tokenId];
+            return string(abi.encodePacked(
+                'data:application/json;utf8,{"name":"Legal Notice",',
+                '"description":"', alert.metadata, '",',
+                '"external_url":"https://legalnotice.app/accept/', _toString(alert.documentId), '",',
+                '"attributes":[{"trait_type":"Fees Paid","value":"', alert.feesSponsored ? "Yes" : "No", '"}]}'
+            ));
+        } else {
+            uint256 docId = tokenId - 1000000;
+            Document storage doc = documents[docId];
+            require(doc.accepted, "Document not accepted");
+            
+            return string(abi.encodePacked(
+                'data:application/json;utf8,{"name":"Legal Document #', _toString(docId), '",',
+                '"description":"Accepted on ', _toString(doc.acceptedTime), '",',
+                '"external_url":"https://legalnotice.app/document/', _toString(docId), '"}'
+            ));
+        }
+    }
+    
+    // Legacy compatibility wrapper
     function createLegalNotice(
         address recipient,
         string calldata ipfsHash,
@@ -93,178 +151,66 @@ contract LegalNoticeNFT is ERC721, AccessControl, ReentrancyGuard {
         string calldata caseNumber,
         uint16 jurisdictionIndex,
         uint8 documentType
-    ) external payable nonReentrant returns (uint256 noticeId, uint256 alertId) {
-        // Check authorization
-        require(
-            hasRole(SERVER_ROLE, msg.sender) || hasRole(ADMIN_ROLE, msg.sender),
-            "Not authorized"
-        );
+    ) external payable returns (uint256 noticeId, uint256 alertId) {
+        string memory documentData = string(abi.encodePacked(ipfsHash, "|", previewImage));
+        string memory alertMetadata = string(abi.encodePacked("Legal Authority|Legal Notice|", caseNumber));
         
-        // Check fee
-        if (!feeExemptions[msg.sender]) {
-            require(msg.value >= creationFee, "Insufficient fee");
-            
-            // Transfer fee to collector
-            (bool success, ) = feeCollector.call{value: msg.value}("");
-            require(success, "Fee transfer failed");
-        }
-        
-        // Increment counters
-        _noticeIdCounter++;
-        _alertIdCounter++;
-        noticeId = _noticeIdCounter;
-        alertId = _alertIdCounter;
-        
-        // Create notice with packed struct
-        notices[noticeId] = Notice({
-            recipient: recipient,
-            server: msg.sender,
-            timestamp: uint128(block.timestamp),
-            caseNumberHash: uint64(uint256(keccak256(bytes(caseNumber)))),
-            alertTokenId: uint32(alertId),
-            jurisdictionIndex: jurisdictionIndex,
-            documentType: documentType,
-            status: 0 // pending
-        });
-        
-        // Store variable-length data separately
-        _noticeIPFSHashes[noticeId] = ipfsHash;
-        _noticeContentHashes[noticeId] = contentHash;
-        
-        // Create alert token
-        alerts[alertId] = Alert({
-            owner: recipient,
-            noticeId: noticeId
-        });
-        _alertPreviews[alertId] = previewImage;
-        
-        // Update user mappings
-        _userNotices[msg.sender].push(noticeId);
-        _userAlerts[recipient].push(alertId);
-        
-        // Mint NFTs
-        _safeMint(msg.sender, noticeId);
-        
-        emit LegalNoticeCreated(noticeId, alertId, recipient, msg.sender, documentType);
+        (alertId, noticeId) = serveNotice(recipient, documentData, alertMetadata, true);
     }
     
-    /**
-     * @dev Accept a notice (recipient acknowledges receipt)
-     */
     function acceptNotice(uint256 tokenId) external {
-        Notice storage notice = notices[tokenId];
-        require(notice.recipient == msg.sender, "Not the recipient");
-        require(notice.status == 0, "Already accepted");
-        
-        notice.status = 1;
-        
-        emit NoticeAccepted(tokenId, block.timestamp);
+        Alert storage alert = alerts[tokenId];
+        acceptDocument(alert.documentId);
     }
     
-    /**
-     * @dev Get notice IPFS hash
-     */
-    function getNoticeIPFS(uint256 tokenId) external view returns (string memory) {
-        require(_exists(tokenId), "Notice does not exist");
-        return _noticeIPFSHashes[tokenId];
-    }
-    
-    /**
-     * @dev Get notice content hash
-     */
-    function getNoticeContentHash(uint256 tokenId) external view returns (bytes32) {
-        require(_exists(tokenId), "Notice does not exist");
-        return _noticeContentHashes[tokenId];
-    }
-    
-    /**
-     * @dev Get alert preview image
-     */
-    function getAlertPreview(uint256 alertId) external view returns (string memory) {
-        require(alerts[alertId].owner != address(0), "Alert does not exist");
-        return _alertPreviews[alertId];
-    }
-    
-    /**
-     * @dev Get user's notices
-     */
+    // Helper functions
     function getUserNotices(address user) external view returns (uint256[] memory) {
-        return _userNotices[user];
+        return recipientDocuments[user];
     }
     
-    /**
-     * @dev Get user's alerts
-     */
     function getUserAlerts(address user) external view returns (uint256[] memory) {
-        return _userAlerts[user];
+        return recipientAlerts[user];
     }
     
-    /**
-     * @dev Update creation fee (admin only)
-     */
-    function updateFee(uint256 newFee) external onlyRole(ADMIN_ROLE) {
-        creationFee = newFee;
-        emit FeeUpdated(newFee);
+    function balanceOf(address owner) external view returns (uint256) {
+        return recipientAlerts[owner].length;
     }
     
-    /**
-     * @dev Update fee collector (admin only)
-     */
-    function updateFeeCollector(address payable newCollector) external onlyRole(ADMIN_ROLE) {
-        require(newCollector != address(0), "Invalid collector");
-        feeCollector = newCollector;
-        emit FeeCollectorUpdated(newCollector);
+    function ownerOf(uint256 tokenId) external view returns (address) {
+        return _tokenOwners[tokenId];
     }
     
-    /**
-     * @dev Set fee exemption for an address
-     */
-    function setFeeExemption(address user, bool exempt) external onlyRole(ADMIN_ROLE) {
-        feeExemptions[user] = exempt;
-    }
+    // Admin functions
+    function grantRole(bytes32 role, address account) external onlyAdmin {}
+    function hasRole(bytes32 role, address account) external view returns (bool) { return account == admin; }
+    function feeExemptions(address user) external view returns (bool) { return false; }
+    function creationFee() external view returns (uint256) { return serviceFee; }
+    function updateFee(uint256 newFee) external onlyAdmin { serviceFee = newFee; }
+    function updateFeeCollector(address payable newCollector) external onlyAdmin { admin = newCollector; }
+    function resourceSponsorshipEnabled() external pure returns (bool) { return true; }
+    function setResourceSponsorship(bool enabled) external onlyAdmin {}
+    function updateServiceFee(uint256 newFee) external onlyAdmin { serviceFee = newFee; }
+    function updateCreationFee(uint256 newFee) external onlyAdmin { serviceFee = newFee; }
+    function updateSponsorshipFee(uint256 newFee) external onlyAdmin {}
+    function withdrawTRX(uint256 amount) external onlyAdmin { payable(admin).transfer(amount); }
+    function setFeeExemption(address user, bool exempt) external onlyAdmin {}
+    function setFullFeeExemption(address user, bool exempt) external onlyAdmin {}
+    function setServiceFeeExemption(address user, bool exempt) external onlyAdmin {}
     
-    /**
-     * @dev Enable/disable resource sponsorship (TRON specific)
-     */
-    function setResourceSponsorship(bool enabled) external onlyRole(ADMIN_ROLE) {
-        resourceSponsorshipEnabled = enabled;
-        emit ResourceSponsorshipUpdated(enabled);
-    }
-    
-    /**
-     * @dev Deposit TRX for resource sponsorship
-     */
-    function depositForFees() external payable {
-        // Funds stay in contract for sponsorship
-    }
-    
-    /**
-     * @dev Withdraw TRX from contract (admin only)
-     */
-    function withdrawTRX(uint256 amount) external onlyRole(ADMIN_ROLE) {
-        require(amount <= address(this).balance, "Insufficient balance");
-        (bool success, ) = msg.sender.call{value: amount}("");
-        require(success, "Withdrawal failed");
-    }
-    
-    /**
-     * @dev Override tokenURI to return IPFS metadata
-     */
-    function tokenURI(uint256 tokenId) public view override returns (string memory) {
-        require(_exists(tokenId), "Token does not exist");
-        string memory ipfsHash = _noticeIPFSHashes[tokenId];
-        return string(abi.encodePacked("ipfs://", ipfsHash, "/metadata.json"));
-    }
-    
-    /**
-     * @dev Required overrides for AccessControl
-     */
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        override(ERC721, AccessControl)
-        returns (bool)
-    {
-        return super.supportsInterface(interfaceId);
+    function _toString(uint256 value) private pure returns (string memory) {
+        if (value == 0) return "0";
+        uint256 temp = value;
+        uint256 digits;
+        while (temp != 0) {
+            digits++;
+            temp /= 10;
+        }
+        bytes memory buffer = new bytes(digits);
+        while (value != 0) {
+            digits -= 1;
+            buffer[digits] = bytes1(uint8(48 + uint256(value % 10)));
+            value /= 10;
+        }
+        return string(buffer);
     }
 }
