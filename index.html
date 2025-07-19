@@ -5186,19 +5186,20 @@ function useConnectedAddressForFeeCollector() {
                         const encryptionKey = generateEncryptionKey();
                         const encryptedIPFS = ipfsHash; // In production, encrypt before upload
                         
-                        // Call the view-gated contract
-                        tx = await legalContract.serveNotice(
+                        // For now, use createLegalNotice since ABI doesn't have serveNotice
+                        // This will create a basic notice without the view-gated features
+                        const contentHash = generateContentHash(ipfsHash + caseNumber);
+                        
+                        tx = await legalContract.createLegalNotice(
                             recipient,
-                            encryptedIPFS,
-                            encryptionKey,
-                            issuingAgency,
-                            noticeType,
+                            ipfsHash,
+                            previewData || "", // Use text as preview for now
+                            contentHash,
                             caseNumber,
-                            caseDetailsText,
-                            legalRights || 'You have the right to respond to this legal notice',
-                            sponsorFees
+                            0, // jurisdiction index
+                            1  // document type (summons)
                         ).send({
-                            feeLimit: 100_000_000, // 100 TRX max for view-gated
+                            feeLimit: 100_000_000,
                             callValue: feeInSun,
                             shouldPollResponse: true
                         });
