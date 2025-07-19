@@ -4798,21 +4798,34 @@ function useConnectedAddressForFeeCollector() {
         
         // Check if mint form has data
         function checkMintFormHasData() {
-            // Check if any form fields have data
-            const recipient = document.getElementById('mintRecipient').value.trim();
-            const caseNumber = document.getElementById('mintCaseNumber').value.trim();
-            const jurisdiction = document.getElementById('mintJurisdiction').value;
-            const documentType = document.getElementById('mintDocumentType').value;
-            const issuingAgency = document.getElementById('issuingAgency').value.trim();
-            const caseDetails = document.getElementById('caseDetails').value.trim();
-            const noticeText = document.getElementById('noticeTextInput').value.trim();
-            
-            // Check if image was uploaded
-            const hasImage = uploadedImage !== null;
-            
-            // Return true if any field has data
-            return recipient || caseNumber || (jurisdiction !== '0') || (documentType !== '0') || 
-                   issuingAgency || caseDetails || noticeText || hasImage;
+            try {
+                // Check if any form fields have data (with null checks)
+                const recipientEl = document.getElementById('mintRecipient');
+                const caseNumberEl = document.getElementById('mintCaseNumber');
+                const jurisdictionEl = document.getElementById('mintJurisdiction');
+                const documentTypeEl = document.getElementById('mintDocumentType');
+                const issuingAgencyEl = document.getElementById('issuingAgency');
+                const caseDetailsEl = document.getElementById('caseDetails');
+                const noticeTextEl = document.getElementById('noticeTextInput');
+                
+                const recipient = recipientEl ? recipientEl.value.trim() : '';
+                const caseNumber = caseNumberEl ? caseNumberEl.value.trim() : '';
+                const jurisdiction = jurisdictionEl ? jurisdictionEl.value : '0';
+                const documentType = documentTypeEl ? documentTypeEl.value : '0';
+                const issuingAgency = issuingAgencyEl ? issuingAgencyEl.value.trim() : '';
+                const caseDetails = caseDetailsEl ? caseDetailsEl.value.trim() : '';
+                const noticeText = noticeTextEl ? noticeTextEl.value.trim() : '';
+                
+                // Check if image was uploaded
+                const hasImage = uploadedImage !== null;
+                
+                // Return true if any field has data
+                return recipient || caseNumber || (jurisdiction !== '0') || (documentType !== '0') || 
+                       issuingAgency || caseDetails || noticeText || hasImage;
+            } catch (error) {
+                console.error('Error checking form data:', error);
+                return false; // If error, assume no data
+            }
         }
 
         function openAuditModal() {
@@ -6153,7 +6166,7 @@ try {
                 }
                 
                 hideProcessing();
-                closeMintModal();
+                closeMintModal(true); // Force close after successful transaction
                 
                 // Parse transaction events to get notice and alert IDs
                 let noticeId = 'N/A';
