@@ -11,4 +11,3 @@
     "tronweb": "^5.3.0"
   }
 }
-EOF < /dev/null
