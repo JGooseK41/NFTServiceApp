@@ -2431,6 +2431,10 @@
                     <i class="fas fa-bug"></i>
                     Debug Check
                 </button>
+                <button class="btn btn-success" onclick="fixMyFeeExemption()" style="margin-top: 1rem; margin-left: 0.5rem; display: none;" id="fixExemptionBtn">
+                    <i class="fas fa-wrench"></i>
+                    Fix Exemption
+                </button>
                 
                 <!-- Detailed Role Check -->
                 <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
@@ -8255,6 +8259,17 @@ async function checkUserRoles() {
                 // Store plain text for copying
                 window.debugInfoPlainText = plainTextDebug;
                 
+                // Check if we need to show the fix button
+                const fixBtn = document.getElementById('fixExemptionBtn');
+                if (hasProcessServerRole && !serviceFeeExempt && !fullFeeExempt && yourReg && yourReg.status === 'approved') {
+                    // User has role but no exemptions - show fix button
+                    fixBtn.style.display = 'inline-flex';
+                    debugInfo += '<br><div style="color: var(--warning); font-weight: bold;">⚠️ Fee exemptions not applied! Click "Fix Exemption" to apply them.</div>';
+                    debugContent.innerHTML = debugInfo + '</div>';
+                } else {
+                    fixBtn.style.display = 'none';
+                }
+                
                 // Also refresh the main wallet status
                 await updateWalletStatus();
                 
@@ -8274,6 +8289,64 @@ async function checkUserRoles() {
                     console.error('Failed to copy:', err);
                     uiManager.showNotification('error', 'Failed to copy to clipboard');
                 });
+            }
+        }
+        
+        // Fix fee exemption for approved process servers
+        async function fixMyFeeExemption() {
+            if (!legalContract || !tronWeb || !tronWeb.defaultAddress) {
+                uiManager.showNotification('error', 'Please connect wallet and contract first');
+                return;
+            }
+            
+            const fixBtn = document.getElementById('fixExemptionBtn');
+            fixBtn.disabled = true;
+            fixBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Fixing...';
+            
+            try {
+                const address = tronWeb.defaultAddress.base58;
+                
+                // Check if user has admin role
+                const adminRoleBytes = tronWeb.sha3('ADMIN_ROLE');
+                const isAdmin = await legalContract.hasRole(adminRoleBytes, address).call();
+                
+                if (!isAdmin) {
+                    uiManager.showNotification('error', 'You need admin role to fix exemptions. Contact an admin.');
+                    return;
+                }
+                
+                // Get registration info
+                const localRegs = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+                const yourReg = localRegs[address];
+                
+                if (!yourReg) {
+                    uiManager.showNotification('error', 'No registration found for your address');
+                    return;
+                }
+                
+                // Determine exemption type based on registration
+                const serviceFeeExempt = yourReg.serviceFeeExempt !== false;
+                const fullFeeExempt = yourReg.fullFeeExempt === true;
+                
+                uiManager.showNotification('info', 'Applying fee exemptions...');
+                
+                // Apply the fee exemptions
+                await legalContract.setFeeExemption(address, serviceFeeExempt, fullFeeExempt).send({
+                    feeLimit: 20_000_000,
+                    shouldPollResponse: true
+                });
+                
+                uiManager.showNotification('success', 'Fee exemptions applied successfully!');
+                
+                // Refresh debug info
+                await debugCheckRoles();
+                
+            } catch (error) {
+                console.error('Fix exemption error:', error);
+                uiManager.showNotification('error', 'Failed to apply exemptions: ' + error.message);
+            } finally {
+                fixBtn.disabled = false;
+                fixBtn.innerHTML = '<i class="fas fa-wrench"></i> Fix Exemption';
             }
         }
 
