@@ -4131,6 +4131,10 @@
                     <i class="fas fa-copy"></i>
                     Copy Hash
                 </button>
+                <button class="btn btn-secondary" onclick="exportReceipt()">
+                    <i class="fas fa-print"></i>
+                    Export Receipt
+                </button>
                 <button class="btn btn-secondary" onclick="closeTxModal()">
                     Close
                 </button>
@@ -4933,6 +4937,233 @@ function useConnectedAddressForFeeCollector() {
 
         function closeTxModal() {
             document.getElementById('txModal').style.display = 'none';
+        }
+
+        // Export printable receipt
+        function exportReceipt() {
+            if (!currentTransactionData) {
+                uiManager.showNotification('error', 'No transaction data available');
+                return;
+            }
+            
+            const { txHash, message, timestamp, details, ipfsData, network } = currentTransactionData;
+            
+            // Create a new window for the printable receipt
+            const receiptWindow = window.open('', '_blank', 'width=800,height=600');
+            
+            // Extract relevant data from details HTML
+            let noticeId = 'N/A';
+            let alertId = 'N/A';
+            let recipient = '';
+            let caseNumber = '';
+            let jurisdiction = '';
+            
+            // Parse details HTML to extract values
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = details;
+            const tokenDetails = tempDiv.querySelectorAll('.token-detail');
+            tokenDetails.forEach(detail => {
+                const spans = detail.querySelectorAll('span');
+                if (spans.length >= 2) {
+                    const label = spans[0].textContent;
+                    const value = spans[1].textContent;
+                    if (label.includes('Notice ID')) noticeId = value;
+                    if (label.includes('Alert ID')) alertId = value;
+                    if (label.includes('Recipient')) recipient = value;
+                    if (label.includes('Case Number')) caseNumber = value;
+                    if (label.includes('Jurisdiction')) jurisdiction = value;
+                }
+            });
+            
+            // Generate receipt HTML
+            const receiptHTML = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Legal Notice Delivery Receipt</title>
+                    <style>
+                        @media print {
+                            @page { margin: 0.5in; }
+                            .no-print { display: none !important; }
+                        }
+                        body {
+                            font-family: Arial, sans-serif;
+                            line-height: 1.6;
+                            color: #333;
+                            max-width: 800px;
+                            margin: 0 auto;
+                            padding: 20px;
+                        }
+                        .header {
+                            text-align: center;
+                            border-bottom: 2px solid #333;
+                            padding-bottom: 20px;
+                            margin-bottom: 30px;
+                        }
+                        h1 {
+                            margin: 0;
+                            color: #1e3a8a;
+                        }
+                        .receipt-info {
+                            background: #f5f5f5;
+                            padding: 20px;
+                            border-radius: 8px;
+                            margin-bottom: 20px;
+                        }
+                        .info-row {
+                            display: flex;
+                            justify-content: space-between;
+                            margin-bottom: 10px;
+                            padding-bottom: 10px;
+                            border-bottom: 1px dotted #ccc;
+                        }
+                        .info-row:last-child {
+                            border-bottom: none;
+                            margin-bottom: 0;
+                        }
+                        .label {
+                            font-weight: bold;
+                            color: #555;
+                        }
+                        .value {
+                            color: #333;
+                            word-break: break-all;
+                        }
+                        .verification-section {
+                            background: #e8f4f8;
+                            padding: 20px;
+                            border-radius: 8px;
+                            margin-top: 30px;
+                        }
+                        .verification-steps {
+                            margin-top: 15px;
+                            padding-left: 20px;
+                        }
+                        .verification-steps li {
+                            margin-bottom: 10px;
+                        }
+                        .footer {
+                            margin-top: 40px;
+                            padding-top: 20px;
+                            border-top: 1px solid #ccc;
+                            text-align: center;
+                            font-size: 12px;
+                            color: #666;
+                        }
+                        .print-button {
+                            background: #1e3a8a;
+                            color: white;
+                            border: none;
+                            padding: 10px 20px;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            font-size: 16px;
+                            margin: 20px auto;
+                            display: block;
+                        }
+                        .print-button:hover {
+                            background: #1e40af;
+                        }
+                        .qr-placeholder {
+                            width: 150px;
+                            height: 150px;
+                            border: 2px dashed #ccc;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            margin: 20px auto;
+                            font-size: 12px;
+                            color: #999;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>Legal Notice Delivery Receipt</h1>
+                        <p>Blockchain-Verified Service of Process</p>
+                    </div>
+                    
+                    <div class="receipt-info">
+                        <h2>Transaction Details</h2>
+                        <div class="info-row">
+                            <span class="label">Date & Time:</span>
+                            <span class="value">${new Date(timestamp).toLocaleString()}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Transaction Hash:</span>
+                            <span class="value" style="font-family: monospace; font-size: 12px;">${txHash}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Network:</span>
+                            <span class="value">${network}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Notice ID:</span>
+                            <span class="value">${noticeId}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Alert ID:</span>
+                            <span class="value">${alertId}</span>
+                        </div>
+                        ${recipient ? `
+                        <div class="info-row">
+                            <span class="label">Recipient:</span>
+                            <span class="value">${recipient}</span>
+                        </div>
+                        ` : ''}
+                        ${caseNumber ? `
+                        <div class="info-row">
+                            <span class="label">Case Number:</span>
+                            <span class="value">${caseNumber}</span>
+                        </div>
+                        ` : ''}
+                        ${ipfsData ? `
+                        <div class="info-row">
+                            <span class="label">IPFS Hash:</span>
+                            <span class="value" style="font-family: monospace; font-size: 12px;">${ipfsData.ipfsHash}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="verification-section">
+                        <h3>Blockchain Verification Instructions</h3>
+                        <p>This legal notice has been permanently recorded on the ${network.includes('Nile') ? 'TRON Nile Testnet' : 'TRON'} blockchain. To independently verify this transaction:</p>
+                        
+                        <ol class="verification-steps">
+                            <li>Visit ${network.includes('Nile') ? 'https://nile.tronscan.org' : 'https://tronscan.org'}</li>
+                            <li>In the search bar, paste this transaction hash: <br><code style="background: #f0f0f0; padding: 2px 5px; font-size: 12px;">${txHash}</code></li>
+                            <li>Click "Search" or press Enter</li>
+                            <li>Verify the following on the transaction page:
+                                <ul>
+                                    <li>Transaction status shows "Confirmed"</li>
+                                    <li>The timestamp matches this receipt</li>
+                                    <li>The contract interaction shows "serveNotice" method</li>
+                                </ul>
+                            </li>
+                            ${ipfsData ? `<li>To view the original document:
+                                <ul>
+                                    <li>Visit https://gateway.pinata.cloud/ipfs/${ipfsData.ipfsHash}</li>
+                                    <li>Or https://ipfs.io/ipfs/${ipfsData.ipfsHash}</li>
+                                </ul>
+                            </li>` : ''}
+                        </ol>
+                        
+                        <p style="margin-top: 20px;"><strong>Note:</strong> The blockchain provides an immutable, tamper-proof record of this legal notice delivery. The transaction cannot be altered or deleted once confirmed.</p>
+                    </div>
+                    
+                    <button class="print-button no-print" onclick="window.print()">Print Receipt</button>
+                    
+                    <div class="footer">
+                        <p>This receipt certifies that a legal notice was served via blockchain technology on ${new Date(timestamp).toLocaleDateString()}.</p>
+                        <p>For questions about blockchain verification, consult with a technical expert or legal professional familiar with blockchain technology.</p>
+                    </div>
+                </body>
+                </html>
+            `;
+            
+            // Write the receipt HTML to the new window
+            receiptWindow.document.write(receiptHTML);
+            receiptWindow.document.close();
         }
         
         // Registration modal functions
@@ -6338,13 +6569,22 @@ try {
                         if (txId) {
                             console.log('Getting events for transaction:', txId);
                             // Look for NoticeServed event
-                            const events = await tronWeb.getEventByTransactionID(txId);
-                            if (events && events.length > 0) {
-                                const createEvent = events.find(e => e.name === 'NoticeServed');
-                                if (createEvent) {
-                                    noticeId = createEvent.result.documentId;
-                                    alertId = createEvent.result.alertId;
+                            try {
+                                const events = await tronWeb.getEventByTransactionID(txId);
+                                if (events && events.length > 0) {
+                                    const createEvent = events.find(e => e.name === 'NoticeServed');
+                                    if (createEvent && createEvent.result) {
+                                        noticeId = createEvent.result.documentId || createEvent.result.noticeId || 'N/A';
+                                        alertId = createEvent.result.alertId || 'N/A';
+                                        console.log('Found event data:', createEvent.result);
+                                    }
                                 }
+                            } catch (eventErr) {
+                                console.log('Could not get events, will use timestamp-based IDs');
+                                // Generate IDs based on timestamp if events not available
+                                const timestamp = Date.now();
+                                noticeId = `NOTICE-${timestamp}`;
+                                alertId = `ALERT-${timestamp}`;
                             }
                         }
                     } catch (eventError) {
@@ -6430,11 +6670,14 @@ try {
                 
                 // Extract transaction ID for display
                 let displayTxId = tx;
-                if (typeof tx === 'object' && tx.txid) {
+                if (typeof tx === 'string') {
+                    displayTxId = tx;
+                } else if (typeof tx === 'object' && tx.txid) {
                     displayTxId = tx.txid;
                 } else if (Array.isArray(tx) && tx.length > 0) {
                     displayTxId = tx[0];
                 }
+                console.log('Final transaction ID for display:', displayTxId);
                 
                 // Pass IPFS data to show in the modal
                 const ipfsData = {
@@ -8042,6 +8285,9 @@ async function checkUserRoles() {
             }
         }
 
+        // Global variable to store current transaction data for receipt
+        let currentTransactionData = null;
+
         // Transaction modal
         function showTxModal(txHash, message, details = '', ipfsData = null) {
             const modal = document.getElementById('txModal');
@@ -8052,6 +8298,16 @@ async function checkUserRoles() {
             
             txMessage.textContent = message || 'Your transaction has been successfully confirmed!';
             txHashElement.textContent = txHash;
+            
+            // Store transaction data for receipt export
+            currentTransactionData = {
+                txHash: txHash,
+                message: message,
+                timestamp: new Date().toISOString(),
+                details: details,
+                ipfsData: ipfsData,
+                network: document.getElementById('networkName')?.textContent || 'Unknown'
+            };
             
             // Build enhanced details with IPFS info if available
             let enhancedDetails = details;
@@ -9476,6 +9732,7 @@ document.addEventListener('keydown', function(event) {
         window.closeAcceptModal = closeAcceptModal;
         window.acceptNotice = acceptNotice;
         window.closeTxModal = closeTxModal;
+        window.exportReceipt = exportReceipt;
         window.closeRegistrationModal = closeRegistrationModal;
         window.submitRegistration = submitRegistration;
         window.openRegistrationForUser = openRegistrationForUser;
