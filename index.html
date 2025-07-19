@@ -6496,14 +6496,6 @@ function useConnectedAddressForFeeCollector() {
                 // Show the registration modal
                 document.getElementById('registrationModal').style.display = 'flex';
                 return;
-                }
-                
-                // Validate email format
-                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                if (!emailRegex.test(agencyEmail)) {
-                    showAlert('roleResult', 'error', 'Please enter a valid email address');
-                    return;
-                }
             }
             
             try {
