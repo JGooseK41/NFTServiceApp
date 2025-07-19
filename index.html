@@ -2852,6 +2852,23 @@
                         <div id="feeCollectorResult"></div>
                     </div>
 
+                    <!-- Transaction Verification -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2><i class="fas fa-search-dollar"></i> Transaction Verification</h2>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Transaction Hash</label>
+                            <input type="text" class="form-input" id="verifyTxHash" 
+                                   placeholder="Enter transaction hash to verify NFT transfers">
+                        </div>
+                        <button class="btn btn-primary" onclick="verifyTransaction()">
+                            <i class="fas fa-check-circle"></i>
+                            Verify Transaction
+                        </button>
+                        <div id="txVerificationResult" style="margin-top: 1rem;"></div>
+                    </div>
+
                     <!-- Contract Management -->
                     <div class="card">
                         <div class="card-header">
@@ -6610,12 +6627,38 @@ try {
                             // Look for NoticeServed event
                             try {
                                 const events = await tronWeb.getEventByTransactionID(txId);
+                                console.log('All transaction events:', events);
+                                
                                 if (events && events.length > 0) {
+                                    // Look for NoticeServed event
                                     const createEvent = events.find(e => e.name === 'NoticeServed');
                                     if (createEvent && createEvent.result) {
                                         noticeId = createEvent.result.documentId || createEvent.result.noticeId || 'N/A';
                                         alertId = createEvent.result.alertId || 'N/A';
-                                        console.log('Found event data:', createEvent.result);
+                                        console.log('Found NoticeServed event:', createEvent.result);
+                                    }
+                                    
+                                    // Look for Transfer events to track NFT movements
+                                    const transferEvents = events.filter(e => e.name === 'Transfer');
+                                    console.log('Transfer events found:', transferEvents.length);
+                                    
+                                    transferEvents.forEach((transfer, index) => {
+                                        const from = tronWeb.address.fromHex(transfer.result.from);
+                                        const to = tronWeb.address.fromHex(transfer.result.to);
+                                        const tokenId = transfer.result.tokenId;
+                                        console.log(`Transfer ${index + 1}: Token #${tokenId} from ${from} to ${to}`);
+                                    });
+                                    
+                                    // Verify recipient received their alert
+                                    const recipientTransfer = transferEvents.find(t => {
+                                        const to = tronWeb.address.fromHex(t.result.to);
+                                        return to.toLowerCase() === recipient.toLowerCase();
+                                    });
+                                    
+                                    if (recipientTransfer) {
+                                        console.log('✓ Recipient received token #' + recipientTransfer.result.tokenId);
+                                    } else {
+                                        console.warn('⚠️ No transfer to recipient found in events');
                                     }
                                 }
                             } catch (eventErr) {
@@ -9877,6 +9920,128 @@ document.addEventListener('keydown', function(event) {
         window.viewContractOnTronscan = viewContractOnTronscan;
         window.viewOnTronscan = viewOnTronscan;
         window.viewOnIPFS = viewOnIPFS;
+        
+        // Transaction verification function
+        async function verifyTransaction() {
+            const txHash = document.getElementById('verifyTxHash').value.trim();
+            const resultDiv = document.getElementById('txVerificationResult');
+            
+            if (!txHash) {
+                resultDiv.innerHTML = '<div class="alert alert-error">Please enter a transaction hash</div>';
+                return;
+            }
+            
+            if (!tronWeb) {
+                resultDiv.innerHTML = '<div class="alert alert-error">TronWeb not initialized</div>';
+                return;
+            }
+            
+            try {
+                resultDiv.innerHTML = '<p><i class="fas fa-spinner loading-spinner"></i> Verifying transaction...</p>';
+                
+                // Get transaction info
+                const txInfo = await tronWeb.trx.getTransactionInfo(txHash);
+                console.log('Transaction info:', txInfo);
+                
+                if (!txInfo || !txInfo.id) {
+                    resultDiv.innerHTML = '<div class="alert alert-error">Transaction not found</div>';
+                    return;
+                }
+                
+                // Get transaction events
+                const events = await tronWeb.getEventByTransactionID(txHash);
+                console.log('Transaction events:', events);
+                
+                let html = '<div class="verification-results">';
+                html += '<h4>Transaction Verification Results</h4>';
+                
+                // Basic transaction info
+                html += '<div class="token-details" style="margin-bottom: 1rem;">';
+                html += `<div class="token-detail"><span>Status:</span><span>${txInfo.receipt?.result === 'SUCCESS' ? '✅ Successful' : '❌ Failed'}</span></div>`;
+                html += `<div class="token-detail"><span>Block Number:</span><span>${txInfo.blockNumber}</span></div>`;
+                html += `<div class="token-detail"><span>Energy Used:</span><span>${txInfo.receipt?.energy_usage || 0}</span></div>`;
+                html += `<div class="token-detail"><span>Net Used:</span><span>${txInfo.receipt?.net_usage || 0}</span></div>`;
+                html += '</div>';
+                
+                // Parse events
+                if (events && events.length > 0) {
+                    html += '<h5>Events Found:</h5>';
+                    
+                    // NoticeServed event
+                    const noticeEvent = events.find(e => e.name === 'NoticeServed');
+                    if (noticeEvent) {
+                        html += '<div class="event-details" style="background: var(--card-bg); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">';
+                        html += '<h6>📋 Notice Served Event</h6>';
+                        html += '<div class="token-details">';
+                        html += `<div class="token-detail"><span>Alert ID:</span><span>${noticeEvent.result.alertId}</span></div>`;
+                        html += `<div class="token-detail"><span>Document ID:</span><span>${noticeEvent.result.documentId}</span></div>`;
+                        html += `<div class="token-detail"><span>Recipient:</span><span>${tronWeb.address.fromHex(noticeEvent.result.recipient)}</span></div>`;
+                        html += '</div></div>';
+                    }
+                    
+                    // Transfer events
+                    const transfers = events.filter(e => e.name === 'Transfer');
+                    if (transfers.length > 0) {
+                        html += '<h5>NFT Transfers:</h5>';
+                        transfers.forEach((transfer, index) => {
+                            const from = transfer.result.from === '0x0000000000000000000000000000000000000000' 
+                                ? 'Contract (Minted)' 
+                                : tronWeb.address.fromHex(transfer.result.from);
+                            const to = tronWeb.address.fromHex(transfer.result.to);
+                            const tokenId = transfer.result.tokenId;
+                            
+                            html += '<div class="event-details" style="background: var(--card-bg); padding: 1rem; border-radius: 8px; margin-bottom: 0.5rem;">';
+                            html += `<h6>🎫 Transfer ${index + 1}</h6>`;
+                            html += '<div class="token-details">';
+                            html += `<div class="token-detail"><span>Token ID:</span><span>#${tokenId}</span></div>`;
+                            html += `<div class="token-detail"><span>From:</span><span style="font-family: monospace; font-size: 0.875rem;">${from}</span></div>`;
+                            html += `<div class="token-detail"><span>To:</span><span style="font-family: monospace; font-size: 0.875rem;">${to}</span></div>`;
+                            
+                            // Determine token type based on ID parity
+                            const tokenType = parseInt(tokenId) % 2 === 1 ? 'Alert NFT' : 'Document NFT';
+                            html += `<div class="token-detail"><span>Type:</span><span>${tokenType}</span></div>`;
+                            html += '</div></div>';
+                        });
+                    }
+                    
+                    // Fee transfer events
+                    const feeTransfers = events.filter(e => e.name === 'Transfer' && !e.topic);
+                    if (feeTransfers.length > 0) {
+                        html += '<h5>Fee Transfers:</h5>';
+                        feeTransfers.forEach(transfer => {
+                            html += '<div class="event-details" style="background: var(--card-bg); padding: 1rem; border-radius: 8px; margin-bottom: 0.5rem;">';
+                            html += '<div class="token-details">';
+                            html += `<div class="token-detail"><span>Amount:</span><span>${tronWeb.fromSun(transfer.result.value)} TRX</span></div>`;
+                            html += '</div></div>';
+                        });
+                    }
+                } else {
+                    html += '<div class="alert alert-warning">No events found for this transaction</div>';
+                }
+                
+                html += '</div>';
+                
+                // Add link to TronScan
+                const network = document.getElementById('networkName')?.textContent || 'Mainnet';
+                let scanUrl = 'https://tronscan.org';
+                if (network.includes('Nile')) scanUrl = 'https://nile.tronscan.org';
+                else if (network.includes('Shasta')) scanUrl = 'https://shasta.tronscan.org';
+                
+                html += `<div style="margin-top: 1rem;">
+                    <a href="${scanUrl}/#/transaction/${txHash}" target="_blank" class="btn btn-secondary">
+                        <i class="fas fa-external-link-alt"></i> View on TronScan
+                    </a>
+                </div>`;
+                
+                resultDiv.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Verification error:', error);
+                resultDiv.innerHTML = `<div class="alert alert-error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        window.verifyTransaction = verifyTransaction;
         window.grantRole = grantRole;
         window.checkRole = checkRole;
         window.refreshDeliveryStatus = refreshDeliveryStatus;
