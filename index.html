@@ -3550,8 +3550,8 @@
     </div>
 
     <!-- Registration Modal -->
-    <div id="registrationModal" class="modal">
-        <div class="modal-content">
+    <div id="registrationModal" class="modal" onclick="handleModalBackdropClick(event, 'registrationModal')">
+        <div class="modal-content" onclick="event.stopPropagation()">
             <div class="modal-header">
                 <h3 class="modal-title">
                     <i class="fas fa-user-plus"></i>
@@ -3642,8 +3642,8 @@
     </div>
 
     <!-- Mint Modal -->
-    <div id="mintModal" class="modal">
-        <div class="modal-content">
+    <div id="mintModal" class="modal" onclick="handleModalBackdropClick(event, 'mintModal')">
+        <div class="modal-content" onclick="event.stopPropagation()">
             <div class="modal-header">
                 <h3 class="modal-title">
                     <i class="fas fa-file-upload"></i>
@@ -4779,9 +4779,40 @@ function useConnectedAddressForFeeCollector() {
             }
         }
 
-        function closeMintModal() {
+        function closeMintModal(force = false) {
+            // Check if there's unsaved data
+            const hasData = checkMintFormHasData();
+            
+            if (!force && hasData) {
+                const confirmClose = confirm(
+                    'You have unsaved data in this form. Are you sure you want to close and lose your progress?'
+                );
+                if (!confirmClose) {
+                    return;
+                }
+            }
+            
             document.getElementById('mintModal').style.display = 'none';
             resetMintForm();
+        }
+        
+        // Check if mint form has data
+        function checkMintFormHasData() {
+            // Check if any form fields have data
+            const recipient = document.getElementById('mintRecipient').value.trim();
+            const caseNumber = document.getElementById('mintCaseNumber').value.trim();
+            const jurisdiction = document.getElementById('mintJurisdiction').value;
+            const documentType = document.getElementById('mintDocumentType').value;
+            const issuingAgency = document.getElementById('issuingAgency').value.trim();
+            const caseDetails = document.getElementById('caseDetails').value.trim();
+            const noticeText = document.getElementById('noticeTextInput').value.trim();
+            
+            // Check if image was uploaded
+            const hasImage = uploadedImage !== null;
+            
+            // Return true if any field has data
+            return recipient || caseNumber || (jurisdiction !== '0') || (documentType !== '0') || 
+                   issuingAgency || caseDetails || noticeText || hasImage;
         }
 
         function openAuditModal() {
@@ -4842,7 +4873,19 @@ function useConnectedAddressForFeeCollector() {
         }
         
         // Registration modal functions
-        function closeRegistrationModal() {
+        function closeRegistrationModal(force = false) {
+            // Check if there's unsaved data
+            const hasData = checkRegistrationFormHasData();
+            
+            if (!force && hasData) {
+                const confirmClose = confirm(
+                    'You have unsaved registration data. Are you sure you want to close and lose your progress?'
+                );
+                if (!confirmClose) {
+                    return;
+                }
+            }
+            
             document.getElementById('registrationModal').style.display = 'none';
             // Clear form
             document.getElementById('modalAgencyName').value = '';
@@ -4851,6 +4894,18 @@ function useConnectedAddressForFeeCollector() {
             document.getElementById('modalServerPhone').value = '';
             document.getElementById('modalLicenseNumber').value = '';
             document.getElementById('modalServiceAreas').value = '';
+        }
+        
+        // Check if registration form has data
+        function checkRegistrationFormHasData() {
+            const agency = document.getElementById('modalAgencyName').value.trim();
+            const email = document.getElementById('modalAgencyEmail').value.trim();
+            const name = document.getElementById('modalServerName').value.trim();
+            const phone = document.getElementById('modalServerPhone').value.trim();
+            const license = document.getElementById('modalLicenseNumber').value.trim();
+            const areas = document.getElementById('modalServiceAreas').value.trim();
+            
+            return agency || email || name || phone || license || areas;
         }
         
         async function submitAdminRegistration() {
@@ -8681,6 +8736,21 @@ async function checkUserRoles() {
                     success: false,
                     error: error.message
                 };
+            }
+        }
+        
+        // Handle modal backdrop clicks
+        function handleModalBackdropClick(event, modalId) {
+            // Only close if clicking on the backdrop itself, not the content
+            if (event.target.id === modalId) {
+                if (modalId === 'mintModal') {
+                    closeMintModal();
+                } else if (modalId === 'registrationModal') {
+                    closeRegistrationModal();
+                } else {
+                    // For other modals, just close them
+                    document.getElementById(modalId).style.display = 'none';
+                }
             }
         }
         
