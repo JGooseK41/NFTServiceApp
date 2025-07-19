@@ -3743,6 +3743,67 @@
         </div>
     </div>
 
+    <!-- Process Server Registration Modal -->
+    <div id="registrationModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-user-tie"></i> Process Server Registration</h2>
+                <span class="close-btn" onclick="closeRegistrationModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 1.5rem;">Please provide your professional information to complete process server registration.</p>
+                
+                <div class="form-group">
+                    <label class="form-label">Agency Name *</label>
+                    <input type="text" class="form-input" id="modalAgencyName" placeholder="e.g., Smith & Associates Process Service">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Agency Email *</label>
+                    <input type="email" class="form-input" id="modalAgencyEmail" placeholder="agency@example.com">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Server Name *</label>
+                    <input type="text" class="form-input" id="modalServerName" placeholder="Full name of process server">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Phone Number *</label>
+                    <input type="tel" class="form-input" id="modalServerPhone" placeholder="(555) 123-4567">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">License Number</label>
+                    <input type="text" class="form-input" id="modalLicenseNumber" placeholder="Optional: Professional license number">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Service Areas</label>
+                    <textarea class="form-input" id="modalServiceAreas" rows="3" placeholder="List jurisdictions where you serve legal documents"></textarea>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <div>
+                        <strong>Note:</strong> This information will be stored locally and associated with your wallet address for verification purposes.
+                    </div>
+                </div>
+                
+                <div style="margin-top: 1.5rem; display: flex; justify-content: space-between;">
+                    <button class="btn btn-secondary" onclick="closeRegistrationModal()">
+                        <i class="fas fa-times"></i>
+                        Cancel
+                    </button>
+                    <button class="btn btn-primary" onclick="submitRegistration()">
+                        <i class="fas fa-check"></i>
+                        Complete Registration
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Transaction Success Modal -->
     <div id="txModal" class="modal">
         <div class="modal-content" style="max-width: 600px;">
@@ -4481,6 +4542,106 @@ function useConnectedAddressForFeeCollector() {
 
         function closeTxModal() {
             document.getElementById('txModal').style.display = 'none';
+        }
+        
+        // Registration modal functions
+        function closeRegistrationModal() {
+            document.getElementById('registrationModal').style.display = 'none';
+            // Clear form
+            document.getElementById('modalAgencyName').value = '';
+            document.getElementById('modalAgencyEmail').value = '';
+            document.getElementById('modalServerName').value = '';
+            document.getElementById('modalServerPhone').value = '';
+            document.getElementById('modalLicenseNumber').value = '';
+            document.getElementById('modalServiceAreas').value = '';
+        }
+        
+        async function submitRegistration() {
+            // Get form values
+            const agencyName = document.getElementById('modalAgencyName').value.trim();
+            const agencyEmail = document.getElementById('modalAgencyEmail').value.trim();
+            const serverName = document.getElementById('modalServerName').value.trim();
+            const serverPhone = document.getElementById('modalServerPhone').value.trim();
+            const licenseNumber = document.getElementById('modalLicenseNumber').value.trim();
+            const serviceAreas = document.getElementById('modalServiceAreas').value.trim();
+            
+            // Validate required fields
+            if (!agencyName || !agencyEmail || !serverName || !serverPhone) {
+                uiManager.showNotification('error', 'Please fill in all required fields');
+                return;
+            }
+            
+            // Validate email format
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(agencyEmail)) {
+                uiManager.showNotification('error', 'Please enter a valid email address');
+                return;
+            }
+            
+            // Save registration data
+            const registrationData = {
+                agencyName,
+                agencyEmail,
+                serverName,
+                serverPhone,
+                licenseNumber,
+                serviceAreas,
+                registeredAt: new Date().toISOString(),
+                address: window.pendingProcessServerAddress
+            };
+            
+            // Store in localStorage
+            const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+            serverRegistrations[window.pendingProcessServerAddress] = registrationData;
+            localStorage.setItem('serverRegistrations', JSON.stringify(serverRegistrations));
+            
+            // Close modal
+            closeRegistrationModal();
+            
+            // Continue with role granting
+            await grantProcessServerRole(
+                window.pendingProcessServerAddress,
+                window.pendingServiceFeeExempt,
+                window.pendingFullFeeExempt
+            );
+        }
+        
+        async function grantProcessServerRole(address, serviceFeeExempt, fullFeeExempt) {
+            try {
+                showAlert('roleResult', 'info', 'Processing transaction...');
+                
+                const roleBytes = tronWeb.sha3('PROCESS_SERVER_ROLE');
+                const tx = await legalContract.grantRole(roleBytes, address).send({
+                    feeLimit: 100_000_000,
+                    shouldPollResponse: true
+                });
+                
+                // Set fee exemptions if requested
+                if (serviceFeeExempt || fullFeeExempt) {
+                    await legalContract.setFeeExemption(address, serviceFeeExempt, fullFeeExempt).send({
+                        feeLimit: 100_000_000,
+                        shouldPollResponse: true
+                    });
+                }
+                
+                showAlert('roleResult', 'success', 'Process Server role granted successfully!');
+                
+                // Add to recent activity
+                addRecentActivity('role', 'Granted Process Server role', {
+                    to: address,
+                    serviceFeeExempt: serviceFeeExempt,
+                    fullFeeExempt: fullFeeExempt
+                });
+                
+                // Clear form
+                document.getElementById('roleAddress').value = '';
+                document.getElementById('serviceFeeExemptCheck').checked = false;
+                document.getElementById('fullFeeExemptCheck').checked = false;
+                
+            } catch (error) {
+                console.error('Error granting role:', error);
+                showAlert('roleResult', 'error', 'Failed to grant role: ' + getErrorMessage(error));
+            }
         }
 
         // Processing overlay
@@ -6164,16 +6325,16 @@ function useConnectedAddressForFeeCollector() {
                 return;
             }
             
-            // If granting PROCESS_SERVER_ROLE, validate registration form
+            // If granting PROCESS_SERVER_ROLE, show registration modal
             if (roleSelect.value === 'PROCESS_SERVER_ROLE') {
-                const agencyName = document.getElementById('agencyName').value.trim();
-                const agencyEmail = document.getElementById('agencyEmail').value.trim();
-                const serverName = document.getElementById('serverName').value.trim();
-                const serverPhone = document.getElementById('serverPhone').value.trim();
+                // Store the address temporarily for after registration
+                window.pendingProcessServerAddress = address;
+                window.pendingServiceFeeExempt = serviceFeeExempt;
+                window.pendingFullFeeExempt = fullFeeExempt;
                 
-                if (!agencyName || !agencyEmail || !serverName || !serverPhone) {
-                    showAlert('roleResult', 'error', 'Please fill in all registration fields');
-                    return;
+                // Show the registration modal
+                document.getElementById('registrationModal').style.display = 'flex';
+                return;
                 }
                 
                 // Validate email format
@@ -7665,6 +7826,8 @@ document.addEventListener('keydown', function(event) {
         window.closeAcceptModal = closeAcceptModal;
         window.acceptNotice = acceptNotice;
         window.closeTxModal = closeTxModal;
+        window.closeRegistrationModal = closeRegistrationModal;
+        window.submitRegistration = submitRegistration;
         window.updateAuditSearch = updateAuditSearch;
         window.performAudit = performAudit;
         window.refreshMyAlerts = refreshMyAlerts;
