@@ -2837,6 +2837,27 @@
                         </button>
                         <div id="contractManagementResult"></div>
                         
+                        <!-- Energy Delegation Section -->
+                        <div class="form-group" style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
+                            <h3 style="margin-bottom: 1rem;">
+                                <i class="fas fa-bolt"></i> Energy Delegation
+                            </h3>
+                            <p class="form-help" style="margin-bottom: 1rem;">
+                                Stake TRX to delegate energy to the contract. This allows the contract to pay for user transaction energy costs.
+                                <br>Each notice requires ~250,000 energy. 10,000 TRX staked = ~252,000 energy/day
+                            </p>
+                            <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                                <button class="btn btn-secondary" onclick="checkContractResources()">
+                                    <i class="fas fa-battery-half"></i> Check Resources
+                                </button>
+                                <button class="btn btn-primary" onclick="showDelegateEnergyModal()">
+                                    <i class="fas fa-bolt"></i> Delegate Energy
+                                </button>
+                            </div>
+                            <div id="contractResourceStatus" style="font-size: 0.875rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px; display: none;">
+                            </div>
+                        </div>
+                        
                         <div class="form-group" style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
                             <label class="form-label">Withdraw TRX from Contract</label>
                             <input type="number" class="form-input" id="withdrawAmount" placeholder="Amount in TRX" step="0.1">
@@ -8416,6 +8437,102 @@ async function checkUserRoles() {
             }
         }
 
+        // Check contract resources (energy and bandwidth)
+        async function checkContractResources() {
+            if (!legalContract) {
+                uiManager.showNotification('error', 'Contract not connected');
+                return;
+            }
+            
+            const statusDiv = document.getElementById('contractResourceStatus');
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking contract resources...';
+            
+            try {
+                const contractAddress = legalContract.address;
+                const account = await tronWeb.trx.getAccount(contractAddress);
+                const resources = await tronWeb.trx.getAccountResources(contractAddress);
+                
+                // Calculate energy details
+                const totalEnergy = resources.EnergyLimit || 0;
+                const usedEnergy = resources.EnergyUsed || 0;
+                const availableEnergy = totalEnergy - usedEnergy;
+                const energyPerNotice = 250000;
+                const noticesAvailable = Math.floor(availableEnergy / energyPerNotice);
+                
+                // Calculate TRX staked for energy
+                const frozenForEnergy = account.account_resource?.frozen_balance_for_energy?.frozen_balance || 0;
+                const stakedTRX = tronWeb.fromSun(frozenForEnergy);
+                
+                // Get delegated energy info
+                const delegatedEnergy = resources.EnergyLimit - (resources.EnergyUsed || 0);
+                
+                let html = `
+                    <h4>Contract Resources</h4>
+                    <div style="margin-top: 0.5rem;">
+                        <strong>Contract Address:</strong> ${contractAddress}
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <strong>Energy Status:</strong>
+                        <div style="margin-left: 1rem; margin-top: 0.5rem;">
+                            - Total Energy: ${totalEnergy.toLocaleString()}<br>
+                            - Used Energy: ${usedEnergy.toLocaleString()}<br>
+                            - Available Energy: ${availableEnergy.toLocaleString()}<br>
+                            - Notices Available: ${noticesAvailable} (at ~250k energy each)<br>
+                            - TRX Staked for Energy: ${stakedTRX} TRX
+                        </div>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <strong>Recommendations:</strong>
+                        <div style="margin-left: 1rem; margin-top: 0.5rem;">
+                `;
+                
+                if (noticesAvailable < 10) {
+                    html += `<div style="color: var(--warning);">⚠️ Low energy! Consider delegating more energy to support user transactions.</div>`;
+                } else {
+                    html += `<div style="color: var(--success);">✓ Sufficient energy for ${noticesAvailable} notices</div>`;
+                }
+                
+                html += `
+                        </div>
+                    </div>
+                `;
+                
+                statusDiv.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error checking resources:', error);
+                statusDiv.innerHTML = '<div style="color: var(--error);">Error checking resources: ' + error.message + '</div>';
+            }
+        }
+        
+        // Show delegate energy modal
+        function showDelegateEnergyModal() {
+            if (!legalContract) {
+                uiManager.showNotification('error', 'Contract not connected');
+                return;
+            }
+            
+            // For now, show instructions
+            const modal = confirm(
+                'Energy Delegation Instructions:\n\n' +
+                '1. Visit tronscan.org\n' +
+                '2. Connect your wallet\n' +
+                '3. Go to "Stake 2.0" section\n' +
+                '4. Select "Delegate Resource"\n' +
+                '5. Enter contract address: ' + legalContract.address + '\n' +
+                '6. Choose "Energy" resource type\n' +
+                '7. Enter amount to delegate (10,000 TRX = ~250k energy/day)\n\n' +
+                'Would you like to copy the contract address?'
+            );
+            
+            if (modal) {
+                navigator.clipboard.writeText(legalContract.address).then(() => {
+                    uiManager.showNotification('success', 'Contract address copied to clipboard!');
+                });
+            }
+        }
+        
         // Initialize when document is loaded
         document.addEventListener('DOMContentLoaded', async function() {
             // Hide loader
