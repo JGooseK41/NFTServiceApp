@@ -2376,6 +2376,14 @@
                     <i class="fas fa-sync-alt"></i>
                     Refresh Status
                 </button>
+                
+                <!-- Detailed Role Check -->
+                <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
+                    <h4 style="margin-bottom: 0.5rem;">Detailed Role Check</h4>
+                    <div id="roleCheckDetails" style="font-size: 0.875rem; color: var(--text-secondary);">
+                        Click refresh to check all roles...
+                    </div>
+                </div>
             </div>
 
             <!-- New User Registration Notice -->
@@ -4633,7 +4641,7 @@ function useConnectedAddressForFeeCollector() {
             document.getElementById('registrationNotice').style.display = 'none';
         }
 
-        function openMintModal() {
+        async function openMintModal() {
             if (!legalContract) {
                 uiManager.showNotification('error', 'Please connect to contract first');
                 return;
@@ -4648,8 +4656,28 @@ function useConnectedAddressForFeeCollector() {
             modal.style.display = 'block';
             resetMintForm();
             
-            // Update fee display
-            document.getElementById('creationFeeDisplay').textContent = `${currentCreationFee} TRX`;
+            // Update fee display based on actual contract calculation
+            try {
+                const userAddress = tronWeb.defaultAddress.base58;
+                const fee = await legalContract.calculateFee(userAddress).call();
+                const feeInTrx = tronWeb.fromSun(fee);
+                document.getElementById('creationFeeDisplay').textContent = `${feeInTrx} TRX`;
+                
+                // Check if user has fee exemptions
+                const serviceFeeExempt = await legalContract.serviceFeeExemptions(userAddress).call();
+                const fullFeeExempt = await legalContract.fullFeeExemptions(userAddress).call();
+                
+                if (fullFeeExempt) {
+                    document.getElementById('feeDescription').textContent = 'You have full fee exemption';
+                } else if (serviceFeeExempt) {
+                    document.getElementById('feeDescription').textContent = 'You have 50% fee exemption';
+                } else {
+                    document.getElementById('feeDescription').textContent = 'Standard fee rate';
+                }
+            } catch (error) {
+                console.error('Error calculating fee:', error);
+                document.getElementById('creationFeeDisplay').textContent = `${currentCreationFee} TRX`;
+            }
         }
 
         function closeMintModal() {
@@ -7426,8 +7454,42 @@ async function updateWalletStatus() {
         const trxBalance = (balance / 1e6).toFixed(2);
         document.getElementById('walletBalance').textContent = `${trxBalance} TRX`;
         
+        // Detailed role check
+        const roleDetails = document.getElementById('roleCheckDetails');
+        let detailsHtml = '<div style="margin-top: 0.5rem;">';
+        
+        // Check all possible roles
+        detailsHtml += `<div><strong>Admin Role:</strong> ${isAdmin ? '<span style="color: var(--success);">✓ Yes</span>' : '<span style="color: var(--error);">✗ No</span>'}</div>`;
+        detailsHtml += `<div><strong>Process Server Role:</strong> ${isProcessServer ? '<span style="color: var(--success);">✓ Yes</span>' : '<span style="color: var(--error);">✗ No</span>'}</div>`;
+        detailsHtml += `<div><strong>Legacy Server Role:</strong> ${isServer ? '<span style="color: var(--success);">✓ Yes</span>' : '<span style="color: var(--error);">✗ No</span>'}</div>`;
+        detailsHtml += `<div style="margin-top: 0.5rem;"><strong>Fee Exemptions:</strong></div>`;
+        detailsHtml += `<div style="margin-left: 1rem;">Service Fee Exempt: ${isServiceFeeExempt ? '<span style="color: var(--success);">✓ Yes (50% discount)</span>' : '<span style="color: var(--error);">✗ No</span>'}</div>`;
+        detailsHtml += `<div style="margin-left: 1rem;">Full Fee Exempt: ${isFullFeeExempt ? '<span style="color: var(--success);">✓ Yes (Only creation fee)</span>' : '<span style="color: var(--error);">✗ No</span>'}</div>`;
+        
+        // Calculate actual fee
+        try {
+            const calculatedFee = await legalContract.calculateFee(address).call();
+            const feeInTrx = tronWeb.fromSun(calculatedFee);
+            detailsHtml += `<div style="margin-top: 0.5rem;"><strong>Your Fee Rate:</strong> ${feeInTrx} TRX per notice</div>`;
+        } catch (e) {
+            console.error('Error calculating fee:', e);
+        }
+        
+        // Check local registration status
+        const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+        const localReg = serverRegistrations[address];
+        if (localReg) {
+            detailsHtml += `<div style="margin-top: 0.5rem;"><strong>Local Registration:</strong></div>`;
+            detailsHtml += `<div style="margin-left: 1rem;">Status: ${localReg.status}</div>`;
+            detailsHtml += `<div style="margin-left: 1rem;">Server ID: ${localReg.serverId || 'Not assigned'}</div>`;
+        }
+        
+        detailsHtml += '</div>';
+        roleDetails.innerHTML = detailsHtml;
+        
     } catch (error) {
         console.error('Error updating wallet status:', error);
+        document.getElementById('roleCheckDetails').innerHTML = '<span style="color: var(--error);">Error checking roles: ' + error.message + '</span>';
     }
 }
 
@@ -8040,45 +8102,44 @@ if (noticeTextInput && charCountSpan) {
 }
 
 // Function to update fee estimate based on delivery method
-function updateFeeEstimate() {
+async function updateFeeEstimate() {
     const selectedMethod = document.querySelector('input[name="deliveryMethod"]:checked').value;
     const feeDisplay = document.querySelector('#creationFeeDisplay');
     const feeDescription = document.querySelector('#feeDescription');
     const sponsorFees = document.getElementById('sponsorAcceptanceFees');
     
-    if (feeDisplay) {
-        let baseFee = 20; // Base fee in TRX
-        let description = 'Document reference only';
-        
-        switch(selectedMethod) {
-            case 'viewgated':
-                baseFee = 20;
-                description = 'View-gated notice with certified delivery';
-                break;
-            case 'text':
-                baseFee = 15;
-                description = 'Text notice with IPFS document reference';
-                break;
-            case 'full':
-                baseFee = 35;
-                description = 'Full service: Text summary + View-gated document';
-                break;
-            case 'reference':
-                baseFee = 5;
-                description = 'IPFS document reference only';
-                break;
-        }
-        
-        // Add sponsorship fee if checked
-        let totalFee = baseFee;
-        if (selectedMethod === 'viewgated' && sponsorFees && sponsorFees.checked) {
-            totalFee += 2;
-            description += ' (fees sponsored)';
-        }
-        
-        feeDisplay.textContent = totalFee + ' TRX';
-        if (feeDescription) {
+    if (feeDisplay && legalContract && tronWeb.defaultAddress) {
+        try {
+            // Get actual fee from contract
+            const userAddress = tronWeb.defaultAddress.base58;
+            const contractFee = await legalContract.calculateFee(userAddress).call();
+            let baseFee = parseFloat(tronWeb.fromSun(contractFee));
+            
+            // Check exemption status
+            const serviceFeeExempt = await legalContract.serviceFeeExemptions(userAddress).call();
+            const fullFeeExempt = await legalContract.fullFeeExemptions(userAddress).call();
+            
+            let description = 'Standard fee rate';
+            if (fullFeeExempt) {
+                description = 'You have full fee exemption';
+            } else if (serviceFeeExempt) {
+                description = 'You have 50% fee exemption';
+            }
+            
+            // Add sponsorship fee if selected
+            if (sponsorFees && sponsorFees.checked) {
+                baseFee += 2;
+                description += ' + 2 TRX sponsorship';
+            }
+            
+            feeDisplay.textContent = baseFee + ' TRX';
             feeDescription.textContent = description;
+            
+        } catch (error) {
+            console.error('Error calculating fee:', error);
+            // Fallback to default fees
+            feeDisplay.textContent = '20 TRX';
+            feeDescription.textContent = 'Unable to calculate fee - showing default';
         }
     }
 }
