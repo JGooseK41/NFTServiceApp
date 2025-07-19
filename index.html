@@ -3492,15 +3492,6 @@
                                         <div class="delivery-option-cost">~15 TRX</div>
                                         <div class="delivery-option-desc">Basic text notice - No view protection</div>
                                     </label>
-                                    
-                                    <label class="delivery-option">
-                                        <input type="radio" name="deliveryMethod" value="image">
-                                        <div class="delivery-option-title">
-                                            <i class="fas fa-image"></i> Direct Image
-                                        </div>
-                                        <div class="delivery-option-cost">~55 TRX</div>
-                                        <div class="delivery-option-desc">Immediate visibility - No acceptance required</div>
-                                    </label>
                                 </div>
                             </div>
                             
@@ -5157,16 +5148,11 @@ function useConnectedAddressForFeeCollector() {
                 
                 // Prepare preview data based on delivery method
                 let previewData = '';
-                if (deliveryMethod === 'image') {
-                    // Generate a smaller preview image for the alert token
-                    console.log('Generating thumbnail...');
-                    previewData = await generateThumbnail(uploadedImage);
-                    console.log('Thumbnail generated, size:', previewData.length);
-                } else if (deliveryMethod === 'text') {
+                if (deliveryMethod === 'text') {
                     // Use the notice text as preview
                     previewData = noticeText;
                 } else {
-                    // Reference only - no preview data
+                    // View-gated or reference only - no preview data
                     previewData = '';
                 }
                 
@@ -7249,10 +7235,6 @@ function updateFeeEstimate() {
             case 'text':
                 baseFee = 15;
                 description = 'Text notice with IPFS document reference';
-                break;
-            case 'image':
-                baseFee = 55;
-                description = 'Visual preview with IPFS document';
                 break;
             case 'reference':
                 baseFee = 5;
