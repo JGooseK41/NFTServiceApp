@@ -4824,9 +4824,6 @@ function useConnectedAddressForFeeCollector() {
                 status: 'pending'
             };
             
-            // Store registration
-            registrations.push(registration);
-            
             // Store in localStorage for persistence
             const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
             serverRegistrations[wallet] = {
