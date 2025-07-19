@@ -8326,9 +8326,8 @@ async function checkUserRoles() {
                     return;
                 }
                 
-                // Check if user is admin first
-                const adminRoleBytes = tronWeb.sha3('ADMIN_ROLE');
-                const hasAdminRole = await legalContract.hasRole(adminRoleBytes, address).call();
+                // Check if user is admin (reuse the check from above)
+                const hasAdminRole = isAdmin;
                 
                 // Get registration info (not required for admins)
                 const localRegs = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
