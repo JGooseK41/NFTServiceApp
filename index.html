@@ -7075,13 +7075,13 @@ showAlert('contractStatus', 'success', 'Contract connected successfully!');
 // Auto-refresh alerts if user has process server role
 if (isProcessServer || isAdmin) {
     setTimeout(() => refreshMyAlerts(), 1000);
-}
+                }
 
-// Show wallet status card and update status
-document.getElementById('walletStatusCard').style.display = 'block';
-await updateWalletStatus();
+                // Show wallet status card and update status
+                document.getElementById('walletStatusCard').style.display = 'block';
+                await updateWalletStatus();
 
-} catch (error) {
+            } catch (error) {
     console.error('Contract connection error:', error);
     showAlert('contractStatus', 'error', 'Failed to connect to contract: ' + getErrorMessage(error));
 }
