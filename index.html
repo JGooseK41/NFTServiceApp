@@ -4111,13 +4111,24 @@
     <!-- BEGIN JAVASCRIPT IN PART 3 -->
 <!-- PART 3: JAVASCRIPT -->
     <script>
-        // Configuration - Set your Pinata API keys here for production
+        // Configuration - Set your API keys here for production
         // Better approach: Use environment variables or server-side proxy
+        
+        // Pinata IPFS Configuration
         window.PINATA_CONFIG = {
             // Replace these with your actual Pinata API keys
             // Or leave empty to use localStorage configuration
             apiKey: '',
             secretKey: ''
+        };
+        
+        // GitHub Storage Configuration
+        window.GITHUB_STORAGE_CONFIG = {
+            // Replace with your GitHub personal access token
+            // Or leave empty to use localStorage configuration
+            token: '',
+            // IMPORTANT: Change this encryption key for security
+            encryptionKey: 'NFTServiceApp-ProcessServer-SecureKey-2024'
         };
         
         // Global variables
@@ -5242,19 +5253,29 @@ function useConnectedAddressForFeeCollector() {
             path: 'registrations',
             branch: 'main',
             get token() {
-                // Try to get token from localStorage first
-                return localStorage.getItem('githubToken') || '';
+                // Try localStorage first, then centralized config
+                const localToken = localStorage.getItem('githubToken');
+                if (localToken) return localToken;
+                
+                // Fallback to centralized config
+                return window.GITHUB_STORAGE_CONFIG?.token || '';
             },
             set token(value) {
                 localStorage.setItem('githubToken', value);
             },
             get encryptionKey() {
-                // Use a fixed key stored in localStorage, or generate one if it doesn't exist
+                // Try localStorage first
                 let key = localStorage.getItem('encryptionKey');
-                if (!key) {
-                    key = 'NFTServiceApp-ProcessServer-' + Date.now();
-                    localStorage.setItem('encryptionKey', key);
+                if (key) return key;
+                
+                // Fallback to centralized config
+                if (window.GITHUB_STORAGE_CONFIG?.encryptionKey) {
+                    return window.GITHUB_STORAGE_CONFIG.encryptionKey;
                 }
+                
+                // Last resort: generate and save a new key
+                key = 'NFTServiceApp-ProcessServer-' + Date.now();
+                localStorage.setItem('encryptionKey', key);
                 return key;
             }
         };
@@ -5264,6 +5285,13 @@ function useConnectedAddressForFeeCollector() {
                 // Check if GitHub token is configured
                 if (!GITHUB_CONFIG.token) {
                     console.log('GitHub token not configured, skipping cloud save');
+                    
+                    // Show one-time notification about configuring GitHub
+                    if (!localStorage.getItem('githubNotificationShown')) {
+                        uiManager.showNotification('info', 'For encrypted cloud storage, configure GitHub token in Admin > GitHub Settings.');
+                        localStorage.setItem('githubNotificationShown', 'true');
+                    }
+                    
                     // Update status in localStorage
                     const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
                     if (registration.id) {
