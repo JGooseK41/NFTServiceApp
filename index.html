@@ -2844,7 +2844,7 @@
                             </h3>
                             <p class="form-help" style="margin-bottom: 1rem;">
                                 Stake TRX to delegate energy to the contract. This allows the contract to pay for user transaction energy costs.
-                                <br>Each notice requires ~250,000 energy. 10,000 TRX staked = ~252,000 energy/day
+                                <br>Each notice requires ~500,000 energy. 20,000 TRX staked = ~504,000 energy/day
                             </p>
                             <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
                                 <button class="btn btn-secondary" onclick="checkContractResources()">
@@ -6109,7 +6109,7 @@ try {
                             legalRights || 'You have the right to respond to this legal notice',
                             sponsorFees
                         ).send({
-                            feeLimit: 100_000_000,  // 100 TRX max - increased for energy needs
+                            feeLimit: 200_000_000,  // 200 TRX max - increased for higher energy needs
                             callValue: feeInSun,
                             shouldPollResponse: true
                         });
@@ -8529,7 +8529,7 @@ async function checkUserRoles() {
                 const totalEnergy = resources.EnergyLimit || 0;
                 const usedEnergy = resources.EnergyUsed || 0;
                 const availableEnergy = totalEnergy - usedEnergy;
-                const energyPerNotice = 250000;
+                const energyPerNotice = 500000;  // Updated to match actual usage
                 const noticesAvailable = Math.floor(availableEnergy / energyPerNotice);
                 
                 // Calculate TRX staked for energy
@@ -8550,7 +8550,7 @@ async function checkUserRoles() {
                             - Total Energy: ${totalEnergy.toLocaleString()}<br>
                             - Used Energy: ${usedEnergy.toLocaleString()}<br>
                             - Available Energy: ${availableEnergy.toLocaleString()}<br>
-                            - Notices Available: ${noticesAvailable} (at ~250k energy each)<br>
+                            - Notices Available: ${noticesAvailable} (at ~500k energy each)<br>
                             - TRX Staked for Energy: ${stakedTRX} TRX
                         </div>
                     </div>
@@ -8609,8 +8609,8 @@ async function checkUserRoles() {
         const ENERGY_RENTAL_CONFIG = {
             // TRONSave API for energy rental
             apiUrl: 'https://api.tronsave.io/v0/order/energy',
-            // Energy required per notice
-            energyPerNotice: 250000,
+            // Energy required per notice (increased based on actual usage)
+            energyPerNotice: 500000,  // Increased from 250k to 500k
             // Buffer to ensure enough energy (20% extra)
             energyBuffer: 1.2,
             // Maximum rental price in TRX per 100k energy
