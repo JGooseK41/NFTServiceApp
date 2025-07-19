@@ -6350,6 +6350,7 @@ try {
                     } catch (eventError) {
                         console.warn('Could not retrieve transaction events:', eventError);
                         // Continue without event data - transaction was still successful
+                        // This is expected on some networks or when events are not immediately available
                     }
                 } else {
                     // EVM chains - parse events from transaction receipt
@@ -8084,14 +8085,16 @@ async function checkUserRoles() {
             }
             
             // Add contract address link if available
-            if (CONTRACT_ADDRESS) {
+            const contractAddressField = document.getElementById('contractAddress');
+            const contractAddress = contractAddressField ? contractAddressField.value : null;
+            if (contractAddress) {
                 const contractLink = `
                     <div style="margin-top: 0.75rem;">
                         <div class="token-detail">
                             <span>Contract:</span>
                             <span>
-                                <a href="${getContractScanUrl()}" target="_blank" style="color: var(--accent-blue); text-decoration: none;">
-                                    ${CONTRACT_ADDRESS.substring(0, 10)}...${CONTRACT_ADDRESS.substring(CONTRACT_ADDRESS.length - 8)}
+                                <a href="${getContractScanUrl(contractAddress)}" target="_blank" style="color: var(--accent-blue); text-decoration: none;">
+                                    ${contractAddress.substring(0, 10)}...${contractAddress.substring(contractAddress.length - 8)}
                                     <i class="fas fa-external-link-alt" style="font-size: 0.75rem; margin-left: 0.25rem;"></i>
                                 </a>
                             </span>
@@ -8130,7 +8133,11 @@ async function checkUserRoles() {
         }
 
         // Helper function to get contract explorer URL
-        function getContractScanUrl(address = CONTRACT_ADDRESS) {
+        function getContractScanUrl(address) {
+            if (!address) {
+                const contractAddressField = document.getElementById('contractAddress');
+                address = contractAddressField ? contractAddressField.value : null;
+            }
             const network = document.getElementById('networkName')?.textContent || 'Mainnet';
             let explorerUrl = 'https://tronscan.org';
             
