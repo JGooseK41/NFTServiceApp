@@ -2543,6 +2543,38 @@
                         <i class="fas fa-bug"></i> Debug
                     </button>
                 </div>
+                
+                <!-- New user-friendly explanation banner -->
+                <div class="alert alert-info" style="margin: 1rem; display: none; background: #f0f9ff; border: 2px solid #3b82f6;" id="alertExplainer">
+                    <div style="display: flex; align-items: start; gap: 1rem;">
+                        <i class="fas fa-envelope-open-text" style="color: #3b82f6; font-size: 1.5rem; margin-top: 0.25rem;"></i>
+                        <div>
+                            <h4 style="margin: 0 0 0.5rem 0; color: #1e40af;">You Have Received Official Legal Documents</h4>
+                            <p style="margin: 0 0 0.5rem 0; color: #1e3a8a;">
+                                These are verified legal notices delivered electronically through blockchain technology. 
+                                Just like certified mail, these documents require your signature to confirm receipt.
+                            </p>
+                            <div style="background: #dbeafe; padding: 0.75rem; border-radius: 6px; margin-top: 0.5rem;">
+                                <p style="margin: 0; font-weight: 600; color: #1e40af;">
+                                    <i class="fas fa-shield-alt" style="margin-right: 0.5rem;"></i>
+                                    Your signature only confirms you received the document - it does NOT mean you agree with it or admit any wrongdoing.
+                                </p>
+                            </div>
+                            <p style="margin: 0.75rem 0 0 0; color: #1e3a8a; font-size: 0.875rem;">
+                                <strong>What to do:</strong> Review each notice below and click "Sign Receipt" to confirm delivery. 
+                                Consider seeking legal advice if you have questions about the content.
+                            </p>
+                            <div style="background: #fef3c7; padding: 0.75rem; border-radius: 6px; margin-top: 0.75rem; border: 1px solid #f59e0b;">
+                                <p style="margin: 0; color: #92400e; font-weight: 600;">
+                                    <i class="fas fa-exclamation-triangle" style="margin-right: 0.5rem; color: #d97706;"></i>
+                                    Warning: Failing to respond to legal notices by their deadlines may result in default judgment against you. 
+                                    The court may rule in favor of the other party if you do not respond in time.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <div id="myAlertsContent">
                     <div class="empty-state">
                         <i class="fas fa-bell-slash"></i>
@@ -4003,14 +4035,27 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3 class="modal-title">
-                    <i class="fas fa-check-circle"></i>
-                    Accept Legal Notice
+                    <i class="fas fa-signature" style="color: #3b82f6;"></i>
+                    Electronic Signature Required - Legal Notice Receipt
                 </h3>
                 <button class="modal-close" onclick="closeAcceptModal()">&times;</button>
             </div>
             <div class="modal-body">
+                <div class="alert alert-info" style="margin-bottom: 1rem; background: #e0f2fe; border-color: #3b82f6;">
+                    <i class="fas fa-info-circle" style="color: #3b82f6;"></i>
+                    <div>
+                        <strong>Electronic Signature Request</strong>
+                        <p style="margin: 0.25rem 0 0 0;">By clicking "Sign Receipt" below, you are electronically signing that you have received this legal document. This is similar to signing for certified mail or a courier delivery.</p>
+                        <p style="margin: 0.25rem 0 0 0; font-weight: 600;">Important: This signature only confirms receipt. It does NOT mean you agree with the contents, admit any wrongdoing, or waive any of your legal rights.</p>
+                        <p style="margin: 0.5rem 0 0 0; color: #dc2626; font-weight: 600;">
+                            <i class="fas fa-exclamation-triangle" style="margin-right: 0.5rem;"></i>
+                            Warning: Failing to respond to this legal notice by the deadline may result in default judgment against you.
+                        </p>
+                    </div>
+                </div>
+                
                 <div id="acceptDetails" style="margin-bottom: 1.5rem;">
-                    <h4 style="margin-bottom: 1rem;">Notice Details</h4>
+                    <h4 style="margin-bottom: 1rem;">Document Information</h4>
                     <div class="token-item">
                         <div class="token-details">
                             <div class="token-detail">
@@ -4044,10 +4089,10 @@
                     </div>
                 </div>
 
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle"></i>
+                <div class="alert alert-warning" style="background: #fef3c7; border-color: #f59e0b;">
+                    <i class="fas fa-file-signature" style="color: #d97706;"></i>
                     <div>
-                        <strong>Important:</strong> By accepting this notice, you acknowledge receipt of this legal document. The transaction will be recorded on the blockchain as proof of service.
+                        <strong>Legal Effect of Your Signature:</strong> Your electronic signature will be permanently recorded on the blockchain as proof that this document was delivered to you. This is legally equivalent to signing for certified mail and creates an immutable record of service.
                     </div>
                 </div>
 
@@ -4056,9 +4101,9 @@
                         <i class="fas fa-times"></i>
                         Cancel
                     </button>
-                    <button class="btn btn-primary" onclick="acceptNotice()" id="acceptNoticeBtn">
-                        <i class="fas fa-check"></i>
-                        Accept Notice
+                    <button class="btn btn-primary" onclick="acceptNotice()" id="acceptNoticeBtn" style="background: #3b82f6; border-color: #3b82f6; padding: 0.75rem 1.5rem;">
+                        <i class="fas fa-signature"></i>
+                        Sign Receipt & Confirm Delivery
                     </button>
                 </div>
             </div>
@@ -5159,6 +5204,105 @@ function useConnectedAddressForFeeCollector() {
                         </div>
                         ` : ''}
                     </div>
+                    
+                    ${message && message.includes('Legal Notice Created') ? `
+                    <div class="receipt-info" style="background: #f9fafb; border: 1px solid #e5e7eb;">
+                        <h2>Service of Process Synopsis</h2>
+                        ${(() => {
+                            // Extract notice details from the transaction details
+                            let noticeType = 'Legal Notice';
+                            let issuingAgency = 'Not specified';
+                            let caseNumber = '';
+                            let caseDetails = '';
+                            let legalRights = '';
+                            let recipientAddress = '';
+                            let tokenName = '';
+                            let noticeId = '';
+                            let alertId = '';
+                            
+                            // Parse the details to extract information
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(details, 'text/html');
+                            const detailElements = doc.querySelectorAll('.token-detail');
+                            
+                            detailElements.forEach(el => {
+                                const spans = el.querySelectorAll('span');
+                                if (spans.length >= 2) {
+                                    const label = spans[0].textContent.trim();
+                                    const value = spans[1].textContent.trim();
+                                    
+                                    if (label.includes('Token Name')) tokenName = value;
+                                    if (label.includes('Recipient')) recipientAddress = value;
+                                    if (label.includes('Notice ID')) noticeId = value;
+                                    if (label.includes('Alert ID')) alertId = value;
+                                }
+                            });
+                            
+                            // Look for synopsis section in details
+                            const synopsisSection = doc.querySelector('[style*="Service of Process Synopsis"]');
+                            if (synopsisSection && synopsisSection.parentElement) {
+                                const synopsisContent = synopsisSection.parentElement.textContent;
+                                
+                                // Extract values from synopsis
+                                const noticeTypeMatch = synopsisContent.match(/Notice Type: ([^\\n]+)/);
+                                if (noticeTypeMatch) noticeType = noticeTypeMatch[1].trim();
+                                
+                                const agencyMatch = synopsisContent.match(/Issuing Agency: ([^\\n]+)/);
+                                if (agencyMatch) issuingAgency = agencyMatch[1].trim();
+                                
+                                const caseNumberMatch = synopsisContent.match(/Case Number: ([^\\n]+)/);
+                                if (caseNumberMatch) caseNumber = caseNumberMatch[1].trim();
+                                
+                                const caseDetailsMatch = synopsisContent.match(/Case Details: ([^\\n]+)/);
+                                if (caseDetailsMatch) caseDetails = caseDetailsMatch[1].trim();
+                                
+                                const rightsMatch = synopsisContent.match(/Legal Rights: ([^\\n]+)/);
+                                if (rightsMatch) legalRights = rightsMatch[1].trim();
+                            }
+                            
+                            return `
+                            <div class="info-row">
+                                <span class="label">Notice Type:</span>
+                                <span class="value">${noticeType}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Issuing Agency:</span>
+                                <span class="value">${issuingAgency}</span>
+                            </div>
+                            ${caseNumber && caseNumber !== 'Not specified' ? `
+                            <div class="info-row">
+                                <span class="label">Case Number:</span>
+                                <span class="value">${caseNumber}</span>
+                            </div>
+                            ` : ''}
+                            ${caseDetails && caseDetails !== 'See attached document' ? `
+                            <div class="info-row">
+                                <span class="label">Case Details:</span>
+                                <span class="value">${caseDetails}</span>
+                            </div>
+                            ` : ''}
+                            <div class="info-row">
+                                <span class="label">Legal Rights:</span>
+                                <span class="value">${legalRights || 'Recipient has the right to respond to this legal notice'}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Service Method:</span>
+                                <span class="value">Electronic service via NFT delivery to TRON blockchain wallet</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Response Deadline:</span>
+                                <span class="value">${new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString()} (30 days from service)</span>
+                            </div>
+                            
+                            <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px; padding: 15px; margin-top: 20px;">
+                                <p style="margin: 0; font-size: 14px; color: #92400e;">
+                                    <strong>Process Server Attestation:</strong> This receipt certifies that I have made diligent effort to notify the affected party at the blockchain address provided. The recipient has been served with notice that includes information about their legal rights and the requirement to respond within the statutory deadline to avoid default judgment.
+                                </p>
+                            </div>
+                            `;
+                        })()}
+                    </div>
+                    ` : ''}
                     
                     <div class="verification-section">
                         <h3>Blockchain Verification Instructions</h3>
@@ -6749,6 +6893,38 @@ try {
                             </div>
                         ` : ''}
                     </div>
+                    
+                    <!-- Service Synopsis for Process Server Records -->
+                    <div style="background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 0.5rem; padding: 1rem; margin-top: 1.5rem;">
+                        <h4 style="margin: 0 0 0.75rem 0; color: #374151; font-size: 1rem;">
+                            <i class="fas fa-file-contract" style="margin-right: 0.5rem;"></i>
+                            Service of Process Synopsis
+                        </h4>
+                        <div style="font-size: 0.875rem; color: #4b5563; line-height: 1.6;">
+                            <p style="margin: 0 0 0.5rem 0;">
+                                <strong>Notice Type:</strong> ${escapeHtml(noticeType) || 'Legal Notice'}<br>
+                                <strong>Issuing Agency:</strong> ${escapeHtml(issuingAgency) || 'Not specified'}<br>
+                                <strong>Case Number:</strong> ${escapeHtml(caseNumber) || 'Not specified'}<br>
+                                <strong>Case Details:</strong> ${escapeHtml(caseDetails) || 'See attached document'}<br>
+                                <strong>Legal Rights:</strong> ${escapeHtml(legalRights) || 'Recipient has the right to respond to this legal notice'}
+                            </p>
+                            <p style="margin: 0.75rem 0;">
+                                <strong>Service Details:</strong><br>
+                                • Document served electronically via blockchain to wallet address: <code style="background: #e5e7eb; padding: 0.125rem 0.25rem; border-radius: 0.25rem;">${recipient}</code><br>
+                                • Method of service: Electronic service via NFT delivery to TRON blockchain wallet<br>
+                                • Service date and time: ${new Date().toLocaleString()}<br>
+                                • Response deadline: ${new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString()} (30 days from service)<br>
+                                • Token Name: ${escapeHtml(tokenName)}<br>
+                                • Notice ID: ${noticeId} | Alert ID: ${alertId}
+                            </p>
+                            <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 0.375rem; padding: 0.75rem; margin-top: 0.75rem;">
+                                <p style="margin: 0; color: #92400e;">
+                                    <i class="fas fa-exclamation-triangle" style="margin-right: 0.5rem;"></i>
+                                    <strong>Process Server Attestation:</strong> By creating this electronic service record, I attest that I have made diligent effort to notify the affected party at the blockchain address provided. The recipient has been served with notice that includes information about their legal rights and the requirement to respond within the statutory deadline to avoid default judgment.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 `;
                 
                 // Show success notification and transaction modal
@@ -6813,7 +6989,7 @@ try {
             acceptBtn.disabled = true;
             
             try {
-                showProcessing('Accepting legal notice...');
+                showProcessing('Processing electronic signature...');
                 
                 // Call the contract to accept the notice
                 const tx = await legalContract.acceptNotice(currentNoticeId).send({
@@ -6831,7 +7007,7 @@ try {
                 });
                 
                 // Show success notification
-                uiManager.showNotification('success', 'Legal notice accepted successfully');
+                uiManager.showNotification('success', 'Receipt signed successfully - Your electronic signature has been recorded');
                 
                 // Show transaction modal
                 const txDetails = `
@@ -7165,15 +7341,16 @@ try {
         }
 
         async function renderAlertItem(notice) {
-            // Get preview image if available
+            // Get full alert details
+            let alertDetails = null;
             let previewHtml = '';
             try {
-                if (notice.alertTokenId) {
-                    const alert = await legalContract.alerts(notice.alertTokenId).call();
-                    if (alert.previewImage) {
+                if (notice.alertId) {
+                    alertDetails = await legalContract.alerts(notice.alertId).call();
+                    if (alertDetails.previewImage) {
                         previewHtml = `
                             <div class="token-preview">
-                                <img src="data:image/jpeg;base64,${alert.previewImage}" alt="Document preview">
+                                <img src="data:image/jpeg;base64,${alertDetails.previewImage}" alt="Document preview">
                             </div>
                         `;
                     }
@@ -7182,40 +7359,88 @@ try {
                 console.log('No preview available');
             }
             
+            // Get issuing agency and notice type for clearer display
+            const issuingAgency = alertDetails?.issuingAgency || notice.issuingAgency || 'Legal Authority';
+            const noticeType = alertDetails?.noticeType || notice.noticeType || 'Legal Notice';
+            const caseNumber = alertDetails?.caseNumber || notice.caseNumber || '';
+            const legalRights = alertDetails?.legalRights || 'You have the right to respond to this legal notice';
+            const caseDetails = alertDetails?.caseDetails || '';
+            
             return `
-                <div class="token-item" style="border-color: var(--alert-color);">
-                    <div class="token-item-header">
+                <div class="token-item" style="background: #f0f9ff; border: 2px solid #3b82f6; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);">
+                    <div style="background: #dbeafe; padding: 0.75rem 1rem; border-radius: 6px 6px 0 0; margin: -1rem -1rem 1rem -1rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; color: #1e40af; font-weight: 600;">
+                            <i class="fas fa-envelope-open-text" style="color: #3b82f6;"></i>
+                            <span>Official ${noticeType} - Electronic Signature Required</span>
+                        </div>
+                    </div>
+                    <div class="token-item-header" style="padding-bottom: 1rem;">
                         <div>
-                            <strong style="color: var(--alert-color);">
-                                <i class="fas fa-exclamation-triangle"></i> Legal Notice #${notice.id}
-                            </strong>
-                            <div style="font-size: 0.875rem;">
-                                ${getDocumentTypeString(notice.documentType)}
+                            <div style="font-size: 1rem; color: #1e3a8a; margin-bottom: 0.5rem;">
+                                <strong>From:</strong> ${issuingAgency}
+                            </div>
+                            ${caseNumber ? `
+                            <div style="font-size: 0.875rem; color: #1e3a8a;">
+                                <strong>Reference #:</strong> ${caseNumber}
+                            </div>
+                            ` : ''}
+                            ${caseDetails ? `
+                            <div style="font-size: 0.875rem; color: #1e3a8a; margin-top: 0.25rem;">
+                                ${caseDetails}
+                            </div>
+                            ` : ''}
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end;">
+                            <button class="btn btn-primary" style="background: #3b82f6; border-color: #3b82f6; font-size: 1rem; padding: 0.75rem 1.5rem; white-space: nowrap;" 
+                                    onclick="openAcceptModal(${notice.id})">
+                                <i class="fas fa-signature"></i> Sign Receipt
+                            </button>
+                            <button class="btn btn-secondary btn-small" style="font-size: 0.75rem;" 
+                                    onclick="quickAccept(${notice.id})">
+                                <i class="fas fa-bolt"></i> Quick Sign
+                            </button>
+                        </div>
+                    </div>
+                    <div style="background: #e0f2fe; padding: 1rem; margin: 0 -1rem 1rem -1rem; border-radius: 8px;">
+                        <div style="display: flex; align-items: start; gap: 0.75rem;">
+                            <i class="fas fa-info-circle" style="color: #3b82f6; margin-top: 0.125rem;"></i>
+                            <div style="font-size: 0.875rem; color: #1e3a8a;">
+                                <strong>What is this?</strong> This is an official electronic legal notice delivered via blockchain technology. 
+                                Signing the receipt confirms you have received this document - similar to signing for certified mail. 
+                                <span style="font-weight: 600;">Signing does NOT mean you agree with the contents.</span>
+                                <div style="margin-top: 0.5rem; padding: 0.5rem; background: #fef3c7; border-radius: 4px; color: #92400e; font-weight: 600;">
+                                    <i class="fas fa-exclamation-triangle" style="margin-right: 0.5rem;"></i>
+                                    Important: Failing to respond to legal notices by their deadlines may result in default judgment against you.
+                                </div>
                             </div>
                         </div>
-                        <button class="btn btn-primary btn-small" onclick="openAcceptModal(${notice.id})">
-                            <i class="fas fa-check"></i> Accept
-                        </button>
                     </div>
                     <div class="token-details">
                         <div class="token-detail">
-                            <span>From:</span>
+                            <span>Process Server:</span>
                             ${createAddressDisplay(notice.server)}
                         </div>
                         <div class="token-detail">
-                            <span>Date:</span>
+                            <span>Date Served:</span>
                             <span>${new Date(parseInt(notice.timestamp) * 1000).toLocaleDateString()}</span>
                         </div>
                         <div class="token-detail">
-                            <span>Jurisdiction:</span>
-                            <span>${getJurisdictionString(notice.jurisdictionIndex)}</span>
-                        </div>
-                        <div class="token-detail">
-                            <span>Time Remaining:</span>
-                            <span>${getTimeRemaining(notice.timestamp)}</span>
+                            <span>Response Deadline:</span>
+                            <span style="color: #dc2626; font-weight: 600;">${getTimeRemaining(notice.timestamp)} - Respond to avoid default judgment</span>
                         </div>
                     </div>
+                    ${legalRights ? `
+                    <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(34, 197, 94, 0.1); border-radius: 6px; font-size: 0.875rem; color: #166534;">
+                        <i class="fas fa-shield-alt" style="margin-right: 0.5rem;"></i>
+                        <strong>Your Rights:</strong> ${legalRights}
+                    </div>
+                    ` : ''}
                     ${previewHtml}
+                    <div style="margin-top: 1rem; text-align: center;">
+                        <button class="btn btn-secondary btn-small" onclick="window.open('https://www.justia.com/lawyers/', '_blank')">
+                            <i class="fas fa-balance-scale"></i> Find Legal Help
+                        </button>
+                    </div>
                 </div>
             `;
         }
@@ -9920,6 +10145,88 @@ document.addEventListener('keydown', function(event) {
         window.viewContractOnTronscan = viewContractOnTronscan;
         window.viewOnTronscan = viewOnTronscan;
         window.viewOnIPFS = viewOnIPFS;
+        
+        // Quick accept function for one-click signing
+        async function quickAccept(noticeId) {
+            if (!legalContract || !noticeId) {
+                uiManager.showNotification('error', 'Notice information missing');
+                return;
+            }
+            
+            // Show confirmation dialog
+            const confirmed = confirm(
+                'ELECTRONIC SIGNATURE CONFIRMATION\n\n' +
+                'By clicking OK, you are electronically signing that you have received this legal notice.\n\n' +
+                'This signature:\n' +
+                '• Confirms receipt only (like signing for certified mail)\n' +
+                '• Does NOT mean you agree with the contents\n' +
+                '• Does NOT admit any wrongdoing\n' +
+                '• Does NOT waive any of your legal rights\n\n' +
+                'Your signature will be permanently recorded on the blockchain.\n\n' +
+                'Do you want to sign the receipt for this legal notice?'
+            );
+            
+            if (!confirmed) {
+                return;
+            }
+            
+            currentNoticeId = noticeId;
+            
+            try {
+                showProcessing('Processing electronic signature...');
+                
+                // Call the contract to accept the notice
+                const tx = await legalContract.acceptNotice(noticeId).send({
+                    feeLimit: 20_000_000,  // 20 TRX - simple state change
+                    callValue: 0,
+                    shouldPollResponse: true
+                });
+                
+                hideProcessing();
+                
+                // Add to recent activity
+                addRecentActivity('accept', 'Legal notice accepted via quick sign', {
+                    noticeId: noticeId
+                });
+                
+                // Show success notification
+                uiManager.showNotification('success', 'Receipt signed successfully - Your electronic signature has been recorded');
+                
+                // Show transaction modal
+                const txHash = typeof tx === 'string' ? tx : tx.txid || tx[0];
+                showTransactionSuccess(
+                    txHash,
+                    'Legal Notice Receipt Signed',
+                    `
+                        <div class="token-detail">
+                            <span>Notice ID:</span>
+                            <span>${noticeId}</span>
+                        </div>
+                        <div class="token-detail">
+                            <span>Method:</span>
+                            <span>Quick Sign</span>
+                        </div>
+                        <div class="token-detail">
+                            <span>Timestamp:</span>
+                            <span>${new Date().toLocaleString()}</span>
+                        </div>
+                    `
+                );
+                
+                // Refresh alerts after a short delay
+                setTimeout(() => {
+                    refreshMyAlerts();
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Error accepting notice:', error);
+                hideProcessing();
+                let errorMsg = getErrorMessage(error);
+                uiManager.showNotification('error', errorMsg);
+            }
+        }
+        
+        window.quickAccept = quickAccept;
         
         // Transaction verification function
         async function verifyTransaction() {
