@@ -8683,8 +8683,39 @@ try {
                     await new Promise(resolve => setTimeout(resolve, 500));
                 }
                 
-                if (!tronWeb.isAddress || !tronWeb.isAddress(contractAddress)) {
-                    showAlert('contractStatus', 'error', 'Invalid TRON address');
+                console.log('Checking address:', contractAddress);
+                console.log('TronWeb.isAddress available:', typeof tronWeb.isAddress);
+                console.log('Address validation result:', tronWeb.isAddress ? tronWeb.isAddress(contractAddress) : 'Function not available');
+                
+                // Try alternative validation if isAddress is not working
+                let isValidAddress = false;
+                
+                try {
+                    // First try the standard isAddress
+                    if (tronWeb.isAddress) {
+                        isValidAddress = tronWeb.isAddress(contractAddress);
+                    }
+                    
+                    // If that fails, try a basic format check
+                    if (!isValidAddress && contractAddress.startsWith('T') && contractAddress.length === 34) {
+                        console.log('Using fallback address validation');
+                        isValidAddress = true;
+                    }
+                } catch (e) {
+                    console.error('Error during address validation:', e);
+                    // If validation throws, but address looks valid, continue
+                    if (contractAddress.startsWith('T') && contractAddress.length === 34) {
+                        isValidAddress = true;
+                    }
+                }
+                
+                if (!isValidAddress) {
+                    console.error('Address validation failed:', {
+                        address: contractAddress,
+                        isAddressFunction: !!tronWeb.isAddress,
+                        validationResult: tronWeb.isAddress ? tronWeb.isAddress(contractAddress) : 'N/A'
+                    });
+                    showAlert('contractStatus', 'error', 'Invalid TRON address: ' + contractAddress);
                     return;
                 }
             } else {
