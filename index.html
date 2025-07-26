@@ -8739,20 +8739,37 @@ try {
                     console.log('Creating TRON contract with:', {
                         address: contractAddress,
                         abiLength: CONTRACT_ABI.length,
-                        tronWebReady: !!tronWeb.contract
+                        tronWebReady: !!tronWeb.contract,
+                        currentNetwork: tronWeb.fullNode?.host
                     });
                     
-                    // Try the recommended TronWeb contract creation method
-                    legalContract = await tronWeb.contract().at(contractAddress);
+                    // Check if we're on the correct network
+                    if (!tronWeb.fullNode?.host?.includes('nile')) {
+                        showAlert('contractStatus', 'error', 'Please switch TronLink to Nile Testnet! Current network: ' + (tronWeb.fullNode?.host || 'Unknown'));
+                        return;
+                    }
                     
-                    // Inject the ABI
-                    legalContract.abi = CONTRACT_ABI;
-                    
-                    console.log('Contract created:', {
-                        hasAddress: !!legalContract.address,
-                        address: legalContract.address,
-                        methods: Object.keys(legalContract.methods || {}).length
-                    });
+                    try {
+                        // Use the original method with ABI and address
+                        legalContract = tronWeb.contract(CONTRACT_ABI, contractAddress);
+                        
+                        console.log('Contract created:', {
+                            hasContract: !!legalContract,
+                            contractType: typeof legalContract,
+                            hasMethods: !!legalContract.methods
+                        });
+                        
+                        // Test the contract by calling a simple view function
+                        const totalNotices = await legalContract.totalNotices().call();
+                        console.log('Contract test successful, total notices:', totalNotices.toString());
+                        
+                    } catch (contractError) {
+                        console.error('Contract creation failed, trying alternative method:', contractError);
+                        
+                        // Alternative: Create contract without address and set it manually
+                        legalContract = tronWeb.contract(CONTRACT_ABI);
+                        legalContract.address = contractAddress;
+                    }
                     
                     window.legalContract = legalContract;
                 } else {
