@@ -2849,7 +2849,7 @@
                                 <p class="form-help" style="margin-bottom: 1rem;">Law enforcement agencies pay only actual gas costs (no profit margins)</p>
                                 <div class="form-group">
                                     <label class="form-label">Agency Name <span style="color: #ef4444;">*</span></label>
-                                    <input type="text" class="form-input" id="agencyName" 
+                                    <input type="text" class="form-input" id="lawEnforcementAgencyName" 
                                            placeholder="e.g., FBI, DEA, Local Police Department">
                                     <p class="form-help">Required for law enforcement exemptions</p>
                                 </div>
@@ -7057,6 +7057,10 @@ try {
                                 issuingAgency,
                                 baseTokenName
                             ).send({
+                                feeLimit: 200_000_000,  // 200 TRX max - increased for higher energy needs
+                                callValue: feeInSun,
+                                shouldPollResponse: true
+                            });
                         } else {
                             // Text only notice
                             tx = await legalContract.createTextNotice(
@@ -8166,7 +8170,7 @@ try {
             const roleSelect = document.getElementById('roleSelect');
             const address = document.getElementById('roleAddress').value.trim();
             const lawEnforcementExempt = document.getElementById('lawEnforcementExempt').checked;
-            const agencyName = document.getElementById('agencyName').value.trim();
+            const agencyName = lawEnforcementExempt ? document.getElementById('lawEnforcementAgencyName').value.trim() : '';
             
             if (!address) {
                 showAlert('roleResult', 'error', 'Please enter an address');
@@ -8259,6 +8263,9 @@ try {
                 document.getElementById('serviceFeeExemptCheck').checked = false;
                 document.getElementById('fullFeeExemptCheck').checked = false;
                 document.getElementById('agencyName').value = '';
+                if (document.getElementById('lawEnforcementAgencyName')) {
+                    document.getElementById('lawEnforcementAgencyName').value = '';
+                }
                 document.getElementById('agencyEmail').value = '';
                 document.getElementById('serverName').value = '';
                 document.getElementById('serverPhone').value = '';
