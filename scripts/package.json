@@ -1,0 +1,24 @@
+{
+  "name": "nft-service-scripts",
+  "version": "1.0.0",
+  "description": "Automation scripts for NFT Service App",
+  "main": "auto-faucet.js",
+  "scripts": {
+    "faucet": "node auto-faucet.js",
+    "faucet:manual": "node -e \"require('./auto-faucet').manualRequest()\"",
+    "faucet:check": "node -e \"require('./auto-faucet').checkBalance(process.env.CONTRACT_ADDRESS).then(b => console.log('Balance:', b, 'TRX'))\""
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "node-cron": "^3.0.3",
+    "tronweb": "^5.3.0"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "tron",
+    "faucet",
+    "automation"
+  ],
+  "author": "",
+  "license": "MIT"
+}

@@ -1,113 +1,132 @@
-# LegalNoticeNFT Deployment Guide
+# Deployment Guide for Optimized LegalNoticeNFT Contract
 
-## Contract Ready for Deployment
+## Prerequisites
 
-Your complete contract is compiled and ready:
-- **Contract**: `LegalNoticeNFT_Complete.sol`
-- **Binary**: `LegalNoticeNFT_Complete_sol_LegalNoticeNFT.bin` (25.4 KB)
-- **ABI**: `LegalNoticeNFT_Complete_sol_LegalNoticeNFT.abi`
+1. **Node.js and npm installed**
+2. **TronLink wallet with TRX balance**
+   - Testnet: At least 100 TRX
+   - Mainnet: At least 500 TRX (for deployment and initial operations)
+3. **Private key from TronLink**
 
-## Deployment Options
+## Step 1: Setup Environment
 
-### Option 1: TronScan Web Interface (Recommended for First Time)
+1. Copy the example environment file:
+```bash
+cp .env.example .env
+```
 
-1. **For Testnet (Shasta):**
-   - Go to: https://shasta.tronscan.org/#/contracts/contract-compiler
-   - Get test TRX from: https://www.trongrid.io/faucet
+2. Edit `.env` and add your values:
+```env
+# Your TronLink private key (64 characters, no 0x prefix)
+TRON_PRIVATE_KEY=your_private_key_here
 
-2. **For Mainnet:**
-   - Go to: https://tronscan.org/#/contracts/contract-compiler
-   - Ensure you have at least 150 TRX for deployment
+# Your wallet address to receive fees
+FEE_COLLECTOR=TYourWalletAddressHere
 
-3. **Steps:**
-   - Copy the entire contents of `contracts/LegalNoticeNFT_Complete.sol`
-   - Paste into the contract compiler
-   - Settings:
-     - Solidity Version: `0.8.6`
-     - Optimization: `Enabled`
-     - Runs: `200`
-   - Click "Compile"
-   - Click "Deploy"
-   - Confirm transaction in TronLink
+# Network: nile (testnet), shasta (testnet), or mainnet
+NETWORK=nile
+```
 
-### Option 2: Command Line Deployment
+## Step 2: Install Dependencies
 
-1. **Install TronWeb:**
-   ```bash
-   npm install tronweb
-   ```
+```bash
+npm install
+```
 
-2. **Set your private key:**
-   ```bash
-   export PRIVATE_KEY="your_private_key_here"
-   ```
+## Step 3: Compile the Contract
 
-3. **Deploy to testnet:**
-   ```bash
-   NETWORK=shasta node deploy_contract.js
-   ```
+The contract has already been compiled and optimized to 24,427 bytes (under the 24KB limit).
 
-4. **Deploy to mainnet:**
-   ```bash
-   NETWORK=mainnet node deploy_contract.js
-   ```
+If you need to recompile:
+```bash
+node compile_contract.js
+```
 
-### Option 3: Using Remix IDE
+## Step 4: Deploy the Contract
 
-1. **Install TronLink Remix Plugin:**
-   - Go to https://remix.ethereum.org
-   - Install the TronLink plugin from the plugin manager
+### For Testnet (Nile):
+```bash
+node deploy_optimized.js
+```
 
-2. **Load Contract:**
-   - Create new file: `LegalNoticeNFT.sol`
-   - Copy contract code
-   - Compile with Solidity 0.8.6
+### For Mainnet:
+```bash
+NETWORK=mainnet node deploy_optimized.js
+```
 
-3. **Deploy:**
-   - Connect TronLink wallet
-   - Select TVM environment
-   - Deploy contract
+## Step 5: Verify Deployment
 
-## After Deployment
+After successful deployment, you'll see:
+```
+✅ Contract deployed successfully!
+📋 Contract Address: TXxxxxxxxxxxxxxxxxxxxxx
+```
 
-1. **Update Frontend:**
-   ```javascript
-   // In index.html, update line ~40:
-   const CONTRACT_ADDRESS = 'YOUR_NEW_CONTRACT_ADDRESS';
-   ```
+The script will automatically:
+- Deploy the contract
+- Set the fee collector address
+- Update config.js with the new address
+- Save deployment info to deployments.json
 
-2. **Verify Deployment:**
-   - Check contract on TronScan
-   - Test basic functions:
-     - Check admin: `admin()`
-     - Check service fee: `serviceFee()`
+## Step 6: Update Frontend
 
-3. **Grant Roles (if needed):**
-   ```javascript
-   // Grant server role to addresses that can serve notices
-   const SERVER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes("SERVER_ROLE"));
-   await contract.grantRole(SERVER_ROLE, serverAddress);
-   ```
+1. The deployment script automatically updates `config.js`
+2. Verify the contract address is correct in the config
+3. Test the frontend connection
 
-## Deployment Costs
+## Step 7: Post-Deployment Setup
 
-- **Testnet**: Free (use faucet)
-- **Mainnet**: 
-  - Contract deployment: ~100-150 TRX
-  - Each notice served: 20-22 TRX (configurable)
+### Grant Admin Roles (if needed):
+Use the admin panel in the UI or interact directly with the contract to:
+1. Grant process server roles
+2. Set law enforcement exemptions
+3. Configure fees if different from defaults
 
-## Post-Deployment Checklist
+### Default Fee Structure:
+- Document Notice: 150 TRX
+- Text Notice: 15 TRX
+- Process Server Fee: 75 TRX
+- Sponsorship Fee: 2 TRX
 
-- [ ] Contract deployed and verified on TronScan
-- [ ] Frontend updated with new contract address
-- [ ] Test notice creation works
-- [ ] Test notice acceptance works
-- [ ] Test view-gated documents work
-- [ ] Configure fee settings if needed
-- [ ] Set up resource sponsorship if desired
+## Contract Size Information
+
+The optimized contract is **24,427 bytes**, which is safely under the 24,576 byte limit for TRON mainnet deployment.
+
+### Optimizations Made:
+- Removed redundant functions
+- Consolidated batch operations
+- Shortened error messages
+- Removed unused features
+- Optimized with low compiler runs (10)
 
 ## Troubleshooting
 
-**"Insufficient energy"**: Increase fee limit or enable resource sponsorship
-**"Contract creation failed"**: Ensure you have enough TRX (150+ recommended)
-**"Invalid address"**: Make sure TronLink is connected to the correct network
+### "Insufficient balance" error:
+- Ensure you have enough TRX in your wallet
+- Testnet: Get free TRX from faucet
+- Mainnet: Transfer TRX to your deployment wallet
+
+### "Contract too large" error:
+- The contract has been optimized and should not have this error
+- If it occurs, ensure you're using the compiled version from `build/contracts/`
+
+### Network connection issues:
+- Check your internet connection
+- Try a different network endpoint
+- Verify the network setting in .env
+
+## Security Checklist
+
+Before mainnet deployment:
+- [ ] Private key is secure and not committed to git
+- [ ] Fee collector address is correct
+- [ ] Contract has been tested on testnet
+- [ ] All admin roles are properly configured
+- [ ] Fees are set appropriately for your use case
+
+## Next Steps
+
+1. Test all functionality on testnet first
+2. Document the contract address for users
+3. Set up monitoring for contract events
+4. Configure process servers and exemptions as needed

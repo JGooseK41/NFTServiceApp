@@ -1,0 +1,5 @@
+node_modules/
+.env
+faucet-requests.log
+*.log
+.DS_Store

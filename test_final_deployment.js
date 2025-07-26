@@ -9,7 +9,7 @@ const tronWeb = new TronWeb({
 tronWeb.setAddress('TDbeaZQ25WzZ4Aqn4RJAZxmo6BeHdMeXGf');
 
 async function testDeployment() {
-    const contractAddress = 'TWdZdDUk3yW1KRUPxo4gHySDRjBjMPQJ3n';
+    const contractAddress = 'TDLjE4kiTaGPgX2MKfWGnma2mhAhdjqaYo';
     
     console.log('Testing LegalNoticeNFT_Complete deployment...');
     console.log('Contract:', contractAddress);

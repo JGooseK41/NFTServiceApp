@@ -1,14 +1,31 @@
 {
-  "name": "nft-service-app",
-  "version": "1.0.0",
-  "description": "Legal Notice NFT Service for TRON",
-  "main": "index.js",
+  "name": "legal-service-nft-contracts",
+  "version": "2.0.0",
+  "description": "Smart contracts for Legal Service NFT platform",
+  "main": "deploy_legal_service_v2.js",
   "scripts": {
-    "deploy:testnet": "NETWORK=shasta node deploy_contract.js",
-    "deploy:mainnet": "NETWORK=mainnet node deploy_contract.js"
+    "compile": "tronbox compile",
+    "deploy:nile": "node deploy_legal_service_v2.js",
+    "deploy:shasta": "NETWORK=shasta node deploy_legal_service_v2.js",
+    "test": "tronbox test",
+    "compile-help": "node deploy_legal_service_v2.js --compile-help"
   },
   "dependencies": {
-    "tronweb": "^5.3.0",
-    "@pinata/sdk": "^2.1.0"
-  }
+    "@openzeppelin/contracts": "^4.9.3",
+    "dotenv": "^17.2.0",
+    "tronweb": "^5.3.4"
+  },
+  "devDependencies": {
+    "solc": "^0.8.20",
+    "tronbox": "^3.2.0"
+  },
+  "keywords": [
+    "tron",
+    "nft",
+    "legal",
+    "blockchain",
+    "smart-contract"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
 }

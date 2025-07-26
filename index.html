@@ -8,6 +8,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pica/9.0.1/pica.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/web3@4.3.0/dist/web3.min.js"></script>
+    <script src="config.js"></script>
     <!-- Document conversion libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
@@ -15,6 +16,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script src="js/documentConverter.js"></script>
+    <!-- Simplified Encryption (no registration needed) -->
+    <script src="js/simple-encryption.js"></script>
+    <script src="js/simplified-integration.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -2406,11 +2410,11 @@
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
                         <input type="text" class="form-input" id="contractAddress" 
                                placeholder="Enter contract address (e.g., TXxxx...)"
-                               value="TWdZdDUk3yW1KRUPxo4gHySDRjBjMPQJ3n" style="flex: 1;">
+                               value="TDLjE4kiTaGPgX2MKfWGnma2mhAhdjqaYo" style="flex: 1;">
                         <button class="btn btn-secondary" onclick="copyAddress(document.getElementById('contractAddress').value)" title="Copy address">
                             <i class="fas fa-copy"></i>
                         </button>
-                        <a href="https://nile.tronscan.org/#/contract/TWdZdDUk3yW1KRUPxo4gHySDRjBjMPQJ3n" target="_blank" class="btn btn-secondary" title="View on TronScan">
+                        <a href="https://nile.tronscan.org/#/contract/TDLjE4kiTaGPgX2MKfWGnma2mhAhdjqaYo" target="_blank" class="btn btn-secondary" title="View on TronScan">
                             <i class="fas fa-external-link-alt"></i>
                         </a>
                     </div>
@@ -2836,13 +2840,24 @@
                                 <input type="tel" class="form-input" id="serverPhone" placeholder="(555) 123-4567">
                             </div>
                         </div>
-                        <div class="checkbox-group">
-                            <input type="checkbox" id="serviceFeeExemptCheck">
-                            <label for="serviceFeeExemptCheck">Grant service fee exemption (Law Enforcement)</label>
-                        </div>
-                        <div class="checkbox-group">
-                            <input type="checkbox" id="fullFeeExemptCheck">
-                            <label for="fullFeeExemptCheck">Grant full fee exemption (Admin only)</label>
+                        <div id="lawEnforcementSection" style="display: none;">
+                            <div class="form-group" style="background: #1e293b; padding: 1rem; border-radius: 0.5rem; border: 1px solid #334155; margin-top: 1rem;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                    <i class="fas fa-shield-alt" style="color: #3b82f6;"></i>
+                                    <span style="font-weight: 600;">Law Enforcement Agency</span>
+                                </div>
+                                <p class="form-help" style="margin-bottom: 1rem;">Law enforcement agencies pay only actual gas costs (no profit margins)</p>
+                                <div class="form-group">
+                                    <label class="form-label">Agency Name <span style="color: #ef4444;">*</span></label>
+                                    <input type="text" class="form-input" id="agencyName" 
+                                           placeholder="e.g., FBI, DEA, Local Police Department">
+                                    <p class="form-help">Required for law enforcement exemptions</p>
+                                </div>
+                                <div class="checkbox-group">
+                                    <input type="checkbox" id="lawEnforcementExempt">
+                                    <label for="lawEnforcementExempt">Grant law enforcement exemption (cost-only pricing)</label>
+                                </div>
+                            </div>
                         </div>
                         <div style="display: flex; gap: 0.5rem;">
                             <button class="btn btn-primary" onclick="grantRole()" id="grantRoleBtn">
@@ -2906,6 +2921,8 @@
                         <div class="card-header">
                             <h2><i class="fas fa-cog"></i> Contract Management</h2>
                         </div>
+                        <!-- Resource Sponsorship removed - not in simplified contract -->
+                        <!--
                         <div class="form-group">
                             <label class="form-label">Resource Sponsorship</label>
                             <div class="checkbox-group">
@@ -2918,6 +2935,7 @@
                             Update Settings
                         </button>
                         <div id="contractManagementResult"></div>
+                        -->
                         
                         <!-- Energy Delegation Section -->
                         <div class="form-group" style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
@@ -3006,69 +3024,151 @@
             <div class="faq-container">
                 <h2 style="margin-bottom: 2rem;"><i class="fas fa-question-circle"></i> Frequently Asked Questions</h2>
                 
-                <!-- View-Gated Notice Process -->
+                <!-- Understanding the Two Delivery Methods -->
                 <div class="faq-section">
                     <button class="faq-header active" onclick="toggleFAQ(this)">
                         <i class="fas fa-chevron-down"></i>
-                        <span>How View-Gated Legal Notices Work</span>
+                        <span>Understanding the Two Delivery Methods</span>
                     </button>
                     <div class="faq-content" style="display: block;">
-                        <h4>What is a View-Gated Legal Notice?</h4>
-                        <p>A revolutionary approach to serving legal documents via blockchain that ensures certified delivery while protecting document privacy.</p>
+                        <h4>We offer two distinct methods for delivering legal notices via blockchain:</h4>
                         
-                        <div class="process-steps">
-                            <div class="step">
-                                <div class="step-number">1</div>
-                                <div class="step-content">
-                                    <strong>Process Server Creates Notice</strong>
-                                    <p>The server uploads the legal document (encrypted) and provides:</p>
-                                    <ul>
-                                        <li>Issuing agency (e.g., "U.S. Department of Justice")</li>
-                                        <li>Notice type (e.g., "Notice of Seizure")</li>
-                                        <li>Case number (e.g., "CV-2024-001234")</li>
-                                        <li>Specific details (e.g., "245,000 USDT")</li>
-                                        <li>Legal rights statement</li>
-                                    </ul>
+                        <div class="delivery-option">
+                            <h5><i class="fas fa-file-shield"></i> Document Images (Secure & Verifiable)</h5>
+                            <p><strong>Purpose:</strong> For serving official legal documents that require proof of delivery and signature confirmation.</p>
+                            
+                            <div class="info-box">
+                                <i class="fas fa-lock"></i>
+                                <div>
+                                    <strong>How it works:</strong>
+                                    <ol style="margin: 0.5rem 0 0 0;">
+                                        <li>Legal document is encrypted using the recipient's wallet address</li>
+                                        <li>Document stored securely on IPFS (decentralized storage)</li>
+                                        <li>Recipient receives NFT with public notice text</li>
+                                        <li>To view document, recipient must "accept" (sign transaction)</li>
+                                        <li>Acceptance creates immutable proof of delivery with timestamp</li>
+                                        <li>Decryption key revealed only after acceptance</li>
+                                    </ol>
                                 </div>
                             </div>
                             
-                            <div class="step">
-                                <div class="step-number">2</div>
-                                <div class="step-content">
-                                    <strong>Recipient Receives Alert NFT</strong>
-                                    <p>An alert appears in their wallet showing:</p>
-                                    <div class="example-notice">
-                                        <strong>Notice of Seizure</strong><br>
-                                        U.S. Department of Justice Notice of Seizure - Case CV-2024-001234. 245,000 USDT. 
-                                        You have the right to contest this seizure. All fees have been paid. 
-                                        You can accept this notice with no charge. Instructions and documentation included.
+                            <p><strong>Security Features:</strong></p>
+                            <ul>
+                                <li>✅ Document remains private until accepted</li>
+                                <li>✅ Only intended recipient can decrypt</li>
+                                <li>✅ Blockchain proof of service date/time</li>
+                                <li>✅ Cannot be altered after creation</li>
+                                <li>✅ Permanent verifiable record</li>
+                            </ul>
+                            
+                            <p><strong>Best for:</strong> Court orders, seizure notices, subpoenas, summons, eviction notices, and any document requiring certified delivery.</p>
+                        </div>
+                        
+                        <div class="delivery-option">
+                            <h5><i class="fas fa-comment-alt"></i> Text Only (Simple & Direct)</h5>
+                            <p><strong>Purpose:</strong> For public notices, reminders, or communications that don't require signature confirmation.</p>
+                            
+                            <div class="info-box warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <div>
+                                    <strong>How it works:</strong>
+                                    <ol style="margin: 0.5rem 0 0 0;">
+                                        <li>Text message is sent directly to recipient's wallet</li>
+                                        <li>Appears immediately as NFT - no acceptance required</li>
+                                        <li>All content is publicly visible on blockchain</li>
+                                        <li>No encryption or privacy protection</li>
+                                        <li>No proof of recipient viewing/acknowledging</li>
+                                    </ol>
+                                </div>
+                            </div>
+                            
+                            <p><strong>Limitations:</strong></p>
+                            <ul>
+                                <li>⚠️ No privacy - anyone can read the message</li>
+                                <li>⚠️ No proof recipient saw the notice</li>
+                                <li>⚠️ Cannot attach documents</li>
+                                <li>⚠️ Limited to 100 characters</li>
+                            </ul>
+                            
+                            <p><strong>Best for:</strong> Payment reminders, public announcements, preliminary notices, meeting notifications.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recipient Experience & Security -->
+                <div class="faq-section">
+                    <button class="faq-header" onclick="toggleFAQ(this)">
+                        <i class="fas fa-chevron-right"></i>
+                        <span>Recipient Experience & Security</span>
+                    </button>
+                    <div class="faq-content">
+                        <h4>What Recipients Experience</h4>
+                        
+                        <div class="recipient-journey">
+                            <h5>For Document Images Notices:</h5>
+                            <div class="process-steps">
+                                <div class="step">
+                                    <div class="step-number">1</div>
+                                    <div class="step-content">
+                                        <strong>NFT Appears in Wallet</strong>
+                                        <p>Recipients see a new NFT titled with the notice type (e.g., "PS#1-Legal Notice"). The description includes:</p>
+                                        <ul>
+                                            <li>Issuing agency name</li>
+                                            <li>Case reference number</li>
+                                            <li>Brief description of the matter</li>
+                                            <li>Clear message: "Legal document attached. Accept to view."</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                
+                                <div class="step">
+                                    <div class="step-number">2</div>
+                                    <div class="step-content">
+                                        <strong>One-Click Acceptance</strong>
+                                        <p>To view the document:</p>
+                                        <ul>
+                                            <li>Click "Accept Notice" button</li>
+                                            <li>Approve transaction in wallet (FREE if sponsored)</li>
+                                            <li>Wait ~3 seconds for confirmation</li>
+                                            <li>Document automatically decrypts and displays</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                
+                                <div class="step">
+                                    <div class="step-number">3</div>
+                                    <div class="step-content">
+                                        <strong>Permanent Access</strong>
+                                        <p>After acceptance:</p>
+                                        <ul>
+                                            <li>Full document is viewable anytime</li>
+                                            <li>Can download/print for records</li>
+                                            <li>Blockchain timestamp proves when you received it</li>
+                                            <li>Cannot be altered or deleted</li>
+                                        </ul>
                                     </div>
                                 </div>
                             </div>
                             
-                            <div class="step">
-                                <div class="step-number">3</div>
-                                <div class="step-content">
-                                    <strong>Recipient Must Accept to View</strong>
-                                    <p>To access the full document, the recipient must:</p>
-                                    <ul>
-                                        <li>Sign a blockchain transaction (proves receipt)</li>
-                                        <li>No fees if server sponsored acceptance</li>
-                                        <li>Creates permanent proof of delivery</li>
-                                    </ul>
-                                </div>
-                            </div>
+                            <h5>For Text Only Notices:</h5>
+                            <ul>
+                                <li>Message appears immediately in wallet</li>
+                                <li>No action required - it's already visible</li>
+                                <li>No fees or signatures needed</li>
+                                <li>Simple informational delivery</li>
+                            </ul>
                             
-                            <div class="step">
-                                <div class="step-number">4</div>
-                                <div class="step-content">
-                                    <strong>Document Access Granted</strong>
-                                    <p>After acceptance:</p>
-                                    <ul>
-                                        <li>Decryption key is revealed</li>
-                                        <li>Full document becomes viewable</li>
-                                        <li>Timestamp recorded on blockchain</li>
-                                        <li>Certified delivery is complete</li>
+                            <h5>Security for Recipients:</h5>
+                            <div class="info-box">
+                                <i class="fas fa-shield-alt"></i>
+                                <div>
+                                    <strong>Your wallet = Your control</strong>
+                                    <ul style="margin: 0.5rem 0 0 0;">
+                                        <li>Documents encrypted with YOUR wallet address</li>
+                                        <li>Only YOU can decrypt and view</li>
+                                        <li>Process servers cannot see if/when you view</li>
+                                        <li>No personal information exposed publicly</li>
+                                        <li>Acceptance is voluntary - you control timing</li>
                                     </ul>
                                 </div>
                             </div>
@@ -3076,100 +3176,90 @@
                     </div>
                 </div>
                 
-                <!-- Recipient's Perspective -->
+                <!-- Complete Fee Structure & Energy Costs -->
                 <div class="faq-section">
                     <button class="faq-header" onclick="toggleFAQ(this)">
                         <i class="fas fa-chevron-right"></i>
-                        <span>Recipient's Experience</span>
+                        <span>Complete Fee Structure & Energy Costs</span>
                     </button>
                     <div class="faq-content">
-                        <h4>What Recipients See and Do</h4>
-                        
-                        <div class="recipient-journey">
-                            <h5>1. Initial Alert in Wallet</h5>
-                            <p>Recipients see a new NFT in their wallet with complete information about the legal notice. The title clearly states the notice type, and the description includes all essential details.</p>
-                            
-                            <h5>2. No Crypto Knowledge Required</h5>
-                            <p>The alert works in ANY wallet that supports NFTs. Recipients don't need to understand blockchain - they just see they've received an important legal document.</p>
-                            
-                            <h5>3. Free to Accept (When Sponsored)</h5>
-                            <p>If the server paid sponsorship fees, recipients can accept without any blockchain fees. They simply approve the transaction with no cost.</p>
-                            
-                            <h5>4. Privacy Protected</h5>
-                            <p>The document remains encrypted until accepted. Only the recipient can decrypt and view the full contents after acceptance.</p>
-                            
-                            <h5>5. Permanent Record</h5>
-                            <p>Once accepted, both parties have permanent blockchain proof of delivery with exact timestamp.</p>
-                        </div>
-                        
-                        <div class="warning-box">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            <p><strong>Important:</strong> Recipients should only accept notices from verified sources. The blockchain ensures authenticity but recipients should verify the serving party's identity.</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Fee Structure -->
-                <div class="faq-section">
-                    <button class="faq-header" onclick="toggleFAQ(this)">
-                        <i class="fas fa-chevron-right"></i>
-                        <span>Fee Structure Breakdown</span>
-                    </button>
-                    <div class="faq-content">
-                        <h4>Understanding the Costs</h4>
+                        <h4>Understanding All Costs</h4>
                         
                         <div class="fee-table">
                             <table>
                                 <thead>
                                     <tr>
-                                        <th>Delivery Method</th>
-                                        <th>Base Fee</th>
-                                        <th>Sponsorship</th>
-                                        <th>Total</th>
-                                        <th>Best For</th>
+                                        <th>User Type</th>
+                                        <th>Document Images</th>
+                                        <th>Text Only</th>
+                                        <th>Energy Cost</th>
+                                        <th>Total Estimate</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td><strong>View-Gated Notice</strong></td>
-                                        <td>20 TRX</td>
-                                        <td>+2 TRX (optional)</td>
-                                        <td>20-22 TRX</td>
-                                        <td>Legal compliance, certified delivery</td>
+                                        <td><strong>Regular User</strong></td>
+                                        <td>150 TRX + 2 TRX</td>
+                                        <td>15 TRX + 2 TRX</td>
+                                        <td>~90 TRX / ~36 TRX</td>
+                                        <td>~242 TRX / ~53 TRX</td>
                                     </tr>
                                     <tr>
-                                        <td>Simple Text</td>
-                                        <td>15 TRX</td>
-                                        <td>N/A</td>
-                                        <td>15 TRX</td>
-                                        <td>Basic notifications</td>
+                                        <td><strong>Process Server</strong></td>
+                                        <td>75 TRX + 2 TRX</td>
+                                        <td>15 TRX + 2 TRX</td>
+                                        <td>~90 TRX / ~36 TRX</td>
+                                        <td>~167 TRX / ~53 TRX</td>
                                     </tr>
                                     <tr>
-                                        <td>Image Preview</td>
-                                        <td>55 TRX</td>
-                                        <td>N/A</td>
-                                        <td>55 TRX</td>
-                                        <td>Visual confirmation</td>
+                                        <td><strong>Law Enforcement</strong></td>
+                                        <td>0 TRX + 2 TRX</td>
+                                        <td>0 TRX + 2 TRX</td>
+                                        <td>~90 TRX / ~36 TRX</td>
+                                        <td>~92 TRX / ~38 TRX</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
                         
-                        <h5>Why View-Gated Costs More Than Text:</h5>
-                        <ul>
-                            <li>Stores comprehensive metadata on-chain</li>
-                            <li>Implements access control logic</li>
-                            <li>Tracks acceptance status</li>
-                            <li>Provides certified delivery proof</li>
-                        </ul>
+                        <h5>Fee Components Explained:</h5>
                         
-                        <h5>Sponsorship Fee Benefits:</h5>
-                        <ul>
-                            <li>Recipients accept with zero fees</li>
-                            <li>Removes barriers for non-crypto users</li>
-                            <li>Ensures delivery completion</li>
-                            <li>Only 2 TRX extra per notice</li>
-                        </ul>
+                        <div class="fee-explanation">
+                            <div class="fee-item">
+                                <strong>Service Fee (150 TRX for Documents, 15 TRX for Text)</strong>
+                                <p>Covers platform operations, IPFS storage, encryption services, and profit margin. This is the primary revenue source.</p>
+                            </div>
+                            
+                            <div class="fee-item">
+                                <strong>Creation Fee (75 TRX for Process Servers)</strong>
+                                <p>Reduced fee for verified process servers who serve high volumes. Covers operational costs with minimal profit.</p>
+                            </div>
+                            
+                            <div class="fee-item">
+                                <strong>Sponsorship Fee (2 TRX - ALWAYS INCLUDED)</strong>
+                                <p>Ensures recipients can accept notices without needing TRX. This fee is mandatory and cannot be waived. It removes all friction for recipients.</p>
+                            </div>
+                            
+                            <div class="fee-item">
+                                <strong>Energy Costs (~90 TRX for Documents, ~36 TRX for Text)</strong>
+                                <p>TRON blockchain requires "energy" to process transactions. Without staked TRX, this energy must be "burned" from your balance. This is NOT kept by us - it goes to the TRON network.</p>
+                            </div>
+                        </div>
+                        
+                        <h5>Law Enforcement Special Pricing:</h5>
+                        <div class="info-box">
+                            <i class="fas fa-balance-scale"></i>
+                            <div>
+                                <strong>Cost-Only Pricing for Law Enforcement</strong>
+                                <p style="margin: 0.5rem 0 0 0;">Verified law enforcement agencies pay ONLY actual costs:</p>
+                                <ul style="margin: 0.5rem 0 0 0;">
+                                    <li>2 TRX sponsorship (for recipient)</li>
+                                    <li>Energy costs (paid by their wallet)</li>
+                                    <li>NO service fees or profit margins</li>
+                                    <li>Must be verified with agency name</li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
@@ -3203,7 +3293,7 @@
                                 <li>Click "Create Legal Notice" button</li>
                                 <li>Upload your legal document</li>
                                 <li>Enter recipient's wallet address</li>
-                                <li>Select "View-Gated Notice" as delivery method</li>
+                                <li>Select "Document Images" as delivery method</li>
                                 <li>Fill in notice details:
                                     <ul>
                                         <li>Select or enter notice type</li>
@@ -3813,9 +3903,13 @@
                             
                             <div class="form-group">
                                 <label class="form-label">Token Name</label>
-                                <input type="text" class="form-input" id="mintTokenName" 
-                                       placeholder="e.g., Smith v. Jones Notice #1">
-                                <p class="form-help">Name this notice token (auto-numbered if left blank)</p>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span id="tokenPrefix" style="background: #374151; padding: 0.75rem; border-radius: 0.375rem 0 0 0.375rem; border: 1px solid #4b5563; border-right: none; color: #9ca3af; font-family: monospace;">PS#?-</span>
+                                    <input type="text" class="form-input" id="mintTokenName" 
+                                           placeholder="Legal Notice" 
+                                           style="border-radius: 0 0.375rem 0.375rem 0; flex: 1;">
+                                </div>
+                                <p class="form-help">Token name (will be prepended with your server ID, e.g., PS#1-Legal Notice)</p>
                             </div>
                             
                             <div class="form-group">
@@ -3855,39 +3949,43 @@
                                     <label class="delivery-option selected">
                                         <input type="radio" name="deliveryMethod" value="viewgated" checked>
                                         <div class="delivery-option-title">
-                                            <i class="fas fa-lock"></i> View-Gated Notice
+                                            <i class="fas fa-file-shield"></i> Document Images
                                         </div>
-                                        <div class="delivery-option-cost">~20 TRX</div>
+                                        <div class="delivery-option-cost">~150 TRX</div>
                                         <div class="delivery-option-desc">
-                                            <strong>Recommended:</strong> Recipient must accept to view document
-                                            <br><small>✓ Maximum wallet compatibility</small>
-                                            <br><small>✓ Certified delivery proof</small>
-                                            <br><small>✓ Document remains private until accepted</small>
+                                            <strong>Secure Legal Service:</strong> Encrypted document + public text notice
+                                            <br><small>✓ Document encrypted with recipient's wallet</small>
+                                            <br><small>✓ Requires signature for proof of service</small>
+                                            <br><small>⚠️ Text notice will be publicly visible</small>
                                         </div>
                                     </label>
                                     
                                     <label class="delivery-option">
                                         <input type="radio" name="deliveryMethod" value="text">
                                         <div class="delivery-option-title">
-                                            <i class="fas fa-font"></i> Simple Text
+                                            <i class="fas fa-comment-alt"></i> Text Only
                                         </div>
                                         <div class="delivery-option-cost">~15 TRX</div>
-                                        <div class="delivery-option-desc">Basic text notice - No view protection</div>
+                                        <div class="delivery-option-desc">
+                                            <strong>Public Notice:</strong> Text message only, no documents
+                                            <br><small>✓ For reminders, preliminary notices</small>
+                                            <br><small>✓ No signature required (view only)</small>
+                                            <br><small>⚠️ All content will be publicly visible</small>
+                                        </div>
                                     </label>
                                     
-                                    <label class="delivery-option">
-                                        <input type="radio" name="deliveryMethod" value="full">
-                                        <div class="delivery-option-title">
-                                            <i class="fas fa-shield-alt"></i> Full Service
-                                        </div>
-                                        <div class="delivery-option-cost">~37 TRX</div>
-                                        <div class="delivery-option-desc">Both text summary AND view-gated document</div>
-                                    </label>
                                 </div>
                             </div>
                             
-                            <!-- View-Gated Notice Details -->
+                            <!-- Document Images Notice Details -->
                             <div class="view-gated-details" id="viewGatedDetails" style="display: block;">
+                                <div class="alert alert-info" style="margin-bottom: 1rem; background: #fef3c7; border-color: #f59e0b; color: #92400e;">
+                                    <i class="fas fa-exclamation-triangle" style="color: #f59e0b;"></i>
+                                    <strong>Important Privacy Notice:</strong>
+                                    <br>• The document image will be encrypted and only viewable by the recipient
+                                    <br>• The text fields below will be <strong>publicly visible on the blockchain</strong>
+                                    <br>• Only include non-sensitive information in these text fields
+                                </div>
                                 <div class="form-group">
                                     <label class="form-label">Notice Type</label>
                                     <select id="noticeType" class="form-select" onchange="updateNoticeTemplate()">
@@ -3941,30 +4039,37 @@
                                     <p class="form-help">Inform recipient of their legal rights</p>
                                 </div>
                                 
-                                <div class="form-group">
-                                    <label class="form-label">
-                                        <input type="checkbox" id="sponsorAcceptanceFees" checked style="margin-right: 8px;">
-                                        Pay Recipient's Acceptance Fees (+2 TRX)
-                                    </label>
-                                    <p class="form-help">When checked, recipient can accept with no blockchain fees</p>
+                                <div class="form-group" style="background: #1e293b; padding: 1rem; border-radius: 0.5rem; border: 1px solid #334155;">
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                        <i class="fas fa-gift" style="color: #10b981;"></i>
+                                        <span style="font-weight: 600;">Recipient Sponsorship Included</span>
+                                    </div>
+                                    <p class="form-help" style="margin: 0;">All notices include a 2 TRX sponsorship fee that covers the recipient's acceptance costs. This ensures recipients can always view their legal documents without needing TRX.</p>
                                 </div>
                             </div>
                             
-                            <!-- Simple Text Notice Input (hidden by default) -->
+                            <!-- Text Notice Input -->
                             <div class="text-notice-input" id="textNoticeGroup" style="display: none;">
-                                <label for="noticeText" id="noticeTextLabel">Notice Text</label>
-                                <input type="text" class="form-input" id="noticeText" 
-                                       placeholder="Legal Notice: Case #CV-2024-001234"
-                                       maxlength="100">
-                                <div class="char-count"><span id="charCount">0</span> / 100 characters</div>
-                                <p class="form-help" id="noticeTextHelp">This text will display directly in the recipient's wallet</p>
+                                <div class="form-group" style="background: #fef3c7; padding: 1rem; border-radius: 0.5rem; border: 2px solid #f59e0b;">
+                                    <label for="noticeText" id="noticeTextLabel">
+                                        <i class="fas fa-globe" style="color: #f59e0b;"></i> Public Notice Text
+                                    </label>
+                                    <input type="text" class="form-input" id="noticeText" 
+                                           placeholder="Legal Notice: Case #CV-2024-001234"
+                                           maxlength="100"
+                                           style="border: 2px solid #f59e0b;">
+                                    <div class="char-count"><span id="charCount">0</span> / 100 characters</div>
+                                    <p class="form-help" id="noticeTextHelp" style="color: #92400e; font-weight: 500;">
+                                        <i class="fas fa-exclamation-circle"></i> This text will be publicly visible on the blockchain
+                                    </p>
+                                </div>
                             </div>
                             
                             <div class="alert alert-warning">
                                 <i class="fas fa-coins"></i>
                                 <div>
-                                    <strong>Estimated Fee:</strong> <span id="creationFeeDisplay">15 TRX</span>
-                                    <br><small id="feeDescription">Text notice with IPFS document reference</small>
+                                    <strong>Estimated Fee:</strong> <span id="creationFeeDisplay">150 TRX</span>
+                                    <br><small id="feeDescription">Encrypted document with public text notice</small>
                                 </div>
                             </div>
                             
@@ -3976,6 +4081,41 @@
                                 </label>
                                 <p class="form-help">When enabled, you'll receive on-chain proof when the recipient accepts the notice</p>
                             </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Fee Summary Display -->
+                    <div id="feeSummaryBox" class="fee-summary-box" style="background: #1e293b; padding: 1.5rem; border-radius: 0.5rem; border: 1px solid #334155; margin-top: 1.5rem;">
+                        <h5 style="margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fas fa-calculator" style="color: #3b82f6;"></i>
+                            Total Cost Estimate
+                        </h5>
+                        <div class="fee-breakdown">
+                            <div class="fee-item" style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #334155;">
+                                <span id="feeTypeLabel">Document Notice Fee:</span>
+                                <span id="baseFeeAmount" style="font-weight: 600;">150 TRX</span>
+                            </div>
+                            <div class="fee-item" style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #334155;">
+                                <span>Recipient Sponsorship:</span>
+                                <span style="font-weight: 600;">2 TRX</span>
+                            </div>
+                            <div class="fee-item" id="energyFeeItem" style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #334155;">
+                                <span>Estimated Energy Cost:</span>
+                                <span id="energyCostAmount" style="font-weight: 600; color: #f59e0b;">~90 TRX</span>
+                            </div>
+                            <div class="fee-total" style="display: flex; justify-content: space-between; padding: 0.75rem 0 0 0; font-size: 1.125rem;">
+                                <span style="font-weight: 600;">Total Estimated Cost:</span>
+                                <span id="totalCostAmount" style="font-weight: 700; color: #10b981;">~242 TRX</span>
+                            </div>
+                        </div>
+                        <div class="fee-notes" style="margin-top: 1rem; font-size: 0.875rem; color: #94a3b8;">
+                            <p id="energyNote" style="margin: 0.5rem 0;">
+                                <i class="fas fa-info-circle"></i> Energy costs apply if you don't have staked TRX. 
+                                <a href="https://tronscan.org/#/sr/representatives" target="_blank" style="color: #3b82f6;">Stake TRX</a> to avoid energy fees.
+                            </p>
+                            <p id="feeExemptionNote" style="margin: 0.5rem 0; display: none; color: #10b981;">
+                                <i class="fas fa-check-circle"></i> <span id="exemptionText">Fee exemption applied</span>
+                            </p>
                         </div>
                     </div>
                     
@@ -4263,27 +4403,40 @@
         
         // Contract ABI - Complete ABI with all functions
         const CONTRACT_ABI = [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"approved","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"operator","type":"address"},{"indexed":false,"internalType":"bool","name":"approved","type":"bool"}],"name":"ApprovalForAll","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"address","name":"oldCollector","type":"address"},{"indexed":false,"internalType":"address","name":"newCollector","type":"address"}],"name":"FeeCollectorUpdated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"user","type":"address"},{"indexed":false,"internalType":"bool","name":"serviceFeeExempt","type":"bool"},{"indexed":false,"internalType":"bool","name":"fullFeeExempt","type":"bool"}],"name":"FeeExemptionSet","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"string","name":"feeType","type":"string"},{"indexed":false,"internalType":"uint256","name":"oldFee","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"newFee","type":"uint256"}],"name":"FeeUpdated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"noticeId","type":"uint256"},{"indexed":true,"internalType":"address","name":"server","type":"address"},{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"timestamp","type":"uint256"}],"name":"LegalNoticeCreated","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"alertId","type":"uint256"},{"indexed":true,"internalType":"address","name":"recipient","type":"address"}],"name":"NoticeAcknowledged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"alertId","type":"uint256"},{"indexed":true,"internalType":"uint256","name":"documentId","type":"uint256"},{"indexed":true,"internalType":"address","name":"recipient","type":"address"}],"name":"NoticeServed","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"energy","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"bandwidth","type":"uint256"}],"name":"ResourceSponsored","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"bytes32","name":"role","type":"bytes32"},{"indexed":true,"internalType":"address","name":"account","type":"address"}],"name":"RoleGranted","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"Transfer","type":"event"},{"inputs":[],"name":"ADMIN_ROLE","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"PROCESS_SERVER_ROLE","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"SERVICE_FEE","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"alertId","type":"uint256"}],"name":"acceptNotice","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"alertNotices","outputs":[{"internalType":"address","name":"recipient","type":"address"},{"internalType":"address","name":"sender","type":"address"},{"internalType":"uint256","name":"documentId","type":"uint256"},{"internalType":"uint256","name":"timestamp","type":"uint256"},{"internalType":"bool","name":"acknowledged","type":"bool"},{"internalType":"string","name":"issuingAgency","type":"string"},{"internalType":"string","name":"noticeType","type":"string"},{"internalType":"string","name":"caseNumber","type":"string"},{"internalType":"string","name":"caseDetails","type":"string"},{"internalType":"string","name":"legalRights","type":"string"},{"internalType":"uint256","name":"responseDeadline","type":"uint256"},{"internalType":"string","name":"previewImage","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"alertId","type":"uint256"}],"name":"alerts","outputs":[{"internalType":"address","name":"recipient","type":"address"},{"internalType":"address","name":"sender","type":"address"},{"internalType":"uint256","name":"documentId","type":"uint256"},{"internalType":"uint256","name":"timestamp","type":"uint256"},{"internalType":"bool","name":"acknowledged","type":"bool"},{"internalType":"string","name":"issuingAgency","type":"string"},{"internalType":"string","name":"noticeType","type":"string"},{"internalType":"string","name":"caseNumber","type":"string"},{"internalType":"string","name":"caseDetails","type":"string"},{"internalType":"string","name":"legalRights","type":"string"},{"internalType":"uint256","name":"responseDeadline","type":"uint256"},{"internalType":"string","name":"previewImage","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"approve","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"calculateFee","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"creationFee","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"documentNotices","outputs":[{"internalType":"string","name":"encryptedIPFS","type":"string"},{"internalType":"string","name":"decryptionKey","type":"string"},{"internalType":"address","name":"authorizedViewer","type":"address"},{"internalType":"uint256","name":"alertId","type":"uint256"},{"internalType":"bool","name":"isRestricted","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"feeCollector","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"fullFeeExemptions","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"alertId","type":"uint256"}],"name":"getAlertDetails","outputs":[{"internalType":"address","name":"recipient","type":"address"},{"internalType":"address","name":"sender","type":"address"},{"internalType":"uint256","name":"documentId","type":"uint256"},{"internalType":"uint256","name":"timestamp","type":"uint256"},{"internalType":"bool","name":"acknowledged","type":"bool"},{"internalType":"string","name":"issuingAgency","type":"string"},{"internalType":"string","name":"noticeType","type":"string"},{"internalType":"string","name":"caseNumber","type":"string"},{"internalType":"string","name":"caseDetails","type":"string"},{"internalType":"string","name":"legalRights","type":"string"},{"internalType":"uint256","name":"responseDeadline","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"getApproved","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"recipient","type":"address"}],"name":"getRecipientAlerts","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"server","type":"address"}],"name":"getServerNotices","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"}],"name":"getUserNotices","outputs":[{"internalType":"uint256[]","name":"","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"role","type":"bytes32"},{"internalType":"address","name":"account","type":"address"}],"name":"grantRole","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes32","name":"role","type":"bytes32"},{"internalType":"address","name":"account","type":"address"}],"name":"hasRole","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"operator","type":"address"}],"name":"isApprovedForAll","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"name","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"pure","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"notices","outputs":[{"internalType":"uint256","name":"alertId","type":"uint256"},{"internalType":"uint256","name":"documentId","type":"uint256"},{"internalType":"address","name":"server","type":"address"},{"internalType":"address","name":"recipient","type":"address"},{"internalType":"uint256","name":"timestamp","type":"uint256"},{"internalType":"bool","name":"acknowledged","type":"bool"},{"internalType":"string","name":"noticeType","type":"string"},{"internalType":"string","name":"caseNumber","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"}],"name":"recipientAlerts","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"resourceSponsorshipEnabled","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"role","type":"bytes32"},{"internalType":"address","name":"account","type":"address"}],"name":"revokeRole","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"bytes","name":"_data","type":"bytes"}],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"recipient","type":"address"},{"internalType":"string","name":"encryptedIPFS","type":"string"},{"internalType":"string","name":"decryptionKey","type":"string"},{"internalType":"string","name":"issuingAgency","type":"string"},{"internalType":"string","name":"noticeType","type":"string"},{"internalType":"string","name":"caseNumber","type":"string"},{"internalType":"string","name":"caseDetails","type":"string"},{"internalType":"string","name":"legalRights","type":"string"},{"internalType":"bool","name":"sponsorFees","type":"bool"}],"name":"serveNotice","outputs":[{"internalType":"uint256","name":"alertId","type":"uint256"},{"internalType":"uint256","name":"documentId","type":"uint256"}],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"}],"name":"serverNotices","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"serviceFee","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"serviceFeeExemptions","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"operator","type":"address"},{"internalType":"bool","name":"approved","type":"bool"}],"name":"setApprovalForAll","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"user","type":"address"},{"internalType":"bool","name":"serviceFeeExempt","type":"bool"},{"internalType":"bool","name":"fullFeeExempt","type":"bool"}],"name":"setFeeExemption","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bool","name":"enabled","type":"bool"}],"name":"setResourceSponsorship","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"sponsoredBandwidth","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"sponsoredEnergy","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"sponsorshipFee","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes4","name":"interfaceId","type":"bytes4"}],"name":"supportsInterface","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"pure","type":"function"},{"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"pure","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"tokenTypes","outputs":[{"internalType":"enumLegalNoticeNFT_Complete.NoticeType","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalNotices","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"transferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"newFee","type":"uint256"}],"name":"updateCreationFee","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"newFee","type":"uint256"}],"name":"updateFee","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"newCollector","type":"address"}],"name":"updateFeeCollector","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"newFee","type":"uint256"}],"name":"updateServiceFee","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"newFee","type":"uint256"}],"name":"updateSponsorshipFee","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"documentId","type":"uint256"}],"name":"viewDocument","outputs":[{"internalType":"string","name":"encryptedIPFS","type":"string"},{"internalType":"string","name":"decryptionKey","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"withdrawTRX","outputs":[],"stateMutability":"nonpayable","type":"function"}];
+        
+        // Get total notices from contract
+        async function getTotalNotices() {
+            if (!legalContract) return 0;
+            
+            try {
+                const total = await legalContract.totalNotices().call();
+                return parseInt(total);
+            } catch (error) {
+                console.log('Could not fetch total notices:', error);
+                return 0;
+            }
+        }
 
         // Multi-chain configuration
         const CHAIN_CONFIG = {
             tron: {
                 mainnet: {
                     name: 'TRON Mainnet',
-                    contractAddress: 'TYour_Mainnet_Contract_Address',
+                    contractAddress: window.APP_CONFIG?.contracts.tron.mainnet || 'TYour_Mainnet_Contract_Address',
                     explorerUrl: 'https://tronscan.org',
                     nativeToken: 'TRX',
                     chainId: null
                 },
                 nile: {
                     name: 'TRON Nile Testnet',
-                    contractAddress: 'TWdZdDUk3yW1KRUPxo4gHySDRjBjMPQJ3n',
+                    contractAddress: window.APP_CONFIG?.contracts.tron.nile || 'TDLjE4kiTaGPgX2MKfWGnma2mhAhdjqaYo',
                     explorerUrl: 'https://nile.tronscan.org',
                     nativeToken: 'TRX',
                     chainId: null
                 },
                 shasta: {
                     name: 'TRON Shasta Testnet',
-                    contractAddress: 'TYour_Shasta_Contract_Address',
+                    contractAddress: window.APP_CONFIG?.contracts.tron.shasta || 'TYour_Shasta_Contract_Address',
                     explorerUrl: 'https://shasta.tronscan.org',
                     nativeToken: 'TRX',
                     chainId: null
@@ -4881,23 +5034,46 @@ function useConnectedAddressForFeeCollector() {
             modal.style.display = 'block';
             resetMintForm();
             
+            // Update token prefix based on user role
+            await updateTokenPrefix();
+            
             // Update fee display based on actual contract calculation
             try {
                 const userAddress = tronWeb.defaultAddress.base58;
                 const fee = await legalContract.calculateFee(userAddress).call();
                 const feeInTrx = tronWeb.fromSun(fee);
-                document.getElementById('creationFeeDisplay').textContent = `${feeInTrx} TRX`;
+                
+                // Get specific fees for different notice types
+                let documentFee, textFee;
+                try {
+                    const docFeeRaw = await legalContract.serviceFee().call();
+                    const textFeeRaw = await legalContract.textOnlyFee().call();
+                    documentFee = tronWeb.fromSun(docFeeRaw);
+                    textFee = tronWeb.fromSun(textFeeRaw);
+                } catch (e) {
+                    // Fallback to single fee if new fee structure not available
+                    documentFee = feeInTrx;
+                    textFee = feeInTrx;
+                }
+                
+                // Display fee based on current selection
+                const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked')?.value || 'document';
+                const baseFee = deliveryMethod === 'document' ? documentFee : textFee;
+                const totalWithSponsorship = parseFloat(baseFee) + 2; // Add mandatory sponsorship
+                
+                document.getElementById('creationFeeDisplay').textContent = `${totalWithSponsorship} TRX (${deliveryMethod === 'document' ? 'Document' : 'Text Only'})`;
                 
                 // Check if user has fee exemptions
-                const serviceFeeExempt = await legalContract.serviceFeeExemptions(userAddress).call();
-                const fullFeeExempt = await legalContract.fullFeeExemptions(userAddress).call();
+                const isLawEnforcement = await legalContract.lawEnforcementExemptions(userAddress).call();
+                const agencyName = await legalContract.lawEnforcementAgencies(userAddress).call();
                 
-                if (fullFeeExempt) {
-                    document.getElementById('feeDescription').textContent = 'You have full fee exemption';
-                } else if (serviceFeeExempt) {
-                    document.getElementById('feeDescription').textContent = 'You have 50% fee exemption';
+                if (isLawEnforcement) {
+                    document.getElementById('feeDescription').textContent = `Law Enforcement (${agencyName}) - Cost only: Sponsorship (2 TRX)`;
+                    document.getElementById('creationFeeDisplay').textContent = '2 TRX';
+                } else if (hasRole(PROCESS_SERVER_ROLE, userAddress)) {
+                    document.getElementById('feeDescription').textContent = 'Process Server: Creation fee + Sponsorship (2)';
                 } else {
-                    document.getElementById('feeDescription').textContent = 'Standard fee rate';
+                    document.getElementById('feeDescription').textContent = 'Service fee + Sponsorship (2)';
                 }
             } catch (error) {
                 console.error('Error calculating fee:', error);
@@ -4992,6 +5168,16 @@ function useConnectedAddressForFeeCollector() {
                         console.log('No preview available');
                     }
                     
+                    // Check if this is a text-only notice (no document)
+                    const isTextOnly = !details.documentId || details.documentId == 0;
+                    
+                    if (isTextOnly) {
+                        // For text-only notices, just show the content, no signature required
+                        uiManager.showNotification('info', 'This is a text-only notice. No signature required.');
+                        viewTextNotice(noticeId);
+                        return;
+                    }
+                    
                     document.getElementById('acceptModal').style.display = 'block';
                 } else {
                     uiManager.showNotification('error', 'Failed to load notice details');
@@ -5005,6 +5191,80 @@ function useConnectedAddressForFeeCollector() {
         function closeAcceptModal() {
             document.getElementById('acceptModal').style.display = 'none';
             currentNoticeId = null;
+        }
+        
+        // View text-only notice (no signature required)
+        async function viewTextNotice(noticeId) {
+            try {
+                const details = await getNoticeDetails(noticeId);
+                if (!details) {
+                    uiManager.showNotification('error', 'Notice not found');
+                    return;
+                }
+                
+                // Show modal with text notice content
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                modal.innerHTML = `
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2><i class="fas fa-comment-alt" style="color: #3b82f6;"></i> Text Notice</h2>
+                            <button class="close-btn" onclick="this.closest('.modal').remove()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-info" style="background: #e0f2fe; border-color: #3b82f6;">
+                                <i class="fas fa-info-circle" style="color: #3b82f6;"></i>
+                                <strong>View Only Notice</strong>
+                                <p style="margin: 0.25rem 0 0 0;">This is a text-only notice that does not require a signature.</p>
+                            </div>
+                            
+                            <div class="notice-details" style="margin-top: 1rem;">
+                                <div class="token-detail">
+                                    <span>Notice ID:</span>
+                                    <span>${noticeId}</span>
+                                </div>
+                                <div class="token-detail">
+                                    <span>Type:</span>
+                                    <span>${details.noticeType || 'Text Notice'}</span>
+                                </div>
+                                <div class="token-detail">
+                                    <span>Sender:</span>
+                                    <span>${createAddressDisplay(details.server)}</span>
+                                </div>
+                                <div class="token-detail">
+                                    <span>Date:</span>
+                                    <span>${new Date(parseInt(details.timestamp) * 1000).toLocaleString()}</span>
+                                </div>
+                                ${details.caseNumber ? `
+                                <div class="token-detail">
+                                    <span>Reference:</span>
+                                    <span>${details.caseNumber}</span>
+                                </div>
+                                ` : ''}
+                            </div>
+                            
+                            <div class="notice-content" style="margin-top: 1rem; padding: 1rem; background: #f9fafb; border-radius: 0.5rem;">
+                                <h4>Notice Content:</h4>
+                                <p style="margin-top: 0.5rem;">${details.caseDetails || details.noticeText || 'No content available'}</p>
+                                ${details.legalRights ? `<p style="margin-top: 0.5rem; font-weight: 500;">${details.legalRights}</p>` : ''}
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">
+                                <i class="fas fa-times"></i> Close
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                
+            } catch (error) {
+                console.error('Error viewing text notice:', error);
+                uiManager.showNotification('error', 'Failed to load notice');
+            }
         }
 
         function closeTxModal() {
@@ -5426,12 +5686,12 @@ function useConnectedAddressForFeeCollector() {
             // Continue with role granting
             await grantProcessServerRole(
                 window.pendingProcessServerAddress,
-                window.pendingServiceFeeExempt,
-                window.pendingFullFeeExempt
+                window.pendingLawEnforcementExempt,
+                window.pendingAgencyName
             );
         }
         
-        async function grantProcessServerRole(address, serviceFeeExempt, fullFeeExempt) {
+        async function grantProcessServerRole(address, lawEnforcementExempt, agencyName) {
             try {
                 showAlert('roleResult', 'info', 'Processing transaction...');
                 
@@ -5443,13 +5703,12 @@ function useConnectedAddressForFeeCollector() {
                     shouldPollResponse: true
                 });
                 
-                // Set fee exemptions if requested
-                if (serviceFeeExempt || fullFeeExempt) {
-                    showAlert('roleResult', 'info', 'Setting fee exemptions...');
+                // Set law enforcement exemption if requested
+                if (lawEnforcementExempt && agencyName) {
+                    showAlert('roleResult', 'info', 'Setting law enforcement exemption...');
                     
-                    // Lower fee limit for exemption setting too
-                    await legalContract.setFeeExemption(address, serviceFeeExempt, fullFeeExempt).send({
-                        feeLimit: 20_000_000,  // 20 TRX instead of 100 TRX
+                    await legalContract.setLawEnforcementExemption(address, agencyName).send({
+                        feeLimit: 20_000_000,
                         shouldPollResponse: true
                     });
                 }
@@ -5507,6 +5766,30 @@ function useConnectedAddressForFeeCollector() {
             } catch (error) {
                 console.error('Error checking process server role:', error);
                 return false;
+            }
+        }
+        
+        // Update token prefix based on process server status
+        async function updateTokenPrefix() {
+            if (!legalContract || !tronWeb.defaultAddress) return;
+            
+            try {
+                // Check if user is a process server
+                const isProcessServer = await checkIfProcessServer();
+                const prefixElement = document.getElementById('tokenPrefix');
+                
+                if (isProcessServer) {
+                    // Get server info to find their ID
+                    const serverInfo = await legalContract.getProcessServerInfo(tronWeb.defaultAddress.base58).call();
+                    const serverId = serverInfo.serverId || '?';
+                    prefixElement.textContent = `PS#${serverId}-`;
+                    prefixElement.style.color = '#10b981'; // Green for active server
+                } else {
+                    prefixElement.textContent = 'USR-';
+                    prefixElement.style.color = '#9ca3af'; // Gray for regular user
+                }
+            } catch (error) {
+                console.error('Error updating token prefix:', error);
             }
         }
 
@@ -5681,6 +5964,14 @@ function useConnectedAddressForFeeCollector() {
                 pending: 0,  // Will be updated from contract
                 servers: registrations.filter(r => r.status === 'approved').length
             };
+            
+            // Try to get total from contract if connected
+            if (legalContract) {
+                getTotalNotices().then(total => {
+                    stats.total = total;
+                    uiManager.updateStats(stats);
+                });
+            }
             
             // Use the UI manager to update stats, which will also show the container
             uiManager.updateStats(stats);
@@ -5927,6 +6218,81 @@ try {
         function showMintStep(step) {
             document.getElementById('mintStep1').style.display = step === 1 ? 'block' : 'none';
             document.getElementById('mintStep2').style.display = step === 2 ? 'block' : 'none';
+            
+            // Update fee display when showing step 2
+            if (step === 2) {
+                updateFeeDisplay();
+            }
+        }
+        
+        // Update fee display based on user type and delivery method
+        async function updateFeeDisplay() {
+            const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked')?.value || 'viewgated';
+            const isDocument = deliveryMethod === 'viewgated';
+            
+            // Get user info
+            const userAddress = currentChainType === 'tron' && tronWeb ? tronWeb.defaultAddress.base58 : null;
+            let baseFee = isDocument ? 150 : 15;
+            let energyCost = isDocument ? 90 : 36; // Estimated energy cost in TRX
+            let feeTypeText = isDocument ? 'Document Notice Fee:' : 'Text Notice Fee:';
+            let exemptionText = '';
+            
+            // Check user roles and exemptions
+            if (legalContract && userAddress) {
+                try {
+                    // Check if user has law enforcement exemption
+                    const isLawEnforcement = await legalContract.lawEnforcementExemptions(userAddress).call();
+                    if (isLawEnforcement) {
+                        baseFee = 0;
+                        const agencyName = await legalContract.lawEnforcementAgencies(userAddress).call();
+                        exemptionText = `Law Enforcement (${agencyName}) - Cost only pricing`;
+                    } else {
+                        // Check if process server
+                        const isProcessServer = await legalContract.hasRole(
+                            '0x' + sha256('PROCESS_SERVER_ROLE'),
+                            userAddress
+                        ).call();
+                        
+                        if (isProcessServer) {
+                            baseFee = 75; // Creation fee for process servers
+                            exemptionText = 'Process Server - Reduced fee';
+                        }
+                    }
+                    
+                    // Check if user has staked energy
+                    const account = await tronWeb.trx.getAccount(userAddress);
+                    const availableEnergy = account.energy || 0;
+                    const requiredEnergy = isDocument ? 500000 : 200000;
+                    
+                    if (availableEnergy >= requiredEnergy) {
+                        energyCost = 0;
+                        document.getElementById('energyNote').innerHTML = 
+                            '<i class="fas fa-check-circle" style="color: #10b981;"></i> You have sufficient staked energy. No additional energy cost.';
+                    }
+                    
+                } catch (error) {
+                    console.error('Error checking user status:', error);
+                }
+            }
+            
+            // Update display
+            document.getElementById('feeTypeLabel').textContent = feeTypeText;
+            document.getElementById('baseFeeAmount').textContent = baseFee + ' TRX';
+            document.getElementById('energyCostAmount').textContent = energyCost > 0 ? '~' + energyCost + ' TRX' : '0 TRX';
+            
+            const totalCost = baseFee + 2 + energyCost; // base + sponsorship + energy
+            document.getElementById('totalCostAmount').textContent = '~' + totalCost + ' TRX';
+            
+            // Show/hide exemption note
+            if (exemptionText) {
+                document.getElementById('exemptionText').textContent = exemptionText;
+                document.getElementById('feeExemptionNote').style.display = 'block';
+            } else {
+                document.getElementById('feeExemptionNote').style.display = 'none';
+            }
+            
+            // Update energy item color based on cost
+            document.getElementById('energyCostAmount').style.color = energyCost > 0 ? '#f59e0b' : '#10b981';
         }
 
         function resetMintForm() {
@@ -6454,10 +6820,13 @@ try {
             }
             
             const recipient = document.getElementById('mintRecipient').value.trim();
-            let tokenName = document.getElementById('mintTokenName').value.trim();
+            let tokenName = document.getElementById('mintTokenName').value.trim() || 'Legal Notice';
             let caseNumber = document.getElementById('mintCaseNumber').value.trim();
             const jurisdictionIndex = document.getElementById('mintJurisdiction').value;
             const documentType = document.getElementById('mintDocumentType').value;
+            
+            // Token name will be prepended with server ID by contract
+            const baseTokenName = tokenName + (caseNumber ? ` - ${caseNumber}` : '');
             
             // Validation
             const errors = [];
@@ -6480,9 +6849,9 @@ try {
             // Auto-generate token name if not provided
             if (!tokenName) {
                 try {
-                    // Get total notices to generate sequential number
-                    const totalNotices = await legalContract.totalNotices().call();
-                    const noticeNumber = parseInt(totalNotices) + 1;
+                    // Get total notices from contract
+                    const totalNotices = await getTotalNotices();
+                    const noticeNumber = totalNotices + 1;
                     
                     // Generate descriptive name based on notice type and number
                     const noticeTypeEl = document.getElementById('noticeType');
@@ -6515,7 +6884,7 @@ try {
                 let sponsorFees = false;
                 let noticeText = '';
                 
-                if (deliveryMethod === 'viewgated' || deliveryMethod === 'full') {
+                if (deliveryMethod === 'viewgated') {
                     // Get notice type
                     const noticeTypeSelect = document.getElementById('noticeType').value;
                     if (noticeTypeSelect === 'Custom') {
@@ -6534,7 +6903,7 @@ try {
                     const caseNumberValue = document.getElementById('caseNumber').value.trim();
                     caseDetailsText = document.getElementById('caseDetails').value.trim();
                     legalRights = document.getElementById('legalRights').value.trim();
-                    sponsorFees = document.getElementById('sponsorAcceptanceFees').checked;
+                    // Sponsorship is now always included
                     
                     // Validate required fields
                     if (!issuingAgency) {
@@ -6552,7 +6921,7 @@ try {
                     caseNumber = caseNumberValue;
                 }
                 
-                if (deliveryMethod === 'text' || deliveryMethod === 'full') {
+                if (deliveryMethod === 'text' || deliveryMethod === 'viewgated') {
                     noticeText = document.getElementById('noticeText').value.trim();
                     if (!noticeText) {
                         uiManager.showNotification('error', 'Notice text is required');
@@ -6599,12 +6968,9 @@ try {
                 
                 // Prepare preview data based on delivery method
                 let previewData = '';
-                if (deliveryMethod === 'text' || deliveryMethod === 'full') {
+                if (deliveryMethod === 'text' || deliveryMethod === 'viewgated') {
                     // Use the notice text as preview
                     previewData = noticeText;
-                } else {
-                    // View-gated only - no preview data
-                    previewData = '';
                 }
                 
                 // Generate content hash
@@ -6627,13 +6993,9 @@ try {
                         return;
                     }
                     
-                    // Calculate fee including sponsorship and energy rental if needed
-                    let totalFee = currentCreationFee; // Base fee from contract
-                    if (sponsorFees) totalFee += 2; // Sponsorship fee
-                    if (energyRental.rented) {
-                        totalFee += energyRental.cost; // Add energy rental cost
-                        console.log(`Added ${energyRental.cost} TRX for energy rental`);
-                    }
+                    // Calculate total fee
+                    // Fee structure: service/creation fee + sponsorship fee (always included)
+                    let totalFee = currentCreationFee + 2; // Base fee + 2 TRX sponsorship (mandatory)
                     const feeInSun = tronWeb.toSun(totalFee);
                     
                     console.log('Transaction details:', {
@@ -6654,8 +7016,8 @@ try {
                     let noticeText = '';
                     let decryptKey = '';
                     
-                    if (deliveryMethod === 'viewgated' || deliveryMethod === 'full') {
-                        // Use encryption for view-gated methods
+                    if (deliveryMethod === 'viewgated') {
+                        // Use encryption for document images method
                         decryptKey = encryptionKey;
                         noticeText = caseDetailsText || 'Legal notice details in attached document';
                     } else {
@@ -6691,17 +7053,28 @@ try {
                             callValue: feeInSun
                         });
                         
-                        tx = await legalContract.serveNotice(
-                            recipient,
-                            encryptedIPFS,
-                            decryptKey,
-                            issuingAgency,
-                            noticeType,
-                            caseNumber,
-                            noticeText,
-                            legalRights || 'You have the right to respond to this legal notice',
-                            sponsorFees
-                        ).send({
+                        // Use new contract functions based on delivery method
+                        if (deliveryMethod === 'document') {
+                            tx = await legalContract.createDocumentNotice(
+                                recipient,
+                                encryptedIPFS,
+                                decryptKey,
+                                noticeText,  // publicText
+                                noticeType,
+                                caseNumber,
+                                issuingAgency,
+                                baseTokenName
+                            ).send({
+                        } else {
+                            // Text only notice
+                            tx = await legalContract.createTextNotice(
+                                recipient,
+                                noticeText,  // publicText
+                                noticeType,
+                                caseNumber,
+                                issuingAgency,
+                                baseTokenName
+                            ).send({
                             feeLimit: 200_000_000,  // 200 TRX max - increased for higher energy needs
                             callValue: feeInSun,
                             shouldPollResponse: true
@@ -7149,11 +7522,20 @@ try {
             // Action button based on notice status and ownership
             let actionButton = '';
             if (notice.status == 0 && notice.recipient === tronWeb.defaultAddress.base58) {
-                actionButton = `
-                    <button class="btn btn-primary btn-small" onclick="openAcceptModal(${notice.id})">
-                        <i class="fas fa-check"></i> Accept
-                    </button>
-                `;
+                const isTextOnly = !notice.documentId || notice.documentId == 0;
+                if (isTextOnly) {
+                    actionButton = `
+                        <button class="btn btn-secondary btn-small" onclick="viewTextNotice(${notice.id})">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                    `;
+                } else {
+                    actionButton = `
+                        <button class="btn btn-primary btn-small" onclick="openAcceptModal(${notice.id})">
+                            <i class="fas fa-check"></i> Accept
+                        </button>
+                    `;
+                }
             }
             
             // Get preview image if available
@@ -7225,7 +7607,7 @@ try {
         // My notices and alerts functions
         async function getMyNotices() {
             try {
-                const notices = await legalContract.getUserNotices(tronWeb.defaultAddress.base58).call();
+                const notices = await legalContract.getRecipientNotices(tronWeb.defaultAddress.base58).call();
                 
                 const noticeDetails = [];
                 for (const noticeId of notices) {
@@ -7242,7 +7624,7 @@ try {
 
         async function getMyAlerts() {
             try {
-                const alerts = await legalContract.getRecipientAlerts(tronWeb.defaultAddress.base58).call();
+                const alerts = await legalContract.getRecipientNotices(tronWeb.defaultAddress.base58).call();
                 console.log('Recipient alerts:', alerts);
                 
                 const noticeDetails = [];
@@ -7391,6 +7773,7 @@ try {
                             ` : ''}
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end;">
+                            ${notice.documentId && notice.documentId != 0 ? `
                             <button class="btn btn-primary" style="background: #3b82f6; border-color: #3b82f6; font-size: 1rem; padding: 0.75rem 1.5rem; white-space: nowrap;" 
                                     onclick="openAcceptModal(${notice.id})">
                                 <i class="fas fa-signature"></i> Sign Receipt
@@ -7399,6 +7782,15 @@ try {
                                     onclick="quickAccept(${notice.id})">
                                 <i class="fas fa-bolt"></i> Quick Sign
                             </button>
+                            ` : `
+                            <button class="btn btn-secondary" style="font-size: 1rem; padding: 0.75rem 1.5rem; white-space: nowrap;" 
+                                    onclick="viewTextNotice(${notice.id})">
+                                <i class="fas fa-eye"></i> View Notice
+                            </button>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.25rem;">
+                                <i class="fas fa-info-circle"></i> Text only - No signature required
+                            </div>
+                            `}
                         </div>
                     </div>
                     <div style="background: #e0f2fe; padding: 1rem; margin: 0 -1rem 1rem -1rem; border-radius: 8px;">
@@ -7452,8 +7844,9 @@ try {
                 const notices = await getMyNotices();
                 
                 // Update stats
+                const totalNotices = await getTotalNotices();
                 const stats = {
-                    total: notices.length,
+                    total: totalNotices > 0 ? totalNotices : notices.length,
                     accepted: notices.filter(n => n.status == 2).length,
                     pending: notices.filter(n => n.status == 0).length,
                     servers: new Set(notices.map(n => n.server)).size
@@ -7540,8 +7933,8 @@ try {
         
         async function getSentNotices() {
             try {
-                // Use the contract's getServerNotices function
-                const noticeIds = await legalContract.getServerNotices(tronWeb.defaultAddress.base58).call();
+                // Use the contract's getSenderNotices function
+                const noticeIds = await legalContract.getSenderNotices(tronWeb.defaultAddress.base58).call();
                 console.log('Server notice IDs:', noticeIds);
                 
                 const notices = [];
@@ -7813,8 +8206,8 @@ try {
             
             const roleSelect = document.getElementById('roleSelect');
             const address = document.getElementById('roleAddress').value.trim();
-            const serviceFeeExempt = document.getElementById('serviceFeeExemptCheck').checked;
-            const fullFeeExempt = document.getElementById('fullFeeExemptCheck').checked;
+            const lawEnforcementExempt = document.getElementById('lawEnforcementExempt').checked;
+            const agencyName = document.getElementById('agencyName').value.trim();
             
             if (!address) {
                 showAlert('roleResult', 'error', 'Please enter an address');
@@ -7826,12 +8219,18 @@ try {
                 return;
             }
             
+            // Validate law enforcement input
+            if (lawEnforcementExempt && !agencyName) {
+                showAlert('roleResult', 'error', 'Agency name is required for law enforcement exemptions');
+                return;
+            }
+            
             // If granting PROCESS_SERVER_ROLE, show registration modal
             if (roleSelect.value === 'PROCESS_SERVER_ROLE') {
                 // Store the address temporarily for after registration
                 window.pendingProcessServerAddress = address;
-                window.pendingServiceFeeExempt = serviceFeeExempt;
-                window.pendingFullFeeExempt = fullFeeExempt;
+                window.pendingLawEnforcementExempt = lawEnforcementExempt;
+                window.pendingAgencyName = agencyName;
                 
                 // Show the registration modal
                 document.getElementById('registrationModal').style.display = 'flex';
@@ -7851,10 +8250,10 @@ try {
                     shouldPollResponse: true
                 });
                 
-                // Automatically apply full fee exemption for admin roles
-                if (roleSelect.value === 'ADMIN_ROLE') {
-                    showAlert('roleResult', 'info', 'Applying full fee exemption for admin...');
-                    await legalContract.setFeeExemption(address, true, true).send({
+                // Apply law enforcement exemption if selected
+                if (lawEnforcementExempt) {
+                    showAlert('roleResult', 'info', 'Setting law enforcement exemption...');
+                    await legalContract.setLawEnforcementExemption(address, agencyName).send({
                         feeLimit: 20_000_000,
                         shouldPollResponse: true
                     });
@@ -8021,7 +8420,7 @@ try {
                 const feeInSun = tronWeb.toSun(newFee);
                 
                 // Call the contract to update the fee
-                await legalContract.updateFee(feeInSun).send({
+                await legalContract.updateServiceFee(feeInSun).send({
                     feeLimit: 10_000_000,  // 10 TRX - simple variable update
                     callValue: 0,
                     shouldPollResponse: true
@@ -8093,6 +8492,8 @@ try {
             }
         }
 
+        // Resource sponsorship removed - not in simplified contract
+        /*
         async function updateResourceSponsorship() {
             if (!legalContract) {
                 uiManager.showNotification('error', 'Contract not connected');
@@ -8937,8 +9338,15 @@ async function checkUserRoles() {
         function toggleRegistrationForm() {
             const roleSelect = document.getElementById('roleSelect');
             const registrationForm = document.getElementById('serverRegistrationForm');
+            const lawEnforcementSection = document.getElementById('lawEnforcementSection');
+            
             if (registrationForm) {
                 registrationForm.style.display = roleSelect.value === 'PROCESS_SERVER_ROLE' ? 'block' : 'none';
+            }
+            
+            // Always show law enforcement section for any role
+            if (lawEnforcementSection) {
+                lawEnforcementSection.style.display = 'block';
             }
         }
         
@@ -9578,6 +9986,18 @@ async function checkUserRoles() {
             }
         }
         
+        // JustLend Energy Rental Service Configuration
+        const JUSTLEND_CONFIG = {
+            mainnet: {
+                contract: 'TJSMvYJPASTsQFnDr9tw5s3YD9GQQmJcFg', // JustLend Energy Market
+                api: 'https://api.justlend.org/v1/energy'
+            },
+            testnet: {
+                // Testnet doesn't have JustLend, use manual approach
+                useManual: true
+            }
+        };
+
         // Rent energy automatically
         async function rentEnergyIfNeeded(requiredEnergy) {
             try {
@@ -9593,62 +10013,236 @@ async function checkUserRoles() {
                 
                 console.log('Renting energy:', {
                     needed: energyNeeded,
-                    renting: energyToRent
+                    renting: energyToRent,
+                    network: currentNetwork
                 });
                 
                 // Estimate rental cost
                 const rentalCost = await estimateEnergyRentalCost(energyToRent);
                 
-                // Show rental notification
-                uiManager.showNotification('info', `Renting ${energyToRent.toLocaleString()} energy for ~${rentalCost} TRX...`);
-                
-                try {
-                    // TRON has a built-in energy marketplace
-                    // For testnet, we'll use a simplified approach
-                    // In mainnet, you can use services like JustLend or TRONSave
+                // For testnet, show warning and proceed
+                if (currentNetwork === 'testnet' || currentNetwork === 'nile') {
+                    const userConfirmed = confirm(
+                        `⚡ Energy Required\n\n` +
+                        `This transaction requires ${energyToRent.toLocaleString()} energy.\n` +
+                        `Estimated cost: ~${rentalCost} TRX\n\n` +
+                        `On testnet, energy will be burned from your TRX balance.\n` +
+                        `On mainnet, we'll automatically rent energy for you.\n\n` +
+                        `Continue?`
+                    );
                     
-                    // Option 1: Use TRON's built-in energy delegation (requires staking)
-                    // This would require the contract to have TRX staked
+                    if (!userConfirmed) {
+                        return { 
+                            success: false, 
+                            error: 'User cancelled due to energy requirement' 
+                        };
+                    }
                     
-                    // Option 2: Use a third-party service API
-                    // Example: TRONSave, JustLend, etc.
-                    
-                    // For now, we'll proceed with the transaction and let it burn TRX if needed
-                    console.log('Energy rental prepared:', {
-                        amount: energyToRent,
-                        estimatedCost: rentalCost
-                    });
-                    
-                    // The actual energy will be handled by increasing feeLimit
-                    // TRON will automatically burn TRX for energy if needed
-                    
-                    return {
-                        success: true,
-                        rented: true,
-                        amount: energyToRent,
-                        cost: 0 // No upfront cost, energy will be paid from feeLimit
-                    };
-                    
-                } catch (rentalError) {
-                    console.error('Energy rental failed:', rentalError);
-                    // Fall back to burning TRX for energy
                     return {
                         success: true,
                         rented: false,
-                        amount: 0,
-                        cost: 0
+                        amount: energyToRent,
+                        cost: rentalCost,
+                        warning: 'Testnet: Energy will be burned from TRX balance'
                     };
+                }
+                
+                // For mainnet, attempt to rent energy via JustLend
+                try {
+                    // Show rental notification
+                    uiManager.showNotification('info', `Renting ${energyToRent.toLocaleString()} energy for ~${rentalCost} TRX...`);
+                    
+                    // Rent energy via JustLend smart contract
+                    const rentalResult = await rentEnergyViaJustLend(energyToRent, rentalCost);
+                    
+                    if (rentalResult.success) {
+                        uiManager.showNotification('success', `Energy rented successfully! Transaction: ${rentalResult.txId}`);
+                        return {
+                            success: true,
+                            rented: true,
+                            amount: energyToRent,
+                            cost: rentalResult.actualCost,
+                            txId: rentalResult.txId
+                        };
+                    }
+                    
+                    // If JustLend fails, fall back to manual approach
+                    throw new Error(rentalResult.error || 'JustLend rental failed');
+                    
+                } catch (rentalError) {
+                    console.error('Automated energy rental failed:', rentalError);
+                    
+                    // Show manual options
+                    const manualChoice = await showEnergyOptions(energyToRent, rentalCost);
+                    
+                    if (manualChoice === 'proceed') {
+                        // User chose to proceed and burn TRX
+                        return {
+                            success: true,
+                            rented: false,
+                            amount: energyToRent,
+                            cost: rentalCost,
+                            warning: 'Energy will be burned from TRX balance'
+                        };
+                    } else if (manualChoice === 'stake') {
+                        // Open staking guide
+                        window.open('https://tronscan.org/#/sr/representatives', '_blank');
+                        return {
+                            success: false,
+                            error: 'Please stake TRX for energy and try again'
+                        };
+                    } else {
+                        // User cancelled
+                        return {
+                            success: false,
+                            error: 'Energy rental cancelled by user'
+                        };
+                    }
                 }
                 
             } catch (error) {
                 console.error('Energy rental error:', error);
+                
+                // If we can't check energy, show warning but allow to proceed
+                const proceed = confirm(
+                    '⚠️ Unable to check energy requirements\n\n' +
+                    'The transaction may fail if you don\'t have enough energy.\n' +
+                    'Continue anyway?'
+                );
+                
+                return { 
+                    success: proceed, 
+                    rented: false, 
+                    cost: 0,
+                    error: proceed ? null : 'User cancelled due to energy check failure'
+                };
+            }
+        }
+        
+        // Rent energy via JustLend contract
+        async function rentEnergyViaJustLend(energyAmount, maxPrice) {
+            try {
+                const justLendAddress = JUSTLEND_CONFIG.mainnet.contract;
+                
+                // Build the transaction
+                const parameter = [
+                    { type: 'uint256', value: energyAmount },
+                    { type: 'address', value: tronWeb.defaultAddress.base58 },
+                    { type: 'uint256', value: 3600 } // 1 hour rental
+                ];
+                
+                const transaction = await tronWeb.transactionBuilder.triggerSmartContract(
+                    justLendAddress,
+                    'rentEnergy(uint256,address,uint256)',
+                    {
+                        callValue: tronWeb.toSun(maxPrice),
+                        feeLimit: 10e6 // 10 TRX fee limit
+                    },
+                    parameter,
+                    tronWeb.defaultAddress.base58
+                );
+                
+                const signedTx = await tronWeb.trx.sign(transaction.transaction);
+                const result = await tronWeb.trx.sendRawTransaction(signedTx);
+                
+                if (result.result) {
+                    return {
+                        success: true,
+                        txId: result.txid,
+                        actualCost: maxPrice
+                    };
+                }
+                
+                return {
+                    success: false,
+                    error: 'Transaction failed'
+                };
+                
+            } catch (error) {
+                console.error('JustLend rental error:', error);
                 return {
                     success: false,
                     error: error.message
                 };
             }
         }
-        
+
+        // Show energy rental options to user
+        async function showEnergyOptions(energyNeeded, estimatedCost) {
+            return new Promise((resolve) => {
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                modal.innerHTML = `
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2><i class="fas fa-bolt" style="color: #f59e0b;"></i> Energy Required</h2>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-warning" style="background: #fef3c7; border-color: #f59e0b;">
+                                <i class="fas fa-exclamation-triangle" style="color: #f59e0b;"></i>
+                                <strong>Insufficient Energy</strong>
+                                <p style="margin: 0.5rem 0 0 0;">This transaction requires ${energyNeeded.toLocaleString()} energy.</p>
+                            </div>
+                            
+                            <div class="energy-options" style="margin-top: 1.5rem;">
+                                <h4>Choose how to proceed:</h4>
+                                
+                                <div class="option-card" style="margin: 1rem 0; padding: 1rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; cursor: pointer;" 
+                                     onclick="document.getElementById('energyChoice').value='proceed'; document.querySelector('.energy-continue-btn').click();">
+                                    <h5><i class="fas fa-fire"></i> Burn TRX for Energy</h5>
+                                    <p style="margin: 0.5rem 0 0 0; color: #6b7280;">Proceed with transaction and burn ~${estimatedCost} TRX for energy</p>
+                                    <div class="cost-indicator" style="margin-top: 0.5rem; color: #ef4444;">
+                                        <i class="fas fa-coins"></i> Cost: ~${estimatedCost} TRX
+                                    </div>
+                                </div>
+                                
+                                <div class="option-card" style="margin: 1rem 0; padding: 1rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; cursor: pointer;"
+                                     onclick="document.getElementById('energyChoice').value='stake'; document.querySelector('.energy-continue-btn').click();">
+                                    <h5><i class="fas fa-lock"></i> Stake TRX for Energy</h5>
+                                    <p style="margin: 0.5rem 0 0 0; color: #6b7280;">Stake TRX to get permanent energy (recommended for frequent users)</p>
+                                    <div class="cost-indicator" style="margin-top: 0.5rem; color: #10b981;">
+                                        <i class="fas fa-info-circle"></i> One-time stake, permanent energy
+                                    </div>
+                                </div>
+                                
+                                <div class="option-card" style="margin: 1rem 0; padding: 1rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; cursor: pointer;"
+                                     onclick="document.getElementById('energyChoice').value='cancel'; document.querySelector('.energy-continue-btn').click();">
+                                    <h5><i class="fas fa-times"></i> Cancel Transaction</h5>
+                                    <p style="margin: 0.5rem 0 0 0; color: #6b7280;">Cancel and return to form</p>
+                                </div>
+                            </div>
+                            
+                            <input type="hidden" id="energyChoice" value="">
+                        </div>
+                        <div class="modal-footer" style="display: none;">
+                            <button class="btn btn-primary energy-continue-btn" onclick="
+                                const choice = document.getElementById('energyChoice').value;
+                                this.closest('.modal').remove();
+                                window.energyModalResolve(choice);
+                            ">
+                                Continue
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                
+                // Store resolve function globally for the onclick handlers
+                window.energyModalResolve = resolve;
+                
+                // Clean up when modal is closed
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.remove();
+                        resolve('cancel');
+                        delete window.energyModalResolve;
+                    }
+                });
+            });
+        }
+
         // Handle modal backdrop clicks
         function handleModalBackdropClick(event, modalId) {
             // Only close if clicking on the backdrop itself, not the content
@@ -9787,14 +10381,12 @@ deliveryOptions.forEach(option => {
         const noticeTextLabel = document.getElementById('noticeTextLabel');
         const noticeTextHelp = document.getElementById('noticeTextHelp');
         
-        if (this.value === 'viewgated' || this.value === 'full') {
+        if (this.value === 'viewgated') {
             viewGatedDetails.style.display = 'block';
-            textNoticeGroup.style.display = this.value === 'full' ? 'block' : 'none';
-            if (this.value === 'full') {
-                textNoticeGroup.classList.add('active');
-                noticeTextLabel.textContent = 'Public Notice Summary';
-                noticeTextHelp.textContent = 'This summary appears immediately in wallet (full document requires acceptance)';
-            }
+            textNoticeGroup.style.display = 'block';
+            textNoticeGroup.classList.add('active');
+            noticeTextLabel.innerHTML = '<i class="fas fa-globe" style="color: #f59e0b;"></i> Public Notice Text';
+            noticeTextHelp.innerHTML = '<i class="fas fa-exclamation-circle"></i> This text will be publicly visible on the blockchain';
         } else if (this.value === 'text') {
             viewGatedDetails.style.display = 'none';
             textNoticeGroup.style.display = 'block';
@@ -9809,6 +10401,10 @@ deliveryOptions.forEach(option => {
         
         // Update fee estimate
         updateFeeEstimate();
+        // Also update the detailed fee display if on step 2
+        if (document.getElementById('mintStep2').style.display !== 'none') {
+            updateFeeDisplay();
+        }
     });
 });
 
@@ -9836,52 +10432,51 @@ async function updateFeeEstimate() {
     const selectedMethod = document.querySelector('input[name="deliveryMethod"]:checked').value;
     const feeDisplay = document.querySelector('#creationFeeDisplay');
     const feeDescription = document.querySelector('#feeDescription');
-    const sponsorFees = document.getElementById('sponsorAcceptanceFees');
     
-    if (feeDisplay && legalContract && tronWeb.defaultAddress) {
+    if (feeDisplay) {
         try {
-            // Get actual fee from contract
-            const userAddress = tronWeb.defaultAddress.base58;
-            const contractFee = await legalContract.calculateFee(userAddress).call();
-            let baseFee = parseFloat(tronWeb.fromSun(contractFee));
+            // Set base fee based on delivery method
+            let baseFee = selectedMethod === 'viewgated' ? 150 : 15;
+            // Always add 2 TRX sponsorship
+            let totalFee = baseFee + 2;
             
-            // Check exemption status
-            const serviceFeeExempt = await legalContract.serviceFeeExemptions(userAddress).call();
-            const fullFeeExempt = await legalContract.fullFeeExemptions(userAddress).call();
+            let description = selectedMethod === 'viewgated' 
+                ? 'Document fee (150) + Sponsorship (2)' 
+                : 'Text fee (15) + Sponsorship (2)';
             
-            // Check if energy rental might be needed
-            const energyNeeded = await checkEnergyNeeded(ENERGY_RENTAL_CONFIG.energyPerNotice);
-            let energyRentalCost = 0;
-            if (energyNeeded > ENERGY_RENTAL_CONFIG.minEnergyThreshold) {
-                energyRentalCost = await estimateEnergyRentalCost(energyNeeded * ENERGY_RENTAL_CONFIG.energyBuffer);
+            // Check if contract connection exists for exemption check
+            if (legalContract && tronWeb.defaultAddress) {
+                try {
+                    const userAddress = tronWeb.defaultAddress.base58;
+                    const serviceFeeExempt = await legalContract.serviceFeeExemptions(userAddress).call();
+                    const fullFeeExempt = await legalContract.fullFeeExemptions(userAddress).call();
+                    
+                    const isLawEnforcement = await legalContract.lawEnforcementExemptions(userAddress).call();
+                    const agencyName = await legalContract.lawEnforcementAgencies(userAddress).call();
+                    
+                    if (isLawEnforcement) {
+                        totalFee = 2; // Only pay sponsorship fee
+                        description = `Law Enforcement (${agencyName}) - Sponsorship only (2 TRX)`;
+                    } else if (await checkIfProcessServer()) {
+                        totalFee = 75 + 2; // Creation fee + sponsorship
+                        description = 'Process Server: Creation fee (75) + Sponsorship (2)';
+                    }
+                } catch (err) {
+                    console.log('Could not check fee exemptions');
+                }
             }
             
-            let description = 'Standard fee rate';
-            if (fullFeeExempt) {
-                description = 'You have full fee exemption';
-            } else if (serviceFeeExempt) {
-                description = 'You have 50% fee exemption';
-            }
-            
-            // Add sponsorship fee if selected
-            if (sponsorFees && sponsorFees.checked) {
-                baseFee += 2;
-                description += ' + 2 TRX sponsorship';
-            }
-            
-            // Add energy rental cost estimate if needed
-            if (energyRentalCost > 0) {
-                description += ` (+ ~${energyRentalCost} TRX energy if needed)`;
-            }
-            
-            feeDisplay.textContent = baseFee + ' TRX';
+            feeDisplay.textContent = totalFee + ' TRX';
             feeDescription.textContent = description;
             
         } catch (error) {
             console.error('Error calculating fee:', error);
             // Fallback to default fees
-            feeDisplay.textContent = '20 TRX';
-            feeDescription.textContent = 'Unable to calculate fee - showing default';
+            const defaultFee = selectedMethod === 'viewgated' ? '150 TRX' : '15 TRX';
+            feeDisplay.textContent = defaultFee;
+            feeDescription.textContent = selectedMethod === 'viewgated' 
+                ? 'Encrypted document with public text notice' 
+                : 'Text only notice (no signature required)';
         }
     }
 }
@@ -9916,8 +10511,7 @@ window.updateNoticeTemplate = function() {
     }
 }
 
-// Add event listener for sponsor fees checkbox
-document.getElementById('sponsorAcceptanceFees')?.addEventListener('change', updateFeeEstimate);
+// Update fee estimate when delivery method changes
 
 // Initialize admin panel inputs properly
 setTimeout(() => {
@@ -10093,12 +10687,12 @@ document.addEventListener('keydown', function(event) {
                 console.log('=== ALERT DEBUG INFO ===');
                 console.log('Your address:', tronWeb.defaultAddress.base58);
                 
-                // Get total notices
-                const totalNotices = await legalContract.totalNotices().call();
-                console.log('Total notices in contract:', totalNotices.toString());
+                // Get total notices from contract
+                const totalNotices = await getTotalNotices();
+                console.log('Total notices:', totalNotices);
                 
                 // Get recipient alerts
-                const alerts = await legalContract.getRecipientAlerts(tronWeb.defaultAddress.base58).call();
+                const alerts = await legalContract.getRecipientNotices(tronWeb.defaultAddress.base58).call();
                 console.log('Your alert IDs:', alerts.map(a => a.toString()));
                 
                 // Check a few recent notices to see if you're the recipient
@@ -10928,6 +11522,8 @@ document.addEventListener('keydown', function(event) {
 	window.toggleStats = toggleStats;
 	window.toggleWalletStatus = toggleWalletStatus;
 	window.toggleContract = toggleContract;
+	
+	// Simplified system - no encryption setup needed
     </script>
 </body>
 </html>
