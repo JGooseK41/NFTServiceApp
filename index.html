@@ -4736,8 +4736,10 @@ function useConnectedAddressForFeeCollector() {
                 // Check if contract is already in the address field
                 const contractAddressField = document.getElementById('contractAddress');
                 if (contractAddressField && contractAddressField.value) {
-                    // Automatically connect to contract
-                    await connectContracts();
+                    // Automatically connect to contract after a short delay to ensure TronWeb is ready
+                    setTimeout(async () => {
+                        await connectContracts();
+                    }, 1000); // 1 second delay
                 }
 
             } catch (error) {
@@ -8675,7 +8677,13 @@ try {
                     return;
                 }
                 
-                if (!tronWeb.isAddress(contractAddress)) {
+                // Wait a bit if TronWeb is not fully ready
+                if (!tronWeb.isAddress) {
+                    console.log('Waiting for TronWeb to be ready...');
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+                
+                if (!tronWeb.isAddress || !tronWeb.isAddress(contractAddress)) {
                     showAlert('contractStatus', 'error', 'Invalid TRON address');
                     return;
                 }
