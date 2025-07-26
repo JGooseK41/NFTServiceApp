@@ -2876,6 +2876,44 @@
                         <div id="roleResult"></div>
                     </div>
 
+                    <!-- Fee Exemption Management -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2><i class="fas fa-shield-alt"></i> Fee Exemption Management</h2>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Address to Manage Exemptions</label>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <input type="text" class="form-input" id="exemptionAddress" 
+                                       placeholder="Enter TRON wallet address" style="flex: 1;">
+                                <button class="btn btn-secondary btn-small" onclick="useConnectedAddressForExemption()" title="Use my address">
+                                    <i class="fas fa-user"></i> Use My Address
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Agency Name (for Law Enforcement)</label>
+                            <input type="text" class="form-input" id="exemptionAgencyName" 
+                                   placeholder="e.g., FBI, DEA, Local Police Department">
+                            <p class="form-help">Required only for law enforcement exemptions</p>
+                        </div>
+                        
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button class="btn btn-primary" onclick="setLawEnforcementExemption()">
+                                <i class="fas fa-badge-check"></i> Grant Law Enforcement Exemption
+                            </button>
+                            <button class="btn btn-warning" onclick="removeLawEnforcementExemption()">
+                                <i class="fas fa-ban"></i> Remove Law Enforcement Exemption
+                            </button>
+                            <button class="btn btn-secondary" onclick="checkExemptionStatus()">
+                                <i class="fas fa-info-circle"></i> Check Status
+                            </button>
+                        </div>
+                        <div id="exemptionResult"></div>
+                    </div>
+
                     <!-- Fee Collector Management -->
                     <div class="card">
                         <div class="card-header">
@@ -11178,7 +11216,151 @@ document.addEventListener('keydown', function(event) {
             }
         }
 
+        // Fee exemption functions
+        function useConnectedAddressForExemption() {
+            if (tronWeb && tronWeb.defaultAddress) {
+                document.getElementById('exemptionAddress').value = tronWeb.defaultAddress.base58;
+            } else {
+                showAlert('exemptionResult', 'error', 'Please connect your wallet first');
+            }
+        }
+
+        async function setLawEnforcementExemption() {
+            if (!legalContract) {
+                showAlert('exemptionResult', 'error', 'Contract not connected');
+                return;
+            }
+
+            const address = document.getElementById('exemptionAddress').value.trim();
+            const agencyName = document.getElementById('exemptionAgencyName').value.trim();
+
+            if (!address) {
+                showAlert('exemptionResult', 'error', 'Please enter an address');
+                return;
+            }
+
+            if (!agencyName) {
+                showAlert('exemptionResult', 'error', 'Please enter an agency name for law enforcement exemption');
+                return;
+            }
+
+            if (!tronWeb.isAddress(address)) {
+                showAlert('exemptionResult', 'error', 'Invalid TRON address');
+                return;
+            }
+
+            try {
+                showProcessing('Granting law enforcement exemption...');
+                
+                const tx = await legalContract.setLawEnforcementExemption(address, agencyName).send({
+                    feeLimit: 100_000_000, // 100 TRX
+                    callValue: 0,
+                    shouldPollResponse: true
+                });
+
+                hideProcessing();
+                showAlert('exemptionResult', 'success', `Law enforcement exemption granted to ${address}`);
+                
+                // Clear inputs
+                document.getElementById('exemptionAddress').value = '';
+                document.getElementById('exemptionAgencyName').value = '';
+            } catch (error) {
+                hideProcessing();
+                console.error('Error setting exemption:', error);
+                showAlert('exemptionResult', 'error', 'Failed to set exemption: ' + getErrorMessage(error));
+            }
+        }
+
+        async function removeLawEnforcementExemption() {
+            if (!legalContract) {
+                showAlert('exemptionResult', 'error', 'Contract not connected');
+                return;
+            }
+
+            const address = document.getElementById('exemptionAddress').value.trim();
+
+            if (!address) {
+                showAlert('exemptionResult', 'error', 'Please enter an address');
+                return;
+            }
+
+            if (!tronWeb.isAddress(address)) {
+                showAlert('exemptionResult', 'error', 'Invalid TRON address');
+                return;
+            }
+
+            try {
+                showProcessing('Removing law enforcement exemption...');
+                
+                const tx = await legalContract.removeLawEnforcementExemption(address).send({
+                    feeLimit: 100_000_000, // 100 TRX
+                    callValue: 0,
+                    shouldPollResponse: true
+                });
+
+                hideProcessing();
+                showAlert('exemptionResult', 'success', `Law enforcement exemption removed from ${address}`);
+                
+                // Clear input
+                document.getElementById('exemptionAddress').value = '';
+            } catch (error) {
+                hideProcessing();
+                console.error('Error removing exemption:', error);
+                showAlert('exemptionResult', 'error', 'Failed to remove exemption: ' + getErrorMessage(error));
+            }
+        }
+
+        async function checkExemptionStatus() {
+            if (!legalContract) {
+                showAlert('exemptionResult', 'error', 'Contract not connected');
+                return;
+            }
+
+            const address = document.getElementById('exemptionAddress').value.trim();
+
+            if (!address) {
+                showAlert('exemptionResult', 'error', 'Please enter an address');
+                return;
+            }
+
+            if (!tronWeb.isAddress(address)) {
+                showAlert('exemptionResult', 'error', 'Invalid TRON address');
+                return;
+            }
+
+            try {
+                showProcessing('Checking exemption status...');
+                
+                // Check law enforcement exemption
+                const isLawEnforcementExempt = await legalContract.lawEnforcementExemptions(address).call();
+                const agencyName = await legalContract.lawEnforcementAgencies(address).call();
+                
+                // Calculate actual fee
+                const actualFee = await legalContract.calculateFee(address).call();
+                const feeInTRX = tronWeb.fromSun(actualFee);
+                
+                hideProcessing();
+                
+                let statusMessage = `<strong>Address:</strong> ${address}<br>`;
+                statusMessage += `<strong>Law Enforcement Exempt:</strong> ${isLawEnforcementExempt ? 'Yes' : 'No'}<br>`;
+                if (isLawEnforcementExempt && agencyName) {
+                    statusMessage += `<strong>Agency:</strong> ${agencyName}<br>`;
+                }
+                statusMessage += `<strong>Service Fee:</strong> ${feeInTRX} TRX`;
+                
+                showAlert('exemptionResult', 'info', statusMessage);
+            } catch (error) {
+                hideProcessing();
+                console.error('Error checking exemption status:', error);
+                showAlert('exemptionResult', 'error', 'Failed to check status: ' + getErrorMessage(error));
+            }
+        }
+
         window.withdrawFromContract = withdrawFromContract;
+        window.useConnectedAddressForExemption = useConnectedAddressForExemption;
+        window.setLawEnforcementExemption = setLawEnforcementExemption;
+        window.removeLawEnforcementExemption = removeLawEnforcementExemption;
+        window.checkExemptionStatus = checkExemptionStatus;
         // window.updateResourceSponsorship = updateResourceSponsorship; // Function removed in simplified contract
         window.connectContracts = connectContracts;
         
