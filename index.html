@@ -8942,10 +8942,22 @@ async function checkUserRoles() {
     if (!legalContract || !tronWeb.defaultAddress) return;
     
     try {
+                // Check DEFAULT_ADMIN_ROLE (0x00) first, then ADMIN_ROLE
+                const defaultAdminRole = '0x0000000000000000000000000000000000000000000000000000000000000000';
                 const adminRoleBytes = tronWeb.sha3('ADMIN_ROLE');
                 const processServerRoleBytes = tronWeb.sha3('PROCESS_SERVER_ROLE');
                 
-                isAdmin = await legalContract.hasRole(adminRoleBytes, tronWeb.defaultAddress.base58).call();
+                // Check if user has DEFAULT_ADMIN_ROLE or ADMIN_ROLE
+                const hasDefaultAdminRole = await legalContract.hasRole(defaultAdminRole, tronWeb.defaultAddress.base58).call();
+                const hasAdminRole = await legalContract.hasRole(adminRoleBytes, tronWeb.defaultAddress.base58).call();
+                isAdmin = hasDefaultAdminRole || hasAdminRole;
+                
+                console.log('Admin role check:', { 
+                    address: tronWeb.defaultAddress.base58,
+                    hasDefaultAdminRole,
+                    hasAdminRole,
+                    isAdmin
+                });
                 isProcessServer = await legalContract.hasRole(processServerRoleBytes, tronWeb.defaultAddress.base58).call();
                 
                 // Update admin tab visibility
@@ -11064,6 +11076,15 @@ document.addEventListener('keydown', function(event) {
         window.withdrawFromContract = withdrawFromContract;
         // window.updateResourceSponsorship = updateResourceSponsorship; // Function removed in simplified contract
         window.connectContracts = connectContracts;
+        
+        // Debug function to manually show admin tab
+        window.showAdminTab = function() {
+            const adminTabButton = document.getElementById('adminTabButton');
+            if (adminTabButton) {
+                adminTabButton.style.display = 'inline-flex';
+                console.log('Admin tab manually shown');
+            }
+        };
         window.copyWalletAddress = copyWalletAddress;
         window.toggleTokenVisibility = toggleTokenVisibility;
         window.copyEncryptionKey = copyEncryptionKey;
