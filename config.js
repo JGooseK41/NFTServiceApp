@@ -6,7 +6,7 @@ const CONFIG = {
     contracts: {
         tron: {
             mainnet: 'YOUR_TRON_MAINNET_CONTRACT_ADDRESS',
-            nile: 'TRbi9NkFcHVWoWfXmMWaKW5yag8ERQHyb7', // Current testnet contract
+            nile: 'TKV5euiwG3qBtQAFwpLfFp2XHqYgtPgb5d', // Current testnet contract - RESTRICTED ACCESS
             shasta: 'YOUR_SHASTA_CONTRACT_ADDRESS'
         },
         evm: {
