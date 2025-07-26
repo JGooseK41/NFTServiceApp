@@ -8749,50 +8749,65 @@ try {
                         return;
                     }
                     
+                    // Simple direct method that should work
+                    console.log('Attempting to load contract...');
+                    
+                    // Method 1: Load existing contract (most reliable for deployed contracts)
                     try {
-                        // Create a new contract instance
-                        const contractInstance = await tronWeb.contract().new(CONTRACT_ABI);
+                        legalContract = await tronWeb.contract().at(contractAddress);
+                        console.log('Contract loaded successfully with at() method');
+                    } catch (error) {
+                        console.error('at() method failed:', error);
                         
-                        // Load the contract at the specific address
-                        legalContract = await contractInstance.at(contractAddress);
-                        
-                        console.log('Contract created with new method:', {
-                            hasContract: !!legalContract,
-                            address: legalContract.address,
-                            contractAddress: contractAddress
-                        });
-                        
-                    } catch (contractError) {
-                        console.error('First method failed, trying direct instantiation:', contractError);
-                        
-                        try {
-                            // Direct instantiation method
-                            legalContract = tronWeb.contract(CONTRACT_ABI, contractAddress);
-                            
-                            // Force set the address if it's not set
-                            if (!legalContract.address) {
-                                legalContract.address = contractAddress;
-                            }
-                            
-                            console.log('Contract created with direct method:', {
-                                hasAddress: !!legalContract.address,
-                                addressSet: legalContract.address
-                            });
-                            
-                        } catch (secondError) {
-                            console.error('Both methods failed:', secondError);
-                            throw new Error('Unable to create contract instance. Please ensure you are on Nile Testnet.');
-                        }
+                        // Method 2: Direct instantiation
+                        legalContract = tronWeb.contract(CONTRACT_ABI, contractAddress);
+                        console.log('Contract created with direct instantiation');
                     }
+                    
+                    // Ensure the contract has the necessary properties
+                    if (!legalContract.address) {
+                        console.log('Setting contract address manually...');
+                        legalContract.address = contractAddress;
+                    }
+                    
+                    // Add the ABI methods if they're missing
+                    if (!legalContract.methods || Object.keys(legalContract.methods || {}).length === 0) {
+                        console.log('Contract methods missing, attempting to reinitialize...');
+                        // Create a new instance with just the ABI
+                        const tempContract = tronWeb.contract(CONTRACT_ABI);
+                        // Copy methods to our contract
+                        legalContract.methods = tempContract.methods;
+                        // Ensure address is set
+                        legalContract.address = contractAddress;
+                    }
+                    
+                    console.log('Final contract state:', {
+                        hasAddress: !!legalContract.address,
+                        address: legalContract.address,
+                        hasMethods: !!legalContract.methods,
+                        methodCount: Object.keys(legalContract.methods || {}).length,
+                        sampleMethods: Object.keys(legalContract.methods || {}).slice(0, 5)
+                    });
                     
                     // Verify the contract is working
                     try {
                         console.log('Testing contract...');
-                        // TronWeb uses direct method calls, not .methods
-                        const totalNotices = await legalContract.totalNotices().call();
-                        console.log('Contract test successful, total notices:', totalNotices.toString());
+                        let totalNotices;
+                        
+                        // Try different calling methods
+                        try {
+                            // Method 1: Direct call
+                            totalNotices = await legalContract.totalNotices().call();
+                        } catch (e1) {
+                            console.log('Direct call failed, trying methods object...');
+                            // Method 2: Via methods object
+                            totalNotices = await legalContract.methods.totalNotices().call();
+                        }
+                        
+                        console.log('Contract test successful, total notices:', totalNotices ? totalNotices.toString() : '0');
                     } catch (testError) {
                         console.warn('Contract test failed, but continuing:', testError);
+                        console.warn('This may be normal if no notices have been created yet.');
                     }
                     
                     window.legalContract = legalContract;
