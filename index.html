@@ -8727,22 +8727,22 @@ try {
                 await loadCurrentFee();
                 
                 // Hide contract management card
-// Update the card to show connection status instead of hiding it
-const connectBtn = document.getElementById('connectContractBtn');
-connectBtn.innerHTML = '<i class="fas fa-check"></i> Connected';
-connectBtn.classList.remove('btn-primary');
-connectBtn.classList.add('btn-success');
-connectBtn.disabled = true;
+                // Update the card to show connection status instead of hiding it
+                const connectBtn = document.getElementById('connectContractBtn');
+                connectBtn.innerHTML = '<i class="fas fa-check"></i> Connected';
+                connectBtn.classList.remove('btn-primary');
+                connectBtn.classList.add('btn-success');
+                connectBtn.disabled = true;
 
-// Disable the input field but keep it visible
-document.getElementById('contractAddress').disabled = true;
+                // Disable the input field but keep it visible
+                document.getElementById('contractAddress').disabled = true;
 
-// Add a disconnect button
-const disconnectBtn = document.createElement('button');
-disconnectBtn.className = 'btn btn-secondary';
-disconnectBtn.style.marginLeft = '0.5rem';
-disconnectBtn.innerHTML = '<i class="fas fa-unlink"></i> Disconnect';
-disconnectBtn.onclick = function() {
+                // Add a disconnect button
+                const disconnectBtn = document.createElement('button');
+                disconnectBtn.className = 'btn btn-secondary';
+                disconnectBtn.style.marginLeft = '0.5rem';
+                disconnectBtn.innerHTML = '<i class="fas fa-unlink"></i> Disconnect';
+                disconnectBtn.onclick = function() {
     // Reset contract connection
     legalContract = null;
     document.getElementById('contractsStatus').style.display = 'none';
@@ -8780,45 +8780,45 @@ disconnectBtn.onclick = function() {
     document.getElementById('checkRoleBtn').disabled = true;
     
     uiManager.showNotification('info', 'Contract disconnected');
-};
+                };
 
-// Add the disconnect button next to connect button
-connectBtn.parentNode.insertBefore(disconnectBtn, connectBtn.nextSibling);
+                // Add the disconnect button next to connect button
+                connectBtn.parentNode.insertBefore(disconnectBtn, connectBtn.nextSibling);
 
-showAlert('contractStatus', 'success', 'Contract connected successfully!');
+                showAlert('contractStatus', 'success', 'Contract connected successfully!');
 
-// Auto-collapse contract card after successful connection
-setTimeout(() => {
+                // Auto-collapse contract card after successful connection
+                setTimeout(() => {
     const contractContent = document.getElementById('contractContent');
     const contractToggleIcon = document.getElementById('contractToggleIcon');
     if (contractContent && contractToggleIcon) {
         contractContent.style.display = 'none';
         contractToggleIcon.className = 'fas fa-chevron-down';
     }
-}, 1500);
+                }, 1500);
 
-// Auto-refresh alerts if user has process server role
-if (isProcessServer || isAdmin) {
-    setTimeout(() => refreshMyAlerts(), 1000);
-}
+                // Auto-refresh alerts if user has process server role
+                if (isProcessServer || isAdmin) {
+                    setTimeout(() => refreshMyAlerts(), 1000);
+                }
 
-// Show wallet status card and update status
-document.getElementById('walletStatusCard').style.display = 'block';
+                // Show wallet status card and update status
+                document.getElementById('walletStatusCard').style.display = 'block';
 
-// Add wallet status toggle listener now that the card is visible
-const walletStatusHeader = document.getElementById('walletStatusHeader');
-if (walletStatusHeader && !walletStatusHeader.hasAttribute('data-listener-added')) {
-    walletStatusHeader.addEventListener('click', toggleWalletStatus);
-    walletStatusHeader.setAttribute('data-listener-added', 'true');
-}
+                // Add wallet status toggle listener now that the card is visible
+                const walletStatusHeader = document.getElementById('walletStatusHeader');
+                if (walletStatusHeader && !walletStatusHeader.hasAttribute('data-listener-added')) {
+                    walletStatusHeader.addEventListener('click', toggleWalletStatus);
+                    walletStatusHeader.setAttribute('data-listener-added', 'true');
+                }
 
-await updateWalletStatus();
+                await updateWalletStatus();
 
-} catch (error) {
-    console.error('Contract connection error:', error);
-    showAlert('contractStatus', 'error', 'Failed to connect to contract: ' + getErrorMessage(error));
-}
-}
+            } catch (error) {
+                console.error('Contract connection error:', error);
+                showAlert('contractStatus', 'error', 'Failed to connect to contract: ' + getErrorMessage(error));
+            }
+        }
 
 // Update wallet status information
 async function updateWalletStatus() {
