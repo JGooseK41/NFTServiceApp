@@ -8343,7 +8343,8 @@ try {
                 let tokenSymbol;
                 
                 if (currentChainType === 'tron') {
-                    fee = await legalContract.SERVICE_FEE().call();
+                    // In the simplified contract, we use serviceFee instead of SERVICE_FEE
+                    fee = await legalContract.serviceFee().call();
                     // Get user's actual fee after exemptions
                     userFee = await legalContract.calculateFee(tronWeb.defaultAddress.base58).call();
                     currentCreationFee = parseFloat(tronWeb.fromSun(userFee));
@@ -8735,7 +8736,24 @@ try {
                 
                 // Create contract instance based on chain type
                 if (currentChainType === 'tron') {
-                    legalContract = await tronWeb.contract(CONTRACT_ABI, contractAddress);
+                    console.log('Creating TRON contract with:', {
+                        address: contractAddress,
+                        abiLength: CONTRACT_ABI.length,
+                        tronWebReady: !!tronWeb.contract
+                    });
+                    
+                    // Try the recommended TronWeb contract creation method
+                    legalContract = await tronWeb.contract().at(contractAddress);
+                    
+                    // Inject the ABI
+                    legalContract.abi = CONTRACT_ABI;
+                    
+                    console.log('Contract created:', {
+                        hasAddress: !!legalContract.address,
+                        address: legalContract.address,
+                        methods: Object.keys(legalContract.methods || {}).length
+                    });
+                    
                     window.legalContract = legalContract;
                 } else {
                     evmContract = new web3Instance.eth.Contract(CONTRACT_ABI, contractAddress);
