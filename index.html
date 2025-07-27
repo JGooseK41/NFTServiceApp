@@ -8999,15 +8999,17 @@ async function updateWalletStatus() {
             roleElement.innerHTML = '<span class="badge badge-secondary">None</span>';
         }
         
-        // Check fee exemptions
-        let isServiceFeeExempt = false;
-        let isFullFeeExempt = false;
+        // Check fee exemptions (optimized contract)
+        let isLawEnforcementExempt = false;
+        let agencyName = '';
         
         try {
-            // Check for law enforcement exemption (optimized contract)
+            // Check for law enforcement exemption
             if (legalContract.lawEnforcementExemptions) {
-                isServiceFeeExempt = await legalContract.lawEnforcementExemptions(address).call();
-                isFullFeeExempt = isServiceFeeExempt; // Same exemption in optimized contract
+                isLawEnforcementExempt = await legalContract.lawEnforcementExemptions(address).call();
+                if (isLawEnforcementExempt) {
+                    agencyName = await legalContract.lawEnforcementAgencies(address).call();
+                }
             }
         } catch (e) {
             // Contract doesn't have the old feeExemptions method
@@ -9015,12 +9017,13 @@ async function updateWalletStatus() {
         }
         
         const feeStatusElement = document.getElementById('feeExemptStatus');
-        if (isFullFeeExempt) {
-            feeStatusElement.innerHTML = '<span class="badge badge-success">Full Exempt</span>';
-        } else if (isServiceFeeExempt) {
-            feeStatusElement.innerHTML = '<span class="badge badge-primary">Service Fee Exempt</span>';
+        if (isLawEnforcementExempt) {
+            const agencyText = agencyName ? ` - ${agencyName}` : '';
+            feeStatusElement.innerHTML = `<span class="badge badge-success">Law Enforcement Exempt${agencyText}</span>`;
+        } else if (isProcessServer) {
+            feeStatusElement.innerHTML = '<span class="badge badge-info">Process Server Rate</span>';
         } else {
-            feeStatusElement.innerHTML = '<span class="badge badge-warning">Not Exempt</span>';
+            feeStatusElement.innerHTML = '<span class="badge badge-warning">Standard Rate</span>';
         }
         
         // Get wallet balance
@@ -9035,9 +9038,17 @@ async function updateWalletStatus() {
         // Check all possible roles
         detailsHtml += `<div><strong>Admin Role:</strong> ${isAdmin ? '<span style="color: var(--success);">✓ Yes</span>' : '<span style="color: var(--error);">✗ No</span>'}</div>`;
         detailsHtml += `<div><strong>Process Server Role:</strong> ${isProcessServer ? '<span style="color: var(--success);">✓ Yes</span>' : '<span style="color: var(--error);">✗ No</span>'}</div>`;
-        detailsHtml += `<div style="margin-top: 0.5rem;"><strong>Fee Exemptions:</strong></div>`;
-        detailsHtml += `<div style="margin-left: 1rem;">Service Fee Exempt: ${isServiceFeeExempt ? '<span style="color: var(--success);">✓ Yes (50% discount)</span>' : '<span style="color: var(--error);">✗ No</span>'}</div>`;
-        detailsHtml += `<div style="margin-left: 1rem;">Full Fee Exempt: ${isFullFeeExempt ? '<span style="color: var(--success);">✓ Yes (Only creation fee)</span>' : '<span style="color: var(--error);">✗ No</span>'}</div>`;
+        detailsHtml += `<div style="margin-top: 0.5rem;"><strong>Fee Status:</strong></div>`;
+        if (isLawEnforcementExempt) {
+            detailsHtml += `<div style="margin-left: 1rem;"><span style="color: var(--success);">✓ Law Enforcement Exempt</span></div>`;
+            if (agencyName) {
+                detailsHtml += `<div style="margin-left: 1rem;">Agency: ${agencyName}</div>`;
+            }
+        } else if (isProcessServer) {
+            detailsHtml += `<div style="margin-left: 1rem;"><span style="color: var(--success);">✓ Process Server Rate (Creation Fee + Sponsorship)</span></div>`;
+        } else {
+            detailsHtml += `<div style="margin-left: 1rem;">Standard Rate (Full Service Fee + Sponsorship)</div>`;
+        }
         
         // Calculate actual fee
         try {
@@ -9048,13 +9059,40 @@ async function updateWalletStatus() {
             console.error('Error calculating fee:', e);
         }
         
-        // Check local registration status
+        // Check process server info from contract
+        if (isProcessServer) {
+            try {
+                const serverInfo = await legalContract.getProcessServerInfo(address).call();
+                if (serverInfo.serverId && serverInfo.serverId.toString() !== '0') {
+                    detailsHtml += `<div style="margin-top: 0.5rem;"><strong>Process Server Info:</strong></div>`;
+                    detailsHtml += `<div style="margin-left: 1rem;">Server ID: <strong>${serverInfo.serverId}</strong></div>`;
+                    if (serverInfo.name) {
+                        detailsHtml += `<div style="margin-left: 1rem;">Name: ${serverInfo.name}</div>`;
+                    }
+                    if (serverInfo.agency) {
+                        detailsHtml += `<div style="margin-left: 1rem;">Agency: ${serverInfo.agency}</div>`;
+                    }
+                    detailsHtml += `<div style="margin-left: 1rem;">Notices Served: ${serverInfo.noticesServed || '0'}</div>`;
+                    
+                    // Update the server ID display at the top
+                    const serverIdDisplay = document.getElementById('serverIdDisplay');
+                    const userServerIdSpan = document.getElementById('userServerId');
+                    if (serverIdDisplay && userServerIdSpan) {
+                        serverIdDisplay.style.display = 'block';
+                        userServerIdSpan.textContent = serverInfo.serverId.toString().padStart(2, '0');
+                    }
+                }
+            } catch (e) {
+                console.error('Error getting process server info:', e);
+            }
+        }
+        
+        // Check local registration status (for pending registrations)
         const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
         const localReg = serverRegistrations[address];
-        if (localReg) {
-            detailsHtml += `<div style="margin-top: 0.5rem;"><strong>Local Registration:</strong></div>`;
-            detailsHtml += `<div style="margin-left: 1rem;">Status: ${localReg.status}</div>`;
-            detailsHtml += `<div style="margin-left: 1rem;">Server ID: ${localReg.serverId || 'Not assigned'}</div>`;
+        if (localReg && localReg.status === 'pending') {
+            detailsHtml += `<div style="margin-top: 0.5rem;"><strong>Pending Registration:</strong></div>`;
+            detailsHtml += `<div style="margin-left: 1rem;">Status: Awaiting approval</div>`;
         }
         
         detailsHtml += '</div>';
