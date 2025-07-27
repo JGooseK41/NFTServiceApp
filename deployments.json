@@ -1,8 +1,8 @@
 {
   "nile": {
     "network": "nile",
-    "contractAddress": "41ab7130663753bc23f73a7ad115e73e0944a7b36e",
-    "deployedAt": "2025-07-26T17:53:10.628Z",
+    "contractAddress": "41e06d91dd2c5714e573a9cb42bc11ed398367fdc7",
+    "deployedAt": "2025-07-26T19:03:25.785Z",
     "deployer": "TDbeaZQ25WzZ4Aqn4RJAZxmo6BeHdMeXGf",
     "feeCollector": "TDbeaZQ25WzZ4Aqn4RJAZxmo6BeHdMeXGf",
     "contractName": "LegalNoticeNFT_Simplified"

@@ -2410,11 +2410,11 @@
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
                         <input type="text" class="form-input" id="contractAddress" 
                                placeholder="Enter contract address (e.g., TXxxx...)"
-                               value="TKV5euiwG3qBtQAFwpLfFp2XHqYgtPgb5d" style="flex: 1;">
+                               value="TUwBwXx8Zk1vxmv7AFTEtXy1vckV4KMuwW" style="flex: 1;">
                         <button class="btn btn-secondary" onclick="copyAddress(document.getElementById('contractAddress').value)" title="Copy address">
                             <i class="fas fa-copy"></i>
                         </button>
-                        <a href="https://nile.tronscan.org/#/contract/TKV5euiwG3qBtQAFwpLfFp2XHqYgtPgb5d" target="_blank" class="btn btn-secondary" title="View on Nile TronScan">
+                        <a href="https://nile.tronscan.org/#/contract/TUwBwXx8Zk1vxmv7AFTEtXy1vckV4KMuwW" target="_blank" class="btn btn-secondary" title="View on Nile TronScan">
                             <i class="fas fa-external-link-alt"></i>
                         </a>
                     </div>
@@ -4467,7 +4467,7 @@
                 },
                 nile: {
                     name: 'TRON Nile Testnet',
-                    contractAddress: window.APP_CONFIG?.contracts.tron.nile || 'TKV5euiwG3qBtQAFwpLfFp2XHqYgtPgb5d',
+                    contractAddress: window.APP_CONFIG?.contracts.tron.nile || 'TUwBwXx8Zk1vxmv7AFTEtXy1vckV4KMuwW',
                     explorerUrl: 'https://nile.tronscan.org',
                     nativeToken: 'TRX',
                     chainId: null
@@ -6205,8 +6205,16 @@ try {
                 
                 // Grant PROCESS_SERVER_ROLE to the user
                 const roleBytes = tronWeb.sha3('PROCESS_SERVER_ROLE');
-                const tx = await legalContract.grantRole(roleBytes, registration.address || regId).send({
-                    feeLimit: 20_000_000,  // 20 TRX - reduced from 100 TRX
+                const userAddress = registration.address || regId;
+                
+                console.log('Granting role:', {
+                    roleBytes,
+                    userAddress,
+                    contractAddress: legalContract.address
+                });
+                
+                const tx = await legalContract.grantRole(roleBytes, userAddress).send({
+                    feeLimit: 100_000_000,  // 100 TRX for role granting
                     callValue: 0,
                     shouldPollResponse: true
                 });
@@ -8351,10 +8359,8 @@ try {
                 // Call the contract to check the role
                 const hasRole = await legalContract.hasRole(roleBytes, address).call();
                 
-                // Check fee exemption - new contract has separate service and full exemptions
-                const isServiceExempt = await legalContract.serviceFeeExemptions(address).call();
-                const isFullExempt = await legalContract.fullFeeExemptions(address).call();
-                const isFeeExempt = isServiceExempt || isFullExempt;
+                // Check fee exemption - optimized contract only has law enforcement exemptions
+                const isFeeExempt = await legalContract.lawEnforcementExemptions(address).call();
                 
                 // Show result
                 const roleName = roleSelect.options[roleSelect.selectedIndex].text;
@@ -8998,13 +9004,10 @@ async function updateWalletStatus() {
         let isFullFeeExempt = false;
         
         try {
-            // Check for service fee exemption
-            if (legalContract.serviceFeeExemptions) {
-                isServiceFeeExempt = await legalContract.serviceFeeExemptions(address).call();
-            }
-            // Check for full fee exemption
-            if (legalContract.fullFeeExemptions) {
-                isFullFeeExempt = await legalContract.fullFeeExemptions(address).call();
+            // Check for law enforcement exemption (optimized contract)
+            if (legalContract.lawEnforcementExemptions) {
+                isServiceFeeExempt = await legalContract.lawEnforcementExemptions(address).call();
+                isFullFeeExempt = isServiceFeeExempt; // Same exemption in optimized contract
             }
         } catch (e) {
             // Contract doesn't have the old feeExemptions method
@@ -9107,8 +9110,9 @@ async function checkUserRoles() {
                 updateAdminTabVisibility();
                 
                 // Check fee exemption status
-                const serviceFeeExempt = await legalContract.serviceFeeExemptions(tronWeb.defaultAddress.base58).call();
-                const fullFeeExempt = await legalContract.fullFeeExemptions(tronWeb.defaultAddress.base58).call();
+                const isLawEnforcement = await legalContract.lawEnforcementExemptions(tronWeb.defaultAddress.base58).call();
+                const serviceFeeExempt = isLawEnforcement;
+                const fullFeeExempt = isLawEnforcement;
                 
                 // Update fee status display
                 const feeStatusElement = document.getElementById('feeExemptStatus');
@@ -9800,8 +9804,9 @@ async function checkUserRoles() {
                 plainTextDebug += `- Process Server Role: ${hasProcessServerRole ? 'YES' : 'NO'}\n\n`;
                 
                 // Check fee exemptions
-                const serviceFeeExempt = await legalContract.serviceFeeExemptions(address).call();
-                const fullFeeExempt = await legalContract.fullFeeExemptions(address).call();
+                const isLawEnforcement = await legalContract.lawEnforcementExemptions(address).call();
+                const serviceFeeExempt = isLawEnforcement;
+                const fullFeeExempt = isLawEnforcement;
                 
                 debugInfo += `<strong>Fee Exemptions:</strong><br>`;
                 debugInfo += `- Service Fee Exempt: ${serviceFeeExempt ? '✓ YES' : '✗ NO'}<br>`;
@@ -10579,11 +10584,10 @@ async function updateFeeEstimate() {
             if (legalContract && tronWeb.defaultAddress) {
                 try {
                     const userAddress = tronWeb.defaultAddress.base58;
-                    const serviceFeeExempt = await legalContract.serviceFeeExemptions(userAddress).call();
-                    const fullFeeExempt = await legalContract.fullFeeExemptions(userAddress).call();
-                    
                     const isLawEnforcement = await legalContract.lawEnforcementExemptions(userAddress).call();
                     const agencyName = await legalContract.lawEnforcementAgencies(userAddress).call();
+                    const serviceFeeExempt = isLawEnforcement;
+                    const fullFeeExempt = isLawEnforcement;
                     
                     if (isLawEnforcement) {
                         totalFee = 2; // Only pay sponsorship fee

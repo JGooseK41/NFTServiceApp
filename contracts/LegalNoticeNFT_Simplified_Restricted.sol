@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 
 contract LegalNoticeNFT_Simplified is ERC721, ERC721URIStorage, AccessControl, ReentrancyGuard {
     using Counters for Counters.Counter;
+    using Strings for uint256;
     
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant PROCESS_SERVER_ROLE = keccak256("PROCESS_SERVER_ROLE");
@@ -45,6 +46,19 @@ contract LegalNoticeNFT_Simplified is ERC721, ERC721URIStorage, AccessControl, R
         bool hasDocument;          // true = Document Images, false = Text Only
         uint256 serverId;          // Process server ID who created this
         string tokenName;          // Name with prepended server ID
+    }
+    
+    // Batch notice parameters to avoid stack too deep
+    struct BatchNoticeParams {
+        string publicText;
+        string encryptedIPFS;
+        string encryptionKey;
+        string noticeType;
+        string caseNumber;
+        string issuingAgency;
+        string tokenNamePrefix;
+        bool hasDocument;
+        bool sponsorFees;
     }
     
     // Storage
@@ -478,27 +492,18 @@ contract LegalNoticeNFT_Simplified is ERC721, ERC721URIStorage, AccessControl, R
     
     
     // Batch create notices
-    /* COMMENTED OUT - Stack too deep error
     function createBatchNotices(
         address[] calldata recipients,
-        string calldata publicText,
-        string calldata encryptedIPFS,
-        string calldata encryptionKey,
-        string calldata noticeType,
-        string calldata caseNumber,
-        string calldata issuingAgency,
-        string calldata tokenNamePrefix,
-        bool hasDocument,
-        bool sponsorFees
+        BatchNoticeParams calldata params
     ) external payable whenNotPaused onlyAuthorized returns (uint256[] memory) {
         require(recipients.length > 0 && recipients.length <= 20, "Invalid batch");
-        if (hasDocument) require(bytes(encryptedIPFS).length > 0, "Empty IPFS");
+        if (params.hasDocument) require(bytes(params.encryptedIPFS).length > 0, "Empty IPFS");
         
         uint256[] memory noticeIds = new uint256[](recipients.length);
         uint256 individualFee = calculateFee(msg.sender);
         uint256 totalFee = individualFee * recipients.length;
         
-        if (sponsorFees) totalFee += sponsorshipFee * recipients.length;
+        if (params.sponsorFees) totalFee += sponsorshipFee * recipients.length;
         require(msg.value >= totalFee, "Insufficient fee");
         
         ProcessServer storage server = processServers[msg.sender];
@@ -513,17 +518,17 @@ contract LegalNoticeNFT_Simplified is ERC721, ERC721URIStorage, AccessControl, R
             notices[noticeId] = Notice({
                 recipient: recipients[i],
                 sender: msg.sender,
-                encryptedIPFS: hasDocument ? encryptedIPFS : "",
-                encryptionKey: hasDocument ? encryptionKey : "",
-                publicText: hasDocument ? "" : publicText,
-                noticeType: noticeType,
-                caseNumber: caseNumber,
-                issuingAgency: issuingAgency,
+                encryptedIPFS: params.hasDocument ? params.encryptedIPFS : "",
+                encryptionKey: params.hasDocument ? params.encryptionKey : "",
+                publicText: params.hasDocument ? "" : params.publicText,
+                noticeType: params.noticeType,
+                caseNumber: params.caseNumber,
+                issuingAgency: params.issuingAgency,
                 timestamp: block.timestamp,
                 accepted: false,
-                hasDocument: hasDocument,
+                hasDocument: params.hasDocument,
                 serverId: server.serverId,
-                tokenName: string(abi.encodePacked(tokenNamePrefix, " #", Strings.toString(i + 1)))
+                tokenName: string(abi.encodePacked(params.tokenNamePrefix, " #", Strings.toString(i + 1)))
             });
             
             recipientNotices[recipients[i]].push(noticeId);
@@ -532,12 +537,12 @@ contract LegalNoticeNFT_Simplified is ERC721, ERC721URIStorage, AccessControl, R
             
             if (server.serverId > 0) server.noticesServed++;
             
-            if (sponsorFees) {
+            if (params.sponsorFees) {
                 (bool sent, ) = payable(recipients[i]).call{value: sponsorshipFee}("");
                 if (sent) emit FeesSponsored(recipients[i], sponsorshipFee);
             }
             
-            emit NoticeCreated(noticeId, recipients[i], msg.sender, hasDocument, block.timestamp, server.serverId, notices[noticeId].tokenName);
+            emit NoticeCreated(noticeId, recipients[i], msg.sender, params.hasDocument, block.timestamp, server.serverId, notices[noticeId].tokenName);
             noticeIds[i] = noticeId;
         }
         
@@ -554,7 +559,6 @@ contract LegalNoticeNFT_Simplified is ERC721, ERC721URIStorage, AccessControl, R
         
         return noticeIds;
     }
-    */
     
     // Emergency pause (if needed)
     bool public paused = false;
