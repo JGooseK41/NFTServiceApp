@@ -4087,7 +4087,7 @@
                             </div>
                             
                             <!-- Text Notice Input -->
-                            <div class="text-notice-input" id="textNoticeGroup" style="display: none;">
+                            <div class="text-notice-input active" id="textNoticeGroup" style="display: block;">
                                 <div class="form-group" style="background: #fef3c7; padding: 1rem; border-radius: 0.5rem; border: 2px solid #f59e0b;">
                                     <label for="noticeText" id="noticeTextLabel">
                                         <i class="fas fa-globe" style="color: #f59e0b;"></i> Public Notice Text
@@ -6962,7 +6962,14 @@ try {
                 }
                 
                 if (deliveryMethod === 'text' || deliveryMethod === 'viewgated') {
-                    noticeText = document.getElementById('noticeText').value.trim();
+                    const noticeTextElement = document.getElementById('noticeText');
+                    console.log('Notice text element:', noticeTextElement);
+                    console.log('Notice text visibility:', noticeTextElement ? noticeTextElement.style.display : 'not found');
+                    console.log('Notice text parent visibility:', noticeTextElement ? noticeTextElement.parentElement.style.display : 'not found');
+                    
+                    noticeText = noticeTextElement ? noticeTextElement.value.trim() : '';
+                    console.log('Notice text value:', noticeText);
+                    
                     if (!noticeText) {
                         uiManager.showNotification('error', 'Notice text is required');
                         createBtn.disabled = false;
