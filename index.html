@@ -7286,35 +7286,75 @@ try {
                         });
                         
                         // Use new contract functions based on delivery method
-                        if (deliveryMethod === 'document') {
-                            tx = await legalContract.createDocumentNotice(
-                                recipient,
-                                encryptedIPFS,
-                                decryptKey,
-                                noticeText,  // publicText
-                                noticeType,
-                                caseNumber,
-                                issuingAgency,
-                                baseTokenName
-                            ).send({
-                                feeLimit: 200_000_000,  // 200 TRX max - increased for higher energy needs
-                                callValue: feeInSun,
-                                shouldPollResponse: true
-                            });
+                        if (deliveryMethod === 'viewgated') {
+                            console.log('Sending createDocumentNotice transaction...');
+                            try {
+                                tx = await legalContract.createDocumentNotice(
+                                    recipient,
+                                    encryptedIPFS,
+                                    decryptKey,
+                                    noticeText,  // publicText
+                                    noticeType,
+                                    caseNumber,
+                                    issuingAgency,
+                                    baseTokenName
+                                ).send({
+                                    feeLimit: 200_000_000,  // 200 TRX max - increased for higher energy needs
+                                    callValue: feeInSun,
+                                    shouldPollResponse: false  // Don't wait for confirmation
+                                });
+                                console.log('Transaction sent, ID:', tx);
+                                
+                                // Wait a bit for the transaction to be processed
+                                await new Promise(resolve => setTimeout(resolve, 3000));
+                                
+                                // Get transaction info
+                                const txInfo = await tronWeb.trx.getTransactionInfo(tx);
+                                console.log('Transaction info:', txInfo);
+                                
+                                if (txInfo && txInfo.receipt && txInfo.receipt.result === 'SUCCESS') {
+                                    console.log('Transaction successful');
+                                } else if (txInfo && txInfo.receipt) {
+                                    throw new Error(`Transaction failed: ${txInfo.receipt.result}`);
+                                }
+                            } catch (txError) {
+                                console.error('Document notice creation error:', txError);
+                                throw txError;
+                            }
                         } else {
                             // Text only notice
-                            tx = await legalContract.createTextNotice(
-                                recipient,
-                                noticeText,  // publicText
-                                noticeType,
-                                caseNumber,
-                                issuingAgency,
-                                baseTokenName
-                            ).send({
-                            feeLimit: 200_000_000,  // 200 TRX max - increased for higher energy needs
-                            callValue: feeInSun,
-                            shouldPollResponse: true
-                        });
+                            console.log('Sending createTextNotice transaction...');
+                            try {
+                                tx = await legalContract.createTextNotice(
+                                    recipient,
+                                    noticeText,  // publicText
+                                    noticeType,
+                                    caseNumber,
+                                    issuingAgency,
+                                    baseTokenName
+                                ).send({
+                                    feeLimit: 200_000_000,  // 200 TRX max - increased for higher energy needs
+                                    callValue: feeInSun,
+                                    shouldPollResponse: false  // Don't wait for confirmation
+                                });
+                                console.log('Transaction sent, ID:', tx);
+                                
+                                // Wait a bit for the transaction to be processed
+                                await new Promise(resolve => setTimeout(resolve, 3000));
+                                
+                                // Get transaction info
+                                const txInfo = await tronWeb.trx.getTransactionInfo(tx);
+                                console.log('Transaction info:', txInfo);
+                                
+                                if (txInfo && txInfo.receipt && txInfo.receipt.result === 'SUCCESS') {
+                                    console.log('Transaction successful');
+                                } else if (txInfo && txInfo.receipt) {
+                                    throw new Error(`Transaction failed: ${txInfo.receipt.result}`);
+                                }
+                            } catch (txError) {
+                                console.error('Text notice creation error:', txError);
+                                throw txError;
+                            }
                         }
                         
                         console.log('Transaction response:', tx);
