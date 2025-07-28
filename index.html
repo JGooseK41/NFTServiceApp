@@ -2701,6 +2701,9 @@
                             </button>
                         </div>
                     </div>
+                
+                <div class="admin-controls">
+                
                     <div id="allRegistrationsContent">
                         <div class="empty-state">
                             <i class="fas fa-cloud-download-alt"></i>
@@ -2840,23 +2843,26 @@
                                 <input type="tel" class="form-input" id="serverPhone" placeholder="(555) 123-4567">
                             </div>
                         </div>
-                                                                                <div id="lawEnforcementSection" class="subsection" style="background: #f3f4f6; padding: 1rem; border-radius: 0.5rem;">
-                                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-                                    <i class="fas fa-shield-alt" style="color: #3b82f6;"></i>
-                                    <span style="font-weight: 600;">Law Enforcement Exemption</span>
-                                </div>
-                                <div class="form-group">
-                                    <label class="form-label">Agency Name</label>
-                                    <input type="text" class="form-input" id="lawEnforcementAgencyName" 
-                                           placeholder="e.g., FBI, DEA, Local Police Department">
-                                </div>
-                                <div class="checkbox-group">
-                                    <input type="checkbox" id="lawEnforcementExempt">
-                                    <label for="lawEnforcementExempt">Grant law enforcement fee exemption</label>
-                                </div>
+                                                                                                        <!-- Law Enforcement Section -->
+                        <div id="lawEnforcementSection" class="subsection" style="background: #f3f4f6; padding: 1rem; border-radius: 0.5rem; margin-top: 1rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                <i class="fas fa-shield-alt" style="color: #3b82f6;"></i>
+                                <span style="font-weight: 600;">Law Enforcement Exemption</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Agency Name</label>
+                                <input type="text" class="form-input" id="lawEnforcementAgencyName" 
+                                       placeholder="e.g., FBI, DEA, Local Police Department"
+                                       style="background: white;">
+                            </div>
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="lawEnforcementExempt">
+                                <label for="lawEnforcementExempt" style="color: var(--text-primary);">Grant law enforcement fee exemption</label>
                             </div>
                         </div>
-                        <div style="display: flex; gap: 0.5rem;">
+                        
+                        <!-- Action Buttons -->
+                        <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
                             <button class="btn btn-primary" onclick="grantRole()" id="grantRoleBtn">
                                 <i class="fas fa-user-plus"></i>
                                 Grant Role
@@ -2865,6 +2871,7 @@
                                 <i class="fas fa-user-check"></i>
                                 Check Role
                             </button>
+                        </div>
                             <button class="btn btn-secondary" onclick="exportRegistrations()" id="exportRegistrationsBtn" title="Export all server registrations">
                                 <i class="fas fa-download"></i>
                                 Export Servers
