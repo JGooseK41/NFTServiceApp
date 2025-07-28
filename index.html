@@ -5768,7 +5768,14 @@ function useConnectedAddressForFeeCollector() {
                         <p style="margin-top: 20px;"><strong>Note:</strong> The blockchain provides an immutable, tamper-proof record of this legal notice delivery. The transaction cannot be altered or deleted once confirmed.</p>
                     </div>
                     
-                    <button class="print-button no-print" onclick="window.print()">Print Receipt</button>
+                    <div class="no-print" style="display: flex; gap: 1rem; justify-content: center; margin: 2rem 0;">
+                        <button class="print-button" onclick="window.print()">
+                            <i class="fas fa-print"></i> Print Receipt
+                        </button>
+                        <button class="print-button" onclick="saveReceiptAsHTML()" style="background: #059669;">
+                            <i class="fas fa-save"></i> Save Receipt
+                        </button>
+                    </div>
                     
                     <div class="footer">
                         <p>This receipt certifies that a legal notice was served via blockchain technology on ${new Date(timestamp).toLocaleDateString()}.</p>
