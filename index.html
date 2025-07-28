@@ -7211,6 +7211,7 @@ try {
                 showProcessing('Creating legal notice on blockchain...');
                 
                 let tx;
+                let feeInSun = 0; // Initialize here for broader scope
                 
                 if (currentChainType === 'tron') {
                     // Check and rent energy if needed
@@ -7228,7 +7229,7 @@ try {
                     // Calculate total fee
                     // Fee structure: service/creation fee + sponsorship fee (always included)
                     let totalFee = currentCreationFee + 2; // Base fee + 2 TRX sponsorship (mandatory)
-                    const feeInSun = tronWeb.toSun(totalFee);
+                    feeInSun = tronWeb.toSun(totalFee); // Remove const to use the broader scope variable
                     
                     console.log('Transaction details:', {
                         recipient,
