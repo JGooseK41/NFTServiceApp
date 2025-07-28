@@ -4172,6 +4172,29 @@
         </div>
     </div>
 
+    <!-- Transaction Result Modal -->
+    <div id="transactionResultModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="txResultTitle">
+                    <i class="fas fa-check-circle" style="color: var(--success);"></i>
+                    Transaction Complete
+                </h3>
+                <button class="modal-close" onclick="closeTransactionResultModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="txResultContent" style="padding: 1rem;">
+                    <!-- Content will be dynamically populated -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeTransactionResultModal()">
+                    <i class="fas fa-check"></i> Done
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Audit Modal -->
     <div id="auditModal" class="modal">
         <div class="modal-content">
@@ -5181,6 +5204,110 @@ function useConnectedAddressForFeeCollector() {
 
         function closeAuditModal() {
             document.getElementById('auditModal').style.display = 'none';
+        }
+
+        function closeTransactionResultModal() {
+            document.getElementById('transactionResultModal').style.display = 'none';
+        }
+
+        function showTransactionResult(success, txData) {
+            const modal = document.getElementById('transactionResultModal');
+            const titleElement = document.getElementById('txResultTitle');
+            const contentElement = document.getElementById('txResultContent');
+            
+            if (success) {
+                titleElement.innerHTML = '<i class="fas fa-check-circle" style="color: var(--success);"></i> Transaction Successful';
+                
+                let content = '<div class="transaction-result-success">';
+                content += '<div class="success-icon" style="text-align: center; margin-bottom: 1.5rem;">';
+                content += '<i class="fas fa-check-circle" style="font-size: 4rem; color: var(--success);"></i>';
+                content += '</div>';
+                
+                // Transaction details
+                content += '<div class="transaction-details" style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">';
+                content += '<h4 style="margin-bottom: 1rem;">Transaction Details</h4>';
+                
+                if (txData.noticeId) {
+                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
+                    content += `<span>Notice ID:</span>`;
+                    content += `<strong>#${txData.noticeId}</strong>`;
+                    content += `</div>`;
+                }
+                
+                if (txData.txHash) {
+                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
+                    content += `<span>Transaction Hash:</span>`;
+                    content += `<a href="${getContractScanUrl()}tx/${txData.txHash}" target="_blank" style="color: var(--accent-blue);">`;
+                    content += `${txData.txHash.substring(0, 10)}...${txData.txHash.substring(txData.txHash.length - 8)}`;
+                    content += `</a>`;
+                    content += `</div>`;
+                }
+                
+                if (txData.recipient) {
+                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
+                    content += `<span>Recipient:</span>`;
+                    content += `<strong>${txData.recipient.substring(0, 10)}...${txData.recipient.substring(txData.recipient.length - 8)}</strong>`;
+                    content += `</div>`;
+                }
+                
+                content += '</div>';
+                
+                // Cost breakdown
+                content += '<div class="cost-breakdown" style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">';
+                content += '<h4 style="margin-bottom: 1rem;">Cost Breakdown</h4>';
+                
+                if (txData.feePaid !== undefined) {
+                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
+                    content += `<span>Service Fee:</span>`;
+                    content += `<strong>${txData.feePaid} TRX</strong>`;
+                    content += `</div>`;
+                }
+                
+                if (txData.energyUsed !== undefined) {
+                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
+                    content += `<span>Energy Used:</span>`;
+                    content += `<strong>${txData.energyUsed.toLocaleString()} (${(txData.energyUsed * 0.00042).toFixed(2)} TRX equivalent)</strong>`;
+                    content += `</div>`;
+                }
+                
+                if (txData.bandwidthUsed !== undefined) {
+                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
+                    content += `<span>Bandwidth Used:</span>`;
+                    content += `<strong>${txData.bandwidthUsed.toLocaleString()} (${(txData.bandwidthUsed * 0.001).toFixed(3)} TRX equivalent)</strong>`;
+                    content += `</div>`;
+                }
+                
+                const totalCost = (txData.feePaid || 0) + 
+                                 ((txData.energyUsed || 0) * 0.00042) + 
+                                 ((txData.bandwidthUsed || 0) * 0.001);
+                
+                content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-color); font-weight: bold;">`;
+                content += `<span>Total Cost:</span>`;
+                content += `<strong style="color: var(--accent-blue);">${totalCost.toFixed(3)} TRX</strong>`;
+                content += `</div>`;
+                
+                content += '</div>';
+                content += '</div>';
+                
+                contentElement.innerHTML = content;
+            } else {
+                titleElement.innerHTML = '<i class="fas fa-exclamation-circle" style="color: var(--error);"></i> Transaction Failed';
+                
+                let content = '<div class="transaction-result-error">';
+                content += '<div class="error-icon" style="text-align: center; margin-bottom: 1.5rem;">';
+                content += '<i class="fas fa-exclamation-circle" style="font-size: 4rem; color: var(--error);"></i>';
+                content += '</div>';
+                
+                content += '<div class="error-details" style="background: #fef2f2; padding: 1rem; border-radius: 0.5rem; border: 1px solid #fecaca;">';
+                content += '<p style="color: #991b1b; margin: 0;">' + (txData.error || 'Transaction failed. Please try again.') + '</p>';
+                content += '</div>';
+                
+                content += '</div>';
+                
+                contentElement.innerHTML = content;
+            }
+            
+            modal.style.display = 'block';
         }
 
         async function openAcceptModal(noticeId) {
@@ -7181,6 +7308,18 @@ try {
                 let noticeId = 'N/A';
                 let alertId = 'N/A';
                 
+                // Get transaction receipt for resource usage
+                let txReceipt = null;
+                try {
+                    if (typeof tx === 'string') {
+                        txReceipt = await tronWeb.trx.getTransactionInfo(tx);
+                    } else if (tx && tx.txid) {
+                        txReceipt = await tronWeb.trx.getTransactionInfo(tx.txid);
+                    }
+                } catch (err) {
+                    console.error('Error getting transaction info:', err);
+                }
+                
                 if (currentChainType === 'tron') {
                     try {
                         // Extract transaction ID from the response
@@ -7352,8 +7491,21 @@ try {
                     </div>
                 `;
                 
-                // Show success notification and transaction modal
-                uiManager.showNotification('success', 'Legal notice created successfully!');
+                // Calculate resource costs
+                const energyUsed = txReceipt?.receipt?.energy_usage || 0;
+                const bandwidthUsed = txReceipt?.receipt?.net_usage || 0;
+                const feePaidSun = currentChainType === 'tron' ? feeInSun : 0;
+                const feePaidTRX = feePaidSun / 1e6;
+                
+                // Show transaction result modal
+                showTransactionResult(true, {
+                    noticeId: noticeId,
+                    txHash: typeof tx === 'string' ? tx : (tx.txid || tx),
+                    recipient: recipient,
+                    feePaid: feePaidTRX,
+                    energyUsed: energyUsed,
+                    bandwidthUsed: bandwidthUsed
+                });
                 
                 // Extract transaction ID for display
                 let displayTxId = tx;
@@ -7396,10 +7548,14 @@ try {
                 let errorMsg = 'Failed to create legal notice';
                 errorMsg = getErrorMessage(error);
                 
-                uiManager.showNotification('error', errorMsg);
+                // Show transaction result modal with error
+                showTransactionResult(false, {
+                    error: errorMsg
+                });
             } finally {
                 hideProcessing();
                 createBtn.disabled = false;
+                createBtn.innerHTML = originalButtonText;
             }
         }
 
@@ -10846,6 +11002,7 @@ document.addEventListener('keydown', function(event) {
         window.closeAuditModal = closeAuditModal;
         window.openAcceptModal = openAcceptModal;
         window.closeAcceptModal = closeAcceptModal;
+        window.closeTransactionResultModal = closeTransactionResultModal;
         window.acceptNotice = acceptNotice;
         window.closeTxModal = closeTxModal;
         window.exportReceipt = exportReceipt;
