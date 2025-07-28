@@ -6465,6 +6465,39 @@ try {
                     console.error('Error checking user status:', error);
                 }
             }
+
+            // Refresh wallet status
+            async function refreshWalletStatus(event) {
+                if (event) {
+                    event.stopPropagation(); // Prevent card from toggling
+                }
+                
+                const refreshBtn = event ? event.currentTarget : null;
+                if (refreshBtn) {
+                    refreshBtn.disabled = true;
+                    refreshBtn.innerHTML = '<i class="fas fa-sync fa-spin"></i>';
+                }
+                
+                try {
+                    await updateWalletStatus();
+                    
+                    // Flash success color
+                    const walletCard = document.getElementById('walletStatusCard');
+                    if (walletCard) {
+                        walletCard.style.borderColor = '#10b981';
+                        setTimeout(() => {
+                            walletCard.style.borderColor = '';
+                        }, 1000);
+                    }
+                } catch (error) {
+                    console.error('Error refreshing wallet status:', error);
+                } finally {
+                    if (refreshBtn) {
+                        refreshBtn.disabled = false;
+                        refreshBtn.innerHTML = '<i class="fas fa-sync"></i>';
+                    }
+                }
+            }
             
             // Update display
             document.getElementById('feeTypeLabel').textContent = feeTypeText;
@@ -7058,6 +7091,7 @@ try {
             
             // Disable create button
             const createBtn = document.getElementById('createNoticeBtn');
+            const originalButtonText = createBtn.innerHTML;
             createBtn.disabled = true;
             
             try {
@@ -9125,6 +9159,15 @@ try {
 
 // Update wallet status information
 async function updateWalletStatus() {
+            // Ensure wallet status content is visible
+            const walletStatusContent = document.getElementById('walletStatusContent');
+            if (walletStatusContent && walletStatusContent.style.display === 'none') {
+                walletStatusContent.style.display = 'block';
+                const walletToggleIcon = document.getElementById('walletToggleIcon');
+                if (walletToggleIcon) {
+                    walletToggleIcon.className = 'fas fa-chevron-up';
+                }
+            }
     if (!legalContract || !tronWeb || !tronWeb.defaultAddress) {
         return;
     }
