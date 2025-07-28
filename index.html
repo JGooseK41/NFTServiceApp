@@ -2840,22 +2840,19 @@
                                 <input type="tel" class="form-input" id="serverPhone" placeholder="(555) 123-4567">
                             </div>
                         </div>
-                        <div id="lawEnforcementSection" style="display: none;">
-                            <div class="form-group" style="background: #1e293b; padding: 1rem; border-radius: 0.5rem; border: 1px solid #334155; margin-top: 1rem;">
+                                                                                <div id="lawEnforcementSection" class="subsection" style="background: #f3f4f6; padding: 1rem; border-radius: 0.5rem;">
                                 <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
                                     <i class="fas fa-shield-alt" style="color: #3b82f6;"></i>
-                                    <span style="font-weight: 600;">Law Enforcement Agency</span>
+                                    <span style="font-weight: 600;">Law Enforcement Exemption</span>
                                 </div>
-                                <p class="form-help" style="margin-bottom: 1rem;">Law enforcement agencies pay only actual gas costs (no profit margins)</p>
                                 <div class="form-group">
-                                    <label class="form-label">Agency Name <span style="color: #ef4444;">*</span></label>
+                                    <label class="form-label">Agency Name</label>
                                     <input type="text" class="form-input" id="lawEnforcementAgencyName" 
                                            placeholder="e.g., FBI, DEA, Local Police Department">
-                                    <p class="form-help">Required for law enforcement exemptions</p>
                                 </div>
                                 <div class="checkbox-group">
                                     <input type="checkbox" id="lawEnforcementExempt">
-                                    <label for="lawEnforcementExempt">Grant law enforcement exemption (cost-only pricing)</label>
+                                    <label for="lawEnforcementExempt">Grant law enforcement fee exemption</label>
                                 </div>
                             </div>
                         </div>
@@ -5860,48 +5857,48 @@ function useConnectedAddressForFeeCollector() {
             );
         }
         
-        async function grantProcessServerRole(address, lawEnforcementExempt, agencyName) {
+                async function grantProcessServerRole(address, lawEnforcementExempt, agencyName) {
             try {
-                showAlert('roleResult', 'info', 'Processing transaction...');
+                showProcessing('Granting Process Server role...');
                 
                 const roleBytes = tronWeb.sha3('PROCESS_SERVER_ROLE');
                 
-                // Lower fee limit to 20 TRX (more reasonable for role granting)
-                const tx = await legalContract.grantRole(roleBytes, address).send({
-                    feeLimit: 20_000_000,  // 20 TRX instead of 100 TRX
+                // Grant the role
+                await legalContract.grantRole(roleBytes, address).send({
+                    feeLimit: 20_000_000,
                     shouldPollResponse: true
                 });
                 
                 // Set law enforcement exemption if requested
                 if (lawEnforcementExempt && agencyName) {
-                    showAlert('roleResult', 'info', 'Setting law enforcement exemption...');
-                    
+                    showProcessing('Setting law enforcement exemption...');
                     await legalContract.setLawEnforcementExemption(address, agencyName).send({
                         feeLimit: 20_000_000,
                         shouldPollResponse: true
                     });
                 }
                 
-                showAlert('roleResult', 'success', 'Process Server role granted successfully!');
+                hideProcessing();
                 
-                // Add to recent activity
-                addRecentActivity('role', 'Granted Process Server role', {
-                    to: address,
-                    serviceFeeExempt: serviceFeeExempt,
-                    fullFeeExempt: fullFeeExempt
-                });
+                let message = 'Process Server role granted';
+                if (lawEnforcementExempt) {
+                    message += ' with law enforcement exemption (' + agencyName + ')';
+                }
+                
+                showAlert('roleResult', 'success', message);
                 
                 // Clear form
                 document.getElementById('roleAddress').value = '';
-                document.getElementById('serviceFeeExemptCheck').checked = false;
-                document.getElementById('fullFeeExemptCheck').checked = false;
+                document.getElementById('lawEnforcementExempt').checked = false;
+                document.getElementById('lawEnforcementAgencyName').value = '';
                 
             } catch (error) {
-                console.error('Error granting role:', error);
-                showAlert('roleResult', 'error', 'Failed to grant role: ' + getErrorMessage(error));
+                hideProcessing();
+                console.error('Error:', error);
+                showAlert('roleResult', 'error', 'Failed: ' + getErrorMessage(error));
             }
         }
-        
+
         // Function for regular users to open registration
         function openRegistrationForUser() {
             if (!tronWeb || !tronWeb.defaultAddress) {
@@ -8384,7 +8381,7 @@ try {
         }
 
         // Role management functions
-        async function grantRole() {
+                        async function grantRole() {
             if (!legalContract) {
                 uiManager.showNotification('error', 'Contract not connected');
                 return;
@@ -8429,16 +8426,16 @@ try {
                 // Convert role string to bytes32
                 const roleBytes = tronWeb.sha3(roleSelect.value);
                 
-                // Call the contract to grant the role
+                // Grant the role
                 await legalContract.grantRole(roleBytes, address).send({
-                    feeLimit: 20_000_000,  // 20 TRX - role granting
+                    feeLimit: 20_000_000,
                     callValue: 0,
                     shouldPollResponse: true
                 });
                 
                 // Apply law enforcement exemption if selected
                 if (lawEnforcementExempt) {
-                    showAlert('roleResult', 'info', 'Setting law enforcement exemption...');
+                    showProcessing('Setting law enforcement exemption...');
                     await legalContract.setLawEnforcementExemption(address, agencyName).send({
                         feeLimit: 20_000_000,
                         shouldPollResponse: true
@@ -8447,63 +8444,30 @@ try {
                 
                 hideProcessing();
                 
-                // Save process server registration data
-                if (roleSelect.value === 'PROCESS_SERVER_ROLE') {
-                    const serverId = generateServerId();
-                    const registrationData = {
-                        serverId,
-                        address,
-                        agencyName: document.getElementById('agencyName').value.trim(),
-                        agencyEmail: document.getElementById('agencyEmail').value.trim(),
-                        serverName: document.getElementById('serverName').value.trim(),
-                        serverPhone: document.getElementById('serverPhone').value.trim(),
-                        registeredAt: new Date().toISOString(),
-                        registeredBy: tronWeb.defaultAddress.base58,
-                        feeExempt: fullFeeExempt || serviceFeeExempt
-                    };
-                    
-                    // Save to localStorage
-                    saveServerRegistration(address, registrationData);
-                    
-                    // Update the displayed server ID
-                    if (address === tronWeb.defaultAddress.base58) {
-                        const userServerId = document.getElementById('userServerId');
-                        if (userServerId) userServerId.textContent = serverId.split('-').pop();
-                    }
-                }
-                
-                let message = `Role ${roleSelect.options[roleSelect.selectedIndex].text} granted to ${formatAddress(address)}`;
-                if (fullFeeExempt) {
-                    message += ' with full fee exemption';
-                } else if (serviceFeeExempt) {
-                    message += ' with service fee exemption';
+                // Build success message
+                let message = roleSelect.options[roleSelect.selectedIndex].text + ' role granted to ' + formatAddress(address);
+                if (lawEnforcementExempt) {
+                    message += ' with law enforcement exemption (' + agencyName + ')';
                 }
                 
                 showAlert('roleResult', 'success', message);
                 
                 // Clear inputs
                 document.getElementById('roleAddress').value = '';
-                document.getElementById('serviceFeeExemptCheck').checked = false;
-                document.getElementById('fullFeeExemptCheck').checked = false;
-                document.getElementById('agencyName').value = '';
-                if (document.getElementById('lawEnforcementAgencyName')) {
-                    document.getElementById('lawEnforcementAgencyName').value = '';
-                }
-                document.getElementById('agencyEmail').value = '';
-                document.getElementById('serverName').value = '';
-                document.getElementById('serverPhone').value = '';
+                document.getElementById('lawEnforcementExempt').checked = false;
+                document.getElementById('lawEnforcementAgencyName').value = '';
                 
                 // Add to recent activity
                 addRecentActivity('role', 'Role granted', {
                     role: roleSelect.options[roleSelect.selectedIndex].text,
                     address: formatAddress(address),
-                    feeExempt: fullFeeExempt || serviceFeeExempt
+                    feeExempt: lawEnforcementExempt
                 });
                 
             } catch (error) {
                 hideProcessing();
                 console.error('Error granting role:', error);
-                showAlert('roleResult', 'error', 'Failed to grant role: ' + getErrorMessage(error));
+                showAlert('roleResult', 'error', 'Failed: ' + getErrorMessage(error));
             }
         }
 
