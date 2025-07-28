@@ -3998,7 +3998,7 @@
                                 <label class="form-label">Delivery Method</label>
                                 <div class="delivery-options">
                                     <label class="delivery-option selected">
-                                        <input type="radio" name="deliveryMethod" value="viewgated" checked>
+                                        <input type="radio" name="deliveryMethod" value="document" checked>
                                         <div class="delivery-option-title">
                                             <i class="fas fa-file-shield"></i> Document Images
                                         </div>
@@ -6418,8 +6418,8 @@ try {
         
         // Update fee display based on user type and delivery method
         async function updateFeeDisplay() {
-            const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked')?.value || 'viewgated';
-            const isDocument = deliveryMethod === 'viewgated';
+            const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked')?.value || 'document';
+            const isDocument = deliveryMethod === 'document';
             
             // Get user info
             const userAddress = currentChainType === 'tron' && tronWeb ? tronWeb.defaultAddress.base58 : null;
@@ -7109,7 +7109,7 @@ try {
                 let sponsorFees = false;
                 let noticeText = '';
                 
-                if (deliveryMethod === 'viewgated') {
+                if (deliveryMethod === 'document') {
                     // Get notice type
                     const noticeTypeSelect = document.getElementById('noticeType').value;
                     if (noticeTypeSelect === 'Custom') {
@@ -7146,7 +7146,7 @@ try {
                     caseNumber = caseNumberValue;
                 }
                 
-                if (deliveryMethod === 'text' || deliveryMethod === 'viewgated') {
+                if (deliveryMethod === 'text' || deliveryMethod === 'document') {
                     const noticeTextElement = document.getElementById('noticeText');
                     console.log('Notice text element:', noticeTextElement);
                     console.log('Notice text visibility:', noticeTextElement ? noticeTextElement.style.display : 'not found');
@@ -7200,7 +7200,7 @@ try {
                 
                 // Prepare preview data based on delivery method
                 let previewData = '';
-                if (deliveryMethod === 'text' || deliveryMethod === 'viewgated') {
+                if (deliveryMethod === 'text' || deliveryMethod === 'document') {
                     // Use the notice text as preview
                     previewData = noticeText;
                 }
@@ -7248,7 +7248,7 @@ try {
                     let noticeText = '';
                     let decryptKey = '';
                     
-                    if (deliveryMethod === 'viewgated') {
+                    if (deliveryMethod === 'document') {
                         // Use encryption for document images method
                         decryptKey = encryptionKey;
                         noticeText = caseDetailsText || 'Legal notice details in attached document';
@@ -7286,7 +7286,7 @@ try {
                         });
                         
                         // Use new contract functions based on delivery method
-                        if (deliveryMethod === 'viewgated') {
+                        if (deliveryMethod === 'document') {
                             console.log('Sending createDocumentNotice transaction...');
                             try {
                                 tx = await legalContract.createDocumentNotice(
@@ -10792,7 +10792,7 @@ deliveryOptions.forEach(option => {
         const noticeTextLabel = document.getElementById('noticeTextLabel');
         const noticeTextHelp = document.getElementById('noticeTextHelp');
         
-        if (this.value === 'viewgated') {
+        if (this.value === 'document') {
             viewGatedDetails.style.display = 'block';
             textNoticeGroup.style.display = 'block';
             textNoticeGroup.classList.add('active');
@@ -10847,11 +10847,11 @@ async function updateFeeEstimate() {
     if (feeDisplay) {
         try {
             // Set base fee based on delivery method
-            let baseFee = selectedMethod === 'viewgated' ? 150 : 15;
+            let baseFee = selectedMethod === 'document' ? 150 : 15;
             // Always add 2 TRX sponsorship
             let totalFee = baseFee + 2;
             
-            let description = selectedMethod === 'viewgated' 
+            let description = selectedMethod === 'document' 
                 ? 'Document fee (150) + Sponsorship (2)' 
                 : 'Text fee (15) + Sponsorship (2)';
             
@@ -10882,9 +10882,9 @@ async function updateFeeEstimate() {
         } catch (error) {
             console.error('Error calculating fee:', error);
             // Fallback to default fees
-            const defaultFee = selectedMethod === 'viewgated' ? '150 TRX' : '15 TRX';
+            const defaultFee = selectedMethod === 'document' ? '150 TRX' : '15 TRX';
             feeDisplay.textContent = defaultFee;
-            feeDescription.textContent = selectedMethod === 'viewgated' 
+            feeDescription.textContent = selectedMethod === 'document' 
                 ? 'Encrypted document with public text notice' 
                 : 'Text only notice (no signature required)';
         }
