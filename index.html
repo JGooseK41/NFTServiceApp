@@ -5651,7 +5651,7 @@ function useConnectedAddressForFeeCollector() {
                             let noticeType = 'Legal Notice';
                             let issuingAgency = 'Not specified';
                             let caseNumber = '';
-                            let caseDetails = '';
+                            let caseDetails = window.lastTransactionCaseDetails || '';
                             let legalRights = '';
                             let recipientAddress = '';
                             let tokenName = '';
@@ -7568,7 +7568,7 @@ try {
                                 <strong>Notice Type:</strong> ${escapeHtml(noticeType) || 'Legal Notice'}<br>
                                 <strong>Issuing Agency:</strong> ${escapeHtml(issuingAgency) || 'Not specified'}<br>
                                 <strong>Case Number:</strong> ${escapeHtml(caseNumber) || 'Not specified'}<br>
-                                <strong>Case Details:</strong> ${escapeHtml(caseDetails) || 'See attached document'}<br>
+                                <strong>Case Details:</strong> ${escapeHtml(caseDetailsText) || 'See attached document'}<br>
                                 <strong>Legal Rights:</strong> ${escapeHtml(legalRights) || 'Recipient has the right to respond to this legal notice'}
                             </p>
                             <p style="margin: 0.75rem 0;">
@@ -7622,6 +7622,8 @@ try {
                     ipfsHash: ipfsHash,
                     imageUrl: uploadedImage
                 };
+                // Store case details for receipt export
+                window.lastTransactionCaseDetails = caseDetailsText || noticeText || 'See attached document';
                 showTxModal(displayTxId, 'Legal notice created successfully!', txDetails, ipfsData);
                 
                 // Add to recent activity with proper IDs
