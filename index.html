@@ -5734,7 +5734,7 @@ function useConnectedAddressForFeeCollector() {
                             
                             <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px; padding: 15px; margin-top: 20px;">
                                 <p style="margin: 0; font-size: 14px; color: #92400e;">
-                                    <strong>Process Server Attestation:</strong> This receipt certifies that I have made diligent effort to notify the affected party at the blockchain address provided. The recipient has been served with notice that includes information about their legal rights and the requirement to respond within the statutory deadline to avoid default judgment.
+                                    <strong>Process Server Attestation:</strong> This receipt certifies that I have made diligent effort to notify the affected party at the blockchain address provided. The recipient has been served with notice that includes information about their legal rights and the requirement to respond within the statutory deadline to avoid default judgment or other negative effects on their property rights.
                                 </p>
                             </div>
                             `;
@@ -7575,15 +7575,15 @@ try {
                                 <strong>Service Details:</strong><br>
                                 • Document served electronically via blockchain to wallet address: <code style="background: #e5e7eb; padding: 0.125rem 0.25rem; border-radius: 0.25rem;">${recipient}</code><br>
                                 • Method of service: Electronic service via NFT delivery to TRON blockchain wallet<br>
-                                • Service date and time: ${new Date().toLocaleString()}<br>
-                                • Response deadline: ${new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString()} (30 days from service)<br>
+                                • Service date and time: ${new Date().toLocaleString('en-US', { timeZoneName: 'short' })}<br>
+                                • Response deadline: To be determined by applicable law and court rules<br>
                                 • Token Name: ${escapeHtml(tokenName)}<br>
                                 • Notice ID: ${noticeId} | Alert ID: ${alertId}
                             </p>
                             <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 0.375rem; padding: 0.75rem; margin-top: 0.75rem;">
                                 <p style="margin: 0; color: #92400e;">
                                     <i class="fas fa-exclamation-triangle" style="margin-right: 0.5rem;"></i>
-                                    <strong>Process Server Attestation:</strong> By creating this electronic service record, I attest that I have made diligent effort to notify the affected party at the blockchain address provided. The recipient has been served with notice that includes information about their legal rights and the requirement to respond within the statutory deadline to avoid default judgment.
+                                    <strong>Process Server Attestation:</strong> By creating this electronic service record, I attest that I have made diligent effort to notify the affected party at the blockchain address provided. The recipient has been served with notice that includes information about their legal rights and the requirement to respond within the statutory deadline to avoid default judgment or other negative effects on their property rights.
                                 </p>
                             </div>
                         </div>
