@@ -1,0 +1,10 @@
+{
+  "network": "nile",
+  "contractAddress": "TXyXo57jpquJM4cTkVBw6uUJxrxon2gQP8",
+  "contractAddressHex": "41f1627482bc2bfab75210fd9c9b3d94705f0310e8",
+  "deployedAt": "2025-07-28T21:01:17.738Z",
+  "deployer": "TDbeaZQ25WzZ4Aqn4RJAZxmo6BeHdMeXGf",
+  "contractName": "LegalNoticeNFT_Hybrid",
+  "contractSize": "24500 bytes",
+  "features": "ENHANCED METADATA + BATCH OPERATIONS + RESTRICTED ACCESS"
+}

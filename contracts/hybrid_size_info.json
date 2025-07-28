@@ -1,0 +1,20 @@
+{
+  "contractName": "LegalNoticeNFT_Hybrid",
+  "sizeInBytes": 24499,
+  "sizeInKB": "23.92",
+  "limit": 24576,
+  "withinLimit": true,
+  "features": [
+    "Enhanced metadata for wallet visibility",
+    "Batch operations (up to 20 recipients)",
+    "Access control (onlyAuthorized)",
+    "Process server auto-assignment",
+    "Law enforcement fee exemptions",
+    "Admin functions",
+    "All getter functions"
+  ],
+  "removedFeatures": [
+    "Process server self-registration",
+    "Set process server status function"
+  ]
+}

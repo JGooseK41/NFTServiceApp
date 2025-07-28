@@ -6,7 +6,7 @@ const CONFIG = {
     contracts: {
         tron: {
             mainnet: 'YOUR_TRON_MAINNET_CONTRACT_ADDRESS',
-            nile: 'TUwBwXx8Zk1vxmv7AFTEtXy1vckV4KMuwW', // Current testnet contract - RESTRICTED ACCESS
+            nile: 'TXyXo57jpquJM4cTkVBw6uUJxrxon2gQP8', // Hybrid contract with enhanced metadata + batch ops
             shasta: 'YOUR_SHASTA_CONTRACT_ADDRESS'
         },
         evm: {
