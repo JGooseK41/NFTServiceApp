@@ -1,0 +1,14 @@
+{
+  "contractName": "LegalNoticeNFT_Hybrid_Enumerable",
+  "currentSize": 24499,
+  "withEnumerable": 25315,
+  "sizeIncrease": 816,
+  "sizeInKB": "24.72",
+  "limit": 24576,
+  "withinLimit": false,
+  "enumerableFunctions": [
+    "totalSupply()",
+    "tokenByIndex(uint256)",
+    "tokenOfOwnerByIndex(address, uint256)"
+  ]
+}

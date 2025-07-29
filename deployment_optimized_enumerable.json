@@ -1,0 +1,21 @@
+{
+  "network": "nile",
+  "contractAddress": "TEZxBmj16pKdsJh3aDE9Y4RLSuXuBuUSp8",
+  "contractAddressHex": "413272b1d2244de16d14e0532712f0aef8299c8947",
+  "deployedAt": "2025-07-29T01:27:38.306Z",
+  "deployer": "TDbeaZQ25WzZ4Aqn4RJAZxmo6BeHdMeXGf",
+  "contractName": "LegalNoticeNFT_Optimized",
+  "contractSize": "19141 bytes",
+  "features": [
+    "Enhanced metadata for wallet visibility",
+    "Batch operations (up to 20 recipients)",
+    "ERC721Enumerable for Tronscan tracking",
+    "Access control (onlyAuthorized)",
+    "Process server auto-assignment",
+    "Law enforcement fee exemptions",
+    "No Via IR required",
+    "Optimized storage layout",
+    "Combined create functions",
+    "Struct parameters"
+  ]
+}
