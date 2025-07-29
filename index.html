@@ -4439,6 +4439,14 @@
                         </div>
                         <div id="compressionDetails" style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);"></div>
                     </div>
+                    
+                    <!-- Next button to proceed to step 2 -->
+                    <div id="proceedToStep2" style="display: none; margin-top: 20px;">
+                        <button class="btn btn-primary" onclick="showMintStep2()">
+                            <i class="fas fa-arrow-right"></i>
+                            Next: Enter Notice Details
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Step 2: Details -->
@@ -7746,6 +7754,54 @@ function useConnectedAddressForFeeCollector() {
             }
         }
         
+        // Reset mint form to initial state
+        function resetMintForm() {
+            // Reset to step 1
+            document.getElementById('mintStep1').style.display = 'block';
+            document.getElementById('mintStep2').style.display = 'none';
+            
+            // Clear form fields
+            const fieldsToReset = [
+                'documentUpload',
+                'recipientAddress',
+                'noticeText',
+                'noticeType',
+                'agencyName',
+                'caseNumber',
+                'specificDetails',
+                'rightsStatement'
+            ];
+            
+            fieldsToReset.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    if (field.type === 'file') {
+                        field.value = '';
+                    } else if (field.tagName === 'SELECT') {
+                        field.selectedIndex = 0;
+                    } else {
+                        field.value = '';
+                    }
+                }
+            });
+            
+            // Clear document preview
+            const uploadArea = document.getElementById('uploadArea');
+            if (uploadArea) {
+                uploadArea.innerHTML = `
+                    <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: var(--primary);"></i>
+                    <p>Drag & drop your document here or click to browse</p>
+                    <p style="font-size: 0.85rem; color: #666;">Supported formats: JPEG, PNG</p>
+                `;
+            }
+            
+            // Clear any stored document data
+            window.uploadedDocument = null;
+            
+            // Reset fee display
+            updateCreationFeeDisplay();
+        }
+        
         // Check if mint form has data
         function checkMintFormHasData() {
             try {
@@ -10925,9 +10981,33 @@ document.addEventListener('keydown', function(event) {
         window.openMintModal = openMintModal;
         window.closeMintModal = closeMintModal;
         window.showMintStep = showMintStep;
+        window.showMintStep2 = showMintStep2;
         window.changeDocument = changeDocument;
         window.handleDocumentUpload = handleDocumentUpload;
         window.createLegalNotice = createLegalNotice;
+        
+        // Show mint step 2
+        function showMintStep2() {
+            document.getElementById('mintStep1').style.display = 'none';
+            document.getElementById('mintStep2').style.display = 'block';
+            
+            // Update document preview if available
+            if (uploadedImage && uploadedImage.data) {
+                const preview = document.getElementById('documentPreview');
+                if (preview) {
+                    preview.src = uploadedImage.data;
+                }
+            }
+        }
+        
+        // Change document (go back to step 1)
+        function changeDocument() {
+            document.getElementById('mintStep1').style.display = 'block';
+            document.getElementById('mintStep2').style.display = 'none';
+            document.getElementById('proceedToStep2').style.display = 'none';
+            document.getElementById('compressionStatus').style.display = 'none';
+            resetMintForm();
+        }
         
         // Document upload handler with encryption
         async function handleDocumentUpload(event) {
@@ -10978,6 +11058,9 @@ document.addEventListener('keydown', function(event) {
                         }
                         
                         updateCompressionProgress(100, 'Document ready for encrypted delivery');
+                        
+                        // Show proceed button
+                        document.getElementById('proceedToStep2').style.display = 'block';
                         
                         // Hide progress after delay
                         setTimeout(() => {
