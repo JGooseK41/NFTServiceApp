@@ -1,0 +1,24 @@
+{
+  "contractAddress": "TEZxBmj16pKdsJh3aDE9Y4RLSuXuBuUSp8",
+  "contractName": "LegalNoticeNFT_Optimized",
+  "network": "TRON Nile Testnet",
+  "compiler": {
+    "version": "0.8.20",
+    "settings": {
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "evmVersion": "default"
+    }
+  },
+  "sourceCode": "https://github.com/JGoose41/NFTServiceApp/blob/main/contracts/LegalNoticeNFT_Optimized_NoViaIR.sol",
+  "deploymentDate": "2025-07-29T01:27:38.306Z",
+  "features": [
+    "ERC721Enumerable for NFT tracking",
+    "No Via IR required",
+    "Optimized storage",
+    "Batch operations",
+    "Enhanced metadata"
+  ]
+}

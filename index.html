@@ -2317,6 +2317,10 @@
             <div class="logo" onclick="location.reload()">
                 <i class="fas fa-shield-alt"></i>
                 <h1>LegalNotice</h1>
+                <div class="verification-badge" style="font-size: 14px; color: #4caf50; margin-top: 5px;">
+                    <i class="fas fa-shield-alt"></i> Verified Contract | 
+                    <a href="https://github.com/JGoose41/NFTServiceApp" target="_blank" style="color: #4caf50;">Source Code</a>
+                </div>
             </div>
             <div class="header-controls">
                 <div id="contractsStatus" style="display: none;">
@@ -5654,6 +5658,55 @@
     }
 ];
 
+
+async function getRecipientNoticeIds(recipient) {
+    try {
+        // The optimized contract may not have this function
+        // We need to use events or enumerate through NFTs
+        const balance = await legalContract.balanceOf(recipient).call();
+        const noticeIds = [];
+        
+        for (let i = 0; i < balance; i++) {
+            try {
+                const tokenId = await legalContract.tokenOfOwnerByIndex(recipient, i).call();
+                noticeIds.push(tokenId);
+            } catch (e) {
+                console.log('Error getting token at index', i, e);
+            }
+        }
+        
+        return noticeIds;
+    } catch (error) {
+        console.error('Error getting recipient notices:', error);
+        return [];
+    }
+}
+
+
+async function calculateFeeFromConstants(userAddress) {
+    try {
+        // Check if user is law enforcement exempt
+        const isExempt = await legalContract.lawEnforcementExemptions(userAddress).call();
+        
+        // Get fee constants
+        const serviceFee = await legalContract.serviceFee().call();
+        const creationFee = await legalContract.creationFee().call();
+        const sponsorshipFee = await legalContract.sponsorshipFee().call();
+        
+        if (isExempt) {
+            // Law enforcement only pays creation + sponsorship
+            return parseInt(creationFee) + parseInt(sponsorshipFee);
+        } else {
+            // Regular users pay all fees
+            return parseInt(serviceFee) + parseInt(creationFee) + parseInt(sponsorshipFee);
+        }
+    } catch (error) {
+        console.error('Error calculating fee:', error);
+        // Default fee if calculation fails
+        return 32000000; // 32 TRX default
+    }
+}
+
 // Helper functions for parsing optimized contract data
 function parseMetadata(metadata) {
     const parts = metadata.split('|');
@@ -5689,7 +5742,7 @@ function parsePackedData(packedData) {
             if (!legalContract) return 0;
             
             try {
-                const total = await legalContract.totalNotices().call();
+                const total = await legalContract.totalSupply().call();
                 return parseInt(total);
             } catch (error) {
                 console.log('Could not fetch total notices:', error);
@@ -6322,7 +6375,7 @@ function useConnectedAddressForFeeCollector() {
             // Update fee display based on actual contract calculation
             try {
                 const userAddress = tronWeb.defaultAddress.base58;
-                const fee = await legalContract.calculateFee(userAddress).call();
+                const fee = await calculateFeeFromConstants(userAddress);
                 const feeInTrx = tronWeb.fromSun(fee);
                 
                 // Get specific fees for different notice types
@@ -8582,7 +8635,7 @@ try {
                     const feeInWei = web3Instance.utils.toWei(currentCreationFee.toString(), 'ether');
                     
                     // Estimate gas
-                    const gasEstimate = await legalContract.methods.createLegalNotice(
+                    const gasEstimate = await legalContract.createNotice(
                         recipient,
                         ipfsHash,
                         previewData,
@@ -8596,7 +8649,7 @@ try {
                     });
                     
                     // Send transaction
-                    tx = await legalContract.methods.createLegalNotice(
+                    tx = await legalContract.createNotice(
                         recipient,
                         ipfsHash,
                         previewData,
@@ -9114,7 +9167,7 @@ try {
         // My notices and alerts functions
         async function getMyNotices() {
             try {
-                const notices = await legalContract.getRecipientNotices(tronWeb.defaultAddress.base58).call();
+                const notices = await getRecipientNoticeIds(tronWeb.defaultAddress.base58);
                 
                 const noticeDetails = [];
                 for (const noticeId of notices) {
@@ -9131,7 +9184,7 @@ try {
 
         async function getMyAlerts() {
             try {
-                const alerts = await legalContract.getRecipientNotices(tronWeb.defaultAddress.base58).call();
+                const alerts = await getRecipientNoticeIds(tronWeb.defaultAddress.base58);
                 console.log('Recipient alerts:', alerts);
                 
                 const noticeDetails = [];
@@ -9728,7 +9781,8 @@ try {
             
             const roleSelect = document.getElementById('roleSelect');
             const address = document.getElementById('roleAddress').value.trim();
-            const lawEnforcementExempt = document.getElementById('lawEnforcementExempt').checked;
+            const exemptCheckbox = document.getElementById('lawEnforcementExempt');
+                const lawEnforcementExempt = exemptCheckbox ? exemptCheckbox.checked : false;
             const agencyName = lawEnforcementExempt ? document.getElementById('lawEnforcementAgencyName').value.trim() : '';
             
             if (!address) {
@@ -9867,12 +9921,12 @@ try {
                     // In the simplified contract, we use serviceFee instead of SERVICE_FEE
                     fee = await legalContract.serviceFee().call();
                     // Get user's actual fee after exemptions
-                    userFee = await legalContract.calculateFee(tronWeb.defaultAddress.base58).call();
+                    userFee = await calculateFeeFromConstants(tronWeb.defaultAddress.base58);
                     currentCreationFee = parseFloat(tronWeb.fromSun(userFee));
                     tokenSymbol = 'TRX';
                 } else {
-                    fee = await legalContract.methods.SERVICE_FEE().call();
-                    userFee = await legalContract.methods.calculateFee(web3Instance.eth.defaultAccount).call();
+                    fee = await legalContract.serviceFee().call();
+                    userFee = await calculateFeeFromConstants(web3Instance.eth.defaultAccount);
                     currentCreationFee = parseFloat(web3Instance.utils.fromWei(userFee, 'ether'));
                     tokenSymbol = CHAIN_CONFIG.evm[currentNetwork].nativeToken;
                 }
@@ -10318,11 +10372,11 @@ try {
                         // Try different calling methods
                         try {
                             // Method 1: Direct call
-                            totalNotices = await legalContract.totalNotices().call();
+                            totalNotices = await legalContract.totalSupply().call();
                         } catch (e1) {
                             console.log('Direct call failed, trying methods object...');
                             // Method 2: Via methods object
-                            totalNotices = await legalContract.methods.totalNotices().call();
+                            totalNotices = await legalContract.totalSupply().call();
                         }
                         
                         console.log('Contract test successful, total notices:', totalNotices ? totalNotices.toString() : '0');
@@ -10538,7 +10592,7 @@ async function updateWalletStatus() {
         
         // Calculate actual fee
         try {
-            const calculatedFee = await legalContract.calculateFee(address).call();
+            const calculatedFee = await calculateFeeFromConstants(address);
             const feeInTrx = tronWeb.fromSun(calculatedFee);
             detailsHtml += `<div style="margin-top: 0.5rem;"><strong>Your Fee Rate:</strong> ${feeInTrx} TRX per notice</div>`;
         } catch (e) {
@@ -11341,7 +11395,7 @@ async function checkUserRoles() {
                 plainTextDebug += `- Full Fee Exempt: ${fullFeeExempt ? 'YES' : 'NO'}\n\n`;
                 
                 // Calculate actual fee
-                const calculatedFee = await legalContract.calculateFee(address).call();
+                const calculatedFee = await calculateFeeFromConstants(address);
                 debugInfo += `<strong>Your Fee:</strong> ${tronWeb.fromSun(calculatedFee)} TRX<br><br>`;
                 plainTextDebug += `Your Fee: ${tronWeb.fromSun(calculatedFee)} TRX\n\n`;
                 
@@ -12352,7 +12406,7 @@ document.addEventListener('keydown', function(event) {
                 console.log('Total notices:', totalNotices);
                 
                 // Get recipient alerts
-                const alerts = await legalContract.getRecipientNotices(tronWeb.defaultAddress.base58).call();
+                const alerts = await getRecipientNoticeIds(tronWeb.defaultAddress.base58);
                 console.log('Your alert IDs:', alerts.map(a => a.toString()));
                 
                 // Check a few recent notices to see if you're the recipient
@@ -12865,7 +12919,7 @@ document.addEventListener('keydown', function(event) {
                 const agencyName = await legalContract.lawEnforcementAgencies(address).call();
                 
                 // Calculate actual fee
-                const actualFee = await legalContract.calculateFee(address).call();
+                const actualFee = await calculateFeeFromConstants(address);
                 const feeInTRX = tronWeb.fromSun(actualFee);
                 
                 hideProcessing();
