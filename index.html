@@ -12398,6 +12398,119 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             }
         }
         
+        // Perform audit based on search type
+        async function performAudit() {
+            const searchType = document.getElementById('auditSearchType').value;
+            const resultsDiv = document.getElementById('auditResults');
+            
+            if (!legalContract || !tronWeb.defaultAddress) {
+                uiManager.showNotification('error', 'Please connect wallet and contract first');
+                return;
+            }
+            
+            resultsDiv.innerHTML = '<div class="loading">Loading...</div>';
+            
+            try {
+                if (searchType === 'noticeId') {
+                    // Search by specific notice ID
+                    const noticeId = document.getElementById('auditNoticeId').value;
+                    if (!noticeId) {
+                        uiManager.showNotification('error', 'Please enter a notice ID');
+                        resultsDiv.innerHTML = '';
+                        return;
+                    }
+                    
+                    // Get notice details
+                    const notice = await legalContract.getNotice(noticeId).call();
+                    const accepted = await legalContract.noticeAcceptances(noticeId).call();
+                    
+                    // Display single notice
+                    resultsDiv.innerHTML = formatNoticeForAudit(notice, noticeId, accepted);
+                    
+                } else if (searchType === 'myNotices') {
+                    // Get notices created by current user
+                    const totalNotices = await legalContract.totalSupply().call();
+                    const myNotices = [];
+                    
+                    for (let i = 0; i < totalNotices; i++) {
+                        try {
+                            const notice = await legalContract.getNotice(i).call();
+                            if (notice.sender.toLowerCase() === tronWeb.defaultAddress.base58.toLowerCase()) {
+                                const accepted = await legalContract.noticeAcceptances(i).call();
+                                myNotices.push({ id: i, notice, accepted });
+                            }
+                        } catch (e) {
+                            console.error(`Error fetching notice ${i}:`, e);
+                        }
+                    }
+                    
+                    // Display results
+                    if (myNotices.length === 0) {
+                        resultsDiv.innerHTML = '<p>No notices found.</p>';
+                    } else {
+                        resultsDiv.innerHTML = '<h4>My Issued Notices</h4>' + 
+                            myNotices.map(n => formatNoticeForAudit(n.notice, n.id, n.accepted)).join('');
+                    }
+                    
+                } else if (searchType === 'myAlerts') {
+                    // Get notices where current user is recipient
+                    const totalNotices = await legalContract.totalSupply().call();
+                    const myAlerts = [];
+                    
+                    for (let i = 0; i < totalNotices; i++) {
+                        try {
+                            const owner = await legalContract.ownerOf(i).call();
+                            if (owner.toLowerCase() === tronWeb.defaultAddress.base58.toLowerCase()) {
+                                const notice = await legalContract.getNotice(i).call();
+                                const accepted = await legalContract.noticeAcceptances(i).call();
+                                myAlerts.push({ id: i, notice, accepted });
+                            }
+                        } catch (e) {
+                            console.error(`Error fetching notice ${i}:`, e);
+                        }
+                    }
+                    
+                    // Display results
+                    if (myAlerts.length === 0) {
+                        resultsDiv.innerHTML = '<p>No alert notices found.</p>';
+                    } else {
+                        resultsDiv.innerHTML = '<h4>My Alert Notices</h4>' + 
+                            myAlerts.map(n => formatNoticeForAudit(n.notice, n.id, n.accepted)).join('');
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Audit error:', error);
+                uiManager.showNotification('error', 'Failed to perform audit: ' + error.message);
+                resultsDiv.innerHTML = '<p class="error">Error loading notices.</p>';
+            }
+        }
+        
+        // Format notice for audit display
+        function formatNoticeForAudit(notice, noticeId, accepted) {
+            const acceptedTime = accepted ? new Date(Number(accepted) * 1000).toLocaleString() : 'Not accepted';
+            const status = accepted ? 'Accepted' : 'Pending';
+            const statusClass = accepted ? 'status-accepted' : 'status-pending';
+            
+            return `
+                <div class="audit-item">
+                    <div class="audit-header">
+                        <h5>Notice #${noticeId}</h5>
+                        <span class="status ${statusClass}">${status}</span>
+                    </div>
+                    <div class="audit-details">
+                        <p><strong>Type:</strong> ${notice.noticeType}</p>
+                        <p><strong>Recipient:</strong> ${notice.recipient}</p>
+                        <p><strong>Sender:</strong> ${notice.sender}</p>
+                        <p><strong>Created:</strong> ${new Date(Number(notice.timestamp) * 1000).toLocaleString()}</p>
+                        <p><strong>Accepted:</strong> ${acceptedTime}</p>
+                        ${notice.hasDocument ? '<p><strong>Document:</strong> Encrypted document attached</p>' : ''}
+                        ${notice.publicText ? `<p><strong>Public Text:</strong> ${notice.publicText}</p>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+        
         // Debug alerts function
         async function debugAlerts() {
             if (!legalContract || !tronWeb.defaultAddress) {
