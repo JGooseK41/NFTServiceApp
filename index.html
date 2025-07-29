@@ -2704,6 +2704,11 @@
             </div>
 
             <div id="adminContent" style="display: none;">
+                <!-- Admin Stats -->
+                <div id="adminStats" style="margin-bottom: 2rem;">
+                    <!-- Stats will be populated by updateStatsFromLocalStorage() -->
+                </div>
+                
                 <!-- Pending Registrations -->
                 <div class="card">
                     <div class="card-header">
@@ -7408,9 +7413,6 @@ function useConnectedAddressForFeeCollector() {
                 // Update token prefix
                 await updateTokenPrefix();
                 
-                // Update fee display
-                await updateFeeEstimate();
-                
                 // Show wallet status card
                 const walletStatusCard = document.getElementById('walletStatusCard');
                 if (walletStatusCard) {
@@ -7528,6 +7530,104 @@ function useConnectedAddressForFeeCollector() {
             
             container.innerHTML = html;
         }
+        
+        // Approve registration
+        async function approveRegistration(walletAddress) {
+            if (!legalContract || !isAdmin) {
+                uiManager.showNotification('error', 'Not authorized');
+                return;
+            }
+            
+            const registrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+            const registration = registrations[walletAddress];
+            
+            if (!registration) {
+                uiManager.showNotification('error', 'Registration not found');
+                return;
+            }
+            
+            try {
+                showProcessing('Granting process server role...');
+                
+                // Grant PROCESS_SERVER_ROLE
+                const processServerRole = tronWeb.sha3('PROCESS_SERVER_ROLE');
+                await legalContract.grantRole(processServerRole, walletAddress).send({
+                    feeLimit: 100_000_000,
+                    shouldPollResponse: true
+                });
+                
+                // Update registration status
+                registration.status = 'approved';
+                registration.approvedAt = new Date().toISOString();
+                saveServerRegistration(walletAddress, registration);
+                
+                hideProcessing();
+                uiManager.showNotification('success', 'Registration approved and role granted!');
+                
+                // Refresh the list
+                refreshPendingRegistrations();
+                
+            } catch (error) {
+                hideProcessing();
+                console.error('Approval error:', error);
+                uiManager.showNotification('error', 'Failed to approve: ' + error.message);
+            }
+        }
+        
+        // Reject registration
+        function rejectRegistration(walletAddress) {
+            const registrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+            const registration = registrations[walletAddress];
+            
+            if (!registration) {
+                uiManager.showNotification('error', 'Registration not found');
+                return;
+            }
+            
+            registration.status = 'rejected';
+            registration.rejectedAt = new Date().toISOString();
+            saveServerRegistration(walletAddress, registration);
+            
+            uiManager.showNotification('info', 'Registration rejected');
+            refreshPendingRegistrations();
+        }
+        
+        // Update stats from localStorage
+        function updateStatsFromLocalStorage() {
+            const statsContainer = document.getElementById('adminStats');
+            if (!statsContainer) return;
+            
+            const registrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+            const allRegs = Object.values(registrations);
+            
+            const stats = {
+                total: allRegs.length,
+                pending: allRegs.filter(r => r.status === 'pending').length,
+                approved: allRegs.filter(r => r.status === 'approved').length,
+                rejected: allRegs.filter(r => r.status === 'rejected').length
+            };
+            
+            statsContainer.innerHTML = `
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value">${stats.total}</div>
+                        <div class="stat-label">Total Registrations</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${stats.pending}</div>
+                        <div class="stat-label">Pending</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${stats.approved}</div>
+                        <div class="stat-label">Approved</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">${stats.rejected}</div>
+                        <div class="stat-label">Rejected</div>
+                    </div>
+                </div>
+            `;
+        }
 
 // Refresh wallet status
 async function refreshWalletStatus() {
@@ -7570,25 +7670,7 @@ async function checkUserRoles() {
                 console.log('Has ADMIN_ROLE:', hasAdminRole);
                 console.log('isAdmin result:', isAdmin);
                 
-                // Also get role member counts for debugging
-                try {
-                    const defaultAdminCount = await legalContract.getRoleMemberCount(defaultAdminRole).call();
-                    const adminCount = await legalContract.getRoleMemberCount(adminRoleBytes).call();
-                    console.log('DEFAULT_ADMIN_ROLE member count:', defaultAdminCount.toString());
-                    console.log('ADMIN_ROLE member count:', adminCount.toString());
-                    
-                    if (defaultAdminCount > 0) {
-                        const firstDefaultAdmin = await legalContract.getRoleMember(defaultAdminRole, 0).call();
-                        console.log('First DEFAULT_ADMIN_ROLE member:', firstDefaultAdmin);
-                    }
-                    
-                    if (adminCount > 0) {
-                        const firstAdmin = await legalContract.getRoleMember(adminRoleBytes, 0).call();
-                        console.log('First ADMIN_ROLE member:', firstAdmin);
-                    }
-                } catch (e) {
-                    console.log('Could not get role member info:', e);
-                }
+                // Note: getRoleMemberCount and getRoleMember are not available in this implementation
                 isProcessServer = await legalContract.hasRole(processServerRoleBytes, tronWeb.defaultAddress.base58).call();
                 
                 // Update admin tab visibility
