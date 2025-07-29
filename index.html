@@ -14802,13 +14802,15 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 
                 hideProcessing();
                 
-                // Show success
-                showTransactionResult({
-                    success: true,
+                // Show success with proper receipt
+                showTransactionResult(true, {
                     txHash: txHash || 'Transaction confirmed',
                     noticeId: noticeId,
                     recipient: recipient,
-                    ipfsData: uploadedImage
+                    feePaid: parseInt(fee) / 1000000,
+                    energyUsed: 0, // Will be updated when we get actual energy usage
+                    ipfsHash: encryptedData ? encryptedData.ipfsHash : null,
+                    encryptionMethod: 'AES-256 with recipient wallet'
                 });
 
                 // Save transaction for analytics
@@ -14873,8 +14875,8 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             }
         }
         
-        // Show transaction result
-        function showTransactionResult(result) {
+        // Show transaction result (renamed to avoid conflict with the better version)
+        function showTransactionResultOld(result) {
             const modal = document.getElementById('transactionResultModal');
             const txDetails = document.getElementById('txDetails');
             const txLink = document.getElementById('txLink');
