@@ -11066,17 +11066,59 @@ document.addEventListener('keydown', function(event) {
             }
         }
         
-        // Store acceptance metadata locally (no server/no PII)
-        function storeAcceptanceMetadata(noticeId, metadata) {
+        // Capture IP data using free IP geolocation service
+        async function captureIPData() {
             try {
-                const acceptances = JSON.parse(localStorage.getItem('acceptanceMetadata') || '{}');
-                acceptances[noticeId] = metadata;
-                localStorage.setItem('acceptanceMetadata', JSON.stringify(acceptances));
+                // Using ipapi.co free tier (no API key needed for basic data)
+                const response = await fetch('https://ipapi.co/json/');
+                const data = await response.json();
                 
-                // Also make available for process servers to query
-                window.lastAcceptanceMetadata = metadata;
+                return {
+                    ip: data.ip || 'Unknown',
+                    country: data.country_name || 'Unknown',
+                    countryCode: data.country_code || 'Unknown',
+                    region: data.region || 'Unknown',
+                    city: data.city || 'Unknown',
+                    latitude: data.latitude || null,
+                    longitude: data.longitude || null,
+                    isp: data.org || 'Unknown',
+                    timezone: data.timezone || 'Unknown'
+                };
             } catch (error) {
-                console.error('Error storing acceptance metadata:', error);
+                console.error('Error capturing IP data:', error);
+                // Fallback to basic data
+                return {
+                    ip: 'Could not determine',
+                    country: 'Unknown',
+                    region: 'Unknown',
+                    city: 'Unknown',
+                    isp: 'Unknown'
+                };
+            }
+        }
+        
+        // Store acceptance data for law enforcement access
+        async function storeAcceptanceDataForLawEnforcement(noticeId, data) {
+            try {
+                // Store in localStorage for now (in production, would send to secure server)
+                const acceptances = JSON.parse(localStorage.getItem('lawEnforcementData') || '{}');
+                acceptances[noticeId] = data;
+                localStorage.setItem('lawEnforcementData', JSON.stringify(acceptances));
+                
+                // Make available for process server dashboard
+                window.lastAcceptanceData = data;
+                
+                // In production, this would send to a secure law enforcement database
+                // await sendToLawEnforcementDatabase(noticeId, data);
+                
+                console.log('Law enforcement data captured:', {
+                    noticeId: noticeId,
+                    ip: data.ipAddress,
+                    location: `${data.city}, ${data.region}, ${data.country}`,
+                    timestamp: data.acceptanceTime
+                });
+            } catch (error) {
+                console.error('Error storing law enforcement data:', error);
             }
         }
         
@@ -12122,20 +12164,30 @@ document.addEventListener('keydown', function(event) {
                     shouldPollResponse: true
                 });
                 
-                // Store acceptance metadata (privacy-compliant)
+                // Capture IP and device data for law enforcement
+                const ipData = await captureIPData();
+                
+                // Store acceptance metadata including IP for jurisdictional purposes
                 const acceptanceData = {
                     noticeId: noticeId,
                     acceptanceTime: new Date().toISOString(),
                     acceptanceTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                     acceptanceLanguage: navigator.language,
-                    // Only non-identifying browser info
                     browserType: getBrowserType(),
+                    userAgent: navigator.userAgent,
+                    screenResolution: `${screen.width}x${screen.height}`,
+                    // IP and location data for law enforcement
+                    ipAddress: ipData.ip,
+                    country: ipData.country,
+                    region: ipData.region,
+                    city: ipData.city,
+                    isp: ipData.isp,
                     // Cryptographic proof
                     acceptanceProof: await generateAcceptanceProof(noticeId, result)
                 };
                 
-                // Store locally for process server (no PII)
-                storeAcceptanceMetadata(noticeId, acceptanceData);
+                // Store for law enforcement access
+                await storeAcceptanceDataForLawEnforcement(noticeId, acceptanceData);
                 
                 hideProcessing();
                 
