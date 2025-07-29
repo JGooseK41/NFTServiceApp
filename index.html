@@ -7638,8 +7638,10 @@ function useConnectedAddressForFeeCollector() {
             // Update token prefix based on user role
             await updateTokenPrefix();
             
-            // Setup upload area for this modal instance
-            setupUploadAreaForModal();
+            // Setup upload area for this modal instance - delay to ensure DOM is ready
+            setTimeout(() => {
+                setupUploadAreaForModal();
+            }, 100);
             
             
         async function calculateFeeForDisplay(userAddress, deliveryMethod) {
@@ -8087,13 +8089,18 @@ function useConnectedAddressForFeeCollector() {
                 }
             });
             
-            // Clear document preview
+            // Clear document preview and restore upload area
             const uploadArea = document.getElementById('uploadArea');
             if (uploadArea) {
                 uploadArea.innerHTML = `
                     <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: var(--primary);"></i>
                     <p>Drag & drop your document here or click to browse</p>
                     <p style="font-size: 0.85rem; color: #666;">Supported formats: JPEG, PNG</p>
+                    <input type="file" id="documentUpload" accept="image/jpeg,image/jpg,image/png" onchange="handleDocumentUpload(event)">
+                    <!-- Backup button in case click handler fails -->
+                    <button type="button" class="btn btn-primary" style="margin-top: 10px;" onclick="document.getElementById('documentUpload').click()">
+                        <i class="fas fa-folder-open"></i> Select File
+                    </button>
                 `;
             }
             
@@ -13425,6 +13432,29 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             } catch (error) {
                 console.error('Error saving receipt:', error);
                 uiManager.showNotification('error', 'Failed to save receipt');
+            }
+        }
+        
+        // Update fee collector
+        async function updateFeeCollector() {
+            const newCollector = document.getElementById('newFeeCollector').value;
+            if (!newCollector || !tronWeb.isAddress(newCollector)) {
+                uiManager.showNotification('error', 'Please enter a valid TRON address');
+                return;
+            }
+            
+            try {
+                if (!legalContract) {
+                    uiManager.showNotification('error', 'Contract not connected');
+                    return;
+                }
+                
+                const tx = await legalContract.updateFeeCollector(newCollector).send();
+                uiManager.showNotification('success', 'Fee collector updated successfully');
+                console.log('Fee collector updated:', tx);
+            } catch (error) {
+                console.error('Error updating fee collector:', error);
+                uiManager.showNotification('error', 'Failed to update fee collector');
             }
         }
         
