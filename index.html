@@ -8920,7 +8920,7 @@ function useConnectedAddressForFeeCollector() {
                 return;
             }
             
-            const { txHash, message, timestamp, details, ipfsData, network, noticeId, recipient } = txData;
+            const { txHash, message, timestamp, details, ipfsData, network } = txData;
             
             // Create a new window for the printable receipt
             const receiptWindow = window.open('', '_blank', 'width=800,height=600');
