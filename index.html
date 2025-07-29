@@ -7222,29 +7222,25 @@ function useConnectedAddressForFeeCollector() {
                     const serverInfo = await legalContract.processServers(tronWeb.defaultAddress.base58).call();
                     // The optimized contract returns: [serverId, noticesServed, registeredDate, name, agency, active]
                     const serverId = serverInfo[0] || serverInfo.serverId;
-                    const noticesServed = serverInfo[1] || serverInfo.noticesServed;
-                    const registeredDate = serverInfo[2] || serverInfo.registeredDate;
-                    const name = serverInfo[3] || serverInfo.name;
-                    const agency = serverInfo[4] || serverInfo.agency;
-                    const active = serverInfo[5] || serverInfo.active;
                     
-                    if (serverId && serverInfo.serverId.toString() !== '0') {
-                    detailsHtml += `<div style="margin-top: 0.5rem;"><strong>Process Server Info:</strong></div>`;
-                    detailsHtml += `<div style="margin-left: 1rem;">Server ID: <strong>${serverInfo[0] || serverInfo.serverId || '0'}</strong></div>`;
-                    if (serverInfo.name) {
-                        detailsHtml += `<div style="margin-left: 1rem;">Name: ${serverInfo.name}</div>`;
+                    if (serverId && serverId.toString() !== '0') {
+                        // Update the token prefix
+                        if (prefixElement) {
+                            prefixElement.textContent = `PS${serverId.toString().padStart(2, '0')}-`;
+                        }
+                        
+                        // Update the server ID display at the top
+                        const serverIdDisplay = document.getElementById('serverIdDisplay');
+                        const userServerIdSpan = document.getElementById('userServerId');
+                        if (serverIdDisplay && userServerIdSpan) {
+                            serverIdDisplay.style.display = 'block';
+                            userServerIdSpan.textContent = serverId.toString().padStart(2, '0');
+                        }
                     }
-                    if (serverInfo.agency) {
-                        detailsHtml += `<div style="margin-left: 1rem;">Agency: ${serverInfo.agency}</div>`;
-                    }
-                    detailsHtml += `<div style="margin-left: 1rem;">Notices Served: ${serverInfo.noticesServed || '0'}</div>`;
-                    
-                    // Update the server ID display at the top
-                    const serverIdDisplay = document.getElementById('serverIdDisplay');
-                    const userServerIdSpan = document.getElementById('userServerId');
-                    if (serverIdDisplay && userServerIdSpan) {
-                        serverIdDisplay.style.display = 'block';
-                        userServerIdSpan.textContent = (serverInfo[0] || serverInfo.serverId || '0').toString().padStart(2, '0');
+                } else {
+                    // Not a process server, use default prefix
+                    if (prefixElement) {
+                        prefixElement.textContent = 'NOTICE-';
                     }
                 }
             } catch (e) {
@@ -7252,22 +7248,122 @@ function useConnectedAddressForFeeCollector() {
             }
         }
         
-        // Check local registration status (for pending registrations)
-        const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
-        const localReg = serverRegistrations[address];
-        if (localReg && localReg.status === 'pending') {
-            detailsHtml += `<div style="margin-top: 0.5rem;"><strong>Pending Registration:</strong></div>`;
-            detailsHtml += `<div style="margin-left: 1rem;">Status: Awaiting approval</div>`;
+        // Update wallet status display
+        async function updateWalletStatus() {
+            if (!legalContract || !tronWeb.defaultAddress) return;
+            
+            const roleDetails = document.getElementById('roleCheckDetails');
+            const walletRoleElement = document.getElementById('walletRole');
+            const feeExemptElement = document.getElementById('feeExemptStatus');
+            const statusAddressElement = document.getElementById('statusWalletAddress');
+            const walletBalanceElement = document.getElementById('walletBalance');
+            
+            try {
+                const address = tronWeb.defaultAddress.base58;
+                let detailsHtml = '<div>';
+                
+                // Update address
+                if (statusAddressElement) {
+                    statusAddressElement.textContent = address.substring(0, 10) + '...' + address.substring(address.length - 8);
+                }
+                
+                // Update balance
+                if (walletBalanceElement) {
+                    const balance = await tronWeb.trx.getBalance(address);
+                    walletBalanceElement.textContent = (balance / 1e6).toFixed(2) + ' TRX';
+                }
+                
+                // Check admin role
+                const defaultAdminRole = '0x0000000000000000000000000000000000000000000000000000000000000000';
+                const adminRoleBytes = tronWeb.sha3('ADMIN_ROLE');
+                const hasDefaultAdminRole = await legalContract.hasRole(defaultAdminRole, address).call();
+                const hasAdminRole = await legalContract.hasRole(adminRoleBytes, address).call();
+                const isAdmin = hasDefaultAdminRole || hasAdminRole;
+                
+                // Check process server role
+                const processServerRoleBytes = tronWeb.sha3('PROCESS_SERVER_ROLE');
+                const hasProcessServerRole = await legalContract.hasRole(processServerRoleBytes, address).call();
+                
+                // Update role display
+                if (walletRoleElement) {
+                    if (isAdmin) {
+                        walletRoleElement.innerHTML = '<span class="badge badge-primary">Admin</span>';
+                    } else if (hasProcessServerRole) {
+                        walletRoleElement.innerHTML = '<span class="badge badge-success">Process Server</span>';
+                    } else {
+                        walletRoleElement.innerHTML = '<span class="badge badge-secondary">None</span>';
+                    }
+                }
+                
+                // Check fee exemptions
+                const isLawEnforcement = await legalContract.lawEnforcementExemptions(address).call();
+                const agencyName = await legalContract.lawEnforcementAgencies(address).call();
+                
+                if (feeExemptElement) {
+                    if (isLawEnforcement) {
+                        feeExemptElement.innerHTML = `<span class="badge badge-success">Law Enforcement (${agencyName})</span>`;
+                    } else {
+                        feeExemptElement.innerHTML = '<span class="badge badge-warning">Not Exempt</span>';
+                    }
+                }
+                
+                // Build detailed role info
+                detailsHtml += `<div><strong>Address:</strong> ${address}</div>`;
+                
+                if (isAdmin) {
+                    detailsHtml += '<div style="margin-top: 0.5rem;"><strong>Admin Role:</strong> ✓ Granted</div>';
+                }
+                
+                if (hasProcessServerRole) {
+                    detailsHtml += '<div style="margin-top: 0.5rem;"><strong>Process Server Role:</strong> ✓ Granted</div>';
+                    
+                    // Get server info
+                    try {
+                        const serverInfo = await legalContract.processServers(address).call();
+                        const serverId = serverInfo[0] || serverInfo.serverId;
+                        
+                        if (serverId && serverId.toString() !== '0') {
+                            detailsHtml += `<div style="margin-left: 1rem;">Server ID: <strong>${serverId}</strong></div>`;
+                            detailsHtml += `<div style="margin-left: 1rem;">Notices Served: ${serverInfo[1] || serverInfo.noticesServed || '0'}</div>`;
+                            
+                            // Update the server ID display at the top
+                            const serverIdDisplay = document.getElementById('serverIdDisplay');
+                            const userServerIdSpan = document.getElementById('userServerId');
+                            if (serverIdDisplay && userServerIdSpan) {
+                                serverIdDisplay.style.display = 'block';
+                                userServerIdSpan.textContent = serverId.toString().padStart(2, '0');
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error getting process server info:', e);
+                    }
+                }
+                
+                if (isLawEnforcement) {
+                    detailsHtml += `<div style="margin-top: 0.5rem;"><strong>Law Enforcement Exemption:</strong> ✓ Active</div>`;
+                    detailsHtml += `<div style="margin-left: 1rem;">Agency: ${agencyName}</div>`;
+                }
+                
+                // Check local registration status (for pending registrations)
+                const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+                const localReg = serverRegistrations[address];
+                if (localReg && localReg.status === 'pending') {
+                    detailsHtml += `<div style="margin-top: 0.5rem;"><strong>Pending Registration:</strong></div>`;
+                    detailsHtml += `<div style="margin-left: 1rem;">Status: Awaiting approval</div>`;
+                }
+                
+                detailsHtml += '</div>';
+                if (roleDetails) {
+                    roleDetails.innerHTML = detailsHtml;
+                }
+                
+            } catch (error) {
+                console.error('Error updating wallet status:', error);
+                if (roleDetails) {
+                    roleDetails.innerHTML = '<span style="color: var(--error);">Error checking roles: ' + error.message + '</span>';
+                }
+            }
         }
-        
-        detailsHtml += '</div>';
-        roleDetails.innerHTML = detailsHtml;
-        
-    } catch (error) {
-        console.error('Error updating wallet status:', error);
-        document.getElementById('roleCheckDetails').innerHTML = '<span style="color: var(--error);">Error checking roles: ' + error.message + '</span>';
-    }
-}
 
 // Refresh wallet status
 async function refreshWalletStatus() {
