@@ -13961,6 +13961,82 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         // window.updateResourceSponsorship = updateResourceSponsorship; // Function removed in simplified contract
         window.connectContracts = connectContracts;
         
+        // Manual NFT debugging function
+        window.checkNFT = async function(tokenId) {
+            if (!legalContract) {
+                console.error('Contract not connected');
+                return;
+            }
+            
+            console.log(`\n=== Checking NFT #${tokenId} ===`);
+            console.log('Contract address:', legalContract.address);
+            
+            try {
+                // Check if token exists by getting owner
+                const owner = await legalContract.ownerOf(tokenId).call();
+                console.log('✓ Token exists! Owner:', owner);
+                
+                // Check token URI
+                try {
+                    const uri = await legalContract.tokenURI(tokenId).call();
+                    console.log('Token URI:', uri);
+                    
+                    // Decode base64 metadata if present
+                    if (uri.startsWith('data:application/json;base64,')) {
+                        const json = atob(uri.split(',')[1]);
+                        console.log('Decoded metadata:', JSON.parse(json));
+                    }
+                } catch (e) {
+                    console.log('Error getting URI:', e.message);
+                }
+                
+                // Check notice data
+                try {
+                    const notice = await legalContract.getNotice(tokenId).call();
+                    console.log('Notice data:', notice);
+                } catch (e) {
+                    console.log('Error getting notice:', e.message);
+                }
+                
+            } catch (e) {
+                console.error('❌ Token does not exist or error:', e.message);
+            }
+            
+            console.log('========================\n');
+        };
+        
+        // Check wallet's NFT balance
+        window.checkWalletNFTs = async function(address) {
+            if (!legalContract) {
+                console.error('Contract not connected');
+                return;
+            }
+            
+            const addr = address || tronWeb.defaultAddress.base58;
+            console.log(`\n=== Checking NFTs for ${addr} ===`);
+            
+            try {
+                const balance = await legalContract.balanceOf(addr).call();
+                console.log('NFT Balance:', balance.toString());
+                
+                if (balance > 0) {
+                    console.log('Owned tokens:');
+                    for (let i = 0; i < balance; i++) {
+                        try {
+                            const tokenId = await legalContract.tokenOfOwnerByIndex(addr, i).call();
+                            console.log(`  - Token #${tokenId}`);
+                        } catch (e) {
+                            console.log(`  - Error at index ${i}:`, e.message);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Error checking balance:', e);
+            }
+            
+            console.log('========================\n');
+        };
+        
         // Debug function to manually show admin tab
         window.showAdminTab = function() {
             const adminTabButton = document.getElementById('adminTabButton');
@@ -14898,20 +14974,69 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 if (noticeId) {
                     try {
                         console.log('Verifying NFT ownership for notice ID:', noticeId);
-                        const owner = await legalContract.ownerOf(noticeId).call();
-                        console.log('NFT owner:', owner);
-                        console.log('Expected recipient:', recipient);
                         
-                        if (owner.toLowerCase() !== recipient.toLowerCase()) {
-                            console.error('NFT was not minted to the expected recipient!');
-                            console.error('Owner:', owner, 'Expected:', recipient);
-                        } else {
-                            console.log('✓ NFT successfully minted to recipient');
+                        // Wait a bit for blockchain to update
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        
+                        // Check if NFT exists
+                        try {
+                            const owner = await legalContract.ownerOf(noticeId).call();
+                            console.log('NFT owner:', owner);
+                            console.log('Expected recipient:', recipient);
+                            
+                            if (owner.toLowerCase() !== recipient.toLowerCase()) {
+                                console.error('NFT was not minted to the expected recipient!');
+                                console.error('Owner:', owner, 'Expected:', recipient);
+                            } else {
+                                console.log('✓ NFT successfully minted to recipient');
+                            }
+                        } catch (ownerError) {
+                            console.error('Error getting owner - NFT may not exist:', ownerError);
                         }
                         
-                        // Also check recipient's balance
-                        const recipientBalance = await legalContract.balanceOf(recipient).call();
-                        console.log('Recipient NFT balance:', recipientBalance.toString());
+                        // Check contract's token tracking
+                        try {
+                            const totalSupply = await legalContract.totalSupply().call();
+                            console.log('Contract total supply:', totalSupply.toString());
+                        } catch (e) {
+                            console.log('No totalSupply function');
+                        }
+                        
+                        // Check recipient's balance
+                        try {
+                            const recipientBalance = await legalContract.balanceOf(recipient).call();
+                            console.log('Recipient NFT balance:', recipientBalance.toString());
+                            
+                            // Try to enumerate tokens
+                            if (recipientBalance > 0) {
+                                for (let i = 0; i < recipientBalance; i++) {
+                                    try {
+                                        const tokenId = await legalContract.tokenOfOwnerByIndex(recipient, i).call();
+                                        console.log(`Token ${i} owned by recipient:`, tokenId.toString());
+                                    } catch (e) {
+                                        console.log('Cannot enumerate token at index', i);
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.error('Error checking balance:', e);
+                        }
+                        
+                        // Check if contract implements supportsInterface
+                        try {
+                            const supportsTRC721 = await legalContract.supportsInterface('0x80ac58cd').call();
+                            console.log('Contract supports TRC721:', supportsTRC721);
+                        } catch (e) {
+                            console.log('No supportsInterface function');
+                        }
+                        
+                        // Try to get token URI
+                        try {
+                            const tokenURI = await legalContract.tokenURI(noticeId).call();
+                            console.log('Token URI:', tokenURI);
+                        } catch (e) {
+                            console.log('Error getting token URI:', e.message);
+                        }
                     } catch (e) {
                         console.error('Error verifying NFT:', e);
                     }
