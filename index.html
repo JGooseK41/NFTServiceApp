@@ -8035,7 +8035,7 @@ function useConnectedAddressForFeeCollector() {
                 if (isLawEnforcement) {
                     document.getElementById('feeDescription').textContent = `Law Enforcement (${agencyName}) - Cost only: Sponsorship (2 TRX)`;
                     document.getElementById('creationFeeDisplay').textContent = '2 TRX';
-                } else if (await checkHasRole('PROCESS_SERVER_ROLE')) {
+                } else if (await legalContract.hasRole(tronWeb.sha3('PROCESS_SERVER_ROLE'), userAddress).call()) {
                     document.getElementById('feeDescription').textContent = 'Process Server: Creation fee + Sponsorship (2)';
                 } else {
                     document.getElementById('feeDescription').textContent = 'Service fee + Sponsorship (2)';
@@ -15277,7 +15277,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     noticeRequest.noticeType || '',
                     noticeRequest.caseNumber || '',
                     noticeRequest.publicText || '', // Use publicText as caseDetails
-                    legalRights || '',
+                    (typeof legalRights === 'string' ? legalRights : legalRights?.value) || '',
                     sponsorFees
                 ).send({
                     feeLimit: 300_000_000,  // Increased for larger documents
