@@ -10929,10 +10929,10 @@ setTimeout(() => {
 }, 100);
             
             // Add drag and drop support for file upload
-            const uploadArea = document.getElementById('uploadArea');
-            if (uploadArea) {
+            const uploadAreaForDragDrop = document.getElementById('uploadArea');
+            if (uploadAreaForDragDrop) {
                 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                    uploadArea.addEventListener(eventName, preventDefaults, false);
+                    uploadAreaForDragDrop.addEventListener(eventName, preventDefaults, false);
                 });
                 
                 function preventDefaults(e) {
@@ -10941,18 +10941,18 @@ setTimeout(() => {
                 }
                 
                 ['dragenter', 'dragover'].forEach(eventName => {
-                    uploadArea.addEventListener(eventName, () => {
-                        uploadArea.classList.add('drag-over');
+                    uploadAreaForDragDrop.addEventListener(eventName, () => {
+                        uploadAreaForDragDrop.classList.add('drag-over');
                     }, false);
                 });
                 
                 ['dragleave', 'drop'].forEach(eventName => {
-                    uploadArea.addEventListener(eventName, () => {
-                        uploadArea.classList.remove('drag-over');
+                    uploadAreaForDragDrop.addEventListener(eventName, () => {
+                        uploadAreaForDragDrop.classList.remove('drag-over');
                     }, false);
                 });
                 
-                uploadArea.addEventListener('drop', function(e) {
+                uploadAreaForDragDrop.addEventListener('drop', function(e) {
                     const dt = e.dataTransfer;
                     const files = dt.files;
                     
