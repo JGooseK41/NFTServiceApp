@@ -81,10 +81,50 @@ const SimpleEncryption = {
         // In production, use actual IPFS upload
         const hash = 'Qm' + CryptoJS.SHA256(data).toString().substring(0, 44);
         
-        // Store locally for demo (in production, use IPFS)
-        localStorage.setItem(`ipfs_${hash}`, data);
+        // Clean up old IPFS data if storage is getting full
+        this.cleanupOldIPFSData();
+        
+        try {
+            // Store locally for demo (in production, use IPFS)
+            localStorage.setItem(`ipfs_${hash}`, data);
+        } catch (e) {
+            if (e.name === 'QuotaExceededError') {
+                // Clear all IPFS data and try again
+                this.clearAllIPFSData();
+                localStorage.setItem(`ipfs_${hash}`, data);
+            } else {
+                throw e;
+            }
+        }
         
         return hash;
+    },
+    
+    // Clean up old IPFS data to free space
+    cleanupOldIPFSData() {
+        const keys = Object.keys(localStorage);
+        const ipfsKeys = keys.filter(key => key.startsWith('ipfs_'));
+        
+        // If we have more than 10 IPFS entries, remove the oldest ones
+        if (ipfsKeys.length > 10) {
+            // Sort by key (which includes timestamp in real implementation)
+            ipfsKeys.sort();
+            
+            // Remove oldest entries, keep only last 10
+            const keysToRemove = ipfsKeys.slice(0, ipfsKeys.length - 10);
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+        }
+    },
+    
+    // Clear all IPFS data from localStorage
+    clearAllIPFSData() {
+        const keys = Object.keys(localStorage);
+        keys.forEach(key => {
+            if (key.startsWith('ipfs_')) {
+                localStorage.removeItem(key);
+            }
+        });
+        console.log('Cleared all IPFS data from localStorage');
     },
     
     // Fetch from IPFS

@@ -13181,6 +13181,14 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         window.downloadDocument = downloadDocument;
         window.saveReceiptAsHTML = saveReceiptAsHTML;
         
+        // Utility to clear IPFS data when storage is full
+        window.clearIPFSStorage = function() {
+            if (window.SimpleEncryption && window.SimpleEncryption.clearAllIPFSData) {
+                window.SimpleEncryption.clearAllIPFSData();
+                uiManager.showNotification('success', 'IPFS storage cleared');
+            }
+        };
+        
         // Refresh delivery status
         async function refreshDeliveryStatus() {
             if (!legalContract || !tronWeb.defaultAddress) {
