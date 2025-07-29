@@ -5989,6 +5989,140 @@ function parsePackedData(packedData) {
 
         const uiManager = new UIManager();
         
+        // Close modal functions
+        function closeTransactionResultModal() {
+            const modal = document.getElementById('transactionResultModal');
+            if (modal) modal.style.display = 'none';
+        }
+        
+        function closeTxModal() {
+            closeTransactionResultModal();
+        }
+        
+        function closeAcceptModal() {
+            const modal = document.getElementById('acceptModal');
+            if (modal) modal.style.display = 'none';
+        }
+        
+        function closeMintModal() {
+            const modal = document.getElementById('batchMintModal');
+            if (modal) modal.style.display = 'none';
+        }
+        
+        function closeRegistrationModal() {
+            const modal = document.getElementById('registrationModal');
+            if (modal) modal.style.display = 'none';
+        }
+        
+        function closeRegistrationSuccessModal() {
+            const modal = document.getElementById('registrationSuccessModal');
+            if (modal) modal.style.display = 'none';
+        }
+        
+        function closeAuditModal() {
+            const modal = document.getElementById('auditModal');
+            if (modal) modal.style.display = 'none';
+        }
+        
+        // Open registration modal
+        function openRegistrationModal() {
+            const modal = document.getElementById('registrationModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                // Pre-fill wallet address if connected
+                if (tronWeb && tronWeb.defaultAddress) {
+                    document.getElementById('regWallet').value = tronWeb.defaultAddress.base58;
+                }
+            }
+        }
+        
+        // Dismiss registration notice
+        function dismissRegistrationNotice() {
+            const notice = document.getElementById('registrationNotice');
+            if (notice) {
+                notice.style.display = 'none';
+                localStorage.setItem('registrationNoticeDismissed', 'true');
+            }
+        }
+        
+        // Copy functions
+        function copyWalletAddress() {
+            if (tronWeb && tronWeb.defaultAddress) {
+                navigator.clipboard.writeText(tronWeb.defaultAddress.base58).then(() => {
+                    uiManager.showNotification('success', 'Address copied to clipboard!');
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                    uiManager.showNotification('error', 'Failed to copy address');
+                });
+            }
+        }
+        
+        function copyAddress(address) {
+            navigator.clipboard.writeText(address).then(() => {
+                uiManager.showNotification('success', 'Address copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                uiManager.showNotification('error', 'Failed to copy address');
+            });
+        }
+        
+        // Fee management functions
+        async function setLawEnforcementExemption() {
+            const address = document.getElementById('exemptionAddress').value.trim();
+            const agencyName = document.getElementById('exemptionAgencyName').value.trim();
+            
+            if (!address || !agencyName) {
+                uiManager.showNotification('error', 'Please fill in all fields');
+                return;
+            }
+            
+            if (!tronWeb.isAddress(address)) {
+                uiManager.showNotification('error', 'Invalid address');
+                return;
+            }
+            
+            try {
+                showProcessing('Setting law enforcement exemption...');
+                
+                await legalContract.grantRoleWithExemption(
+                    tronWeb.sha3('PROCESS_SERVER_ROLE'),
+                    address,
+                    agencyName
+                ).send({
+                    feeLimit: 100_000_000,
+                    shouldPollResponse: true
+                });
+                
+                hideProcessing();
+                showAlert('exemptionResult', 'success', `Exemption granted to ${address}`);
+                
+                // Clear form
+                document.getElementById('exemptionAddress').value = '';
+                document.getElementById('exemptionAgencyName').value = '';
+                
+            } catch (error) {
+                hideProcessing();
+                console.error('Error setting exemption:', error);
+                showAlert('exemptionResult', 'error', 'Failed: ' + getErrorMessage(error));
+            }
+        }
+        
+        function useConnectedAddressForExemption() {
+            if (tronWeb && tronWeb.defaultAddress) {
+                document.getElementById('exemptionAddress').value = tronWeb.defaultAddress.base58;
+            }
+        }
+        
+        // Toggle registration form based on role
+        function toggleRegistrationForm() {
+            const roleSelect = document.getElementById('roleSelect');
+            const serverFields = document.getElementById('processServerFields');
+            
+            if (roleSelect && serverFields) {
+                serverFields.style.display = roleSelect.value === 'PROCESS_SERVER_ROLE' ? 'block' : 'none';
+            }
+        }
+        
         // Change document function (for batch operations)
         function changeDocument() {
             // Reset to upload step
@@ -7738,11 +7872,11 @@ function useConnectedAddressForFeeCollector() {
                 let roleName;
                 
                 switch(roleSelect) {
-                    case 'admin':
+                    case 'ADMIN_ROLE':
                         roleBytes = tronWeb.sha3('ADMIN_ROLE');
                         roleName = 'Admin';
                         break;
-                    case 'process_server':
+                    case 'PROCESS_SERVER_ROLE':
                         roleBytes = tronWeb.sha3('PROCESS_SERVER_ROLE');
                         roleName = 'Process Server';
                         break;
@@ -10634,6 +10768,394 @@ document.addEventListener('keydown', function(event) {
 	window.toggleContract = toggleContract;
 	
 	// Simplified system - no encryption setup needed
-    </script>
+    
+        
+        // Notice acceptance function
+        async function acceptNotice() {
+            const noticeId = document.getElementById('acceptNoticeId').textContent;
+            const acceptanceText = document.getElementById('acceptanceText').value.trim();
+            
+            if (!acceptanceText) {
+                uiManager.showNotification('error', 'Please enter your acceptance text');
+                return;
+            }
+            
+            try {
+                showProcessing('Accepting notice...');
+                
+                await legalContract.acceptNotice(noticeId).send({
+                    feeLimit: 100_000_000,
+                    shouldPollResponse: true
+                });
+                
+                hideProcessing();
+                uiManager.showNotification('success', 'Notice accepted successfully!');
+                
+                // Close modal and refresh
+                closeAcceptModal();
+                setTimeout(() => {
+                    refreshMyAlerts();
+                }, 2000);
+                
+            } catch (error) {
+                hideProcessing();
+                console.error('Error accepting notice:', error);
+                uiManager.showNotification('error', 'Failed to accept: ' + getErrorMessage(error));
+            }
+        }
+        
+        // Refresh my alerts
+        async function refreshMyAlerts() {
+            if (!legalContract || !tronWeb.defaultAddress) {
+                uiManager.showNotification('error', 'Please connect wallet first');
+                return;
+            }
+            
+            try {
+                const myAddress = tronWeb.defaultAddress.base58;
+                const noticeIds = await getRecipientNoticeIds(myAddress);
+                
+                const alertsContent = document.getElementById('myAlertsContent');
+                if (noticeIds.length === 0) {
+                    alertsContent.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><h3>No notices received</h3></div>';
+                    return;
+                }
+                
+                let html = '<div class="notice-list">';
+                for (const noticeId of noticeIds) {
+                    try {
+                        const notice = await legalContract.getNotice(noticeId).call();
+                        const { timestamp, serverId, hasDocument, accepted } = parsePackedData(notice.packedData);
+                        
+                        html += `
+                            <div class="notice-item">
+                                <div class="notice-header">
+                                    <h4>Notice #${noticeId}</h4>
+                                    <span class="badge ${accepted ? 'badge-success' : 'badge-warning'}">
+                                        ${accepted ? 'Accepted' : 'Pending'}
+                                    </span>
+                                </div>
+                                <div class="notice-details">
+                                    <p><strong>From:</strong> ${notice.sender}</p>
+                                    <p><strong>Date:</strong> ${new Date(timestamp * 1000).toLocaleString()}</p>
+                                    <p><strong>Type:</strong> ${notice.noticeType || 'Legal Notice'}</p>
+                                    ${!accepted ? `
+                                        <button class="btn btn-primary btn-small" onclick="showAcceptModal(${noticeId})">
+                                            <i class="fas fa-check"></i> Accept Notice
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `;
+                    } catch (e) {
+                        console.error('Error loading notice', noticeId, e);
+                    }
+                }
+                html += '</div>';
+                
+                alertsContent.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error refreshing alerts:', error);
+                uiManager.showNotification('error', 'Failed to refresh alerts');
+            }
+        }
+        
+        // Show accept modal
+        function showAcceptModal(noticeId) {
+            document.getElementById('acceptNoticeId').textContent = noticeId;
+            document.getElementById('acceptModal').style.display = 'block';
+        }
+        
+        // Contract resource check
+        async function checkContractResources() {
+            if (!legalContract) {
+                uiManager.showNotification('error', 'Contract not connected');
+                return;
+            }
+            
+            try {
+                const contractAddress = document.getElementById('contractAddress').value;
+                const accountInfo = await tronWeb.trx.getAccount(contractAddress);
+                
+                const energyLimit = accountInfo.energy_limit || 0;
+                const energy = accountInfo.energy || 0;
+                const bandwidth = accountInfo.bandwidth || 0;
+                
+                const html = `
+                    <div class="resource-info">
+                        <h4>Contract Resources</h4>
+                        <p>Energy: ${energy} / ${energyLimit}</p>
+                        <p>Bandwidth: ${bandwidth}</p>
+                    </div>
+                `;
+                
+                showAlert('resourceStatus', 'info', html);
+                
+            } catch (error) {
+                console.error('Error checking resources:', error);
+                showAlert('resourceStatus', 'error', 'Failed to check resources');
+            }
+        }
+        
+        // Fee update functions
+        async function updateServiceFee() {
+            const newFee = document.getElementById('newServiceFee').value;
+            if (!newFee || newFee <= 0) {
+                uiManager.showNotification('error', 'Please enter a valid fee amount');
+                return;
+            }
+            
+            try {
+                showProcessing('Updating service fee...');
+                const feeInSun = tronWeb.toSun(newFee);
+                
+                await legalContract.updateServiceFee(feeInSun).send({
+                    feeLimit: 50_000_000,
+                    shouldPollResponse: true
+                });
+                
+                hideProcessing();
+                uiManager.showNotification('success', 'Service fee updated successfully');
+                
+            } catch (error) {
+                hideProcessing();
+                console.error('Error updating fee:', error);
+                uiManager.showNotification('error', 'Failed: ' + getErrorMessage(error));
+            }
+        }
+        
+        // Withdraw from contract
+        async function withdrawFromContract() {
+            const amount = document.getElementById('withdrawAmount').value;
+            if (!amount || amount <= 0) {
+                uiManager.showNotification('error', 'Please enter a valid amount');
+                return;
+            }
+            
+            try {
+                showProcessing('Withdrawing funds...');
+                const amountInSun = tronWeb.toSun(amount);
+                
+                await legalContract.withdrawFees(amountInSun).send({
+                    feeLimit: 50_000_000,
+                    shouldPollResponse: true
+                });
+                
+                hideProcessing();
+                uiManager.showNotification('success', `Successfully withdrew ${amount} TRX`);
+                document.getElementById('withdrawAmount').value = '';
+                
+            } catch (error) {
+                hideProcessing();
+                console.error('Withdrawal error:', error);
+                uiManager.showNotification('error', 'Failed: ' + getErrorMessage(error));
+            }
+        }
+        
+        // Export registrations
+        function exportRegistrations() {
+            const registrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+            const dataStr = JSON.stringify(registrations, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `registrations_${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+        
+        // Toggle FAQ
+        function toggleFAQ(element) {
+            const content = element.nextElementSibling;
+            const icon = element.querySelector('.faq-icon');
+            
+            if (content.style.display === 'block') {
+                content.style.display = 'none';
+                icon.textContent = '+';
+            } else {
+                content.style.display = 'block';
+                icon.textContent = '-';
+            }
+        }
+        
+        // Open registration for user
+        function openRegistrationForUser() {
+            if (!isProcessServer) {
+                openRegistrationModal();
+            } else {
+                uiManager.showNotification('info', 'You are already registered as a process server');
+            }
+        }
+
+        // Create Legal Notice - Main function for minting NFTs
+        async function createLegalNotice() {
+            if (!legalContract || !tronWeb.defaultAddress) {
+                uiManager.showNotification('error', 'Please connect wallet and contract first');
+                return;
+            }
+            
+            // Get form values
+            const recipient = document.getElementById('recipientAddress').value.trim();
+            const publicText = document.getElementById('noticeText').value.trim();
+            const noticeType = document.getElementById('noticeType').value;
+            const customType = document.getElementById('customNoticeType').value.trim();
+            const caseNumber = document.getElementById('caseNumber').value.trim();
+            const issuingAgency = document.getElementById('issuingAgency').value.trim();
+            const tokenName = document.getElementById('tokenName').value.trim();
+            const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked').value;
+            
+            // Validation
+            if (!recipient) {
+                uiManager.showNotification('error', 'Please enter recipient address');
+                return;
+            }
+            
+            if (!tronWeb.isAddress(recipient)) {
+                uiManager.showNotification('error', 'Invalid recipient address');
+                return;
+            }
+            
+            if (!publicText && deliveryMethod === 'text') {
+                uiManager.showNotification('error', 'Please enter notice text');
+                return;
+            }
+            
+            if (deliveryMethod === 'document' && !uploadedImage) {
+                uiManager.showNotification('error', 'Please upload a document');
+                return;
+            }
+            
+            try {
+                showProcessing('Creating legal notice...');
+                
+                // Calculate fee
+                const fee = await calculateFeeFromConstants(tronWeb.defaultAddress.base58);
+                
+                // Build notice request
+                const noticeRequest = {
+                    recipient: recipient,
+                    publicText: publicText || '',
+                    noticeType: noticeType === 'Custom' ? customType : noticeType,
+                    caseNumber: caseNumber || '',
+                    issuingAgency: issuingAgency || '',
+                    baseTokenName: tokenName || 'Legal Notice',
+                    hasDocument: deliveryMethod === 'document',
+                    encryptedIPFS: uploadedImage ? uploadedImage.ipfsHash : '',
+                    encryptedKey: uploadedImage ? uploadedImage.encryptedKey : ''
+                };
+                
+                // Send transaction
+                const result = await legalContract.createNotice(noticeRequest).send({
+                    feeLimit: 100_000_000,
+                    callValue: fee,
+                    shouldPollResponse: true
+                });
+                
+                console.log('Transaction result:', result);
+                
+                // Get notice ID from event
+                let noticeId = null;
+                if (result && result.length > 0) {
+                    const eventData = result[0];
+                    noticeId = eventData.noticeId || eventData._noticeId || eventData[0];
+                }
+                
+                hideProcessing();
+                
+                // Show success
+                showTransactionResult({
+                    success: true,
+                    txHash: result.txid || result,
+                    noticeId: noticeId,
+                    recipient: recipient,
+                    ipfsData: uploadedImage
+                });
+                
+                // Clear form
+                clearNoticeForm();
+                
+            } catch (error) {
+                hideProcessing();
+                console.error('Error creating notice:', error);
+                uiManager.showNotification('error', 'Failed to create notice: ' + getErrorMessage(error));
+            }
+        }
+        
+        // Clear notice form
+        function clearNoticeForm() {
+            document.getElementById('recipientAddress').value = '';
+            document.getElementById('noticeText').value = '';
+            document.getElementById('caseNumber').value = '';
+            document.getElementById('issuingAgency').value = '';
+            document.getElementById('tokenName').value = '';
+            uploadedImage = null;
+            
+            // Reset file upload
+            const uploadResult = document.getElementById('uploadResult');
+            if (uploadResult) {
+                uploadResult.style.display = 'none';
+            }
+        }
+        
+        // Show transaction result
+        function showTransactionResult(result) {
+            const modal = document.getElementById('transactionResultModal');
+            const txDetails = document.getElementById('txDetails');
+            const txLink = document.getElementById('txLink');
+            const txHash = document.getElementById('txHash');
+            
+            if (result.success) {
+                let details = `
+                    <div class="token-detail">
+                        <span>Status:</span>
+                        <span class="success-text">✓ Success</span>
+                    </div>
+                `;
+                
+                if (result.noticeId) {
+                    details += `
+                        <div class="token-detail">
+                            <span>Notice ID:</span>
+                            <span>#${result.noticeId}</span>
+                        </div>
+                    `;
+                }
+                
+                if (result.recipient) {
+                    details += `
+                        <div class="token-detail">
+                            <span>Recipient:</span>
+                            <span>${result.recipient.substring(0, 10)}...${result.recipient.substring(result.recipient.length - 8)}</span>
+                        </div>
+                    `;
+                }
+                
+                if (result.ipfsData) {
+                    details += `
+                        <div class="token-detail">
+                            <span>Document:</span>
+                            <span>Encrypted on IPFS</span>
+                        </div>
+                    `;
+                }
+                
+                txDetails.innerHTML = details;
+                txHash.textContent = result.txHash;
+                
+                // Set TronScan link
+                const network = document.getElementById('networkName').textContent;
+                let tronscanUrl = 'https://tronscan.org/#/transaction/';
+                if (network.includes('Nile')) {
+                    tronscanUrl = 'https://nile.tronscan.org/#/transaction/';
+                }
+                txLink.href = tronscanUrl + result.txHash;
+                
+                modal.style.display = 'block';
+            }
+        }
+</script>
 </body>
 </html>
