@@ -10401,6 +10401,9 @@ async function checkUserRoles() {
         document.addEventListener('DOMContentLoaded', async function() {
             // Check if user came from a direct notice link
             checkDirectNoticeLink();
+            
+            // Check if new user needs onboarding
+            checkNewUserOnboarding();
             // Hide loader
             setTimeout(() => {
                 uiManager.hideLoader();
@@ -11295,6 +11298,107 @@ document.addEventListener('keydown', function(event) {
         }
         
         window.viewNoticeWithoutWallet = viewNoticeWithoutWallet;
+        
+        // Check if new user needs onboarding
+        function checkNewUserOnboarding() {
+            // Skip if coming from notice link
+            if (window.location.hash.startsWith('#notice-')) return;
+            
+            // Check if user has seen onboarding
+            const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
+            if (!hasSeenOnboarding) {
+                showOnboardingModal();
+            }
+        }
+        
+        // Show onboarding modal for new users
+        function showOnboardingModal() {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'block';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 700px;">
+                    <div class="modal-header" style="background: var(--primary-blue); color: white;">
+                        <h2 style="margin: 0;"><i class="fas fa-rocket"></i> Welcome to NFT Legal Service</h2>
+                    </div>
+                    <div class="modal-body" style="padding: 2rem;">
+                        <h3 style="text-align: center; margin-bottom: 2rem;">Important Information for Process Servers</h3>
+                        
+                        <div class="alert alert-danger" style="margin-bottom: 2rem;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>Critical: Your Wallet IS Your Identity</strong>
+                            <ul style="margin: 0.5rem 0 0 0;">
+                                <li>All notices and data are tied to your wallet address</li>
+                                <li>You can ONLY see notices YOU have sent</li>
+                                <li>Lost wallet = Lost access to all historical data</li>
+                                <li>No password recovery - wallet is the only key</li>
+                            </ul>
+                        </div>
+                        
+                        <div style="display: grid; gap: 1rem; margin: 2rem 0;">
+                            <div style="background: var(--bg-secondary); padding: 1.5rem; border-radius: 8px;">
+                                <h4><i class="fas fa-wallet"></i> Step 1: Secure Your Wallet</h4>
+                                <p>Write down your seed phrase and store it safely. This is your only backup.</p>
+                            </div>
+                            
+                            <div style="background: var(--bg-secondary); padding: 1.5rem; border-radius: 8px;">
+                                <h4><i class="fas fa-user-shield"></i> Step 2: Register as Process Server</h4>
+                                <p>Get approved by an admin to start serving legal notices.</p>
+                            </div>
+                            
+                            <div style="background: var(--bg-secondary); padding: 1.5rem; border-radius: 8px;">
+                                <h4><i class="fas fa-gavel"></i> Step 3: Serve Notices</h4>
+                                <p>Upload documents and serve to any TRON wallet address.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Privacy & Access:</strong>
+                            <ul style="margin: 0.5rem 0 0 0;">
+                                <li>You can ONLY view details of notices you sent</li>
+                                <li>Recipient data is private to the sending server</li>
+                                <li>IP/location data captured only for your notices</li>
+                                <li>Analytics show only your performance metrics</li>
+                            </ul>
+                        </div>
+                        
+                        <div style="text-align: center; margin-top: 2rem;">
+                            <label style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 1rem;">
+                                <input type="checkbox" id="understoodOnboarding">
+                                <span>I understand my wallet is my only access key</span>
+                            </label>
+                            
+                            <button class="btn btn-primary" onclick="completeOnboarding()" disabled id="continueOnboarding">
+                                <i class="fas fa-check"></i> Continue to App
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            // Enable button when checkbox checked
+            document.getElementById('understoodOnboarding').addEventListener('change', function(e) {
+                document.getElementById('continueOnboarding').disabled = !e.target.checked;
+            });
+        }
+        
+        // Complete onboarding
+        function completeOnboarding() {
+            localStorage.setItem('hasSeenOnboarding', 'true');
+            document.querySelector('.modal').remove();
+            
+            // If wallet not connected, prompt
+            if (!window.tronWeb || !window.tronWeb.ready) {
+                setTimeout(() => {
+                    alert('Please connect your TronLink wallet to continue.');
+                }, 500);
+            }
+        }
+        
+        window.checkNewUserOnboarding = checkNewUserOnboarding;
+        window.completeOnboarding = completeOnboarding;
         
         window.checkDirectNoticeLink = checkDirectNoticeLink;
         
