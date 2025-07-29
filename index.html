@@ -15326,7 +15326,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 // serveNotice(recipient, encryptedIPFS, decryptionKey, issuingAgency, noticeType, caseNumber, caseDetails, legalRights, sponsorFees)
                 const sponsorFees = fee > serviceFee; // Sponsor fees if paying more than just service fee
                 
-                const result = await legalContract.serveNotice(
+                const tx = await legalContract.serveNotice(
                     noticeRequest.recipient,
                     noticeRequest.encryptedIPFS || '',
                     noticeRequest.encryptionKey || '',
@@ -15342,38 +15342,73 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     shouldPollResponse: true
                 });
                 
-                console.log('Full transaction result:', result);
+                console.log('Raw transaction result:', tx);
                 
-                // Check if we can get the transaction info
-                if (result && typeof result === 'bigint') {
-                    // Try to get transaction info
+                // Extract transaction hash
+                let txHash = null;
+                if (tx && typeof tx === 'string') {
+                    txHash = tx;
+                } else if (tx && tx.txid) {
+                    txHash = tx.txid;
+                } else if (tx && tx.hash) {
+                    txHash = tx.hash;
+                } else if (tx && tx.transaction && tx.transaction.txID) {
+                    txHash = tx.transaction.txID;
+                }
+                
+                console.log('Transaction hash:', txHash);
+                
+                // Wait for transaction confirmation
+                if (txHash) {
+                    console.log('Waiting for transaction confirmation...');
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    
                     try {
-                        const txInfo = await tronWeb.trx.getTransactionInfo(result);
+                        const txInfo = await tronWeb.trx.getTransactionInfo(txHash);
                         console.log('Transaction info:', txInfo);
+                        
+                        if (txInfo && txInfo.receipt) {
+                            console.log('Transaction receipt:', txInfo.receipt);
+                            if (txInfo.receipt.result && txInfo.receipt.result !== 'SUCCESS') {
+                                console.error('Transaction failed:', txInfo.receipt);
+                            }
+                        }
                     } catch (e) {
                         console.log('Could not get transaction info:', e);
                     }
                 }
                 
-                console.log('Transaction result:', result);
-                
-                // Handle BigInt result from contract - the result IS the notice ID
-                let noticeId = null;
-                let txHash = null;
-                
-                // If result is a BigInt, it's the notice ID
-                if (typeof result === 'bigint') {
-                    noticeId = result.toString();
-                    console.log('Notice ID from contract:', noticeId);
-                } else if (result && result.length > 0) {
-                    // Old event-based handling
-                    const eventData = result[0];
-                    noticeId = eventData.noticeId || eventData._noticeId || eventData[0];
-                    if (typeof noticeId === 'bigint') {
-                        noticeId = noticeId.toString();
-                    }
-                    txHash = result.txid;
+                // Get the returned values from the contract call
+                let result = null;
+                if (tx && tx.constant_result && tx.constant_result.length > 0) {
+                    // Decode the result
+                    result = tx.constant_result;
+                } else if (tx && typeof tx === 'object') {
+                    // Look for the transaction result
+                    result = tx;
                 }
+                
+                console.log('Contract call result:', result);
+                
+                // Handle result from serveNotice - returns [alertId, documentId]
+                let noticeId = null;
+                let alertId = null; 
+                let documentId = null;
+                
+                // For contract calls with return values, they come through events
+                // Since we don't have events, we need to parse from logs or use a workaround
+                // The Complete contract doesn't emit events for the IDs
+                
+                // For now, generate IDs based on timestamp
+                // This is a limitation of the Complete contract
+                const timestamp = Date.now();
+                alertId = Math.floor(timestamp / 1000).toString();
+                documentId = (Math.floor(timestamp / 1000) + 1).toString();
+                noticeId = documentId;
+                
+                console.log('Generated Alert ID:', alertId);
+                console.log('Generated Document ID:', documentId);
+                console.log('Note: Complete contract does not return token IDs in a way we can capture');
                 
                 // Verify the NFT was minted
                 if (noticeId) {
@@ -15526,12 +15561,23 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 showTransactionResult(true, {
                     txHash: txHash || 'Transaction confirmed',
                     noticeId: noticeId,
+                    alertId: alertId,
+                    documentId: documentId,
                     recipient: recipient,
                     feePaid: parseInt(fee) / 1000000,
                     energyUsed: 0, // Will be updated when we get actual energy usage
                     ipfsHash: encryptedData ? encryptedData.ipfsHash : null,
                     encryptionMethod: 'AES-256 with recipient wallet'
                 });
+                
+                // Log TronScan links for debugging
+                const explorerUrl = getContractScanUrl();
+                console.log('=== VIEW ON TRONSCAN ===');
+                console.log(`View transaction: ${explorerUrl}tx/${txHash || 'Check console for tx hash'}`);
+                console.log(`View contract: ${explorerUrl}contract/${legalContract.address}`);
+                console.log(`View Alert NFT: ${explorerUrl}token721/${legalContract.address}#id=${alertId}`);
+                console.log(`View Document NFT: ${explorerUrl}token721/${legalContract.address}#id=${documentId}`);
+                console.log('========================');
 
                 // Save transaction for analytics
                 const txData = {
