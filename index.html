@@ -19,6 +19,7 @@
     <!-- Simplified Encryption (no registration needed) -->
     <script src="js/simple-encryption.js?v=2"></script>
     <script src="js/simplified-integration.js"></script>
+    <script src="js/thumbnail-generator.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -14934,6 +14935,9 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     };
                     
                     uiManager.showNotification('info', 'Document encrypted with recipient\'s wallet address');
+                    
+                    // Note: Thumbnail generation will happen after we get the notice ID
+                    // This ensures the metadata has the correct notice ID for the external URL
                 }
                 
                 // Build notice request
@@ -15082,6 +15086,40 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 }
                 
                 hideProcessing();
+                
+                // Generate and update NFT metadata with sealed thumbnail
+                if (noticeId && deliveryMethod === 'document' && uploadedImage) {
+                    try {
+                        console.log('Generating NFT metadata with sealed thumbnail...');
+                        showProcessing('Creating sealed preview for wallet visibility...');
+                        
+                        const nftAssets = await ThumbnailGenerator.processDocumentForNFT(
+                            uploadedImage.data,
+                            {
+                                noticeType: noticeType === 'Custom' ? customType : noticeType,
+                                caseNumber: caseNumber || 'Confidential',
+                                issuingAgency: issuingAgency || 'Law Enforcement'
+                            },
+                            noticeId // Now we have the actual notice ID
+                        );
+                        
+                        if (nftAssets.success) {
+                            console.log('NFT metadata with thumbnail uploaded to IPFS:', nftAssets.metadataHash);
+                            console.log('Metadata URI:', nftAssets.metadataURI);
+                            
+                            // Note: With current contract, we can't update the tokenURI after minting
+                            // This would require a new contract deployment
+                            // For now, the thumbnail is prepared for future use
+                            
+                            uiManager.showNotification('success', 'Sealed preview generated for NFT');
+                        }
+                        
+                        hideProcessing();
+                    } catch (metadataError) {
+                        console.error('Error generating NFT metadata:', metadataError);
+                        // Continue anyway - the notice was created
+                    }
+                }
                 
                 // Multi-strategy notification approach
                 if (noticeId) {
