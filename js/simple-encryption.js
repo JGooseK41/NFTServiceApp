@@ -81,40 +81,89 @@ const SimpleEncryption = {
         // In production, use actual IPFS upload
         const hash = 'Qm' + CryptoJS.SHA256(data).toString().substring(0, 44);
         
+        // First, let's see what's taking up space
+        console.log('localStorage usage before cleanup:');
+        const storageInfo = this.getStorageInfo();
+        console.log(storageInfo);
+        
         // Always clean up first to prevent quota issues
         this.cleanupOldIPFSData();
         
+        // More aggressive cleanup - keep only 5 most recent
+        const keys = Object.keys(localStorage);
+        const ipfsKeys = keys.filter(key => key.startsWith('ipfs_'));
+        if (ipfsKeys.length > 5) {
+            // Remove all but the 5 most recent
+            ipfsKeys.sort();
+            const keysToRemove = ipfsKeys.slice(0, ipfsKeys.length - 5);
+            keysToRemove.forEach(key => {
+                localStorage.removeItem(key);
+                console.log('Removed old IPFS data:', key);
+            });
+        }
+        
         try {
-            // Check available space first
-            const testKey = 'test_space_' + Date.now();
-            try {
-                localStorage.setItem(testKey, 'test');
-                localStorage.removeItem(testKey);
-            } catch (e) {
-                // If even a tiny test fails, clear everything
-                console.log('Storage appears full, clearing all IPFS data');
-                this.clearAllIPFSData();
-            }
-            
             // Store locally for demo (in production, use IPFS)
             localStorage.setItem(`ipfs_${hash}`, data);
+            console.log('Successfully stored IPFS data with hash:', hash);
         } catch (e) {
             console.error('Storage error:', e);
             if (e.name === 'QuotaExceededError' || e.code === 22) {
-                // Clear all IPFS data and try again
+                // Clear ALL localStorage data as last resort
+                console.log('Clearing ALL IPFS data due to quota exceeded');
                 this.clearAllIPFSData();
+                
+                // Also clear other large data that might be taking space
+                const allKeys = Object.keys(localStorage);
+                allKeys.forEach(key => {
+                    if (key.startsWith('ipfs_') || key.startsWith('notice_') || key.startsWith('document_') || key.includes('base64')) {
+                        localStorage.removeItem(key);
+                        console.log('Removed:', key);
+                    }
+                });
+                
                 try {
+                    // Try one more time
                     localStorage.setItem(`ipfs_${hash}`, data);
+                    console.log('Successfully stored after aggressive cleanup');
                 } catch (e2) {
-                    // If still failing, return hash without storing
-                    console.error('Cannot store in localStorage, continuing without storage');
+                    // If still failing, just continue without storage
+                    console.error('Cannot store in localStorage even after cleanup, continuing without storage');
+                    console.log('Data size:', data.length, 'characters');
                 }
-            } else {
-                throw e;
             }
         }
         
         return hash;
+    },
+    
+    // Get storage information for debugging
+    getStorageInfo() {
+        const keys = Object.keys(localStorage);
+        const info = {
+            totalKeys: keys.length,
+            ipfsKeys: 0,
+            totalSize: 0,
+            largestItems: []
+        };
+        
+        keys.forEach(key => {
+            const value = localStorage.getItem(key);
+            const size = value ? value.length : 0;
+            info.totalSize += size;
+            
+            if (key.startsWith('ipfs_')) {
+                info.ipfsKeys++;
+            }
+            
+            info.largestItems.push({ key, size });
+        });
+        
+        // Sort by size and keep top 10
+        info.largestItems.sort((a, b) => b.size - a.size);
+        info.largestItems = info.largestItems.slice(0, 10);
+        
+        return info;
     },
     
     // Clean up old IPFS data to free space
@@ -122,15 +171,26 @@ const SimpleEncryption = {
         const keys = Object.keys(localStorage);
         const ipfsKeys = keys.filter(key => key.startsWith('ipfs_'));
         
-        // If we have more than 10 IPFS entries, remove the oldest ones
-        if (ipfsKeys.length > 10) {
+        // Be more aggressive - if we have more than 3 IPFS entries, remove the oldest ones
+        if (ipfsKeys.length > 3) {
             // Sort by key (which includes timestamp in real implementation)
             ipfsKeys.sort();
             
-            // Remove oldest entries, keep only last 10
-            const keysToRemove = ipfsKeys.slice(0, ipfsKeys.length - 10);
-            keysToRemove.forEach(key => localStorage.removeItem(key));
+            // Remove oldest entries, keep only last 3
+            const keysToRemove = ipfsKeys.slice(0, ipfsKeys.length - 3);
+            keysToRemove.forEach(key => {
+                localStorage.removeItem(key);
+                console.log('Cleaned up old IPFS key:', key);
+            });
         }
+        
+        // Also remove any orphaned document data
+        keys.forEach(key => {
+            if ((key.includes('document_') || key.includes('uploadedDoc_')) && !key.startsWith('ipfs_')) {
+                localStorage.removeItem(key);
+                console.log('Cleaned up orphaned document data:', key);
+            }
+        });
     },
     
     // Clear all IPFS data from localStorage
@@ -205,6 +265,21 @@ const SimpleEncryption = {
 
 // Integration with existing UI
 window.SimpleEncryption = SimpleEncryption;
+
+// Utility function to clear all storage (for debugging)
+window.clearAllStorage = function() {
+    console.log('Clearing all localStorage data...');
+    const info = SimpleEncryption.getStorageInfo();
+    console.log('Before clear:', info);
+    
+    // Clear everything
+    localStorage.clear();
+    console.log('All localStorage cleared');
+    
+    // Show what's left (should be empty)
+    const afterInfo = SimpleEncryption.getStorageInfo();
+    console.log('After clear:', afterInfo);
+};
 
 // Override the existing accept notice function
 window.acceptNoticeSimplified = async function() {
