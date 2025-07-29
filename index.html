@@ -14758,8 +14758,23 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     encryptionKey: encryptedData ? encryptedData.encryptionKey : ''  // Fixed: was encryptedKey
                 };
                 
-                // Send transaction
-                const result = await legalContract.createNotice(noticeRequest).send({
+                // Send transaction - TronWeb might need the struct as an array
+                console.log('Sending notice request:', noticeRequest);
+                
+                // Try passing as array of values in the exact order expected by the struct
+                const noticeArray = [
+                    noticeRequest.recipient,
+                    noticeRequest.publicText,
+                    noticeRequest.noticeType,
+                    noticeRequest.caseNumber,
+                    noticeRequest.issuingAgency,
+                    noticeRequest.baseTokenName,
+                    noticeRequest.hasDocument,
+                    noticeRequest.encryptedIPFS,
+                    noticeRequest.encryptionKey
+                ];
+                
+                const result = await legalContract.createNotice(noticeArray).send({
                     feeLimit: 300_000_000,  // Increased for larger documents
                     callValue: fee,
                     shouldPollResponse: true
