@@ -14836,6 +14836,9 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 
                 // Send transaction - TronWeb might need the struct as an array
                 console.log('Sending notice request:', noticeRequest);
+                console.log('Contract address:', legalContract.address);
+                console.log('Sender address:', tronWeb.defaultAddress.base58);
+                console.log('Fee being sent:', fee, 'sun =', fee/1000000, 'TRX');
                 
                 // Try passing as array of values in the exact order expected by the struct
                 const noticeArray = [
@@ -14850,11 +14853,26 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     noticeRequest.encryptionKey
                 ];
                 
+                console.log('Notice array being sent:', noticeArray);
+                
                 const result = await legalContract.createNotice(noticeArray).send({
                     feeLimit: 300_000_000,  // Increased for larger documents
                     callValue: fee,
                     shouldPollResponse: true
                 });
+                
+                console.log('Full transaction result:', result);
+                
+                // Check if we can get the transaction info
+                if (result && typeof result === 'bigint') {
+                    // Try to get transaction info
+                    try {
+                        const txInfo = await tronWeb.trx.getTransactionInfo(result);
+                        console.log('Transaction info:', txInfo);
+                    } catch (e) {
+                        console.log('Could not get transaction info:', e);
+                    }
+                }
                 
                 console.log('Transaction result:', result);
                 
@@ -14874,6 +14892,29 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         noticeId = noticeId.toString();
                     }
                     txHash = result.txid;
+                }
+                
+                // Verify the NFT was minted
+                if (noticeId) {
+                    try {
+                        console.log('Verifying NFT ownership for notice ID:', noticeId);
+                        const owner = await legalContract.ownerOf(noticeId).call();
+                        console.log('NFT owner:', owner);
+                        console.log('Expected recipient:', recipient);
+                        
+                        if (owner.toLowerCase() !== recipient.toLowerCase()) {
+                            console.error('NFT was not minted to the expected recipient!');
+                            console.error('Owner:', owner, 'Expected:', recipient);
+                        } else {
+                            console.log('✓ NFT successfully minted to recipient');
+                        }
+                        
+                        // Also check recipient's balance
+                        const recipientBalance = await legalContract.balanceOf(recipient).call();
+                        console.log('Recipient NFT balance:', recipientBalance.toString());
+                    } catch (e) {
+                        console.error('Error verifying NFT:', e);
+                    }
                 }
                 
                 hideProcessing();
