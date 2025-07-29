@@ -9235,7 +9235,25 @@ try {
             let previewHtml = '';
             try {
                 if (notice.id) {
-                    noticeInfo = [object Promise];
+                    noticeInfo = await legalContract.getNotice(notice.id).call();
+                    // Parse the optimized contract data
+                    const metadata = parseMetadata(noticeInfo.metadata);
+                    const packedInfo = parsePackedData(noticeInfo.packedData);
+                    
+                    // Create a compatible structure
+                    noticeInfo = {
+                        recipient: noticeInfo.recipient,
+                        sender: noticeInfo.sender,
+                        publicText: noticeInfo.publicText,
+                        noticeType: metadata.noticeType,
+                        caseNumber: metadata.caseNumber,
+                        issuingAgency: metadata.issuingAgency,
+                        timestamp: packedInfo.timestamp,
+                        accepted: packedInfo.accepted,
+                        hasDocument: packedInfo.hasDocument,
+                        serverId: packedInfo.serverId,
+                        tokenName: noticeInfo.tokenName
+                    };
                 }
             } catch (e) {
                 console.log('Could not fetch notice info');
@@ -9573,7 +9591,24 @@ try {
 
         async function getAlertDetails(alertId) {
             try {
-                const noticeInfo = [object Promise];
+                const notice = await legalContract.getNotice(alertId).call();
+                // Parse the optimized contract data
+                const metadata = parseMetadata(notice.metadata);
+                const packedInfo = parsePackedData(notice.packedData);
+                
+                const noticeInfo = {
+                    recipient: notice.recipient,
+                    sender: notice.sender,
+                    publicText: notice.publicText,
+                    noticeType: metadata.noticeType,
+                    caseNumber: metadata.caseNumber,
+                    issuingAgency: metadata.issuingAgency,
+                    timestamp: packedInfo.timestamp,
+                    accepted: packedInfo.accepted,
+                    hasDocument: packedInfo.hasDocument,
+                    serverId: packedInfo.serverId,
+                    tokenName: notice.tokenName
+                };
                 return {
                     id: alertId,
                     recipient: noticeInfo.recipient,
