@@ -10990,12 +10990,12 @@ async function checkUserRoles() {
         // Auto-save form data
         function saveFormData() {
             const formData = {
-                recipientAddress: document.getElementById('recipientAddress')?.value || '',
-                caseNumber: document.getElementById('caseNumber')?.value || '',
+                recipientAddress: document.getElementById('mintRecipient')?.value || '',
+                caseNumber: document.getElementById('mintCaseNumber')?.value || '',
                 noticeType: document.getElementById('noticeType')?.value || '',
-                issuingAgency: document.getElementById('issuingAgency')?.value || '',
+                issuingAgency: document.getElementById('agencyName')?.value || '',
                 noticeText: document.getElementById('noticeText')?.value || '',
-                tokenName: document.getElementById('tokenName')?.value || ''
+                tokenName: document.getElementById('mintTokenName')?.value || ''
             };
             localStorage.setItem('noticeFormDraft', JSON.stringify(formData));
         }
@@ -11006,8 +11006,19 @@ async function checkUserRoles() {
             if (savedData) {
                 try {
                     const formData = JSON.parse(savedData);
+                    // Map saved keys to actual element IDs
+                    const idMap = {
+                        recipientAddress: 'mintRecipient',
+                        caseNumber: 'mintCaseNumber',
+                        noticeType: 'noticeType',
+                        issuingAgency: 'agencyName',
+                        noticeText: 'noticeText',
+                        tokenName: 'mintTokenName'
+                    };
+                    
                     Object.keys(formData).forEach(key => {
-                        const element = document.getElementById(key);
+                        const elementId = idMap[key] || key;
+                        const element = document.getElementById(elementId);
                         if (element && formData[key]) {
                             element.value = formData[key];
                         }
@@ -11019,7 +11030,7 @@ async function checkUserRoles() {
         }
         
         // Set up auto-save
-        ['recipientAddress', 'caseNumber', 'noticeType', 'issuingAgency', 'noticeText', 'tokenName'].forEach(id => {
+        ['mintRecipient', 'mintCaseNumber', 'noticeType', 'agencyName', 'noticeText', 'mintTokenName'].forEach(id => {
             const element = document.getElementById(id);
             if (element) {
                 element.addEventListener('input', saveFormData);
@@ -14565,15 +14576,15 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 return;
             }
             
-            // Get form values
-            const recipient = document.getElementById('recipientAddress').value.trim();
-            const publicText = document.getElementById('noticeText').value.trim();
-            const noticeType = document.getElementById('noticeType').value;
-            const customType = document.getElementById('customNoticeType').value.trim();
-            const caseNumber = document.getElementById('caseNumber').value.trim();
-            const issuingAgency = document.getElementById('issuingAgency').value.trim();
-            const tokenName = document.getElementById('tokenName').value.trim();
-            const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked').value;
+            // Get form values - use correct mint form IDs
+            const recipient = document.getElementById('mintRecipient')?.value.trim() || '';
+            const publicText = document.getElementById('noticeText')?.value.trim() || '';
+            const noticeType = document.getElementById('noticeType')?.value || 'Legal Notice';
+            const customType = document.getElementById('customNoticeType')?.value.trim() || '';
+            const caseNumber = document.getElementById('mintCaseNumber')?.value.trim() || '';
+            const issuingAgency = document.getElementById('agencyName')?.value.trim() || '';
+            const tokenName = document.getElementById('mintTokenName')?.value.trim() || 'Legal Notice';
+            const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked')?.value || 'document';
             
             // Validation
             if (!recipient) {
@@ -14702,11 +14713,17 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         
         // Clear notice form
         function clearNoticeForm() {
-            document.getElementById('recipientAddress').value = '';
-            document.getElementById('noticeText').value = '';
-            document.getElementById('caseNumber').value = '';
-            document.getElementById('issuingAgency').value = '';
-            document.getElementById('tokenName').value = '';
+            const recipientEl = document.getElementById('mintRecipient');
+            const noticeTextEl = document.getElementById('noticeText');
+            const caseNumberEl = document.getElementById('mintCaseNumber');
+            const agencyNameEl = document.getElementById('agencyName');
+            const tokenNameEl = document.getElementById('mintTokenName');
+            
+            if (recipientEl) recipientEl.value = '';
+            if (noticeTextEl) noticeTextEl.value = '';
+            if (caseNumberEl) caseNumberEl.value = '';
+            if (agencyNameEl) agencyNameEl.value = '';
+            if (tokenNameEl) tokenNameEl.value = '';
             uploadedImage = null;
             
             // Reset file upload
