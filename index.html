@@ -17,7 +17,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script src="js/documentConverter.js"></script>
     <!-- Simplified Encryption (no registration needed) -->
-    <script src="js/simple-encryption.js"></script>
+    <script src="js/simple-encryption.js?v=2"></script>
     <script src="js/simplified-integration.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -14807,7 +14807,21 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             } catch (error) {
                 hideProcessing();
                 console.error('Error creating notice:', error);
-                uiManager.showNotification('error', 'Failed to create notice: ' + getErrorMessage(error));
+                
+                // Special handling for quota errors
+                if (error.name === 'QuotaExceededError' || error.message.includes('quota')) {
+                    console.error('=== STORAGE QUOTA EXCEEDED ===');
+                    console.error('To fix this issue, please run the following command in the console:');
+                    console.error('clearAllStorage()');
+                    console.error('Then refresh the page with Ctrl+F5 (or Cmd+Shift+R on Mac)');
+                    console.error('==============================');
+                    
+                    uiManager.showNotification('error', 
+                        'Storage quota exceeded! Open console (F12), run clearAllStorage(), then refresh with Ctrl+F5'
+                    );
+                } else {
+                    uiManager.showNotification('error', 'Failed to create notice: ' + getErrorMessage(error));
+                }
             }
         }
         
