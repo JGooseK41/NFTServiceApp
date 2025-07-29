@@ -5989,6 +5989,26 @@ function parsePackedData(packedData) {
 
         const uiManager = new UIManager();
         
+        // Initialize tooltips
+        function initializeTooltips() {
+            const tooltips = [
+                { id: 'recipientAddress', text: 'The TRON wallet address of the person receiving the legal notice' },
+                { id: 'caseNumber', text: 'Your internal case or reference number' },
+                { id: 'noticeType', text: 'Select the type of legal notice you are serving' },
+                { id: 'tokenName', text: 'A short name for this notice (e.g., "Smith Summons")' }
+            ];
+            
+            tooltips.forEach(tooltip => {
+                const element = document.getElementById(tooltip.id);
+                if (element) {
+                    const label = element.previousElementSibling;
+                    if (label && !label.querySelector('.tooltip-icon')) {
+                        label.innerHTML += ' <i class="fas fa-question-circle tooltip-icon" title="' + tooltip.text + '" style="color: var(--text-secondary); cursor: help;"></i>';
+                    }
+                }
+            });
+        }
+        
         // Close modal functions
         function closeTransactionResultModal() {
             const modal = document.getElementById('transactionResultModal');
@@ -6094,6 +6114,7 @@ function parsePackedData(packedData) {
                 });
                 
                 hideProcessing();
+                if (submitButton) setButtonLoading(submitButton, false, '<i class="fas fa-paper-plane"></i> Create Notice');
                 showAlert('exemptionResult', 'success', `Exemption granted to ${address}`);
                 
                 // Clear form
@@ -9405,6 +9426,50 @@ async function checkUserRoles() {
             // Set up modal protection
             setupModalProtection();
             
+            
+        // Auto-save form data
+        function saveFormData() {
+            const formData = {
+                recipientAddress: document.getElementById('recipientAddress')?.value || '',
+                caseNumber: document.getElementById('caseNumber')?.value || '',
+                noticeType: document.getElementById('noticeType')?.value || '',
+                issuingAgency: document.getElementById('issuingAgency')?.value || '',
+                noticeText: document.getElementById('noticeText')?.value || '',
+                tokenName: document.getElementById('tokenName')?.value || ''
+            };
+            localStorage.setItem('noticeFormDraft', JSON.stringify(formData));
+        }
+        
+        // Restore form data
+        function restoreFormData() {
+            const savedData = localStorage.getItem('noticeFormDraft');
+            if (savedData) {
+                try {
+                    const formData = JSON.parse(savedData);
+                    Object.keys(formData).forEach(key => {
+                        const element = document.getElementById(key);
+                        if (element && formData[key]) {
+                            element.value = formData[key];
+                        }
+                    });
+                } catch (e) {
+                    console.error('Error restoring form data:', e);
+                }
+            }
+        }
+        
+        // Set up auto-save
+        ['recipientAddress', 'caseNumber', 'noticeType', 'issuingAgency', 'noticeText', 'tokenName'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener('input', saveFormData);
+            }
+        });
+
+        // Initialize tooltips
+            initializeTooltips();
+            restoreFormData();
+            
             // Initialize data from localStorage
             refreshPendingRegistrations();
             updateStatsFromLocalStorage();
@@ -10990,6 +11055,54 @@ document.addEventListener('keydown', function(event) {
             }
         }
 
+        
+        // Add loading state to buttons
+        function setButtonLoading(button, loading, originalText) {
+            if (loading) {
+                button.disabled = true;
+                button.dataset.originalText = originalText || button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            } else {
+                button.disabled = false;
+                button.innerHTML = button.dataset.originalText || originalText;
+            }
+        }
+        
+        // Update fee display
+        async function updateFeeDisplay() {
+            if (!legalContract || !tronWeb.defaultAddress) return;
+            
+            try {
+                const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked')?.value || 'document';
+                const baseFee = deliveryMethod === 'document' ? 150 : 15;
+                const userAddress = tronWeb.defaultAddress.base58;
+                
+                // Check exemptions
+                const isExempt = await legalContract.lawEnforcementExemptions(userAddress).call();
+                const finalBaseFee = isExempt ? 0 : baseFee;
+                
+                document.getElementById('baseFeeDisplay').textContent = finalBaseFee + ' TRX';
+                document.getElementById('totalFeeDisplay').textContent = (finalBaseFee + 2) + ' TRX';
+                
+                if (isExempt) {
+                    document.getElementById('baseFeeDisplay').innerHTML += ' <span style="color: var(--success);">(Exempt)</span>';
+                }
+            } catch (error) {
+                console.error('Error updating fee display:', error);
+            }
+        }
+        
+        // Character counter for text notices
+        function updateCharacterCount() {
+            const textArea = document.getElementById('noticeText');
+            const counter = document.getElementById('charCount');
+            if (textArea && counter) {
+                const length = textArea.value.length;
+                counter.textContent = length;
+                counter.style.color = length > 90 ? 'var(--error)' : length > 70 ? 'var(--warning)' : 'var(--text-secondary)';
+            }
+        }
+
         // Create Legal Notice - Main function for minting NFTs
         async function createLegalNotice() {
             if (!legalContract || !tronWeb.defaultAddress) {
@@ -11030,6 +11143,8 @@ document.addEventListener('keydown', function(event) {
             
             try {
                 showProcessing('Creating legal notice...');
+                const submitButton = event.target;
+                setButtonLoading(submitButton, true);
                 
                 // Calculate fee
                 const fee = await calculateFeeFromConstants(tronWeb.defaultAddress.base58);
