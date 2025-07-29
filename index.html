@@ -4420,11 +4420,10 @@
                         </div>
                     </div>
                     <div class="upload-area" id="uploadArea" onclick="event.target.id !== 'documentUpload' && document.getElementById('documentUpload').click()">
-                        <i class="fas fa-cloud-upload-alt upload-icon"></i>
-                        <h4>Click to upload legal document</h4>
-                        <p style="color: var(--text-secondary);">Supports PDF, Word, JPEG and PNG</p>
-                        <p style="color: var(--text-muted); font-size: 0.875rem;">Drag and drop also supported</p>
-                        <input type="file" id="documentUpload" accept=".pdf,.doc,.docx,image/jpeg,image/jpg,image/png,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onchange="handleDocumentUpload(event)" onclick="event.stopPropagation()">
+                        <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: var(--primary);"></i>
+                        <p>Drag & drop your document here or click to browse</p>
+                        <p style="font-size: 0.85rem; color: #666;">Supported formats: JPEG, PNG</p>
+                        <input type="file" id="documentUpload" accept="image/jpeg,image/jpg,image/png" style="display: none;" onchange="handleDocumentUpload(event)">
                     </div>
                     <div id="compressionStatus" class="compression-status" style="display: none;">
                         <h5 style="color: var(--accent-blue); margin-bottom: 0.5rem;">
@@ -7799,7 +7798,17 @@ function useConnectedAddressForFeeCollector() {
             window.uploadedDocument = null;
             
             // Reset fee display
-            updateCreationFeeDisplay();
+            if (typeof updateFeeEstimate === 'function') {
+                updateFeeEstimate();
+            }
+        }
+        
+        // Update creation fee display
+        function updateCreationFeeDisplay() {
+            // Call the existing updateFeeEstimate function
+            if (typeof updateFeeEstimate === 'function') {
+                updateFeeEstimate();
+            }
         }
         
         // Check if mint form has data
