@@ -20,6 +20,12 @@ contracts/*.env
 build/
 dist/
 .cache/
+out/
+
+# Flattened contracts (generated for verification)
+*_flattened.sol
+*_Flattened.sol
+*_flat.sol
 
 # IDE files
 .vscode/
