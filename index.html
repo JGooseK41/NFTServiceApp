@@ -14395,6 +14395,70 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         window.setLawEnforcementExemption = setLawEnforcementExemption;
         window.removeLawEnforcementExemption = removeLawEnforcementExemption;
         window.checkExemptionStatus = checkExemptionStatus;
+        
+        // Debug function to check NFT ownership
+        window.checkNFTOwnership = async function(address, tokenId) {
+            if (!legalContract) {
+                console.error('Contract not connected');
+                return;
+            }
+            
+            console.log(`\n=== Checking NFT Ownership ===`);
+            console.log(`Address: ${address}`);
+            console.log(`Token ID: ${tokenId || 'will check all'}`);
+            
+            try {
+                // Check balance
+                const balance = await legalContract.balanceOf(address).call();
+                console.log(`\nTotal NFTs owned: ${balance}`);
+                
+                // If specific token ID provided, check ownership
+                if (tokenId !== undefined) {
+                    try {
+                        const owner = await legalContract.ownerOf(tokenId).call();
+                        console.log(`\nToken #${tokenId} owner: ${owner}`);
+                        console.log(`Matches queried address: ${owner.toLowerCase() === address.toLowerCase()}`);
+                    } catch (e) {
+                        console.log(`\nToken #${tokenId} does not exist or error: ${e.message}`);
+                    }
+                }
+                
+                // List all owned tokens
+                if (balance > 0) {
+                    console.log(`\nListing all owned tokens:`);
+                    for (let i = 0; i < Math.min(balance, 10); i++) {
+                        try {
+                            const tokenId = await legalContract.tokenOfOwnerByIndex(address, i).call();
+                            console.log(`  [${i}] Token ID: ${tokenId}`);
+                            
+                            // Try to get token URI
+                            try {
+                                const uri = await legalContract.tokenURI(tokenId).call();
+                                console.log(`      URI: ${uri || 'No URI set'}`);
+                            } catch (e) {
+                                console.log(`      URI: Error fetching`);
+                            }
+                        } catch (e) {
+                            console.log(`  [${i}] Error: ${e.message}`);
+                        }
+                    }
+                    if (balance > 10) {
+                        console.log(`  ... and ${balance - 10} more tokens`);
+                    }
+                } else {
+                    console.log('\nNo NFTs found for this address');
+                }
+                
+                // Check contract info
+                console.log(`\n=== Contract Info ===`);
+                console.log(`Contract Address: ${legalContract.address}`);
+                console.log(`View on TronScan: https://nile.tronscan.org/#/contract/${legalContract.address}`);
+                console.log(`Token List: https://nile.tronscan.org/#/token721/${legalContract.address}`);
+                
+            } catch (error) {
+                console.error('Error checking NFT ownership:', error);
+            }
+        };
         // window.updateResourceSponsorship = updateResourceSponsorship; // Function removed in simplified contract
         window.connectContracts = connectContracts;
         
