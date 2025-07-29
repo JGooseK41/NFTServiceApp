@@ -11030,6 +11030,56 @@ document.addEventListener('keydown', function(event) {
         
         window.copyWalletAddress = copyWalletAddress;
         
+        // Privacy-compliant browser detection
+        function getBrowserType() {
+            const ua = navigator.userAgent;
+            if (ua.includes('Firefox')) return 'Firefox';
+            if (ua.includes('Chrome')) return 'Chrome';
+            if (ua.includes('Safari')) return 'Safari';
+            if (ua.includes('Edge')) return 'Edge';
+            return 'Other';
+        }
+        
+        // Generate cryptographic proof of acceptance
+        async function generateAcceptanceProof(noticeId, txResult) {
+            const proofData = {
+                noticeId: noticeId,
+                timestamp: Date.now(),
+                txHash: txResult.txid || txResult,
+                walletAddress: tronWeb.defaultAddress.base58
+            };
+            
+            // Create a hash of the proof data
+            const proofString = JSON.stringify(proofData);
+            const proofHash = tronWeb.sha3(proofString);
+            
+            // Sign the hash with the wallet
+            try {
+                const signature = await tronWeb.trx.sign(proofHash);
+                return {
+                    hash: proofHash,
+                    signature: signature,
+                    timestamp: proofData.timestamp
+                };
+            } catch (error) {
+                return { hash: proofHash, timestamp: proofData.timestamp };
+            }
+        }
+        
+        // Store acceptance metadata locally (no server/no PII)
+        function storeAcceptanceMetadata(noticeId, metadata) {
+            try {
+                const acceptances = JSON.parse(localStorage.getItem('acceptanceMetadata') || '{}');
+                acceptances[noticeId] = metadata;
+                localStorage.setItem('acceptanceMetadata', JSON.stringify(acceptances));
+                
+                // Also make available for process servers to query
+                window.lastAcceptanceMetadata = metadata;
+            } catch (error) {
+                console.error('Error storing acceptance metadata:', error);
+            }
+        }
+        
         // Update telegram wallet display when wallet connects
         function updateTelegramWalletDisplay() {
             const elem = document.getElementById('userWalletForTelegram');
@@ -12071,6 +12121,21 @@ document.addEventListener('keydown', function(event) {
                     feeLimit: 100_000_000,
                     shouldPollResponse: true
                 });
+                
+                // Store acceptance metadata (privacy-compliant)
+                const acceptanceData = {
+                    noticeId: noticeId,
+                    acceptanceTime: new Date().toISOString(),
+                    acceptanceTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    acceptanceLanguage: navigator.language,
+                    // Only non-identifying browser info
+                    browserType: getBrowserType(),
+                    // Cryptographic proof
+                    acceptanceProof: await generateAcceptanceProof(noticeId, result)
+                };
+                
+                // Store locally for process server (no PII)
+                storeAcceptanceMetadata(noticeId, acceptanceData);
                 
                 hideProcessing();
                 
