@@ -9566,15 +9566,16 @@ function useConnectedAddressForFeeCollector() {
                         const hasServerRole = await legalContract.hasRole(tronWeb.sha3('PROCESS_SERVER_ROLE'), address).call();
                         
                         if (hasServerRole) {
-                            detailsHtml += `<div style="margin-left: 1rem;">Server ID: <strong>${serverId}</strong></div>`;
-                            detailsHtml += `<div style="margin-left: 1rem;">Notices Served: ${serverInfo[1] || serverInfo.noticesServed || '0'}</div>`;
+                            // Server ID not tracked in this contract version
+                            detailsHtml += `<div style="margin-left: 1rem;">Role: <strong>Process Server</strong></div>`;
+                            detailsHtml += `<div style="margin-left: 1rem;">Status: <strong>Active</strong></div>`;
                             
                             // Update the server ID display at the top
                             const serverIdDisplay = document.getElementById('serverIdDisplay');
                             const userServerIdSpan = document.getElementById('userServerId');
                             if (serverIdDisplay && userServerIdSpan) {
                                 serverIdDisplay.style.display = 'block';
-                                userServerIdSpan.textContent = serverId.toString().padStart(2, '0');
+                                userServerIdSpan.textContent = 'PS'; // Process Server indicator
                             }
                         }
                     } catch (e) {
@@ -13946,8 +13947,16 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         
         // Save Pinata keys
         function savePinataKeys() {
-            const apiKey = document.getElementById('pinataApiKey').value;
-            const apiSecret = document.getElementById('pinataApiSecret').value;
+            const apiKeyElement = document.getElementById('pinataApiKey');
+            const apiSecretElement = document.getElementById('pinataApiSecret');
+            
+            if (!apiKeyElement || !apiSecretElement) {
+                console.error('Pinata key input elements not found');
+                return;
+            }
+            
+            const apiKey = apiKeyElement.value;
+            const apiSecret = apiSecretElement.value;
             
             if (!apiKey || !apiSecret) {
                 uiManager.showNotification('error', 'Please enter both API key and secret');
