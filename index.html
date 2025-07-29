@@ -14782,11 +14782,22 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 
                 console.log('Transaction result:', result);
                 
-                // Get notice ID from event
+                // Handle BigInt result from contract - the result IS the notice ID
                 let noticeId = null;
-                if (result && result.length > 0) {
+                let txHash = null;
+                
+                // If result is a BigInt, it's the notice ID
+                if (typeof result === 'bigint') {
+                    noticeId = result.toString();
+                    console.log('Notice ID from contract:', noticeId);
+                } else if (result && result.length > 0) {
+                    // Old event-based handling
                     const eventData = result[0];
                     noticeId = eventData.noticeId || eventData._noticeId || eventData[0];
+                    if (typeof noticeId === 'bigint') {
+                        noticeId = noticeId.toString();
+                    }
+                    txHash = result.txid;
                 }
                 
                 hideProcessing();
@@ -14794,7 +14805,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 // Show success
                 showTransactionResult({
                     success: true,
-                    txHash: result.txid || result,
+                    txHash: txHash || 'Transaction confirmed',
                     noticeId: noticeId,
                     recipient: recipient,
                     ipfsData: uploadedImage
@@ -14802,7 +14813,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
 
                 // Save transaction for analytics
                 const txData = {
-                    txid: result.txid || result,
+                    txid: txHash || 'N/A',
                     noticeId: noticeId,
                     recipient: recipient,
                     sender: tronWeb.defaultAddress.base58,
