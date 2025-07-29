@@ -8334,7 +8334,7 @@ function useConnectedAddressForFeeCollector() {
                 if (txData.noticeId) {
                     content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
                     content += `<span>Notice ID:</span>`;
-                    content += `<strong>#${txData.noticeId}</strong>`;
+                    content += `<strong style="color: var(--success);">#${txData.noticeId}</strong>`;
                     content += `</div>`;
                 }
                 
@@ -8349,10 +8349,30 @@ function useConnectedAddressForFeeCollector() {
                 
                 if (txData.recipient) {
                     content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
-                    content += `<span>Recipient:</span>`;
+                    content += `<span>Recipient Wallet:</span>`;
                     content += `<strong>${txData.recipient.substring(0, 10)}...${txData.recipient.substring(txData.recipient.length - 8)}</strong>`;
                     content += `</div>`;
                 }
+                
+                // Add timestamp
+                content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
+                content += `<span>Date & Time:</span>`;
+                content += `<strong>${new Date().toLocaleString()}</strong>`;
+                content += `</div>`;
+                
+                // Add network
+                content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
+                content += `<span>Network:</span>`;
+                content += `<strong>${document.getElementById('networkName')?.textContent || 'TRON'}</strong>`;
+                content += `</div>`;
+                
+                // Add contract address
+                content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
+                content += `<span>Contract:</span>`;
+                content += `<a href="${getContractScanUrl()}contract/${legalContract.address}" target="_blank" style="color: var(--accent-blue); font-size: 0.9rem;">`;
+                content += `${legalContract.address.substring(0, 10)}...${legalContract.address.substring(legalContract.address.length - 8)}`;
+                content += `</a>`;
+                content += `</div>`;
                 
                 content += '</div>';
                 
@@ -8408,29 +8428,40 @@ function useConnectedAddressForFeeCollector() {
                 }
                 content += '</div>';
                 
-                // Add process server instructions
-                content += '<div class="process-server-instructions" style="margin-top: 2rem; padding: 1.5rem; background: #f0f9ff; border: 1px solid #3b82f6; border-radius: 0.5rem;">';
-                content += '<h4 style="color: #1d4ed8; margin-bottom: 1rem;"><i class="fas fa-info-circle"></i> Process Server Instructions</h4>';
-                content += '<ol style="margin: 0; padding-left: 1.5rem;">';
-                content += '<li>Save or print this receipt for your records</li>';
-                content += '<li>The recipient must accept the notice by connecting their wallet at the provided link</li>';
-                content += '<li>Once accepted, you will receive confirmation and can verify delivery on the blockchain</li>';
-                content += '<li>The notice NFT and delivery proof are permanently stored on the TRON blockchain</li>';
+                // Add process server instructions with better contrast
+                content += '<div class="process-server-instructions" style="margin-top: 2rem; padding: 1.5rem; background: #1e293b; border: 2px solid #3b82f6; border-radius: 0.5rem;">';
+                content += '<h4 style="color: #3b82f6; margin-bottom: 1rem;"><i class="fas fa-info-circle"></i> Process Server Instructions</h4>';
+                content += '<ol style="margin: 0; padding-left: 1.5rem; color: #e2e8f0;">';
+                content += '<li style="margin-bottom: 0.5rem;">Save or print this receipt for your records</li>';
+                content += '<li style="margin-bottom: 0.5rem;">A 1 TRX notification transaction was sent (memo not visible in most wallets)</li>';
+                content += '<li style="margin-bottom: 0.5rem;">Once accepted, you will receive confirmation and can verify delivery on the blockchain</li>';
+                content += '<li style="margin-bottom: 0.5rem;">The notice NFT and delivery proof are permanently stored on the TRON blockchain</li>';
+                content += '<li style="margin-bottom: 0.5rem;">You can track delivery status in the Audit section</li>';
                 content += '</ol>';
                 
                 if (txData.noticeId) {
+                    const directLink = `https://nftserviceapp.netlify.app/#notice-${txData.noticeId}`;
+                    
                     content += '<div style="margin-top: 1rem; padding: 1rem; background: #fef3c7; border-radius: 0.375rem;">';
                     content += '<strong>Recipient Link:</strong><br>';
-                    content += `<code style="user-select: all;">https://nftserviceapp.netlify.app/#notice-${txData.noticeId}</code>`;
-                    content += `<button class="btn btn-small" style="margin-left: 0.5rem;" onclick="navigator.clipboard.writeText('https://nftserviceapp.netlify.app/#notice-${txData.noticeId}')">`;
+                    content += `<code style="user-select: all;">${directLink}</code>`;
+                    content += `<button class="btn btn-small" style="margin-left: 0.5rem;" onclick="navigator.clipboard.writeText('${directLink}')">`;
                     content += '<i class="fas fa-copy"></i> Copy';
                     content += '</button>';
                     content += '</div>';
                     
-                    content += '<div style="margin-top: 1rem; padding: 1rem; background: #d1fae5; border-radius: 0.375rem;">';
-                    content += '<strong><i class="fas fa-bell"></i> Notification Sent!</strong><br>';
-                    content += 'A 0.1 TRX transaction with the notice link has been sent to the recipient\'s wallet.';
-                    content += '<br><small>They will see this in their transaction history immediately.</small>';
+                    content += '<div style="margin-top: 1rem; padding: 1rem; background: #fee2e2; border: 1px solid #fca5a5; border-radius: 0.375rem;">';
+                    content += '<strong style="color: #dc2626;"><i class="fas fa-exclamation-triangle"></i> Critical: Manual Notification Required</strong><br>';
+                    content += '<div style="margin-top: 0.5rem; color: #991b1b;">';
+                    content += '• Wallet apps (TronLink, etc.) do NOT display transaction memos<br>';
+                    content += '• The NFT is NOT visible in most wallet interfaces<br>';
+                    content += '• The 1 TRX payment alone does not communicate the notice<br>';
+                    content += '<strong>You MUST send the link above to the recipient via:</strong><br>';
+                    content += '- SMS/Text Message<br>';
+                    content += '- Email<br>';
+                    content += '- Messenger/WhatsApp<br>';
+                    content += '- Other direct communication';
+                    content += '</div>';
                     content += '</div>';
                 }
                 
@@ -8600,12 +8631,15 @@ function useConnectedAddressForFeeCollector() {
 
         // Export printable receipt
         function exportReceipt() {
-            if (!currentTransactionData) {
+            // Check both possible locations for transaction data
+            const txData = window.currentTransactionData || currentTransactionData;
+            
+            if (!txData) {
                 uiManager.showNotification('error', 'No transaction data available');
                 return;
             }
             
-            const { txHash, message, timestamp, details, ipfsData, network } = currentTransactionData;
+            const { txHash, message, timestamp, details, ipfsData, network, noticeId, recipient } = txData;
             
             // Create a new window for the printable receipt
             const receiptWindow = window.open('', '_blank', 'width=800,height=600');
@@ -15050,22 +15084,40 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 
                 hideProcessing();
                 
-                // Send notification TRX to recipient with memo
+                // Multi-strategy notification approach
                 if (noticeId) {
+                    console.log('=== NOTIFICATION STRATEGIES ===');
+                    
+                    // Strategy 1: Send TRX with memo (even though not visible in most wallets)
                     try {
-                        console.log('Sending notification transaction to recipient...');
+                        console.log('1. Sending TRX with memo...');
                         const notificationTx = await tronWeb.trx.sendTransaction(
                             recipient,
-                            100000, // 0.1 TRX in sun
+                            1000000, // 1 TRX (above TronScan filter)
                             {
-                                memo: `LEGAL NOTICE #${noticeId} - View at: https://nftserviceapp.netlify.app/#notice-${noticeId}`
+                                memo: `LEGAL NOTICE #${noticeId} - https://nftserviceapp.netlify.app/#notice-${noticeId}`
                             }
                         );
-                        console.log('Notification transaction sent:', notificationTx);
+                        console.log('   ✓ TRX sent:', notificationTx);
                     } catch (e) {
-                        console.error('Failed to send notification transaction:', e);
-                        // Continue anyway - the notice was created
+                        console.error('   ✗ TRX failed:', e.message);
                     }
+                    
+                    // Strategy 2: Create a TRC20 token transfer comment (if we had a token)
+                    console.log('2. TRC20 token notification: Not implemented (would require deploying notification token)');
+                    
+                    // Strategy 3: Direct NFT transfer attempt (already done above)
+                    console.log('3. NFT minted to recipient wallet: Notice ID #' + noticeId);
+                    
+                    // Strategy 4: Log the direct link for process server to share
+                    const directLink = `https://nftserviceapp.netlify.app/#notice-${noticeId}`;
+                    console.log('\n=== RECIPIENT ACCESS LINK ===');
+                    console.log('Direct link:', directLink);
+                    console.log('\nSince wallet apps don\'t show memos, the process server should:');
+                    console.log('1. Send this link to recipient via SMS/email/messenger');
+                    console.log('2. Or use the TronScan transaction as proof of notification');
+                    console.log('3. The NFT exists on chain even if not visible in wallet UI');
+                    console.log('==============================\n');
                 }
                 
                 // Show success with proper receipt
