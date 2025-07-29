@@ -4419,7 +4419,7 @@
                             </ul>
                         </div>
                     </div>
-                    <div class="upload-area" id="uploadArea" onclick="event.target.id !== 'documentUpload' && document.getElementById('documentUpload').click()">
+                    <div class="upload-area" id="uploadArea">
                         <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: var(--primary);"></i>
                         <p>Drag & drop your document here or click to browse</p>
                         <p style="font-size: 0.85rem; color: #666;">Supported formats: JPEG, PNG</p>
@@ -10595,6 +10595,20 @@ async function checkUserRoles() {
             
             // Set up modal protection
             setupModalProtection();
+            
+            // Set up upload area click handler
+            const uploadArea = document.getElementById('uploadArea');
+            if (uploadArea) {
+                uploadArea.addEventListener('click', function(e) {
+                    // Don't trigger if clicking on the input itself
+                    if (e.target.tagName !== 'INPUT') {
+                        const fileInput = document.getElementById('documentUpload');
+                        if (fileInput) {
+                            fileInput.click();
+                        }
+                    }
+                });
+            }
             
             
         // Auto-save form data
