@@ -10599,15 +10599,20 @@ async function checkUserRoles() {
             // Set up upload area click handler
             const uploadArea = document.getElementById('uploadArea');
             if (uploadArea) {
+                console.log('Setting up upload area click handler');
                 uploadArea.addEventListener('click', function(e) {
+                    console.log('Upload area clicked', e.target);
                     // Don't trigger if clicking on the input itself
                     if (e.target.tagName !== 'INPUT') {
                         const fileInput = document.getElementById('documentUpload');
+                        console.log('File input found:', fileInput);
                         if (fileInput) {
                             fileInput.click();
                         }
                     }
                 });
+            } else {
+                console.log('Upload area not found');
             }
             
             
@@ -12786,6 +12791,104 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         window.updateFee = updateFee;
         window.updateFeeCollector = updateFeeCollector;
         window.exportRegistrations = exportRegistrations;
+        
+        // Refresh delivery status
+        async function refreshDeliveryStatus() {
+            if (!legalContract || !tronWeb.defaultAddress) {
+                uiManager.showNotification('error', 'Please connect wallet and contract first');
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('deliveryResults');
+            if (resultsDiv) {
+                resultsDiv.innerHTML = '<div class="loading">Loading delivery status...</div>';
+            }
+            
+            try {
+                // Get all notices sent by current user
+                const totalNotices = await legalContract.totalSupply().call();
+                const deliveryData = [];
+                
+                for (let i = 0; i < totalNotices; i++) {
+                    try {
+                        const notice = await legalContract.getNotice(i).call();
+                        if (notice.sender.toLowerCase() === tronWeb.defaultAddress.base58.toLowerCase()) {
+                            const accepted = await legalContract.noticeAcceptances(i).call();
+                            deliveryData.push({
+                                id: i,
+                                notice: notice,
+                                accepted: accepted,
+                                status: accepted ? 'delivered' : 'pending'
+                            });
+                        }
+                    } catch (e) {
+                        console.error(`Error fetching notice ${i}:`, e);
+                    }
+                }
+                
+                // Update stats
+                const totalSent = deliveryData.length;
+                const delivered = deliveryData.filter(d => d.status === 'delivered').length;
+                const pending = totalSent - delivered;
+                const deliveryRate = totalSent > 0 ? Math.round((delivered / totalSent) * 100) : 0;
+                
+                // Update stat displays
+                document.getElementById('totalNoticesSent').textContent = totalSent;
+                document.getElementById('deliveredCount').textContent = delivered;
+                document.getElementById('pendingCount').textContent = pending;
+                document.getElementById('deliveryRate').textContent = deliveryRate + '%';
+                
+                // Display results
+                if (deliveryData.length === 0) {
+                    resultsDiv.innerHTML = '<p>No notices sent yet.</p>';
+                } else {
+                    resultsDiv.innerHTML = deliveryData.map(d => `
+                        <div class="delivery-item ${d.status}">
+                            <div class="delivery-header">
+                                <span>Notice #${d.id}</span>
+                                <span class="status">${d.status === 'delivered' ? 'Delivered' : 'Pending'}</span>
+                            </div>
+                            <div class="delivery-details">
+                                <p><strong>Recipient:</strong> ${d.notice.recipient}</p>
+                                <p><strong>Type:</strong> ${d.notice.noticeType}</p>
+                                <p><strong>Sent:</strong> ${new Date(Number(d.notice.timestamp) * 1000).toLocaleString()}</p>
+                                ${d.accepted ? `<p><strong>Accepted:</strong> ${new Date(Number(d.accepted) * 1000).toLocaleString()}</p>` : ''}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+                
+            } catch (error) {
+                console.error('Error refreshing delivery status:', error);
+                uiManager.showNotification('error', 'Failed to refresh delivery status');
+                if (resultsDiv) {
+                    resultsDiv.innerHTML = '<p class="error">Error loading delivery status.</p>';
+                }
+            }
+        }
+        
+        // Filter delivery results
+        function filterDeliveryResults() {
+            const filterValue = document.getElementById('deliveryFilter')?.value || 'all';
+            const items = document.querySelectorAll('.delivery-item');
+            
+            items.forEach(item => {
+                if (filterValue === 'all') {
+                    item.style.display = 'block';
+                } else if (filterValue === 'delivered' && item.classList.contains('delivered')) {
+                    item.style.display = 'block';
+                } else if (filterValue === 'pending' && item.classList.contains('pending')) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+        
+        // Send delivery reminder (placeholder)
+        function sendDeliveryReminder(noticeId) {
+            uiManager.showNotification('info', `Reminder functionality for Notice #${noticeId} coming soon`);
+        }
         window.toggleRegistrationForm = toggleRegistrationForm;
         
         async function withdrawFromContract() {
