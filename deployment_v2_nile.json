@@ -1,0 +1,26 @@
+{
+  "contractName": "LegalNoticeNFT_Complete",
+  "version": "v2",
+  "network": "nile",
+  "contractAddress": "TTGvPTRmVqz23G3FqiWPg3hiu3mLPVcc6x",
+  "transactionHash": "843ac599d07284e7d19c4804aa079c91be269b43d0582ab1e3a2c870ed5c3f52",
+  "deployedAt": "2025-07-29T16:15:00.000Z",
+  "deployer": "TDbeaZQ25WzZ4Aqn4RJAZxmo6BeHdMeXGf",
+  "deploymentCost": {
+    "trx": "813.57381",
+    "energy": "6363"
+  },
+  "fees": {
+    "serviceFee": "20 TRX",
+    "textOnlyFee": "10 TRX",
+    "creationFee": "5 TRX",
+    "sponsorshipFee": "2 TRX"
+  },
+  "features": [
+    "Verifiable on TronScan",
+    "NFT metadata support",
+    "Complete ERC721 implementation",
+    "Legal notice functionality"
+  ],
+  "previousContract": "TFz1epSo4yaSFLFnSA8nUANft4D4xZQz1G"
+}

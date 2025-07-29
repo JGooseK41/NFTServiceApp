@@ -2920,11 +2920,11 @@
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
                         <input type="text" class="form-input" id="contractAddress" 
                                placeholder="Enter contract address (e.g., TXxxx...)"
-                               value="TFz1epSo4yaSFLFnSA8nUANft4D4xZQz1G" style="flex: 1;">
+                               value="TTGvPTRmVqz23G3FqiWPg3hiu3mLPVcc6x" style="flex: 1;">
                         <button class="btn btn-secondary" onclick="copyAddress(document.getElementById('contractAddress').value)" title="Copy address">
                             <i class="fas fa-copy"></i>
                         </button>
-                        <a href="https://nile.tronscan.org/#/contract/TFz1epSo4yaSFLFnSA8nUANft4D4xZQz1G" target="_blank" class="btn btn-secondary" title="View on Nile TronScan">
+                        <a href="https://nile.tronscan.org/#/contract/TTGvPTRmVqz23G3FqiWPg3hiu3mLPVcc6x" target="_blank" class="btn btn-secondary" title="View on Nile TronScan">
                             <i class="fas fa-external-link-alt"></i>
                         </a>
                     </div>
@@ -6600,21 +6600,9 @@
 
 async function getRecipientNoticeIds(recipient) {
     try {
-        // The optimized contract may not have this function
-        // We need to use events or enumerate through NFTs
-        const balance = await legalContract.balanceOf(recipient).call();
-        const noticeIds = [];
-        
-        for (let i = 0; i < balance; i++) {
-            try {
-                const tokenId = await legalContract.tokenOfOwnerByIndex(recipient, i).call();
-                noticeIds.push(tokenId);
-            } catch (e) {
-                console.log('Error getting token at index', i, e);
-            }
-        }
-        
-        return noticeIds;
+        // Use getRecipientAlerts to get all alert IDs for this recipient
+        const alertIds = await legalContract.getRecipientAlerts(recipient).call();
+        return alertIds || [];
     } catch (error) {
         console.error('Error getting recipient notices:', error);
         return [];
@@ -6702,7 +6690,7 @@ function parsePackedData(packedData) {
                 },
                 nile: {
                     name: 'TRON Nile Testnet',
-                    contractAddress: window.APP_CONFIG?.contracts.tron.nile || 'TFz1epSo4yaSFLFnSA8nUANft4D4xZQz1G',
+                    contractAddress: window.APP_CONFIG?.contracts.tron.nile || 'TTGvPTRmVqz23G3FqiWPg3hiu3mLPVcc6x',
                     explorerUrl: 'https://nile.tronscan.org',
                     nativeToken: 'TRX',
                     chainId: null
@@ -6946,10 +6934,9 @@ function parsePackedData(packedData) {
                 try {
                     const address = tronWeb.defaultAddress.base58;
                     
-                    // Get server info
-                    const serverInfo = await legalContract.processServers(address).call();
-                    const serverId = serverInfo[0] || 0;
-                    const noticesServed = parseInt(serverInfo[1] || 0);
+                    // Process servers are managed via roles only in this contract
+                    const serverId = 0; // Not tracked in this contract version
+                    const noticesServed = myTransactions.length; // Count from local transactions
                     
                     // Load transaction history from localStorage
                     const transactions = JSON.parse(localStorage.getItem('userTransactions') || '[]');
@@ -7186,7 +7173,7 @@ function parsePackedData(packedData) {
                     for (const noticeId of noticeIds) {
                         if (!existingIds.includes(noticeId.toString())) {
                             try {
-                                const notice = await legalContract.getNotice(noticeId).call();
+                                const notice = await legalContract.notices(noticeId).call();
                                 const { timestamp, serverId, hasDocument, accepted } = parsePackedData(notice.packedData);
                                 
                                 newNotices.push({
@@ -9476,11 +9463,9 @@ function useConnectedAddressForFeeCollector() {
                 const prefixElement = document.getElementById('tokenPrefix');
                 
                 if (isProcessServer) {
-                    // Get server info to find their ID
-                    // Note: Hybrid contract auto-assigns server IDs but doesn't support on-chain name/agency updates
-                    const serverInfo = await legalContract.processServers(tronWeb.defaultAddress.base58).call();
-                    // The optimized contract returns: [serverId, noticesServed, registeredDate, name, agency, active]
-                    const serverId = serverInfo[0] || serverInfo.serverId;
+                    // Process servers are managed via roles only in this contract
+                    // Server ID is not tracked on-chain in this version
+                    const serverId = 0;
                     
                     if (serverId && serverId.toString() !== '0') {
                         // Update the token prefix
@@ -9576,12 +9561,11 @@ function useConnectedAddressForFeeCollector() {
                 if (hasProcessServerRole) {
                     detailsHtml += '<div style="margin-top: 0.5rem;"><strong>Process Server Role:</strong> ✓ Granted</div>';
                     
-                    // Get server info
+                    // Process servers are managed via roles only
                     try {
-                        const serverInfo = await legalContract.processServers(address).call();
-                        const serverId = serverInfo[0] || serverInfo.serverId;
+                        const hasServerRole = await legalContract.hasRole(tronWeb.sha3('PROCESS_SERVER_ROLE'), address).call();
                         
-                        if (serverId && serverId.toString() !== '0') {
+                        if (hasServerRole) {
                             detailsHtml += `<div style="margin-left: 1rem;">Server ID: <strong>${serverId}</strong></div>`;
                             detailsHtml += `<div style="margin-left: 1rem;">Notices Served: ${serverInfo[1] || serverInfo.noticesServed || '0'}</div>`;
                             
@@ -12189,7 +12173,7 @@ document.addEventListener('keydown', function(event) {
                 }
                 
                 // Get notice details
-                const notice = await legalContract.getNotice(noticeId).call();
+                const notice = await legalContract.notices(noticeId).call();
                 
                 // Check if user owns this notice
                 const owner = await legalContract.ownerOf(noticeId).call();
@@ -12245,7 +12229,7 @@ document.addEventListener('keydown', function(event) {
                 showProcessing('Accepting notice and decrypting document...');
                 
                 // Accept and get notice in one flow
-                const notice = await legalContract.getNotice(noticeId).call();
+                const notice = await legalContract.notices(noticeId).call();
                 const hasDocument = (notice.packedData & 1) === 1;
                 
                 // Capture IP data immediately
@@ -13365,7 +13349,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     }
                     
                     // Get notice details
-                    const notice = await legalContract.getNotice(noticeId).call();
+                    const notice = await legalContract.notices(noticeId).call();
                     // Extract acceptance status from packed data
                     const accepted = ((BigInt(notice.packedData) >> 1n) & 1n) === 1n;
                     
@@ -14428,12 +14412,13 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     console.log(`\nListing all owned tokens:`);
                     for (let i = 0; i < Math.min(balance, 10); i++) {
                         try {
-                            const tokenId = await legalContract.tokenOfOwnerByIndex(address, i).call();
-                            console.log(`  [${i}] Token ID: ${tokenId}`);
+                            // tokenOfOwnerByIndex not available in this contract
+                            console.log(`  Token enumeration not available in this contract version`);
+                            break; // Exit loop
                             
                             // Try to get token URI
                             try {
-                                const uri = await legalContract.tokenURI(tokenId).call();
+                                const uri = '';
                                 console.log(`      URI: ${uri || 'No URI set'}`);
                             } catch (e) {
                                 console.log(`      URI: Error fetching`);
@@ -14523,12 +14508,9 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 if (balance > 0) {
                     console.log('Owned tokens:');
                     for (let i = 0; i < balance; i++) {
-                        try {
-                            const tokenId = await legalContract.tokenOfOwnerByIndex(addr, i).call();
-                            console.log(`  - Token #${tokenId}`);
-                        } catch (e) {
-                            console.log(`  - Error at index ${i}:`, e.message);
-                        }
+                        // tokenOfOwnerByIndex not available - use getRecipientAlerts instead
+                        console.log('  - Token enumeration not available. Use getRecipientAlerts() instead.');
+                        break;
                     }
                 }
             } catch (e) {
@@ -14998,7 +14980,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 showProcessing('Accepting notice...');
                 
                 // Get notice details first to check if it has a document
-                const notice = await legalContract.getNotice(noticeId).call();
+                const notice = await legalContract.notices(noticeId).call();
                 const hasDocument = (notice.packedData & 1) === 1;
                 
                 // Call acceptNotice - this returns the decryption key for documents
@@ -15108,7 +15090,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 let html = '<div class="notice-list">';
                 for (const noticeId of noticeIds) {
                     try {
-                        const notice = await legalContract.getNotice(noticeId).call();
+                        const notice = await legalContract.notices(noticeId).call();
                         const { timestamp, serverId, hasDocument, accepted } = parsePackedData(notice.packedData);
                         
                         html += `
@@ -15549,12 +15531,9 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                             // Try to enumerate tokens
                             if (recipientBalance > 0) {
                                 for (let i = 0; i < recipientBalance; i++) {
-                                    try {
-                                        const tokenId = await legalContract.tokenOfOwnerByIndex(recipient, i).call();
-                                        console.log(`Token ${i} owned by recipient:`, tokenId.toString());
-                                    } catch (e) {
-                                        console.log('Cannot enumerate token at index', i);
-                                    }
+                                    // tokenOfOwnerByIndex not available
+                                    console.log('Token enumeration not available. Use getRecipientAlerts() instead.');
+                                    break;
                                 }
                             }
                         } catch (e) {
