@@ -82,24 +82,38 @@ const SimpleEncryption = {
         const hash = 'Qm' + CryptoJS.SHA256(data).toString().substring(0, 44);
         
         // First, let's see what's taking up space
-        console.log('localStorage usage before cleanup:');
-        const storageInfo = this.getStorageInfo();
-        console.log(storageInfo);
+        try {
+            console.log('localStorage usage before cleanup:');
+            const storageInfo = this.getStorageInfo();
+            console.log(storageInfo);
+        } catch (infoError) {
+            console.error('Error getting storage info:', infoError);
+        }
         
-        // Always clean up first to prevent quota issues
-        this.cleanupOldIPFSData();
-        
-        // More aggressive cleanup - keep only 5 most recent
-        const keys = Object.keys(localStorage);
-        const ipfsKeys = keys.filter(key => key.startsWith('ipfs_'));
-        if (ipfsKeys.length > 5) {
-            // Remove all but the 5 most recent
-            ipfsKeys.sort();
-            const keysToRemove = ipfsKeys.slice(0, ipfsKeys.length - 5);
-            keysToRemove.forEach(key => {
-                localStorage.removeItem(key);
-                console.log('Removed old IPFS data:', key);
+        // AGGRESSIVE CLEANUP BEFORE ATTEMPTING TO STORE
+        try {
+            // Clear all IPFS data first
+            this.clearAllIPFSData();
+            
+            // Also clear any other large data
+            const allKeys = Object.keys(localStorage);
+            allKeys.forEach(key => {
+                if (key.startsWith('ipfs_') || 
+                    key.startsWith('notice_') || 
+                    key.startsWith('document_') || 
+                    key.includes('base64') ||
+                    key.includes('uploadedDoc') ||
+                    key.includes('mintForm_')) {
+                    try {
+                        localStorage.removeItem(key);
+                        console.log('Removed:', key);
+                    } catch (e) {
+                        console.error('Error removing key:', key, e);
+                    }
+                }
             });
+        } catch (cleanupError) {
+            console.error('Error during cleanup:', cleanupError);
         }
         
         try {
@@ -130,7 +144,16 @@ const SimpleEncryption = {
                     // If still failing, just continue without storage
                     console.error('Cannot store in localStorage even after cleanup, continuing without storage');
                     console.log('Data size:', data.length, 'characters');
+                    
+                    // Store in memory as fallback
+                    if (!window.tempIPFSStorage) {
+                        window.tempIPFSStorage = {};
+                    }
+                    window.tempIPFSStorage[`ipfs_${hash}`] = data;
+                    console.log('Stored in temporary memory storage instead');
                 }
+            } else {
+                throw e;
             }
         }
         
@@ -206,9 +229,18 @@ const SimpleEncryption = {
     
     // Fetch from IPFS
     async fetchFromIPFS(hash) {
-        // For demo, get from localStorage
+        // For demo, get from localStorage or memory
         // In production, fetch from actual IPFS
-        return localStorage.getItem(`ipfs_${hash}`) || '';
+        const fromStorage = localStorage.getItem(`ipfs_${hash}`);
+        if (fromStorage) return fromStorage;
+        
+        // Check memory storage fallback
+        if (window.tempIPFSStorage && window.tempIPFSStorage[`ipfs_${hash}`]) {
+            console.log('Retrieved from temporary memory storage');
+            return window.tempIPFSStorage[`ipfs_${hash}`];
+        }
+        
+        return '';
     },
     
     // One-click accept and view process
