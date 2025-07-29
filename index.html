@@ -8426,6 +8426,12 @@ function useConnectedAddressForFeeCollector() {
                     content += '<i class="fas fa-copy"></i> Copy';
                     content += '</button>';
                     content += '</div>';
+                    
+                    content += '<div style="margin-top: 1rem; padding: 1rem; background: #d1fae5; border-radius: 0.375rem;">';
+                    content += '<strong><i class="fas fa-bell"></i> Notification Sent!</strong><br>';
+                    content += 'A 0.1 TRX transaction with the notice link has been sent to the recipient\'s wallet.';
+                    content += '<br><small>They will see this in their transaction history immediately.</small>';
+                    content += '</div>';
                 }
                 
                 content += '</div>';
@@ -15043,6 +15049,24 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 }
                 
                 hideProcessing();
+                
+                // Send notification TRX to recipient with memo
+                if (noticeId) {
+                    try {
+                        console.log('Sending notification transaction to recipient...');
+                        const notificationTx = await tronWeb.trx.sendTransaction(
+                            recipient,
+                            100000, // 0.1 TRX in sun
+                            {
+                                memo: `LEGAL NOTICE #${noticeId} - View at: https://nftserviceapp.netlify.app/#notice-${noticeId}`
+                            }
+                        );
+                        console.log('Notification transaction sent:', notificationTx);
+                    } catch (e) {
+                        console.error('Failed to send notification transaction:', e);
+                        // Continue anyway - the notice was created
+                    }
+                }
                 
                 // Show success with proper receipt
                 showTransactionResult(true, {
