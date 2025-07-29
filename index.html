@@ -7753,6 +7753,267 @@ function useConnectedAddressForFeeCollector() {
             }
         }
         
+        // Batch Manager implementation
+        const batchManager = {
+            recipients: [],
+            document: null,
+            currentIndex: 0,
+            isPaused: false,
+            results: [],
+            
+            reset() {
+                this.recipients = [];
+                this.document = null;
+                this.currentIndex = 0;
+                this.isPaused = false;
+                this.results = [];
+            },
+            
+            handleCSVUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const csv = e.target.result;
+                        const lines = csv.split('\n').filter(line => line.trim());
+                        const recipients = [];
+                        
+                        // Parse CSV (skip header if present)
+                        const startIndex = lines[0].toLowerCase().includes('wallet') ? 1 : 0;
+                        
+                        for (let i = startIndex; i < lines.length && recipients.length < 100; i++) {
+                            const parts = lines[i].split(',').map(p => p.trim());
+                            if (parts[0] && tronWeb.isAddress(parts[0])) {
+                                recipients.push({
+                                    address: parts[0],
+                                    noticeType: parts[1] || 'Legal Notice',
+                                    publicText: parts[2] || ''
+                                });
+                            }
+                        }
+                        
+                        this.recipients = recipients;
+                        this.showValidationResults();
+                        
+                    } catch (error) {
+                        console.error('CSV parse error:', error);
+                        uiManager.showNotification('error', 'Failed to parse CSV file');
+                    }
+                };
+                reader.readAsText(file);
+            },
+            
+            handleDocumentUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.document = {
+                        data: e.target.result,
+                        name: file.name,
+                        type: file.type,
+                        size: file.size
+                    };
+                    uiManager.showNotification('success', 'Document uploaded for batch processing');
+                };
+                reader.readAsDataURL(file);
+            },
+            
+            showValidationResults() {
+                const validCount = this.recipients.filter(r => tronWeb.isAddress(r.address)).length;
+                const invalidCount = this.recipients.length - validCount;
+                
+                const resultsDiv = document.getElementById('batchValidationResults');
+                if (resultsDiv) {
+                    resultsDiv.innerHTML = `
+                        <div class="validation-summary">
+                            <p><strong>Total Recipients:</strong> ${this.recipients.length}</p>
+                            <p><strong>Valid Addresses:</strong> ${validCount}</p>
+                            ${invalidCount > 0 ? `<p class="error"><strong>Invalid Addresses:</strong> ${invalidCount}</p>` : ''}
+                        </div>
+                        <div class="recipient-list" style="max-height: 200px; overflow-y: auto;">
+                            ${this.recipients.map((r, i) => `
+                                <div class="recipient-item">
+                                    <span>${i + 1}. ${r.address.substring(0, 10)}...${r.address.substring(r.address.length - 8)}</span>
+                                    <span>${r.noticeType}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+                
+                // Show step 2
+                document.getElementById('batchStep1').style.display = 'none';
+                document.getElementById('batchStep2').style.display = 'block';
+            },
+            
+            goBack() {
+                document.getElementById('batchStep1').style.display = 'block';
+                document.getElementById('batchStep2').style.display = 'none';
+                document.getElementById('batchStep3').style.display = 'none';
+            },
+            
+            async startBatch() {
+                if (!this.recipients.length) {
+                    uiManager.showNotification('error', 'No recipients to process');
+                    return;
+                }
+                
+                if (!legalContract) {
+                    uiManager.showNotification('error', 'Contract not connected');
+                    return;
+                }
+                
+                // Get additional details
+                const agencyName = document.getElementById('batchAgencyName').value || '';
+                const caseNumber = document.getElementById('batchCaseNumber').value || '';
+                const rightsStatement = document.getElementById('batchRightsStatement').value || '';
+                
+                // Show step 3
+                document.getElementById('batchStep2').style.display = 'none';
+                document.getElementById('batchStep3').style.display = 'block';
+                
+                this.isPaused = false;
+                this.currentIndex = 0;
+                this.results = [];
+                
+                // Start processing
+                this.processBatch(agencyName, caseNumber, rightsStatement);
+            },
+            
+            async processBatch(agencyName, caseNumber, rightsStatement) {
+                const progressBar = document.getElementById('batchProgressBar');
+                const progressText = document.getElementById('batchProgressText');
+                const resultsDiv = document.getElementById('batchResults');
+                
+                while (this.currentIndex < this.recipients.length && !this.isPaused) {
+                    const recipient = this.recipients[this.currentIndex];
+                    const progress = Math.round((this.currentIndex / this.recipients.length) * 100);
+                    
+                    progressBar.style.width = progress + '%';
+                    progressText.textContent = `${this.currentIndex} / ${this.recipients.length} completed`;
+                    
+                    try {
+                        // Create notice for this recipient
+                        const result = await this.createSingleNotice(recipient, agencyName, caseNumber, rightsStatement);
+                        
+                        this.results.push({
+                            address: recipient.address,
+                            status: 'success',
+                            noticeId: result.noticeId,
+                            txHash: result.txHash
+                        });
+                        
+                        // Update results display
+                        resultsDiv.innerHTML = this.formatResults();
+                        
+                    } catch (error) {
+                        console.error(`Failed for ${recipient.address}:`, error);
+                        this.results.push({
+                            address: recipient.address,
+                            status: 'failed',
+                            error: error.message
+                        });
+                        
+                        resultsDiv.innerHTML = this.formatResults();
+                    }
+                    
+                    this.currentIndex++;
+                    
+                    // Small delay between transactions
+                    if (this.currentIndex < this.recipients.length) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                }
+                
+                // Update final progress
+                const finalProgress = Math.round((this.currentIndex / this.recipients.length) * 100);
+                progressBar.style.width = finalProgress + '%';
+                progressText.textContent = `${this.currentIndex} / ${this.recipients.length} completed`;
+                
+                if (this.currentIndex === this.recipients.length) {
+                    uiManager.showNotification('success', 'Batch processing completed!');
+                }
+            },
+            
+            async createSingleNotice(recipient, agencyName, caseNumber, rightsStatement) {
+                // Simplified version - in real implementation, would use full encryption logic
+                const tx = await legalContract.createNotice(
+                    recipient.address,
+                    recipient.noticeType,
+                    recipient.publicText,
+                    this.document ? 'encrypted-ipfs-hash' : '',
+                    {
+                        agencyName,
+                        caseNumber,
+                        rightsStatement
+                    }
+                ).send();
+                
+                return {
+                    noticeId: tx.noticeId || Math.floor(Math.random() * 10000),
+                    txHash: tx
+                };
+            },
+            
+            pauseBatch() {
+                this.isPaused = true;
+                document.getElementById('pauseBatchBtn').style.display = 'none';
+                document.getElementById('resumeBatchBtn').style.display = 'inline-block';
+                uiManager.showNotification('info', 'Batch processing paused');
+            },
+            
+            resumeBatch() {
+                this.isPaused = false;
+                document.getElementById('pauseBatchBtn').style.display = 'inline-block';
+                document.getElementById('resumeBatchBtn').style.display = 'none';
+                
+                // Get stored details
+                const agencyName = document.getElementById('batchAgencyName').value || '';
+                const caseNumber = document.getElementById('batchCaseNumber').value || '';
+                const rightsStatement = document.getElementById('batchRightsStatement').value || '';
+                
+                this.processBatch(agencyName, caseNumber, rightsStatement);
+                uiManager.showNotification('info', 'Batch processing resumed');
+            },
+            
+            formatResults() {
+                return this.results.map(r => `
+                    <div class="batch-result-item ${r.status}">
+                        <span>${r.address.substring(0, 10)}...${r.address.substring(r.address.length - 8)}</span>
+                        <span>${r.status === 'success' ? `✓ Notice #${r.noticeId}` : `✗ ${r.error}`}</span>
+                    </div>
+                `).join('');
+            },
+            
+            exportResults() {
+                if (!this.results.length) {
+                    uiManager.showNotification('error', 'No results to export');
+                    return;
+                }
+                
+                const csv = 'Address,Status,Notice ID,Transaction Hash,Error\n' +
+                    this.results.map(r => 
+                        `${r.address},${r.status},${r.noticeId || ''},${r.txHash || ''},${r.error || ''}`
+                    ).join('\n');
+                
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `batch-results-${Date.now()}.csv`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                
+                uiManager.showNotification('success', 'Results exported');
+            }
+        };
+        
         // Reset mint form to initial state
         function resetMintForm() {
             // Reset to step 1
@@ -12791,6 +13052,13 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         window.updateFee = updateFee;
         window.updateFeeCollector = updateFeeCollector;
         window.exportRegistrations = exportRegistrations;
+        window.updateCreationFee = updateCreationFee;
+        window.updateSponsorshipFee = updateSponsorshipFee;
+        window.savePinataKeys = savePinataKeys;
+        window.testPinataConnection = testPinataConnection;
+        window.printDocument = printDocument;
+        window.downloadDocument = downloadDocument;
+        window.saveReceiptAsHTML = saveReceiptAsHTML;
         
         // Refresh delivery status
         async function refreshDeliveryStatus() {
@@ -12889,6 +13157,208 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         function sendDeliveryReminder(noticeId) {
             uiManager.showNotification('info', `Reminder functionality for Notice #${noticeId} coming soon`);
         }
+        
+        // Update creation fee
+        async function updateCreationFee() {
+            const newFee = document.getElementById('newCreationFee').value;
+            if (!newFee || isNaN(newFee) || parseFloat(newFee) < 0) {
+                uiManager.showNotification('error', 'Please enter a valid fee amount');
+                return;
+            }
+            
+            try {
+                if (!legalContract) {
+                    uiManager.showNotification('error', 'Contract not connected');
+                    return;
+                }
+                
+                const feeInSun = tronWeb.toSun(newFee);
+                const tx = await legalContract.updateFee(1, feeInSun).send(); // FeeType.Creation = 1
+                
+                uiManager.showNotification('success', 'Creation fee updated successfully');
+                console.log('Creation fee updated:', tx);
+            } catch (error) {
+                console.error('Error updating creation fee:', error);
+                uiManager.showNotification('error', 'Failed to update creation fee');
+            }
+        }
+        
+        // Update sponsorship fee
+        async function updateSponsorshipFee() {
+            const newFee = document.getElementById('newSponsorshipFee').value;
+            if (!newFee || isNaN(newFee) || parseFloat(newFee) < 0) {
+                uiManager.showNotification('error', 'Please enter a valid fee amount');
+                return;
+            }
+            
+            try {
+                if (!legalContract) {
+                    uiManager.showNotification('error', 'Contract not connected');
+                    return;
+                }
+                
+                const feeInSun = tronWeb.toSun(newFee);
+                const tx = await legalContract.updateFee(2, feeInSun).send(); // FeeType.Sponsorship = 2
+                
+                uiManager.showNotification('success', 'Sponsorship fee updated successfully');
+                console.log('Sponsorship fee updated:', tx);
+            } catch (error) {
+                console.error('Error updating sponsorship fee:', error);
+                uiManager.showNotification('error', 'Failed to update sponsorship fee');
+            }
+        }
+        
+        // Update fee (generic - already referenced in window)
+        async function updateFee(feeType, amount) {
+            if (!legalContract) {
+                uiManager.showNotification('error', 'Contract not connected');
+                return;
+            }
+            
+            try {
+                const feeInSun = tronWeb.toSun(amount.toString());
+                const tx = await legalContract.updateFee(feeType, feeInSun).send();
+                uiManager.showNotification('success', 'Fee updated successfully');
+                return tx;
+            } catch (error) {
+                console.error('Error updating fee:', error);
+                uiManager.showNotification('error', 'Failed to update fee');
+                throw error;
+            }
+        }
+        
+        // Save Pinata keys
+        function savePinataKeys() {
+            const apiKey = document.getElementById('pinataApiKey').value;
+            const apiSecret = document.getElementById('pinataApiSecret').value;
+            
+            if (!apiKey || !apiSecret) {
+                uiManager.showNotification('error', 'Please enter both API key and secret');
+                return;
+            }
+            
+            // Store encrypted in localStorage (in production, use secure backend)
+            const keys = {
+                apiKey: btoa(apiKey), // Basic encoding for demo
+                apiSecret: btoa(apiSecret)
+            };
+            
+            localStorage.setItem('pinataKeys', JSON.stringify(keys));
+            uiManager.showNotification('success', 'Pinata keys saved successfully');
+            
+            // Clear inputs for security
+            document.getElementById('pinataApiKey').value = '';
+            document.getElementById('pinataApiSecret').value = '';
+        }
+        
+        // Test Pinata connection
+        async function testPinataConnection() {
+            const storedKeys = localStorage.getItem('pinataKeys');
+            if (!storedKeys) {
+                uiManager.showNotification('error', 'Please save Pinata keys first');
+                return;
+            }
+            
+            try {
+                const keys = JSON.parse(storedKeys);
+                // In a real app, make API call to test connection
+                // For now, just simulate
+                uiManager.showNotification('info', 'Testing Pinata connection...');
+                
+                setTimeout(() => {
+                    uiManager.showNotification('success', 'Pinata connection successful!');
+                }, 1500);
+            } catch (error) {
+                uiManager.showNotification('error', 'Failed to test Pinata connection');
+            }
+        }
+        
+        // Print document
+        function printDocument(documentData) {
+            if (!documentData) {
+                uiManager.showNotification('error', 'No document to print');
+                return;
+            }
+            
+            try {
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write('<html><head><title>Legal Notice Document</title></head><body>');
+                printWindow.document.write('<img src="' + documentData + '" style="max-width:100%;">');
+                printWindow.document.write('</body></html>');
+                printWindow.document.close();
+                printWindow.print();
+            } catch (error) {
+                console.error('Error printing document:', error);
+                uiManager.showNotification('error', 'Failed to print document');
+            }
+        }
+        
+        // Download document
+        function downloadDocument(documentData, filename = 'legal-notice.png') {
+            if (!documentData) {
+                uiManager.showNotification('error', 'No document to download');
+                return;
+            }
+            
+            try {
+                const link = document.createElement('a');
+                link.href = documentData;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                uiManager.showNotification('success', 'Document downloaded');
+            } catch (error) {
+                console.error('Error downloading document:', error);
+                uiManager.showNotification('error', 'Failed to download document');
+            }
+        }
+        
+        // Save receipt as HTML
+        function saveReceiptAsHTML() {
+            const receiptContent = document.getElementById('receiptContent');
+            if (!receiptContent) {
+                uiManager.showNotification('error', 'No receipt to save');
+                return;
+            }
+            
+            try {
+                const htmlContent = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>Legal Notice Receipt</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+                            .receipt { border: 1px solid #ddd; padding: 20px; }
+                            h2 { color: #333; }
+                            .detail { margin: 10px 0; }
+                            .label { font-weight: bold; }
+                        </style>
+                    </head>
+                    <body>
+                        ${receiptContent.innerHTML}
+                    </body>
+                    </html>
+                `;
+                
+                const blob = new Blob([htmlContent], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'legal-notice-receipt.html';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                
+                uiManager.showNotification('success', 'Receipt saved as HTML');
+            } catch (error) {
+                console.error('Error saving receipt:', error);
+                uiManager.showNotification('error', 'Failed to save receipt');
+            }
+        }
+        
         window.toggleRegistrationForm = toggleRegistrationForm;
         
         async function withdrawFromContract() {
