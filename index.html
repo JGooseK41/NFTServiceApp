@@ -9325,7 +9325,6 @@ async function checkUserRoles() {
             const timestamp = Date.now().toString(36);
             const random = Math.random().toString(36).substring(2, 5);
             return `PS-${timestamp}-${random}`.toUpperCase();
-        }-${String(count).padStart(4, '0')}`;
         }
         
         function saveServerRegistration(address, data) {
