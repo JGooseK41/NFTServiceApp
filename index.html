@@ -6681,8 +6681,9 @@ function parsePackedData(packedData) {
             if (!legalContract) return 0;
             
             try {
-                const total = await legalContract.totalSupply().call();
-                return parseInt(total);
+                // Complete contract doesn't have totalSupply
+                // Would need to use events or other method to get total
+                return 0;
             } catch (error) {
                 console.log('Could not fetch total notices:', error);
                 return 0;
@@ -9605,7 +9606,7 @@ function useConnectedAddressForFeeCollector() {
                 legalContract = await tronWeb.contract(CONTRACT_ABI, contractAddress);
                 
                 // Test the contract by calling a view function
-                const totalNotices = await legalContract.totalSupply().call();
+                const balance = await legalContract.balanceOf(tronWeb.defaultAddress.base58).call();
                 
                 // Success
                 contractStatus.innerHTML = `
@@ -13310,7 +13311,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     
                 } else if (searchType === 'myNotices') {
                     // Get notices created by current user
-                    const totalNotices = await legalContract.totalSupply().call();
+                    const totalNotices = 0 // Complete contract doesn't have totalSupply;
                     const myNotices = [];
                     
                     for (let i = 0; i < totalNotices; i++) {
@@ -13336,7 +13337,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     
                 } else if (searchType === 'myAlerts') {
                     // Get notices where current user is recipient
-                    const totalNotices = await legalContract.totalSupply().call();
+                    const totalNotices = 0 // Complete contract doesn't have totalSupply;
                     const myAlerts = [];
                     
                     for (let i = 0; i < totalNotices; i++) {
@@ -13699,7 +13700,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             
             try {
                 // Get all notices sent by current user
-                const totalNotices = await legalContract.totalSupply().call();
+                const totalNotices = 0 // Complete contract doesn't have totalSupply;
                 const deliveryData = [];
                 
                 for (let i = 0; i < totalNotices; i++) {
@@ -15331,7 +15332,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         
                         // Check contract's token tracking
                         try {
-                            const totalSupply = await legalContract.totalSupply().call();
+                            const totalSupply = 0 // Complete contract doesn't have totalSupply;
                             console.log('Contract total supply:', totalSupply.toString());
                         } catch (e) {
                             console.log('No totalSupply function');
