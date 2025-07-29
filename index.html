@@ -13373,26 +13373,56 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     resultsDiv.innerHTML = formatNoticeForAudit(notice, noticeId, accepted);
                     
                 } else if (searchType === 'myNotices') {
-                    // Get notices created by current user
-                    const totalNotices = 0 // Complete contract doesn't have totalSupply;
+                    // Get notices from stored transactions since Complete contract doesn't have totalSupply
+                    const transactions = JSON.parse(localStorage.getItem('userTransactions') || '[]');
                     const myNotices = [];
                     
-                    for (let i = 0; i < totalNotices; i++) {
-                        try {
-                            const notice = await legalContract.getNotice(i).call();
-                            if (notice.sender.toLowerCase() === tronWeb.defaultAddress.base58.toLowerCase()) {
-                                // Extract acceptance status from packed data
-                                const accepted = ((BigInt(notice.packedData) >> 1n) & 1n) === 1n;
-                                myNotices.push({ id: i, notice, accepted });
+                    // Filter transactions by current user
+                    const userTransactions = transactions.filter(tx => 
+                        tx.sender && tx.sender.toLowerCase() === tronWeb.defaultAddress.base58.toLowerCase()
+                    );
+                    
+                    // Try to fetch notice details for each transaction
+                    for (const tx of userTransactions) {
+                        if (tx.noticeId) {
+                            try {
+                                const notice = await legalContract.notices(tx.noticeId).call();
+                                if (notice && notice.sender) {
+                                    // Extract acceptance status from packed data
+                                    const accepted = ((BigInt(notice.packedData) >> 1n) & 1n) === 1n;
+                                    myNotices.push({ 
+                                        id: tx.noticeId, 
+                                        notice, 
+                                        accepted,
+                                        txData: tx 
+                                    });
+                                }
+                            } catch (e) {
+                                console.log(`Notice ${tx.noticeId} may not exist on chain`);
                             }
-                        } catch (e) {
-                            console.error(`Error fetching notice ${i}:`, e);
                         }
                     }
                     
                     // Display results
-                    if (myNotices.length === 0) {
-                        resultsDiv.innerHTML = '<p>No notices found.</p>';
+                    if (myNotices.length === 0 && userTransactions.length === 0) {
+                        resultsDiv.innerHTML = '<p>No notices found. Notices you create will appear here.</p>';
+                    } else if (myNotices.length === 0 && userTransactions.length > 0) {
+                        // Show transaction data even if we can't fetch from blockchain
+                        resultsDiv.innerHTML = '<h4>My Issued Notices (from transaction history)</h4>' + 
+                            '<div class="notice-list">' +
+                            userTransactions.map(tx => `
+                                <div class="notice-item" style="border: 1px solid var(--border-color); padding: 1rem; margin-bottom: 1rem; border-radius: 0.5rem;">
+                                    <div class="notice-header" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                        <strong>Notice #${tx.noticeId || 'Unknown'}</strong>
+                                        <span style="color: var(--text-secondary);">${new Date(tx.timestamp).toLocaleString()}</span>
+                                    </div>
+                                    <div>Recipient: ${tx.recipient}</div>
+                                    <div>Type: ${tx.noticeType || 'Legal Notice'}</div>
+                                    <div>Fee: ${tx.fee} TRX</div>
+                                    ${tx.txid ? `<div>TX: <a href="${getContractScanUrl()}tx/${tx.txid}" target="_blank">${tx.txid.substring(0, 10)}...</a></div>` : ''}
+                                </div>
+                            `).join('') +
+                            '</div>';
                     } else {
                         resultsDiv.innerHTML = '<h4>My Issued Notices</h4>' + 
                             myNotices.map(n => formatNoticeForAudit(n.notice, n.id, n.accepted)).join('');
@@ -13400,29 +13430,34 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     
                 } else if (searchType === 'myAlerts') {
                     // Get notices where current user is recipient
-                    const totalNotices = 0 // Complete contract doesn't have totalSupply;
-                    const myAlerts = [];
-                    
-                    for (let i = 0; i < totalNotices; i++) {
-                        try {
-                            const owner = await legalContract.ownerOf(i).call();
-                            if (owner.toLowerCase() === tronWeb.defaultAddress.base58.toLowerCase()) {
-                                const notice = await legalContract.getNotice(i).call();
-                                // Extract acceptance status from packed data
-                                const accepted = ((BigInt(notice.packedData) >> 1n) & 1n) === 1n;
-                                myAlerts.push({ id: i, notice, accepted });
+                    try {
+                        // Use getRecipientNoticeIds function to get all notices for current user
+                        const noticeIds = await getRecipientNoticeIds(tronWeb.defaultAddress.base58);
+                        const myAlerts = [];
+                        
+                        for (const noticeId of noticeIds) {
+                            try {
+                                const notice = await legalContract.notices(noticeId).call();
+                                if (notice && notice.recipient) {
+                                    // Extract acceptance status from packed data
+                                    const accepted = ((BigInt(notice.packedData) >> 1n) & 1n) === 1n;
+                                    myAlerts.push({ id: noticeId, notice, accepted });
+                                }
+                            } catch (e) {
+                                console.error(`Error fetching notice ${noticeId}:`, e);
                             }
-                        } catch (e) {
-                            console.error(`Error fetching notice ${i}:`, e);
                         }
-                    }
-                    
-                    // Display results
-                    if (myAlerts.length === 0) {
+                        
+                        // Display results
+                        if (myAlerts.length === 0) {
+                            resultsDiv.innerHTML = '<p>No alert notices found. Legal notices sent to your wallet will appear here.</p>';
+                        } else {
+                            resultsDiv.innerHTML = '<h4>My Alert Notices</h4>' + 
+                                myAlerts.map(n => formatNoticeForAudit(n.notice, n.id, n.accepted)).join('');
+                        }
+                    } catch (e) {
+                        console.error('Error getting recipient notices:', e);
                         resultsDiv.innerHTML = '<p>No alert notices found.</p>';
-                    } else {
-                        resultsDiv.innerHTML = '<h4>My Alert Notices</h4>' + 
-                            myAlerts.map(n => formatNoticeForAudit(n.notice, n.id, n.accepted)).join('');
                     }
                 }
                 
