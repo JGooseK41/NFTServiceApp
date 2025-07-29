@@ -14755,12 +14755,12 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     baseTokenName: tokenName || 'Legal Notice',
                     hasDocument: deliveryMethod === 'document',
                     encryptedIPFS: encryptedData ? encryptedData.ipfsHash : '',
-                    encryptedKey: encryptedData ? encryptedData.encryptionKey : ''
+                    encryptionKey: encryptedData ? encryptedData.encryptionKey : ''  // Fixed: was encryptedKey
                 };
                 
                 // Send transaction
                 const result = await legalContract.createNotice(noticeRequest).send({
-                    feeLimit: 100_000_000,
+                    feeLimit: 300_000_000,  // Increased for larger documents
                     callValue: fee,
                     shouldPollResponse: true
                 });
