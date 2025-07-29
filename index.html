@@ -7364,6 +7364,170 @@ function useConnectedAddressForFeeCollector() {
                 }
             }
         }
+        
+        // Connect to smart contracts
+        async function connectContracts() {
+            if (!tronWeb || !tronWeb.defaultAddress) {
+                uiManager.showNotification('error', 'Please connect your wallet first');
+                return;
+            }
+            
+            const connectBtn = document.getElementById('connectContractBtn');
+            const contractStatus = document.getElementById('contractStatus');
+            const contractAddress = document.getElementById('contractAddress').value.trim();
+            
+            if (!contractAddress) {
+                uiManager.showNotification('error', 'Please enter the contract address');
+                return;
+            }
+            
+            try {
+                connectBtn.disabled = true;
+                connectBtn.innerHTML = '<span class="loading-spinner"></span> Connecting...';
+                
+                // Create contract instance
+                legalContract = await tronWeb.contract().at(contractAddress);
+                
+                // Test the contract by calling a view function
+                const totalNotices = await legalContract.totalSupply().call();
+                
+                // Success
+                contractStatus.innerHTML = `
+                    <div class="alert alert-success" style="margin-top: 1rem;">
+                        <i class="fas fa-check-circle"></i>
+                        Contract connected successfully! Total notices: ${totalNotices}
+                    </div>
+                `;
+                
+                // Update wallet status
+                await updateWalletStatus();
+                
+                // Check user roles
+                await checkUserRoles();
+                
+                // Update token prefix
+                await updateTokenPrefix();
+                
+                // Update fee display
+                await updateFeeEstimate();
+                
+                // Show wallet status card
+                const walletStatusCard = document.getElementById('walletStatusCard');
+                if (walletStatusCard) {
+                    walletStatusCard.style.display = 'block';
+                }
+                
+                uiManager.showNotification('success', 'Contract connected successfully');
+                
+            } catch (error) {
+                console.error('Contract connection error:', error);
+                contractStatus.innerHTML = `
+                    <div class="alert alert-error" style="margin-top: 1rem;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Failed to connect: ${error.message}
+                    </div>
+                `;
+                connectBtn.disabled = false;
+                connectBtn.innerHTML = '<i class="fas fa-plug"></i> Connect Contract';
+            }
+        }
+        
+        // Submit registration
+        async function submitRegistration() {
+            const name = document.getElementById('regFullName').value.trim();
+            const agency = document.getElementById('regAgency').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const wallet = document.getElementById('regWallet').value.trim();
+            
+            if (!name || !agency || !email) {
+                uiManager.showNotification('error', 'Please fill in all required fields');
+                return;
+            }
+            
+            // Email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                uiManager.showNotification('error', 'Please enter a valid email address');
+                return;
+            }
+            
+            const registration = {
+                name,
+                agency,
+                email,
+                wallet,
+                registeredAt: new Date().toISOString(),
+                status: 'pending',
+                serverId: generateServerId()
+            };
+            
+            // Save to local storage
+            saveServerRegistration(wallet, registration);
+            
+            // Clear form
+            document.getElementById('regFullName').value = '';
+            document.getElementById('regAgency').value = '';
+            document.getElementById('regEmail').value = '';
+            
+            // Close modal
+            closeRegistrationModal();
+            
+            uiManager.showNotification('success', 'Registration submitted successfully! Awaiting admin approval.');
+            
+            // Show registration notice
+            const registrationNotice = document.getElementById('registrationNotice');
+            if (registrationNotice) {
+                registrationNotice.style.display = 'none';
+            }
+        }
+        
+        // Refresh pending registrations
+        function refreshPendingRegistrations() {
+            const container = document.getElementById('pendingRegistrations');
+            if (!container) return;
+            
+            const registrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+            const pendingRegs = Object.entries(registrations)
+                .filter(([_, reg]) => reg.status === 'pending')
+                .map(([wallet, reg]) => ({ ...reg, wallet }));
+            
+            if (pendingRegs.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <h3>No pending registrations</h3>
+                        <p>New registrations will appear here</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '<div class="registration-list">';
+            pendingRegs.forEach(reg => {
+                html += `
+                    <div class="registration-item">
+                        <div class="reg-info">
+                            <h4>${reg.name} <span class="badge badge-warning">Pending</span></h4>
+                            <p>Agency: ${reg.agency}</p>
+                            <p>Email: ${reg.email}</p>
+                            <p>Wallet: <code>${reg.wallet}</code></p>
+                            <p>Submitted: ${new Date(reg.registeredAt).toLocaleString()}</p>
+                        </div>
+                        <div class="reg-actions">
+                            <button class="btn btn-success btn-small" onclick="approveRegistration('${reg.wallet}')">
+                                <i class="fas fa-check"></i> Approve
+                            </button>
+                            <button class="btn btn-danger btn-small" onclick="rejectRegistration('${reg.wallet}')">
+                                <i class="fas fa-times"></i> Reject
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            container.innerHTML = html;
+        }
 
 // Refresh wallet status
 async function refreshWalletStatus() {
@@ -7392,17 +7556,39 @@ async function checkUserRoles() {
                 const adminRoleBytes = tronWeb.sha3('ADMIN_ROLE');
                 const processServerRoleBytes = tronWeb.sha3('PROCESS_SERVER_ROLE');
                 
+                console.log('=== Checking Admin Roles ===');
+                console.log('Current address:', tronWeb.defaultAddress.base58);
+                console.log('DEFAULT_ADMIN_ROLE:', defaultAdminRole);
+                console.log('ADMIN_ROLE hash:', adminRoleBytes);
+                
                 // Check if user has DEFAULT_ADMIN_ROLE or ADMIN_ROLE
                 const hasDefaultAdminRole = await legalContract.hasRole(defaultAdminRole, tronWeb.defaultAddress.base58).call();
                 const hasAdminRole = await legalContract.hasRole(adminRoleBytes, tronWeb.defaultAddress.base58).call();
                 isAdmin = hasDefaultAdminRole || hasAdminRole;
                 
-                console.log('Admin role check:', { 
-                    address: tronWeb.defaultAddress.base58,
-                    hasDefaultAdminRole,
-                    hasAdminRole,
-                    isAdmin
-                });
+                console.log('Has DEFAULT_ADMIN_ROLE:', hasDefaultAdminRole);
+                console.log('Has ADMIN_ROLE:', hasAdminRole);
+                console.log('isAdmin result:', isAdmin);
+                
+                // Also get role member counts for debugging
+                try {
+                    const defaultAdminCount = await legalContract.getRoleMemberCount(defaultAdminRole).call();
+                    const adminCount = await legalContract.getRoleMemberCount(adminRoleBytes).call();
+                    console.log('DEFAULT_ADMIN_ROLE member count:', defaultAdminCount.toString());
+                    console.log('ADMIN_ROLE member count:', adminCount.toString());
+                    
+                    if (defaultAdminCount > 0) {
+                        const firstDefaultAdmin = await legalContract.getRoleMember(defaultAdminRole, 0).call();
+                        console.log('First DEFAULT_ADMIN_ROLE member:', firstDefaultAdmin);
+                    }
+                    
+                    if (adminCount > 0) {
+                        const firstAdmin = await legalContract.getRoleMember(adminRoleBytes, 0).call();
+                        console.log('First ADMIN_ROLE member:', firstAdmin);
+                    }
+                } catch (e) {
+                    console.log('Could not get role member info:', e);
+                }
                 isProcessServer = await legalContract.hasRole(processServerRoleBytes, tronWeb.defaultAddress.base58).call();
                 
                 // Update admin tab visibility
@@ -8087,12 +8273,40 @@ async function checkUserRoles() {
                 debugInfo += `<strong>Your Address:</strong> ${address}<br><br>`;
                 plainTextDebug += `Your Address: ${address}\n\n`;
                 
-                // Check roles
+                // Check roles - including DEFAULT_ADMIN_ROLE
+                const DEFAULT_ADMIN_ROLE = '0x0000000000000000000000000000000000000000000000000000000000000000';
                 const adminRoleBytes = tronWeb.sha3('ADMIN_ROLE');
                 const processServerRoleBytes = tronWeb.sha3('PROCESS_SERVER_ROLE');
                 
+                console.log('=== ADMIN ROLE DEBUG ===');
+                console.log('DEFAULT_ADMIN_ROLE:', DEFAULT_ADMIN_ROLE);
+                console.log('ADMIN_ROLE hash:', adminRoleBytes);
+                console.log('Current address:', address);
+                
+                const hasDefaultAdminRole = await legalContract.hasRole(DEFAULT_ADMIN_ROLE, address).call();
                 const hasAdminRole = await legalContract.hasRole(adminRoleBytes, address).call();
                 const hasProcessServerRole = await legalContract.hasRole(processServerRoleBytes, address).call();
+                
+                console.log('Has DEFAULT_ADMIN_ROLE:', hasDefaultAdminRole);
+                console.log('Has ADMIN_ROLE:', hasAdminRole);
+                
+                // Get role member counts
+                const defaultAdminCount = await legalContract.getRoleMemberCount(DEFAULT_ADMIN_ROLE).call();
+                const adminCount = await legalContract.getRoleMemberCount(adminRoleBytes).call();
+                
+                console.log('DEFAULT_ADMIN_ROLE member count:', defaultAdminCount.toString());
+                console.log('ADMIN_ROLE member count:', adminCount.toString());
+                
+                // Get first member of each admin role
+                if (defaultAdminCount > 0) {
+                    const firstDefaultAdmin = await legalContract.getRoleMember(DEFAULT_ADMIN_ROLE, 0).call();
+                    console.log('First DEFAULT_ADMIN_ROLE member:', firstDefaultAdmin);
+                }
+                
+                if (adminCount > 0) {
+                    const firstAdmin = await legalContract.getRoleMember(adminRoleBytes, 0).call();
+                    console.log('First ADMIN_ROLE member:', firstAdmin);
+                }
                 
                 debugInfo += `<strong>Roles:</strong><br>`;
                 debugInfo += `- Admin Role: ${hasAdminRole ? '✓ YES' : '✗ NO'}<br>`;
