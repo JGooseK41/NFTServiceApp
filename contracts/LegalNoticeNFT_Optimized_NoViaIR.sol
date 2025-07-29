@@ -193,7 +193,7 @@ contract LegalNoticeNFT_Optimized is ERC721, ERC721URIStorage, ERC721Enumerable,
         bool hasDocument = (notice.packedData & 1) == 1;
         
         string memory desc = hasDocument ? 
-            string(abi.encodePacked("LEGAL NOTICE - ACTION REQUIRED | To view: acceptNotice(", noticeId.toString(), ")")) :
+            string(abi.encodePacked("LEGAL NOTICE - ACTION REQUIRED | View at: https://nftserviceapp.netlify.app/#notice-", noticeId.toString())) :
             string(abi.encodePacked("LEGAL NOTICE - ", notice.publicText));
             
         return string(abi.encodePacked(

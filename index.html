@@ -10399,6 +10399,8 @@ async function checkUserRoles() {
         });
 
         document.addEventListener('DOMContentLoaded', async function() {
+            // Check if user came from a direct notice link
+            checkDirectNoticeLink();
             // Hide loader
             setTimeout(() => {
                 uiManager.hideLoader();
@@ -10951,6 +10953,59 @@ document.addEventListener('keydown', function(event) {
         }
         
         window.displayDecryptedDocument = displayDecryptedDocument;
+        
+        // Check if user came from a direct notice link
+        function checkDirectNoticeLink() {
+            const hash = window.location.hash;
+            if (hash.startsWith('#notice-')) {
+                const noticeId = hash.replace('#notice-', '');
+                
+                // Show a welcome message for recipients
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 600px;">
+                        <div class="modal-header">
+                            <h2><i class="fas fa-envelope-open-text"></i> Legal Notice #${noticeId}</h2>
+                            <button class="close-btn" onclick="this.closest('.modal').remove()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-info" style="margin-bottom: 1rem;">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>You have received a legal notice</strong>
+                                <p style="margin: 0.25rem 0 0 0;">To view the encrypted document, you need to:</p>
+                                <ol style="margin: 0.5rem 0 0 1.5rem;">
+                                    <li>Connect your wallet (same address that received the NFT)</li>
+                                    <li>Navigate to the "My Notices" tab</li>
+                                    <li>Click "Accept & View" on notice #${noticeId}</li>
+                                </ol>
+                            </div>
+                            
+                            <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                                <h4 style="margin-top: 0;"><i class="fas fa-shield-alt"></i> Privacy & Security</h4>
+                                <p style="margin: 0.5rem 0;">• Your document is encrypted and only you can decrypt it</p>
+                                <p style="margin: 0.5rem 0;">• Accepting the notice records proof of service on blockchain</p>
+                                <p style="margin: 0.5rem 0;">• The sender cannot see if/when you view the document</p>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-primary" onclick="this.closest('.modal').remove(); document.getElementById('noticesTab').click();">
+                                <i class="fas fa-folder-open"></i> Go to My Notices
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                
+                // Store notice ID for auto-focus
+                sessionStorage.setItem('focusNoticeId', noticeId);
+            }
+        }
+        
+        window.checkDirectNoticeLink = checkDirectNoticeLink;
         window.closeTxModal = closeTxModal;
         window.exportReceipt = exportReceipt;
         window.closeRegistrationModal = closeRegistrationModal;
