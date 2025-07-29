@@ -2920,11 +2920,11 @@
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
                         <input type="text" class="form-input" id="contractAddress" 
                                placeholder="Enter contract address (e.g., TXxxx...)"
-                               value="TEZxBmj16pKdsJh3aDE9Y4RLSuXuBuUSp8" style="flex: 1;">
+                               value="TFz1epSo4yaSFLFnSA8nUANft4D4xZQz1G" style="flex: 1;">
                         <button class="btn btn-secondary" onclick="copyAddress(document.getElementById('contractAddress').value)" title="Copy address">
                             <i class="fas fa-copy"></i>
                         </button>
-                        <a href="https://nile.tronscan.org/#/contract/TEZxBmj16pKdsJh3aDE9Y4RLSuXuBuUSp8" target="_blank" class="btn btn-secondary" title="View on Nile TronScan">
+                        <a href="https://nile.tronscan.org/#/contract/TFz1epSo4yaSFLFnSA8nUANft4D4xZQz1G" target="_blank" class="btn btn-secondary" title="View on Nile TronScan">
                             <i class="fas fa-external-link-alt"></i>
                         </a>
                     </div>
@@ -5204,18 +5204,43 @@
         "inputs": [
             {
                 "indexed": false,
-                "internalType": "uint256",
-                "name": "_fromTokenId",
-                "type": "uint256"
+                "internalType": "address",
+                "name": "oldCollector",
+                "type": "address"
             },
             {
                 "indexed": false,
-                "internalType": "uint256",
-                "name": "_toTokenId",
-                "type": "uint256"
+                "internalType": "address",
+                "name": "newCollector",
+                "type": "address"
             }
         ],
-        "name": "BatchMetadataUpdate",
+        "name": "FeeCollectorUpdated",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "user",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "bool",
+                "name": "serviceFeeExempt",
+                "type": "bool"
+            },
+            {
+                "indexed": false,
+                "internalType": "bool",
+                "name": "fullFeeExempt",
+                "type": "bool"
+            }
+        ],
+        "name": "FeeExemptionSet",
         "type": "event"
     },
     {
@@ -5223,12 +5248,24 @@
         "inputs": [
             {
                 "indexed": false,
+                "internalType": "string",
+                "name": "feeType",
+                "type": "string"
+            },
+            {
+                "indexed": false,
                 "internalType": "uint256",
-                "name": "_tokenId",
+                "name": "oldFee",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "newFee",
                 "type": "uint256"
             }
         ],
-        "name": "MetadataUpdate",
+        "name": "FeeUpdated",
         "type": "event"
     },
     {
@@ -5243,11 +5280,23 @@
             {
                 "indexed": true,
                 "internalType": "address",
+                "name": "server",
+                "type": "address"
+            },
+            {
+                "indexed": true,
+                "internalType": "address",
                 "name": "recipient",
                 "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "timestamp",
+                "type": "uint256"
             }
         ],
-        "name": "NoticeAccepted",
+        "name": "LegalNoticeCreated",
         "type": "event"
     },
     {
@@ -5256,7 +5305,7 @@
             {
                 "indexed": true,
                 "internalType": "uint256",
-                "name": "noticeId",
+                "name": "alertId",
                 "type": "uint256"
             },
             {
@@ -5264,15 +5313,9 @@
                 "internalType": "address",
                 "name": "recipient",
                 "type": "address"
-            },
-            {
-                "indexed": true,
-                "internalType": "address",
-                "name": "sender",
-                "type": "address"
             }
         ],
-        "name": "NoticeCreated",
+        "name": "NoticeAcknowledged",
         "type": "event"
     },
     {
@@ -5280,24 +5323,49 @@
         "inputs": [
             {
                 "indexed": true,
-                "internalType": "bytes32",
-                "name": "role",
-                "type": "bytes32"
+                "internalType": "uint256",
+                "name": "alertId",
+                "type": "uint256"
             },
             {
                 "indexed": true,
-                "internalType": "bytes32",
-                "name": "previousAdminRole",
-                "type": "bytes32"
+                "internalType": "uint256",
+                "name": "documentId",
+                "type": "uint256"
             },
             {
                 "indexed": true,
-                "internalType": "bytes32",
-                "name": "newAdminRole",
-                "type": "bytes32"
+                "internalType": "address",
+                "name": "recipient",
+                "type": "address"
             }
         ],
-        "name": "RoleAdminChanged",
+        "name": "NoticeServed",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "recipient",
+                "type": "address"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "energy",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "bandwidth",
+                "type": "uint256"
+            }
+        ],
+        "name": "ResourceSponsored",
         "type": "event"
     },
     {
@@ -5313,41 +5381,10 @@
                 "indexed": true,
                 "internalType": "address",
                 "name": "account",
-                "type": "address"
-            },
-            {
-                "indexed": true,
-                "internalType": "address",
-                "name": "sender",
                 "type": "address"
             }
         ],
         "name": "RoleGranted",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": true,
-                "internalType": "bytes32",
-                "name": "role",
-                "type": "bytes32"
-            },
-            {
-                "indexed": true,
-                "internalType": "address",
-                "name": "account",
-                "type": "address"
-            },
-            {
-                "indexed": true,
-                "internalType": "address",
-                "name": "sender",
-                "type": "address"
-            }
-        ],
-        "name": "RoleRevoked",
         "type": "event"
     },
     {
@@ -5390,19 +5427,6 @@
     },
     {
         "inputs": [],
-        "name": "DEFAULT_ADMIN_ROLE",
-        "outputs": [
-            {
-                "internalType": "bytes32",
-                "name": "",
-                "type": "bytes32"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
         "name": "PROCESS_SERVER_ROLE",
         "outputs": [
             {
@@ -5415,22 +5439,177 @@
         "type": "function"
     },
     {
+        "inputs": [],
+        "name": "SERVICE_FEE",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
         "inputs": [
             {
                 "internalType": "uint256",
-                "name": "noticeId",
+                "name": "alertId",
                 "type": "uint256"
             }
         ],
         "name": "acceptNotice",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "alertNotices",
         "outputs": [
             {
+                "internalType": "address",
+                "name": "recipient",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "sender",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "documentId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "timestamp",
+                "type": "uint256"
+            },
+            {
+                "internalType": "bool",
+                "name": "acknowledged",
+                "type": "bool"
+            },
+            {
                 "internalType": "string",
-                "name": "",
+                "name": "issuingAgency",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "noticeType",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "caseNumber",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "caseDetails",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "legalRights",
+                "type": "string"
+            },
+            {
+                "internalType": "uint256",
+                "name": "responseDeadline",
+                "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "previewImage",
                 "type": "string"
             }
         ],
-        "stateMutability": "nonpayable",
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "alertId",
+                "type": "uint256"
+            }
+        ],
+        "name": "alerts",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "recipient",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "sender",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "documentId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "timestamp",
+                "type": "uint256"
+            },
+            {
+                "internalType": "bool",
+                "name": "acknowledged",
+                "type": "bool"
+            },
+            {
+                "internalType": "string",
+                "name": "issuingAgency",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "noticeType",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "caseNumber",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "caseDetails",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "legalRights",
+                "type": "string"
+            },
+            {
+                "internalType": "uint256",
+                "name": "responseDeadline",
+                "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "previewImage",
+                "type": "string"
+            }
+        ],
+        "stateMutability": "view",
         "type": "function"
     },
     {
@@ -5473,115 +5652,12 @@
     {
         "inputs": [
             {
-                "components": [
-                    {
-                        "internalType": "address[]",
-                        "name": "recipients",
-                        "type": "address[]"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "publicText",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "metadata",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "documentData",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "tokenNamePrefix",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "bool",
-                        "name": "hasDocument",
-                        "type": "bool"
-                    },
-                    {
-                        "internalType": "bool",
-                        "name": "sponsorFees",
-                        "type": "bool"
-                    }
-                ],
-                "internalType": "struct LegalNoticeNFT_Optimized.BatchRequest",
-                "name": "req",
-                "type": "tuple"
+                "internalType": "address",
+                "name": "user",
+                "type": "address"
             }
         ],
-        "name": "createBatchNotices",
-        "outputs": [
-            {
-                "internalType": "uint256[]",
-                "name": "",
-                "type": "uint256[]"
-            }
-        ],
-        "stateMutability": "payable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "components": [
-                    {
-                        "internalType": "address",
-                        "name": "recipient",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "publicText",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "noticeType",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "caseNumber",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "issuingAgency",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "baseTokenName",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "bool",
-                        "name": "hasDocument",
-                        "type": "bool"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "encryptedIPFS",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "encryptionKey",
-                        "type": "string"
-                    }
-                ],
-                "internalType": "struct LegalNoticeNFT_Optimized.NoticeRequest",
-                "name": "req",
-                "type": "tuple"
-            }
-        ],
-        "name": "createNotice",
+        "name": "calculateFee",
         "outputs": [
             {
                 "internalType": "uint256",
@@ -5589,7 +5665,7 @@
                 "type": "uint256"
             }
         ],
-        "stateMutability": "payable",
+        "stateMutability": "view",
         "type": "function"
     },
     {
@@ -5597,9 +5673,48 @@
         "name": "creationFee",
         "outputs": [
             {
-                "internalType": "uint128",
+                "internalType": "uint256",
                 "name": "",
-                "type": "uint128"
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "documentNotices",
+        "outputs": [
+            {
+                "internalType": "string",
+                "name": "encryptedIPFS",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "decryptionKey",
+                "type": "string"
+            },
+            {
+                "internalType": "address",
+                "name": "authorizedViewer",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "alertId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "bool",
+                "name": "isRestricted",
+                "type": "bool"
             }
         ],
         "stateMutability": "view",
@@ -5613,6 +5728,94 @@
                 "internalType": "address",
                 "name": "",
                 "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "name": "fullFeeExemptions",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "alertId",
+                "type": "uint256"
+            }
+        ],
+        "name": "getAlertDetails",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "recipient",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "sender",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "documentId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "timestamp",
+                "type": "uint256"
+            },
+            {
+                "internalType": "bool",
+                "name": "acknowledged",
+                "type": "bool"
+            },
+            {
+                "internalType": "string",
+                "name": "issuingAgency",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "noticeType",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "caseNumber",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "caseDetails",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "legalRights",
+                "type": "string"
+            },
+            {
+                "internalType": "uint256",
+                "name": "responseDeadline",
+                "type": "uint256"
             }
         ],
         "stateMutability": "view",
@@ -5640,54 +5843,17 @@
     {
         "inputs": [
             {
-                "internalType": "uint256",
-                "name": "noticeId",
-                "type": "uint256"
+                "internalType": "address",
+                "name": "recipient",
+                "type": "address"
             }
         ],
-        "name": "getNotice",
+        "name": "getRecipientAlerts",
         "outputs": [
             {
-                "components": [
-                    {
-                        "internalType": "address",
-                        "name": "recipient",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "address",
-                        "name": "sender",
-                        "type": "address"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "documentData",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "publicText",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "metadata",
-                        "type": "string"
-                    },
-                    {
-                        "internalType": "uint256",
-                        "name": "packedData",
-                        "type": "uint256"
-                    },
-                    {
-                        "internalType": "string",
-                        "name": "tokenName",
-                        "type": "string"
-                    }
-                ],
-                "internalType": "struct LegalNoticeNFT_Optimized.Notice",
+                "internalType": "uint256[]",
                 "name": "",
-                "type": "tuple"
+                "type": "uint256[]"
             }
         ],
         "stateMutability": "view",
@@ -5696,17 +5862,36 @@
     {
         "inputs": [
             {
-                "internalType": "bytes32",
-                "name": "role",
-                "type": "bytes32"
+                "internalType": "address",
+                "name": "server",
+                "type": "address"
             }
         ],
-        "name": "getRoleAdmin",
+        "name": "getServerNotices",
         "outputs": [
             {
-                "internalType": "bytes32",
+                "internalType": "uint256[]",
                 "name": "",
-                "type": "bytes32"
+                "type": "uint256[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "user",
+                "type": "address"
+            }
+        ],
+        "name": "getUserNotices",
+        "outputs": [
+            {
+                "internalType": "uint256[]",
+                "name": "",
+                "type": "uint256[]"
             }
         ],
         "stateMutability": "view",
@@ -5779,44 +5964,6 @@
         "type": "function"
     },
     {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "",
-                "type": "address"
-            }
-        ],
-        "name": "lawEnforcementAgencies",
-        "outputs": [
-            {
-                "internalType": "string",
-                "name": "",
-                "type": "string"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "",
-                "type": "address"
-            }
-        ],
-        "name": "lawEnforcementExemptions",
-        "outputs": [
-            {
-                "internalType": "bool",
-                "name": "",
-                "type": "bool"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
         "inputs": [],
         "name": "name",
         "outputs": [
@@ -5826,7 +5973,7 @@
                 "type": "string"
             }
         ],
-        "stateMutability": "view",
+        "stateMutability": "pure",
         "type": "function"
     },
     {
@@ -5840,38 +5987,43 @@
         "name": "notices",
         "outputs": [
             {
+                "internalType": "uint256",
+                "name": "alertId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "documentId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "address",
+                "name": "server",
+                "type": "address"
+            },
+            {
                 "internalType": "address",
                 "name": "recipient",
                 "type": "address"
             },
             {
-                "internalType": "address",
-                "name": "sender",
-                "type": "address"
-            },
-            {
-                "internalType": "string",
-                "name": "documentData",
-                "type": "string"
-            },
-            {
-                "internalType": "string",
-                "name": "publicText",
-                "type": "string"
-            },
-            {
-                "internalType": "string",
-                "name": "metadata",
-                "type": "string"
-            },
-            {
                 "internalType": "uint256",
-                "name": "packedData",
+                "name": "timestamp",
                 "type": "uint256"
             },
             {
+                "internalType": "bool",
+                "name": "acknowledged",
+                "type": "bool"
+            },
+            {
                 "internalType": "string",
-                "name": "tokenName",
+                "name": "noticeType",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "caseNumber",
                 "type": "string"
             }
         ],
@@ -5898,8 +6050,32 @@
         "type": "function"
     },
     {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "recipientAlerts",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
         "inputs": [],
-        "name": "paused",
+        "name": "resourceSponsorshipEnabled",
         "outputs": [
             {
                 "internalType": "bool",
@@ -5908,92 +6084,6 @@
             }
         ],
         "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "",
-                "type": "address"
-            }
-        ],
-        "name": "processServers",
-        "outputs": [
-            {
-                "internalType": "uint128",
-                "name": "serverId",
-                "type": "uint128"
-            },
-            {
-                "internalType": "uint128",
-                "name": "noticesServed",
-                "type": "uint128"
-            },
-            {
-                "internalType": "uint256",
-                "name": "registeredDate",
-                "type": "uint256"
-            },
-            {
-                "internalType": "string",
-                "name": "name",
-                "type": "string"
-            },
-            {
-                "internalType": "string",
-                "name": "agency",
-                "type": "string"
-            },
-            {
-                "internalType": "bool",
-                "name": "active",
-                "type": "bool"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "",
-                "type": "address"
-            },
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "name": "recipientNotices",
-        "outputs": [
-            {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32",
-                "name": "role",
-                "type": "bytes32"
-            },
-            {
-                "internalType": "address",
-                "name": "account",
-                "type": "address"
-            }
-        ],
-        "name": "renounceRole",
-        "outputs": [],
-        "stateMutability": "nonpayable",
         "type": "function"
     },
     {
@@ -6056,13 +6146,77 @@
             },
             {
                 "internalType": "bytes",
-                "name": "data",
+                "name": "_data",
                 "type": "bytes"
             }
         ],
         "name": "safeTransferFrom",
         "outputs": [],
         "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "recipient",
+                "type": "address"
+            },
+            {
+                "internalType": "string",
+                "name": "encryptedIPFS",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "decryptionKey",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "issuingAgency",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "noticeType",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "caseNumber",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "caseDetails",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "legalRights",
+                "type": "string"
+            },
+            {
+                "internalType": "bool",
+                "name": "sponsorFees",
+                "type": "bool"
+            }
+        ],
+        "name": "serveNotice",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "alertId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "uint256",
+                "name": "documentId",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "payable",
         "type": "function"
     },
     {
@@ -6078,7 +6232,20 @@
                 "type": "uint256"
             }
         ],
-        "name": "senderNotices",
+        "name": "serverNotices",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "serviceFee",
         "outputs": [
             {
                 "internalType": "uint256",
@@ -6092,30 +6259,17 @@
     {
         "inputs": [
             {
-                "internalType": "uint256",
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "name": "serverIdToAddress",
-        "outputs": [
-            {
                 "internalType": "address",
                 "name": "",
                 "type": "address"
             }
         ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "serviceFee",
+        "name": "serviceFeeExemptions",
         "outputs": [
             {
-                "internalType": "uint128",
+                "internalType": "bool",
                 "name": "",
-                "type": "uint128"
+                "type": "bool"
             }
         ],
         "stateMutability": "view",
@@ -6147,14 +6301,70 @@
                 "type": "address"
             },
             {
-                "internalType": "string",
-                "name": "agencyName",
-                "type": "string"
+                "internalType": "bool",
+                "name": "serviceFeeExempt",
+                "type": "bool"
+            },
+            {
+                "internalType": "bool",
+                "name": "fullFeeExempt",
+                "type": "bool"
             }
         ],
-        "name": "setLawEnforcementExemption",
+        "name": "setFeeExemption",
         "outputs": [],
         "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bool",
+                "name": "enabled",
+                "type": "bool"
+            }
+        ],
+        "name": "setResourceSponsorship",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "name": "sponsoredBandwidth",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "name": "sponsoredEnergy",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
         "type": "function"
     },
     {
@@ -6162,9 +6372,9 @@
         "name": "sponsorshipFee",
         "outputs": [
             {
-                "internalType": "uint128",
+                "internalType": "uint256",
                 "name": "",
-                "type": "uint128"
+                "type": "uint256"
             }
         ],
         "stateMutability": "view",
@@ -6186,7 +6396,7 @@
                 "type": "bool"
             }
         ],
-        "stateMutability": "view",
+        "stateMutability": "pure",
         "type": "function"
     },
     {
@@ -6199,60 +6409,23 @@
                 "type": "string"
             }
         ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "textOnlyFee",
-        "outputs": [
-            {
-                "internalType": "uint128",
-                "name": "",
-                "type": "uint128"
-            }
-        ],
-        "stateMutability": "view",
+        "stateMutability": "pure",
         "type": "function"
     },
     {
         "inputs": [
             {
                 "internalType": "uint256",
-                "name": "index",
-                "type": "uint256"
-            }
-        ],
-        "name": "tokenByIndex",
-        "outputs": [
-            {
-                "internalType": "uint256",
                 "name": "",
                 "type": "uint256"
             }
         ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "owner",
-                "type": "address"
-            },
-            {
-                "internalType": "uint256",
-                "name": "index",
-                "type": "uint256"
-            }
-        ],
-        "name": "tokenOfOwnerByIndex",
+        "name": "tokenTypes",
         "outputs": [
             {
-                "internalType": "uint256",
+                "internalType": "enum LegalNoticeNFT_Complete.NoticeType",
                 "name": "",
-                "type": "uint256"
+                "type": "uint8"
             }
         ],
         "stateMutability": "view",
@@ -6279,7 +6452,7 @@
     },
     {
         "inputs": [],
-        "name": "totalSupply",
+        "name": "totalNotices",
         "outputs": [
             {
                 "internalType": "uint256",
@@ -6309,6 +6482,115 @@
             }
         ],
         "name": "transferFrom",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "newFee",
+                "type": "uint256"
+            }
+        ],
+        "name": "updateCreationFee",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "newFee",
+                "type": "uint256"
+            }
+        ],
+        "name": "updateFee",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "newCollector",
+                "type": "address"
+            }
+        ],
+        "name": "updateFeeCollector",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "newFee",
+                "type": "uint256"
+            }
+        ],
+        "name": "updateServiceFee",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "newFee",
+                "type": "uint256"
+            }
+        ],
+        "name": "updateSponsorshipFee",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "documentId",
+                "type": "uint256"
+            }
+        ],
+        "name": "viewDocument",
+        "outputs": [
+            {
+                "internalType": "string",
+                "name": "encryptedIPFS",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "decryptionKey",
+                "type": "string"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "withdraw",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+            }
+        ],
+        "name": "withdrawTRX",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
@@ -6343,7 +6625,7 @@ async function getRecipientNoticeIds(recipient) {
 async function calculateFeeFromConstants(userAddress) {
     try {
         // Check if user is law enforcement exempt
-        const isExempt = await legalContract.lawEnforcementExemptions(userAddress).call();
+        const isExempt = await legalContract.serviceFeeExemptions(userAddress).call();
         
         // Get fee constants
         const serviceFee = await legalContract.serviceFee().call();
@@ -6419,7 +6701,7 @@ function parsePackedData(packedData) {
                 },
                 nile: {
                     name: 'TRON Nile Testnet',
-                    contractAddress: window.APP_CONFIG?.contracts.tron.nile || 'TEZxBmj16pKdsJh3aDE9Y4RLSuXuBuUSp8',
+                    contractAddress: window.APP_CONFIG?.contracts.tron.nile || 'TFz1epSo4yaSFLFnSA8nUANft4D4xZQz1G',
                     explorerUrl: 'https://nile.tronscan.org',
                     nativeToken: 'TRX',
                     chainId: null
@@ -7178,10 +7460,10 @@ function parsePackedData(packedData) {
             try {
                 showProcessing('Setting law enforcement exemption...');
                 
-                await legalContract.grantRoleWithExemption(
+                // Note: Complete contract doesn't have grantRoleWithExemption - using separate calls
+                await legalContract.grantRole(
                     tronWeb.sha3('PROCESS_SERVER_ROLE'),
-                    address,
-                    agencyName
+                    address
                 ).send({
                     feeLimit: 100_000_000,
                     shouldPollResponse: true
@@ -7699,7 +7981,7 @@ function useConnectedAddressForFeeCollector() {
                 if (!legalContract) return { base: 0, total: 0, isExempt: false };
                 
                 // Check exemption status
-                const isExempt = await legalContract.lawEnforcementExemptions(userAddress).call();
+                const isExempt = await legalContract.serviceFeeExemptions(userAddress).call();
                 
                 // Base fees
                 const baseFee = deliveryMethod === 'document' ? 150 : 15;
@@ -7730,9 +8012,8 @@ function useConnectedAddressForFeeCollector() {
                 let documentFee, textFee;
                 try {
                     const docFeeRaw = await legalContract.serviceFee().call();
-                    const textFeeRaw = await legalContract.textOnlyFee().call();
                     documentFee = tronWeb.fromSun(docFeeRaw);
-                    textFee = tronWeb.fromSun(textFeeRaw);
+                    textFee = 10; // Default text-only fee since contract doesn't have textOnlyFee
                 } catch (e) {
                     // Fallback to single fee if new fee structure not available
                     documentFee = feeInTrx;
@@ -7747,8 +8028,8 @@ function useConnectedAddressForFeeCollector() {
                 document.getElementById('creationFeeDisplay').textContent = `${totalWithSponsorship} TRX (${deliveryMethod === 'document' ? 'Document' : 'Text Only'})`;
                 
                 // Check if user has fee exemptions
-                const isLawEnforcement = await legalContract.lawEnforcementExemptions(userAddress).call();
-                const agencyName = await legalContract.lawEnforcementAgencies(userAddress).call();
+                const isLawEnforcement = await legalContract.serviceFeeExemptions(userAddress).call();
+                const agencyName = ''; // Complete contract doesn't track agency names
                 
                 if (isLawEnforcement) {
                     document.getElementById('feeDescription').textContent = `Law Enforcement (${agencyName}) - Cost only: Sponsorship (2 TRX)`;
@@ -9078,7 +9359,8 @@ function useConnectedAddressForFeeCollector() {
                 // Set law enforcement exemption if requested
                 if (lawEnforcementExempt && agencyName) {
                     showProcessing('Setting law enforcement exemption...');
-                    await legalContract.setLawEnforcementExemption(address, true, agencyName).send({
+                    // Complete contract uses setFeeExemption instead
+                    await legalContract.setFeeExemption(address, true, true).send({
                         feeLimit: 20_000_000,
                         shouldPollResponse: true
                     });
@@ -9230,8 +9512,8 @@ function useConnectedAddressForFeeCollector() {
                 }
                 
                 // Check fee exemptions
-                const isLawEnforcement = await legalContract.lawEnforcementExemptions(address).call();
-                const agencyName = await legalContract.lawEnforcementAgencies(address).call();
+                const isLawEnforcement = await legalContract.serviceFeeExemptions(address).call();
+                const agencyName = ''; // Complete contract doesn't track agency names
                 
                 if (feeExemptElement) {
                     if (isLawEnforcement) {
@@ -9752,7 +10034,7 @@ async function checkUserRoles() {
                 updateAdminTabVisibility();
                 
                 // Check fee exemption status
-                const isLawEnforcement = await legalContract.lawEnforcementExemptions(tronWeb.defaultAddress.base58).call();
+                const isLawEnforcement = await legalContract.serviceFeeExemptions(tronWeb.defaultAddress.base58).call();
                 const serviceFeeExempt = isLawEnforcement;
                 const fullFeeExempt = isLawEnforcement;
                 
@@ -10447,7 +10729,9 @@ async function checkUserRoles() {
                 console.log('Has DEFAULT_ADMIN_ROLE:', hasDefaultAdminRole);
                 console.log('Has ADMIN_ROLE:', hasAdminRole);
                 
-                // Get role member counts
+                // Complete contract doesn't have getRoleMemberCount/getRoleMember functions
+                // Role membership would need to be tracked differently
+                /*
                 const defaultAdminCount = await legalContract.getRoleMemberCount(DEFAULT_ADMIN_ROLE).call();
                 const adminCount = await legalContract.getRoleMemberCount(adminRoleBytes).call();
                 
@@ -10464,6 +10748,7 @@ async function checkUserRoles() {
                     const firstAdmin = await legalContract.getRoleMember(adminRoleBytes, 0).call();
                     console.log('First ADMIN_ROLE member:', firstAdmin);
                 }
+                */
                 
                 debugInfo += `<strong>Roles:</strong><br>`;
                 debugInfo += `- Admin Role: ${hasAdminRole ? '✓ YES' : '✗ NO'}<br>`;
@@ -10474,7 +10759,7 @@ async function checkUserRoles() {
                 plainTextDebug += `- Process Server Role: ${hasProcessServerRole ? 'YES' : 'NO'}\n\n`;
                 
                 // Check fee exemptions
-                const isLawEnforcement = await legalContract.lawEnforcementExemptions(address).call();
+                const isLawEnforcement = await legalContract.serviceFeeExemptions(address).call();
                 const serviceFeeExempt = isLawEnforcement;
                 const fullFeeExempt = isLawEnforcement;
                 
@@ -11391,8 +11676,8 @@ async function updateFeeEstimate() {
             if (legalContract && tronWeb.defaultAddress) {
                 try {
                     const userAddress = tronWeb.defaultAddress.base58;
-                    const isLawEnforcement = await legalContract.lawEnforcementExemptions(userAddress).call();
-                    const agencyName = await legalContract.lawEnforcementAgencies(userAddress).call();
+                    const isLawEnforcement = await legalContract.serviceFeeExemptions(userAddress).call();
+                    const agencyName = ''; // Complete contract doesn't track agency names
                     const serviceFeeExempt = isLawEnforcement;
                     const fullFeeExempt = isLawEnforcement;
                     
@@ -13893,7 +14178,8 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             try {
                 showProcessing('Granting law enforcement exemption...');
                 
-                const tx = await legalContract.setLawEnforcementExemption(address, true, agencyName).send({
+                // Complete contract uses setFeeExemption instead
+                const tx = await legalContract.setFeeExemption(address, true, true).send({
                     feeLimit: 100_000_000, // 100 TRX
                     callValue: 0,
                     shouldPollResponse: true
@@ -13973,8 +14259,8 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 showProcessing('Checking exemption status...');
                 
                 // Check law enforcement exemption
-                const isLawEnforcementExempt = await legalContract.lawEnforcementExemptions(address).call();
-                const agencyName = await legalContract.lawEnforcementAgencies(address).call();
+                const isLawEnforcementExempt = await legalContract.serviceFeeExemptions(address).call();
+                const agencyName = ''; // Complete contract doesn't track agency names
                 
                 // Calculate actual fee
                 const actualFee = await calculateFeeFromConstants(address);
@@ -14840,7 +15126,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 const userAddress = tronWeb.defaultAddress.base58;
                 
                 // Check exemptions
-                const isExempt = await legalContract.lawEnforcementExemptions(userAddress).call();
+                const isExempt = await legalContract.serviceFeeExemptions(userAddress).call();
                 const finalBaseFee = isExempt ? 0 : baseFee;
                 
                 document.getElementById('baseFeeDisplay').textContent = finalBaseFee + ' TRX';

@@ -1,132 +1,177 @@
-# Deployment Guide for Optimized LegalNoticeNFT Contract
+# Contract Deployment Guide
 
 ## Prerequisites
 
-1. **Node.js and npm installed**
-2. **TronLink wallet with TRX balance**
-   - Testnet: At least 100 TRX
-   - Mainnet: At least 500 TRX (for deployment and initial operations)
-3. **Private key from TronLink**
-
-## Step 1: Setup Environment
-
-1. Copy the example environment file:
+1. **Install TronBox** (TRON's Truffle):
 ```bash
-cp .env.example .env
+npm install -g tronbox
 ```
 
-2. Edit `.env` and add your values:
-```env
-# Your TronLink private key (64 characters, no 0x prefix)
-TRON_PRIVATE_KEY=your_private_key_here
-
-# Your wallet address to receive fees
-FEE_COLLECTOR=TYourWalletAddressHere
-
-# Network: nile (testnet), shasta (testnet), or mainnet
-NETWORK=nile
+2. **Install Dependencies**:
+```bash
+npm install tronweb
 ```
 
-## Step 2: Install Dependencies
+## Step 1: Compile the Contract
+
+First, we need to create a TronBox configuration:
 
 ```bash
-npm install
+# Initialize tronbox (if not already done)
+tronbox init
 ```
 
-## Step 3: Compile the Contract
+Create `tronbox.js` in project root:
+```javascript
+module.exports = {
+  networks: {
+    development: {
+      privateKey: process.env.PRIVATE_KEY,
+      fullHost: "https://api.trongrid.io",
+      network_id: "1"
+    },
+    nile: {
+      privateKey: process.env.PRIVATE_KEY,
+      fullHost: "https://nile.trongrid.io",
+      network_id: "3"
+    }
+  },
+  compilers: {
+    solc: {
+      version: '0.8.6',
+      settings: {
+        optimizer: {
+          enabled: true,
+          runs: 200
+        },
+        evmVersion: "istanbul"
+      }
+    }
+  }
+};
+```
 
-The contract has already been compiled and optimized to 24,427 bytes (under the 24KB limit).
-
-If you need to recompile:
+Compile the contract:
 ```bash
-node compile_contract.js
+tronbox compile --all
 ```
 
-## Step 4: Deploy the Contract
+## Step 2: Deploy the Contract
 
-### For Testnet (Nile):
+### Option A: Using TronBox (Recommended)
+
+1. Set your private key:
 ```bash
-node deploy_optimized.js
+export PRIVATE_KEY=your_private_key_here
 ```
 
-### For Mainnet:
+2. Deploy to testnet (Nile):
 ```bash
-NETWORK=mainnet node deploy_optimized.js
+tronbox migrate --reset --network nile
 ```
 
-## Step 5: Verify Deployment
-
-After successful deployment, you'll see:
-```
-✅ Contract deployed successfully!
-📋 Contract Address: TXxxxxxxxxxxxxxxxxxxxxx
+3. Deploy to mainnet:
+```bash
+tronbox migrate --reset --network development
 ```
 
-The script will automatically:
-- Deploy the contract
-- Set the fee collector address
-- Update config.js with the new address
-- Save deployment info to deployments.json
+### Option B: Using Deployment Script
 
-## Step 6: Update Frontend
+1. Set environment variables:
+```bash
+export DEPLOYER_PRIVATE_KEY=your_private_key_here
+export TRON_NETWORK=nile  # or mainnet
+```
 
-1. The deployment script automatically updates `config.js`
-2. Verify the contract address is correct in the config
-3. Test the frontend connection
+2. Run deployment:
+```bash
+node scripts/deploy_complete_contract.js
+```
 
-## Step 7: Post-Deployment Setup
+## Step 3: Verify Deployment
 
-### Grant Admin Roles (if needed):
-Use the admin panel in the UI or interact directly with the contract to:
-1. Grant process server roles
-2. Set law enforcement exemptions
-3. Configure fees if different from defaults
+1. Check the contract on TronScan:
+   - Testnet: https://nile.tronscan.org/#/contract/YOUR_CONTRACT_ADDRESS
+   - Mainnet: https://tronscan.org/#/contract/YOUR_CONTRACT_ADDRESS
 
-### Default Fee Structure:
-- Document Notice: 150 TRX
-- Text Notice: 15 TRX
-- Process Server Fee: 75 TRX
-- Sponsorship Fee: 2 TRX
+2. Verify basic functions are working:
+   - Contract name: "Legal Notice NFT"
+   - Symbol: "NOTICE"
+   - Check fee settings
 
-## Contract Size Information
+## Step 4: Post-Deployment Setup
 
-The optimized contract is **24,427 bytes**, which is safely under the 24,576 byte limit for TRON mainnet deployment.
+1. **Update Frontend Configuration**:
+   - Open `index.html`
+   - Update the contract address in the connection function
+   - The deployment script creates `js/contract-config.js` automatically
 
-### Optimizations Made:
-- Removed redundant functions
-- Consolidated batch operations
-- Shortened error messages
-- Removed unused features
-- Optimized with low compiler runs (10)
+2. **Grant Admin Roles** (if needed):
+   ```javascript
+   // In browser console after connecting wallet
+   const adminRole = tronWeb.sha3('ADMIN_ROLE');
+   await legalContract.grantRole(adminRole, 'YOUR_ADDRESS').send();
+   ```
+
+3. **Set Fee Collector**:
+   ```javascript
+   await legalContract.setFeeCollector('FEE_COLLECTOR_ADDRESS').send();
+   ```
+
+4. **Configure Exemptions** (if needed):
+   ```javascript
+   await legalContract.setLawEnforcementExemption('ADDRESS', true, 'AGENCY_NAME').send();
+   ```
+
+## Deployment Costs
+
+Estimated costs:
+- Testnet: Free (use faucet for test TRX)
+- Mainnet: ~500-1000 TRX for deployment
+- Energy: ~50M-100M (contract is large)
 
 ## Troubleshooting
 
-### "Insufficient balance" error:
-- Ensure you have enough TRX in your wallet
-- Testnet: Get free TRX from faucet
-- Mainnet: Transfer TRX to your deployment wallet
+1. **"Insufficient energy"**: 
+   - Freeze TRX for energy or
+   - Increase feeLimit in deployment
 
-### "Contract too large" error:
-- The contract has been optimized and should not have this error
-- If it occurs, ensure you're using the compiled version from `build/contracts/`
+2. **"Contract too large"**:
+   - Already optimized with `via-ir` disabled
+   - May need to split features if still too large
 
-### Network connection issues:
-- Check your internet connection
-- Try a different network endpoint
-- Verify the network setting in .env
+3. **"Invalid private key"**:
+   - Ensure private key is 64 characters (no 0x prefix)
+   - Check it matches your wallet
 
-## Security Checklist
+## Quick Deploy Commands
 
-Before mainnet deployment:
-- [ ] Private key is secure and not committed to git
-- [ ] Fee collector address is correct
-- [ ] Contract has been tested on testnet
-- [ ] All admin roles are properly configured
-- [ ] Fees are set appropriately for your use case
+```bash
+# Full deployment sequence
+npm install -g tronbox
+npm install tronweb
+
+# Compile
+tronbox compile --all
+
+# Deploy to testnet
+export PRIVATE_KEY=your_key_here
+tronbox migrate --reset --network nile
+
+# Get testnet TRX from faucet
+# https://nileex.io/join/getJoinPage
+```
+
+## Contract Addresses
+
+After deployment, save your contract addresses here:
+
+- **Nile Testnet**: `T...` (pending)
+- **Mainnet**: `T...` (pending)
 
 ## Next Steps
 
-1. Test all functionality on testnet first
-2. Document the contract address for users
-3. Set up monitoring for contract events
-4. Configure process servers and exemptions as needed
+1. Test all functions on testnet first
+2. Ensure you have enough TRX for mainnet deployment
+3. Deploy to mainnet when ready
+4. Update all frontend references to new contract

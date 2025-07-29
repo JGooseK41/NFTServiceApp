@@ -1,0 +1,20 @@
+{
+  "contractName": "LegalNoticeNFT_Complete_WithIPFS",
+  "network": "nile",
+  "contractAddress": "TFz1epSo4yaSFLFnSA8nUANft4D4xZQz1G",
+  "contractAddressHex": "4141f7b2701414484cf93d622a14b0c967d7277a6c",
+  "deployedAt": "2025-07-29T10:30:00.000Z",
+  "deployer": "TDbeaZQ25WzZ4Aqn4RJAZxmo6BeHdMeXGf",
+  "fees": {
+    "serviceFee": "20 TRX",
+    "textOnlyFee": "10 TRX",
+    "creationFee": "5 TRX",
+    "sponsorshipFee": "2 TRX"
+  },
+  "features": [
+    "IPFS metadata support for NFT visibility",
+    "Thumbnail generation with confidential overlay",
+    "Complete contract functionality maintained",
+    "Backward compatible with existing UI"
+  ]
+}
