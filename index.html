@@ -11006,6 +11006,37 @@ document.addEventListener('keydown', function(event) {
         }
         
         window.checkDirectNoticeLink = checkDirectNoticeLink;
+        
+        // Copy wallet address for Telegram
+        function copyWalletAddress() {
+            if (tronWeb && tronWeb.defaultAddress) {
+                const address = tronWeb.defaultAddress.base58;
+                navigator.clipboard.writeText(address).then(() => {
+                    uiManager.showNotification('success', 'Wallet address copied to clipboard!');
+                }).catch(() => {
+                    // Fallback
+                    const textArea = document.createElement('textarea');
+                    textArea.value = address;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    uiManager.showNotification('success', 'Wallet address copied!');
+                });
+            } else {
+                uiManager.showNotification('error', 'Please connect your wallet first');
+            }
+        }
+        
+        window.copyWalletAddress = copyWalletAddress;
+        
+        // Update telegram wallet display when wallet connects
+        function updateTelegramWalletDisplay() {
+            const elem = document.getElementById('userWalletForTelegram');
+            if (elem && tronWeb && tronWeb.defaultAddress) {
+                elem.textContent = tronWeb.defaultAddress.base58;
+            }
+        }
         window.closeTxModal = closeTxModal;
         window.exportReceipt = exportReceipt;
         window.closeRegistrationModal = closeRegistrationModal;
