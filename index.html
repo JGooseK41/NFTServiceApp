@@ -5833,6 +5833,70 @@ function parsePackedData(packedData) {
         let currentNetwork = 'nile'; // Default to Nile testnet where contract is deployed
         let web3Instance = null;
         let evmContract = null;
+        
+        // Processing modal functions
+        function showProcessing(message = 'Processing...') {
+            let modal = document.getElementById('processingModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'processingModal';
+                modal.className = 'modal';
+                modal.style.display = 'flex';
+                modal.style.alignItems = 'center';
+                modal.style.justifyContent = 'center';
+                modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                modal.innerHTML = `
+                    <div class="modal-content" style="background: var(--bg-primary); padding: 2rem; border-radius: 12px; text-align: center; max-width: 300px;">
+                        <div class="loading-spinner" style="margin: 0 auto 1rem; width: 48px; height: 48px;"></div>
+                        <p id="processingMessage" style="margin: 0; color: var(--text-primary);">${message}</p>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            } else {
+                document.getElementById('processingMessage').textContent = message;
+                modal.style.display = 'flex';
+            }
+        }
+        
+        function hideProcessing() {
+            const modal = document.getElementById('processingModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+        
+        // Show alert function
+        function showAlert(elementId, type, message) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                const alertClass = type === 'success' ? 'alert-success' : 
+                                 type === 'error' ? 'alert-error' : 
+                                 type === 'warning' ? 'alert-warning' : 'alert-info';
+                element.innerHTML = `<div class="alert ${alertClass}">${message}</div>`;
+                element.style.display = 'block';
+                
+                // Auto-hide after 5 seconds for success messages
+                if (type === 'success') {
+                    setTimeout(() => {
+                        element.style.display = 'none';
+                    }, 5000);
+                }
+            }
+        }
+        
+        // Get error message helper
+        function getErrorMessage(error) {
+            if (error.message) {
+                if (error.message.includes('User rejected')) {
+                    return 'Transaction cancelled by user';
+                }
+                if (error.message.includes('insufficient')) {
+                    return 'Insufficient balance or energy';
+                }
+                return error.message;
+            }
+            return 'Unknown error occurred';
+        }
 
         // Enhanced UI Manager
         class UIManager {
@@ -5924,6 +5988,24 @@ function parsePackedData(packedData) {
         }
 
         const uiManager = new UIManager();
+        
+        // Change document function (for batch operations)
+        function changeDocument() {
+            // Reset to upload step
+            document.getElementById('uploadCard').style.display = 'block';
+            document.getElementById('mintCard').style.display = 'none';
+            
+            // Clear the uploaded image
+            uploadedImage = null;
+            document.getElementById('uploadedFileName').textContent = '';
+            document.getElementById('uploadResult').style.display = 'none';
+            
+            // Reset file input
+            const fileInput = document.getElementById('imageUpload');
+            if (fileInput) {
+                fileInput.value = '';
+            }
+        }
 // Use connected wallet address function
 function useConnectedAddress() {
     if (tronWeb && tronWeb.defaultAddress) {
