@@ -7638,6 +7638,9 @@ function useConnectedAddressForFeeCollector() {
             // Update token prefix based on user role
             await updateTokenPrefix();
             
+            // Setup upload area for this modal instance
+            setupUploadAreaForModal();
+            
             
         async function calculateFeeForDisplay(userAddress, deliveryMethod) {
             try {
@@ -7756,6 +7759,40 @@ function useConnectedAddressForFeeCollector() {
             if (batchManager) {
                 batchManager.handleDocumentUpload(event);
             }
+        }
+        
+        // Setup upload area when modal opens
+        function setupUploadAreaForModal() {
+            console.log('Setting up upload area for modal');
+            
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('documentUpload');
+            
+            console.log('Upload area:', uploadArea);
+            console.log('File input:', fileInput);
+            
+            if (!uploadArea || !fileInput) {
+                console.error('Upload area or file input not found!');
+                return;
+            }
+            
+            // Remove any existing onclick attribute
+            uploadArea.removeAttribute('onclick');
+            
+            // Add click handler to the upload area
+            uploadArea.onclick = function(e) {
+                console.log('Upload area onclick triggered');
+                if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    fileInput.click();
+                }
+            };
+            
+            // Make sure file input has change handler
+            fileInput.onchange = handleDocumentUpload;
+            
+            console.log('Upload area setup complete');
         }
         
         // Batch Manager implementation
@@ -10868,36 +10905,39 @@ async function checkUserRoles() {
                 if (uploadArea) {
                     console.log('Setting up upload area click handler');
                     
-                    // Remove any existing listeners
-                    const newUploadArea = uploadArea.cloneNode(true);
-                    uploadArea.parentNode.replaceChild(newUploadArea, uploadArea);
+                    // Find the file input within the upload area
+                    const fileInput = uploadArea.querySelector('input[type="file"]');
+                    console.log('File input found in upload area:', fileInput);
                     
-                    // Add new listener
-                    newUploadArea.addEventListener('click', function(e) {
+                    // Add click listener to upload area
+                    uploadArea.addEventListener('click', function(e) {
                         console.log('Upload area clicked', e.target);
-                        e.preventDefault();
-                        e.stopPropagation();
                         
-                        const fileInput = document.getElementById('documentUpload');
-                        console.log('File input element:', fileInput);
+                        // Don't trigger if clicking the file input itself or the button
+                        if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') {
+                            return;
+                        }
                         
-                        if (fileInput) {
+                        // Find the file input within this upload area
+                        const fileInputInside = this.querySelector('input[type="file"]');
+                        console.log('File input element inside clicked area:', fileInputInside);
+                        
+                        if (fileInputInside) {
                             // Force click on file input
                             try {
-                                fileInput.click();
-                                console.log('File input clicked');
+                                fileInputInside.click();
+                                console.log('File input clicked successfully');
                             } catch (error) {
                                 console.error('Error clicking file input:', error);
                             }
                         } else {
-                            console.error('File input not found!');
+                            console.error('File input not found inside upload area!');
                         }
                     });
                     
-                    // Also add listener directly to the file input as backup
-                    const fileInput = document.getElementById('documentUpload');
+                    // Also ensure the file input has the change handler
                     if (fileInput) {
-                        console.log('File input found, setting up change listener');
+                        console.log('Adding change listener to file input');
                         fileInput.addEventListener('change', handleDocumentUpload);
                     }
                 } else {
