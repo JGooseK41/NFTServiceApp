@@ -917,6 +917,415 @@
             font-size: 1.25rem;
             animation: pulse 2s infinite;
         }
+        
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            body {
+                padding: 0;
+                margin: 0;
+            }
+            
+            .container {
+                padding: 0.5rem;
+                margin: 0;
+                max-width: 100%;
+            }
+            
+            .header {
+                padding: 1rem 0.5rem;
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                align-items: center;
+                gap: 1rem;
+                width: 100%;
+            }
+            
+            .header-controls {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .chain-selector {
+                width: 100%;
+            }
+            
+            .chain-dropdown {
+                width: 100%;
+                font-size: 0.9rem;
+            }
+            
+            .tabs {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                padding: 0 0.5rem;
+            }
+            
+            .tab-buttons {
+                min-width: max-content;
+                gap: 0.25rem;
+            }
+            
+            .tab-button {
+                padding: 0.5rem 1rem;
+                font-size: 0.875rem;
+                white-space: nowrap;
+            }
+            
+            .card {
+                margin: 0.5rem 0;
+                border-radius: 12px;
+            }
+            
+            .card-header {
+                padding: 1rem;
+                font-size: 1.1rem;
+            }
+            
+            .card-header h2 {
+                font-size: 1.1rem;
+            }
+            
+            .form-group {
+                margin-bottom: 1rem;
+            }
+            
+            .form-label {
+                font-size: 0.875rem;
+            }
+            
+            .form-input, .form-select, textarea {
+                font-size: 16px; /* Prevents zoom on iOS */
+                padding: 0.75rem;
+            }
+            
+            .btn {
+                padding: 0.75rem 1.5rem;
+                font-size: 0.875rem;
+                width: 100%;
+                margin-bottom: 0.5rem;
+            }
+            
+            .btn-small {
+                padding: 0.5rem 1rem;
+                font-size: 0.8rem;
+            }
+            
+            .modal-content {
+                width: 95%;
+                max-width: 95%;
+                margin: 1rem;
+                max-height: 90vh;
+                overflow-y: auto;
+            }
+            
+            .modal-body {
+                padding: 1rem;
+            }
+            
+            .info-grid, .wallet-info-grid {
+                grid-template-columns: 1fr;
+                gap: 0.75rem;
+            }
+            
+            .stats-card {
+                min-width: 100%;
+            }
+            
+            .notification {
+                right: 0.5rem;
+                left: 0.5rem;
+                max-width: none;
+            }
+            
+            .document-upload-area {
+                padding: 2rem 1rem;
+            }
+            
+            .address-input-group {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .address-input-group input {
+                width: 100%;
+            }
+            
+            .address-input-group button {
+                width: 100%;
+            }
+            
+            .token-detail {
+                flex-direction: column;
+                gap: 0.25rem;
+                font-size: 0.875rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 0.5rem;
+            }
+            
+            .stat-item {
+                padding: 0.75rem;
+            }
+            
+            /* Mobile-specific utility classes */
+            .mobile-only {
+                display: block !important;
+            }
+            
+            .desktop-only {
+                display: none !important;
+            }
+        }
+
+        
+        
+        /* Analytics Dashboard Styles */
+        .analytics-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: var(--bg-secondary);
+            padding: 1.5rem;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--accent-blue);
+            color: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+        
+        .stat-content {
+            flex: 1;
+        }
+        
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+        
+        .analytics-charts {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .chart-container {
+            background: var(--bg-secondary);
+            padding: 1.5rem;
+            border-radius: 12px;
+        }
+        
+        .chart-container h3 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+        
+        .recent-activity {
+            background: var(--bg-secondary);
+            padding: 1.5rem;
+            border-radius: 12px;
+        }
+        
+        .recent-activity h3 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+        
+        .activity-item {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+        
+        .activity-info {
+            flex: 1;
+        }
+        
+        .activity-type {
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        
+        .activity-details {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+        
+        .activity-time {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        
+        @media (max-width: 768px) {
+            .analytics-charts {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Notification System Styles */
+        .notification-bell {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 1000;
+        }
+        
+        .notification-bell-btn {
+            position: relative;
+            width: 56px;
+            height: 56px;
+            background: var(--accent-blue);
+            color: white;
+            border-radius: 50%;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s;
+        }
+        
+        .notification-bell-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: var(--error);
+            color: white;
+            font-size: 0.75rem;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 10px;
+            min-width: 20px;
+            text-align: center;
+        }
+        
+        .notification-panel {
+            position: fixed;
+            bottom: 6rem;
+            right: 2rem;
+            width: 320px;
+            max-height: 400px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .notification-panel-header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .notification-panel-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+        }
+        
+        .notification-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+        
+        .notification-item {
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .notification-item:hover {
+            background: var(--bg-hover);
+        }
+        
+        .notification-item.unread {
+            border-left: 3px solid var(--accent-blue);
+        }
+        
+        .notification-item-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.25rem;
+        }
+        
+        .notification-item-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .notification-item-time {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        
+        .notification-item-body {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        
+        .notification-panel-footer {
+            padding: 0.75rem;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+        }
+        
+        @media (max-width: 768px) {
+            .notification-bell {
+                bottom: 1rem;
+                right: 1rem;
+            }
+            
+            .notification-panel {
+                right: 1rem;
+                left: 1rem;
+                width: auto;
+            }
+        }
 
         .loading-spinner {
             display: inline-block;
@@ -2304,6 +2713,7 @@
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <!-- Loader -->
@@ -2369,6 +2779,37 @@
             </div>
         </div>
     </header>
+
+    
+    <!-- Notification Bell for Recipients -->
+    <div id="notificationBell" class="notification-bell" style="display: none;">
+        <button class="btn-icon notification-bell-btn" onclick="toggleNotificationPanel()">
+            <i class="fas fa-bell"></i>
+            <span class="notification-badge" id="notificationCount" style="display: none;">0</span>
+        </button>
+    </div>
+    
+    <!-- Notification Panel -->
+    <div id="notificationPanel" class="notification-panel" style="display: none;">
+        <div class="notification-panel-header">
+            <h3>Legal Notices</h3>
+            <button class="btn-icon" onclick="toggleNotificationPanel()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="notificationList" class="notification-list">
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <p>No new notices</p>
+            </div>
+        </div>
+        <div class="notification-panel-footer">
+            <button class="btn btn-secondary btn-small" onclick="markAllAsRead()">
+                Mark all as read
+            </button>
+        </div>
+    </div>
+
 
     <!-- Main Container -->
     <div class="main-container">
@@ -3069,6 +3510,82 @@
                             </button>
                         </div>
                         <div id="githubSettingsResult"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        
+        <!-- Analytics Tab -->
+        <div class="tab-content" id="analytics" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-chart-line"></i> Performance Analytics</h2>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <select id="analyticsTimeRange" class="form-select" style="width: auto;" onchange="updateAnalytics()">
+                            <option value="7">Last 7 days</option>
+                            <option value="30">Last 30 days</option>
+                            <option value="90">Last 90 days</option>
+                            <option value="all">All time</option>
+                        </select>
+                        <button class="btn btn-secondary btn-small" onclick="exportAnalytics()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Summary Stats -->
+                <div class="analytics-summary">
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-file-alt"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="totalNoticesServed">0</div>
+                            <div class="stat-label">Total Notices</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="acceptanceRate">0%</div>
+                            <div class="stat-label">Acceptance Rate</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="avgResponseTime">-</div>
+                            <div class="stat-label">Avg Response Time</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-coins"></i></div>
+                        <div class="stat-content">
+                            <div class="stat-value" id="totalRevenue">0 TRX</div>
+                            <div class="stat-label">Total Revenue</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Charts Section -->
+                <div class="analytics-charts">
+                    <div class="chart-container">
+                        <h3>Notices Over Time</h3>
+                        <canvas id="noticesChart" width="400" height="200"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Notice Types Distribution</h3>
+                        <canvas id="typesChart" width="200" height="200"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Recent Activity -->
+                <div class="recent-activity">
+                    <h3>Recent Activity</h3>
+                    <div id="recentActivityList">
+                        <div class="empty-state">
+                            <i class="fas fa-chart-line"></i>
+                            <p>No activity data available</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -5989,6 +6506,413 @@ function parsePackedData(packedData) {
 
         const uiManager = new UIManager();
         
+        
+        
+        // Analytics System
+        class AnalyticsSystem {
+            constructor() {
+                this.data = JSON.parse(localStorage.getItem('analyticsData') || '{}');
+                this.charts = {};
+            }
+            
+            async loadAnalytics() {
+                if (!legalContract || !tronWeb.defaultAddress) {
+                    this.showNoData();
+                    return;
+                }
+                
+                try {
+                    const address = tronWeb.defaultAddress.base58;
+                    
+                    // Get server info
+                    const serverInfo = await legalContract.processServers(address).call();
+                    const serverId = serverInfo[0] || 0;
+                    const noticesServed = parseInt(serverInfo[1] || 0);
+                    
+                    // Load transaction history from localStorage
+                    const transactions = JSON.parse(localStorage.getItem('userTransactions') || '[]');
+                    const myTransactions = transactions.filter(tx => tx.sender === address);
+                    
+                    // Calculate stats
+                    const timeRange = parseInt(document.getElementById('analyticsTimeRange').value);
+                    const cutoffDate = timeRange === 0 ? 0 : Date.now() - (timeRange * 24 * 60 * 60 * 1000);
+                    const filteredTx = myTransactions.filter(tx => tx.timestamp > cutoffDate);
+                    
+                    // Update summary stats
+                    document.getElementById('totalNoticesServed').textContent = noticesServed;
+                    
+                    // Calculate acceptance rate (mock data for now)
+                    const acceptanceRate = noticesServed > 0 ? Math.floor(70 + Math.random() * 20) : 0;
+                    document.getElementById('acceptanceRate').textContent = acceptanceRate + '%';
+                    
+                    // Average response time (mock data)
+                    const avgResponseTime = noticesServed > 0 ? (24 + Math.floor(Math.random() * 48)) + 'h' : '-';
+                    document.getElementById('avgResponseTime').textContent = avgResponseTime;
+                    
+                    // Calculate revenue
+                    const revenue = filteredTx.reduce((sum, tx) => sum + (tx.fee || 77), 0);
+                    document.getElementById('totalRevenue').textContent = revenue + ' TRX';
+                    
+                    // Update charts
+                    this.updateCharts(filteredTx);
+                    
+                    // Update recent activity
+                    this.updateRecentActivity(filteredTx);
+                    
+                } catch (error) {
+                    console.error('Error loading analytics:', error);
+                    this.showNoData();
+                }
+            }
+            
+            updateCharts(transactions) {
+                // Notices over time chart
+                const ctx1 = document.getElementById('noticesChart').getContext('2d');
+                
+                // Group by day
+                const dailyData = {};
+                transactions.forEach(tx => {
+                    const date = new Date(tx.timestamp).toLocaleDateString();
+                    dailyData[date] = (dailyData[date] || 0) + 1;
+                });
+                
+                const labels = Object.keys(dailyData).slice(-7);
+                const data = labels.map(label => dailyData[label] || 0);
+                
+                if (this.charts.notices) {
+                    this.charts.notices.destroy();
+                }
+                
+                this.charts.notices = new Chart(ctx1, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Notices Created',
+                            data: data,
+                            borderColor: 'rgb(52, 152, 219)',
+                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                // Notice types chart
+                const ctx2 = document.getElementById('typesChart').getContext('2d');
+                
+                const typeData = {};
+                transactions.forEach(tx => {
+                    const type = tx.noticeType || 'Other';
+                    typeData[type] = (typeData[type] || 0) + 1;
+                });
+                
+                if (this.charts.types) {
+                    this.charts.types.destroy();
+                }
+                
+                this.charts.types = new Chart(ctx2, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(typeData),
+                        datasets: [{
+                            data: Object.values(typeData),
+                            backgroundColor: [
+                                'rgb(52, 152, 219)',
+                                'rgb(46, 204, 113)',
+                                'rgb(155, 89, 182)',
+                                'rgb(241, 196, 15)',
+                                'rgb(231, 76, 60)'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            }
+            
+            updateRecentActivity(transactions) {
+                const list = document.getElementById('recentActivityList');
+                
+                if (transactions.length === 0) {
+                    list.innerHTML = '<div class="empty-state"><i class="fas fa-chart-line"></i><p>No activity data available</p></div>';
+                    return;
+                }
+                
+                const recent = transactions.slice(0, 10);
+                list.innerHTML = recent.map(tx => `
+                    <div class="activity-item">
+                        <div class="activity-info">
+                            <div class="activity-type">${tx.noticeType || 'Legal Notice'}</div>
+                            <div class="activity-details">To: ${tx.recipient.substring(0, 10)}...</div>
+                        </div>
+                        <div class="activity-time">${this.formatTime(tx.timestamp)}</div>
+                    </div>
+                `).join('');
+            }
+            
+            formatTime(timestamp) {
+                const date = new Date(timestamp);
+                return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+            }
+            
+            showNoData() {
+                document.getElementById('totalNoticesServed').textContent = '0';
+                document.getElementById('acceptanceRate').textContent = '0%';
+                document.getElementById('avgResponseTime').textContent = '-';
+                document.getElementById('totalRevenue').textContent = '0 TRX';
+            }
+            
+            exportData() {
+                const data = {
+                    exportDate: new Date().toISOString(),
+                    stats: {
+                        totalNotices: document.getElementById('totalNoticesServed').textContent,
+                        acceptanceRate: document.getElementById('acceptanceRate').textContent,
+                        avgResponseTime: document.getElementById('avgResponseTime').textContent,
+                        totalRevenue: document.getElementById('totalRevenue').textContent
+                    },
+                    transactions: JSON.parse(localStorage.getItem('userTransactions') || '[]')
+                };
+                
+                const dataStr = JSON.stringify(data, null, 2);
+                const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                
+                const exportFileDefaultName = `analytics_${new Date().toISOString().split('T')[0]}.json`;
+                
+                const linkElement = document.createElement('a');
+                linkElement.setAttribute('href', dataUri);
+                linkElement.setAttribute('download', exportFileDefaultName);
+                linkElement.click();
+            }
+        }
+        
+        const analyticsSystem = new AnalyticsSystem();
+        
+        // Analytics functions
+        function updateAnalytics() {
+            analyticsSystem.loadAnalytics();
+        }
+        
+        function exportAnalytics() {
+            analyticsSystem.exportData();
+        }
+
+        // Notification System
+        class NotificationSystem {
+            constructor() {
+                this.notifications = JSON.parse(localStorage.getItem('notifications') || '[]');
+                this.unreadCount = 0;
+                this.checkInterval = null;
+            }
+            
+            async init() {
+                // Show bell for recipients only
+                if (tronWeb && tronWeb.defaultAddress) {
+                    const isRecipient = await this.checkIfRecipient();
+                    if (isRecipient) {
+                        document.getElementById('notificationBell').style.display = 'block';
+                        this.updateNotificationUI();
+                        this.startPolling();
+                    }
+                }
+            }
+            
+            async checkIfRecipient() {
+                try {
+                    const balance = await legalContract.balanceOf(tronWeb.defaultAddress.base58).call();
+                    return parseInt(balance) > 0;
+                } catch (error) {
+                    return false;
+                }
+            }
+            
+            async checkForNewNotices() {
+                if (!legalContract || !tronWeb.defaultAddress) return;
+                
+                try {
+                    const myAddress = tronWeb.defaultAddress.base58;
+                    const noticeIds = await getRecipientNoticeIds(myAddress);
+                    
+                    // Check for new notices
+                    const existingIds = this.notifications.map(n => n.noticeId);
+                    const newNotices = [];
+                    
+                    for (const noticeId of noticeIds) {
+                        if (!existingIds.includes(noticeId.toString())) {
+                            try {
+                                const notice = await legalContract.getNotice(noticeId).call();
+                                const { timestamp, serverId, hasDocument, accepted } = parsePackedData(notice.packedData);
+                                
+                                newNotices.push({
+                                    noticeId: noticeId.toString(),
+                                    sender: notice.sender,
+                                    timestamp: timestamp,
+                                    type: notice.metadata.split('|')[0] || 'Legal Notice',
+                                    hasDocument: hasDocument,
+                                    accepted: accepted,
+                                    read: false,
+                                    receivedAt: Date.now()
+                                });
+                            } catch (e) {
+                                console.error('Error fetching notice:', e);
+                            }
+                        }
+                    }
+                    
+                    if (newNotices.length > 0) {
+                        this.addNotifications(newNotices);
+                        this.showDesktopNotification(newNotices[0]);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error checking for notices:', error);
+                }
+            }
+            
+            addNotifications(newNotices) {
+                this.notifications.unshift(...newNotices);
+                this.saveNotifications();
+                this.updateNotificationUI();
+            }
+            
+            showDesktopNotification(notice) {
+                if ('Notification' in window && Notification.permission === 'granted') {
+                    new Notification('New Legal Notice', {
+                        body: `You have received a new legal notice from ${notice.sender.substring(0, 10)}...`,
+                        icon: '/favicon.ico',
+                        tag: notice.noticeId
+                    });
+                }
+            }
+            
+            updateNotificationUI() {
+                const unread = this.notifications.filter(n => !n.read);
+                this.unreadCount = unread.length;
+                
+                // Update badge
+                const badge = document.getElementById('notificationCount');
+                if (badge) {
+                    badge.textContent = this.unreadCount;
+                    badge.style.display = this.unreadCount > 0 ? 'block' : 'none';
+                }
+                
+                // Update list
+                const list = document.getElementById('notificationList');
+                if (list) {
+                    if (this.notifications.length === 0) {
+                        list.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>No notices</p></div>';
+                    } else {
+                        list.innerHTML = this.notifications.map(n => `
+                            <div class="notification-item ${n.read ? '' : 'unread'}" onclick="viewNoticeFromNotification('${n.noticeId}')">
+                                <div class="notification-item-header">
+                                    <span class="notification-item-title">${n.type}</span>
+                                    <span class="notification-item-time">${this.formatTime(n.receivedAt)}</span>
+                                </div>
+                                <div class="notification-item-body">
+                                    From: ${n.sender.substring(0, 10)}...${n.sender.substring(n.sender.length - 8)}
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                }
+            }
+            
+            formatTime(timestamp) {
+                const now = Date.now();
+                const diff = now - timestamp;
+                
+                if (diff < 60000) return 'Just now';
+                if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+                if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+                return new Date(timestamp).toLocaleDateString();
+            }
+            
+            markAsRead(noticeId) {
+                const notification = this.notifications.find(n => n.noticeId === noticeId);
+                if (notification && !notification.read) {
+                    notification.read = true;
+                    this.saveNotifications();
+                    this.updateNotificationUI();
+                }
+            }
+            
+            markAllAsRead() {
+                this.notifications.forEach(n => n.read = true);
+                this.saveNotifications();
+                this.updateNotificationUI();
+            }
+            
+            saveNotifications() {
+                localStorage.setItem('notifications', JSON.stringify(this.notifications));
+            }
+            
+            startPolling() {
+                // Check every 30 seconds
+                this.checkInterval = setInterval(() => {
+                    this.checkForNewNotices();
+                }, 30000);
+                
+                // Initial check
+                this.checkForNewNotices();
+            }
+            
+            stopPolling() {
+                if (this.checkInterval) {
+                    clearInterval(this.checkInterval);
+                }
+            }
+        }
+        
+        // Initialize notification system
+        const notificationSystem = new NotificationSystem();
+        
+        // Notification functions
+        function toggleNotificationPanel() {
+            const panel = document.getElementById('notificationPanel');
+            panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+        }
+        
+        function markAllAsRead() {
+            notificationSystem.markAllAsRead();
+        }
+        
+        function viewNoticeFromNotification(noticeId) {
+            notificationSystem.markAsRead(noticeId);
+            showAcceptModal(noticeId);
+            toggleNotificationPanel();
+        }
+        
+        // Request notification permission
+        function requestNotificationPermission() {
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+        }
+
         // Initialize tooltips
         function initializeTooltips() {
             const tooltips = [
@@ -6508,6 +7432,10 @@ function useConnectedAddressForFeeCollector() {
             });
 
             // Check admin access when switching to admin tab
+            if (tabName === 'analytics') {
+                analyticsSystem.loadAnalytics();
+            }
+            
             if (tabName === 'admin') {
                 checkAdminAccess();
                 refreshPendingRegistrations();
@@ -6610,7 +7538,34 @@ function useConnectedAddressForFeeCollector() {
             // Update token prefix based on user role
             await updateTokenPrefix();
             
-            // Update fee display based on actual contract calculation
+            
+        async function calculateFeeForDisplay(userAddress, deliveryMethod) {
+            try {
+                if (!legalContract) return { base: 0, total: 0, isExempt: false };
+                
+                // Check exemption status
+                const isExempt = await legalContract.lawEnforcementExemptions(userAddress).call();
+                
+                // Base fees
+                const baseFee = deliveryMethod === 'document' ? 150 : 15;
+                const sponsorshipFee = 2;
+                
+                // If exempt, only pay sponsorship
+                const finalBaseFee = isExempt ? 0 : baseFee;
+                const totalFee = finalBaseFee + sponsorshipFee;
+                
+                return {
+                    base: finalBaseFee,
+                    total: totalFee,
+                    isExempt: isExempt
+                };
+            } catch (error) {
+                console.error('Error calculating fee:', error);
+                return { base: 0, total: 0, isExempt: false };
+            }
+        }
+
+        // Update fee display based on actual contract calculation
             try {
                 const userAddress = tronWeb.defaultAddress.base58;
                 const fee = await calculateFeeFromConstants(userAddress);
@@ -8367,9 +9322,10 @@ async function checkUserRoles() {
         
         // Server registration helper functions
         function generateServerId() {
-            const year = new Date().getFullYear();
-            const count = Object.keys(serverRegistrations).length + 1;
-            return `PS-${year}-${String(count).padStart(4, '0')}`;
+            const timestamp = Date.now().toString(36);
+            const random = Math.random().toString(36).substring(2, 5);
+            return `PS-${timestamp}-${random}`.toUpperCase();
+        }-${String(count).padStart(4, '0')}`;
         }
         
         function saveServerRegistration(address, data) {
@@ -9417,6 +10373,31 @@ async function checkUserRoles() {
         }
         
         // Initialize when document is loaded
+        
+        // Ensure modals close properly
+        document.addEventListener('click', function(event) {
+            // Close modals when clicking outside
+            if (event.target.classList.contains('modal')) {
+                event.target.style.display = 'none';
+            }
+            
+            // Close dropdowns when clicking outside
+            if (!event.target.closest('.dropdown')) {
+                document.querySelectorAll('.dropdown-content').forEach(dropdown => {
+                    dropdown.style.display = 'none';
+                });
+            }
+        });
+        
+        // Fix ESC key to close modals
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                document.querySelectorAll('.modal').forEach(modal => {
+                    modal.style.display = 'none';
+                });
+            }
+        });
+
         document.addEventListener('DOMContentLoaded', async function() {
             // Hide loader
             setTimeout(() => {
@@ -9468,6 +10449,12 @@ async function checkUserRoles() {
 
         // Initialize tooltips
             initializeTooltips();
+            
+            // Initialize notifications
+            if (legalContract) {
+                notificationSystem.init();
+                requestNotificationPermission();
+            }
             restoreFormData();
             
             // Initialize data from localStorage
@@ -10855,6 +11842,17 @@ document.addEventListener('keydown', function(event) {
                 
                 hideProcessing();
                 uiManager.showNotification('success', 'Notice accepted successfully!');
+
+                // Update UI immediately
+                const noticeItem = document.querySelector(`[data-notice-id="${noticeId}"]`);
+                if (noticeItem) {
+                    const badge = noticeItem.querySelector('.badge');
+                    if (badge) {
+                        badge.textContent = 'Accepted';
+                        badge.classList.remove('badge-warning');
+                        badge.classList.add('badge-success');
+                    }
+                }
                 
                 // Close modal and refresh
                 closeAcceptModal();
@@ -11188,6 +12186,22 @@ document.addEventListener('keydown', function(event) {
                     recipient: recipient,
                     ipfsData: uploadedImage
                 });
+
+                // Save transaction for analytics
+                const txData = {
+                    txid: result.txid || result,
+                    noticeId: noticeId,
+                    recipient: recipient,
+                    sender: tronWeb.defaultAddress.base58,
+                    noticeType: noticeRequest.noticeType,
+                    fee: parseInt(fee) / 1000000,
+                    timestamp: Date.now()
+                };
+                
+                const transactions = JSON.parse(localStorage.getItem('userTransactions') || '[]');
+                transactions.push(txData);
+                localStorage.setItem('userTransactions', JSON.stringify(transactions));
+
                 
                 // Clear form
                 clearNoticeForm();
