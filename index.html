@@ -8644,7 +8644,15 @@ function useConnectedAddressForFeeCollector() {
                 // Add timestamp
                 content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
                 content += `<span>Date & Time:</span>`;
-                content += `<strong>${new Date().toLocaleString()}</strong>`;
+                content += `<strong>${new Date().toLocaleString('en-US', { 
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    timeZoneName: 'short'
+                })}</strong>`;
                 content += `</div>`;
                 
                 // Add network
@@ -8667,37 +8675,59 @@ function useConnectedAddressForFeeCollector() {
                 content += '<div class="cost-breakdown" style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">';
                 content += '<h4 style="margin-bottom: 1rem;">Cost Breakdown</h4>';
                 
-                if (txData.feePaid !== undefined) {
-                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
-                    content += `<span>Service Fee:</span>`;
-                    content += `<strong>${txData.feePaid} TRX</strong>`;
+                // Service Fee (what was sent with transaction)
+                const serviceFee = txData.feePaid || 22; // Default 20 TRX service + 2 TRX sponsorship
+                content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
+                content += `<span>Service Fee (includes 2 TRX sponsorship):</span>`;
+                content += `<strong>${serviceFee} TRX</strong>`;
+                content += `</div>`;
+                
+                // Notification Transaction
+                content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
+                content += `<span>Notification Transaction:</span>`;
+                content += `<strong>3.5 TRX (~$1 USD)</strong>`;
+                content += `</div>`;
+                
+                // Energy/Bandwidth costs (if available)
+                if (txData.energyUsed !== undefined || txData.bandwidthUsed !== undefined) {
+                    const energyCost = (txData.energyUsed || 0) * 0.00042;
+                    const bandwidthCost = (txData.bandwidthUsed || 0) * 0.001;
+                    const resourceCost = energyCost + bandwidthCost;
+                    
+                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem; opacity: 0.8;">`;
+                    content += `<span>Network Resources Used:</span>`;
+                    content += `<strong>${resourceCost.toFixed(3)} TRX</strong>`;
                     content += `</div>`;
                 }
                 
-                if (txData.energyUsed !== undefined) {
-                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
-                    content += `<span>Energy Used:</span>`;
-                    content += `<strong>${txData.energyUsed.toLocaleString()} (${(txData.energyUsed * 0.00042).toFixed(2)} TRX equivalent)</strong>`;
-                    content += `</div>`;
-                }
-                
-                if (txData.bandwidthUsed !== undefined) {
-                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
-                    content += `<span>Bandwidth Used:</span>`;
-                    content += `<strong>${txData.bandwidthUsed.toLocaleString()} (${(txData.bandwidthUsed * 0.001).toFixed(3)} TRX equivalent)</strong>`;
-                    content += `</div>`;
-                }
-                
-                const totalCost = (txData.feePaid || 0) + 
-                                 ((txData.energyUsed || 0) * 0.00042) + 
-                                 ((txData.bandwidthUsed || 0) * 0.001);
+                const totalCost = serviceFee + 3.5; // Service fee + notification
                 
                 content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-color); font-weight: bold;">`;
                 content += `<span>Total Cost:</span>`;
-                content += `<strong style="color: var(--accent-blue);">${totalCost.toFixed(3)} TRX</strong>`;
+                content += `<strong style="color: var(--accent-blue);">${totalCost.toFixed(1)} TRX</strong>`;
                 content += `</div>`;
                 
                 content += '</div>';
+                
+                // Add IPFS Information if available
+                if (txData.ipfsData && txData.ipfsData.ipfsHash) {
+                    content += '<div class="ipfs-info" style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem; margin-top: 1rem;">';
+                    content += '<h4 style="margin-bottom: 1rem;"><i class="fas fa-cloud"></i> IPFS Storage</h4>';
+                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
+                    content += `<span>Document Hash:</span>`;
+                    content += `<code style="font-size: 0.85rem;">${txData.ipfsData.ipfsHash}</code>`;
+                    content += `</div>`;
+                    content += '<div style="margin-top: 0.5rem;">';
+                    content += `<a href="https://ipfs.io/ipfs/${txData.ipfsData.ipfsHash}" target="_blank" class="btn btn-sm btn-secondary" style="margin-right: 0.5rem;">`;
+                    content += '<i class="fas fa-external-link-alt"></i> View on IPFS.io';
+                    content += '</a>';
+                    content += `<a href="https://gateway.pinata.cloud/ipfs/${txData.ipfsData.ipfsHash}" target="_blank" class="btn btn-sm btn-secondary">`;
+                    content += '<i class="fas fa-external-link-alt"></i> View on Pinata';
+                    content += '</a>';
+                    content += '</div>';
+                    content += '</div>';
+                }
+                
                 content += '</div>';
                 
                 // Add action buttons
@@ -9068,7 +9098,15 @@ function useConnectedAddressForFeeCollector() {
                         <h2>Transaction Details</h2>
                         <div class="info-row">
                             <span class="label">Date & Time:</span>
-                            <span class="value">${new Date(timestamp).toLocaleString()}</span>
+                            <span class="value">${new Date(timestamp).toLocaleString('en-US', { 
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit',
+                                timeZoneName: 'short'
+                            })}</span>
                         </div>
                         <div class="info-row">
                             <span class="label">Transaction Hash:</span>
@@ -12392,7 +12430,15 @@ document.addEventListener('keydown', function(event) {
                                 <strong>Legal Notice:</strong>
                                 <p style="margin: 0.5rem 0 0 0;">
                                     This is an official legal notice. Failure to properly accept and respond may result in default judgment or other legal consequences.
-                                    Your viewing of this notice has been recorded at ${new Date().toLocaleString()}.
+                                    Your viewing of this notice has been recorded at ${new Date().toLocaleString('en-US', { 
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        second: '2-digit',
+                                        timeZoneName: 'short'
+                                    })}.
                                 </p>
                             </div>
                         </div>
@@ -13535,7 +13581,15 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         </div>
                         <div class="token-detail">
                             <span>Timestamp:</span>
-                            <span>${new Date().toLocaleString()}</span>
+                            <span>${new Date().toLocaleString('en-US', { 
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        second: '2-digit',
+                                        timeZoneName: 'short'
+                                    })}</span>
                         </div>
                     `
                 );
