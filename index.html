@@ -7385,8 +7385,8 @@ function useConnectedAddressForFeeCollector() {
                 connectBtn.disabled = true;
                 connectBtn.innerHTML = '<span class="loading-spinner"></span> Connecting...';
                 
-                // Create contract instance
-                legalContract = await tronWeb.contract().at(contractAddress);
+                // Create contract instance with ABI
+                legalContract = await tronWeb.contract(CONTRACT_ABI, contractAddress);
                 
                 // Test the contract by calling a view function
                 const totalNotices = await legalContract.totalSupply().call();
