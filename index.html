@@ -4458,7 +4458,7 @@
                         <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: var(--primary);"></i>
                         <p>Drag & drop your document here or click to browse</p>
                         <p style="font-size: 0.85rem; color: #666;">Supported formats: JPEG, PNG</p>
-                        <input type="file" id="documentUpload" accept="image/jpeg,image/jpg,image/png" onchange="handleDocumentUpload(event)">
+                        <input type="file" id="documentUpload" accept="image/jpeg,image/jpg,image/png,application/pdf,.pdf" onchange="handleDocumentUpload(event)">
                         <!-- Backup button in case click handler fails -->
                         <button type="button" class="btn btn-primary" style="margin-top: 10px;" onclick="document.getElementById('documentUpload').click()">
                             <i class="fas fa-folder-open"></i> Select File
@@ -4479,8 +4479,8 @@
                     </div>
                     
                     <!-- Next button to proceed to step 2 -->
-                    <div id="proceedToStep2" style="display: none; margin-top: 20px;">
-                        <button class="btn btn-primary" onclick="showMintStep2()">
+                    <div id="proceedToStep2" style="display: none; margin-top: 30px; text-align: center;">
+                        <button class="btn btn-primary btn-lg" onclick="showMintStep2()" style="padding: 1rem 2rem; font-size: 1.1rem;">
                             <i class="fas fa-arrow-right"></i>
                             Next: Enter Notice Details
                         </button>
@@ -4742,6 +4742,10 @@
                         <button class="btn btn-secondary" onclick="showMintStep(1)">
                             <i class="fas fa-arrow-left"></i>
                             Back
+                        </button>
+                        <button class="btn btn-secondary" onclick="clearAllFormData()">
+                            <i class="fas fa-eraser"></i>
+                            Clear All
                         </button>
                         <button class="btn btn-primary" onclick="createLegalNotice()" id="createNoticeBtn">
                             <i class="fas fa-rocket"></i>
@@ -8130,7 +8134,7 @@ function useConnectedAddressForFeeCollector() {
                     <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: var(--primary);"></i>
                     <p>Drag & drop your document here or click to browse</p>
                     <p style="font-size: 0.85rem; color: #666;">Supported formats: JPEG, PNG</p>
-                    <input type="file" id="documentUpload" accept="image/jpeg,image/jpg,image/png" onchange="handleDocumentUpload(event)">
+                    <input type="file" id="documentUpload" accept="image/jpeg,image/jpg,image/png,application/pdf,.pdf" onchange="handleDocumentUpload(event)">
                     <!-- Backup button in case click handler fails -->
                     <button type="button" class="btn btn-primary" style="margin-top: 10px;" onclick="document.getElementById('documentUpload').click()">
                         <i class="fas fa-folder-open"></i> Select File
@@ -8145,6 +8149,94 @@ function useConnectedAddressForFeeCollector() {
             if (typeof updateFeeEstimate === 'function') {
                 updateFeeEstimate();
             }
+        }
+        
+        // Clear all form data function
+        function clearAllFormData() {
+            // Confirm with user
+            if (!confirm('Are you sure you want to clear all form data? This will reset everything including uploaded documents.')) {
+                return;
+            }
+            
+            // Clear all mint form fields
+            const fieldsToReset = [
+                'mintRecipient',
+                'mintTokenName',
+                'mintCaseNumber',
+                'mintJurisdiction',
+                'noticeText',
+                'noticeType',
+                'agencyName',
+                'caseNumber',
+                'specificDetails',
+                'rightsStatement',
+                'documentUpload'
+            ];
+            
+            fieldsToReset.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    if (field.type === 'file') {
+                        field.value = '';
+                    } else if (field.tagName === 'SELECT') {
+                        field.selectedIndex = 0;
+                    } else if (field.type === 'checkbox' || field.type === 'radio') {
+                        field.checked = false;
+                    } else {
+                        field.value = '';
+                    }
+                }
+            });
+            
+            // Reset delivery method to default (document)
+            const documentRadio = document.querySelector('input[name="deliveryMethod"][value="document"]');
+            if (documentRadio) {
+                documentRadio.checked = true;
+            }
+            
+            // Clear document preview and restore upload area
+            const uploadArea = document.getElementById('uploadArea');
+            if (uploadArea) {
+                uploadArea.innerHTML = `
+                    <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: var(--primary);"></i>
+                    <p>Drag & drop your document here or click to browse</p>
+                    <p style="font-size: 0.85rem; color: #666;">Supported formats: JPEG, PNG, PDF</p>
+                    <input type="file" id="documentUpload" accept="image/jpeg,image/jpg,image/png,application/pdf,.pdf" onchange="handleDocumentUpload(event)">
+                    <!-- Backup button in case click handler fails -->
+                    <button type="button" class="btn btn-primary" style="margin-top: 10px;" onclick="document.getElementById('documentUpload').click()">
+                        <i class="fas fa-folder-open"></i> Select File
+                    </button>
+                `;
+                
+                // Re-setup upload area handlers
+                setupUploadAreaForModal();
+            }
+            
+            // Clear any stored document data
+            window.uploadedDocument = null;
+            
+            // Clear localStorage data for this form
+            const storageKeys = Object.keys(localStorage);
+            storageKeys.forEach(key => {
+                if (key.startsWith('mintForm_') || key.startsWith('notice_')) {
+                    localStorage.removeItem(key);
+                }
+            });
+            
+            // Reset character count
+            const charCountSpan = document.getElementById('charCount');
+            if (charCountSpan) {
+                charCountSpan.textContent = '0';
+                charCountSpan.style.color = 'var(--text-secondary)';
+            }
+            
+            // Update fee estimate
+            if (typeof updateFeeEstimate === 'function') {
+                updateFeeEstimate();
+            }
+            
+            // Show success notification
+            uiManager.showNotification('success', 'All form data has been cleared');
         }
         
         // Update creation fee display

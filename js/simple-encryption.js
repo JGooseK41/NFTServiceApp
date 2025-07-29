@@ -81,17 +81,34 @@ const SimpleEncryption = {
         // In production, use actual IPFS upload
         const hash = 'Qm' + CryptoJS.SHA256(data).toString().substring(0, 44);
         
-        // Clean up old IPFS data if storage is getting full
+        // Always clean up first to prevent quota issues
         this.cleanupOldIPFSData();
         
         try {
+            // Check available space first
+            const testKey = 'test_space_' + Date.now();
+            try {
+                localStorage.setItem(testKey, 'test');
+                localStorage.removeItem(testKey);
+            } catch (e) {
+                // If even a tiny test fails, clear everything
+                console.log('Storage appears full, clearing all IPFS data');
+                this.clearAllIPFSData();
+            }
+            
             // Store locally for demo (in production, use IPFS)
             localStorage.setItem(`ipfs_${hash}`, data);
         } catch (e) {
-            if (e.name === 'QuotaExceededError') {
+            console.error('Storage error:', e);
+            if (e.name === 'QuotaExceededError' || e.code === 22) {
                 // Clear all IPFS data and try again
                 this.clearAllIPFSData();
-                localStorage.setItem(`ipfs_${hash}`, data);
+                try {
+                    localStorage.setItem(`ipfs_${hash}`, data);
+                } catch (e2) {
+                    // If still failing, return hash without storing
+                    console.error('Cannot store in localStorage, continuing without storage');
+                }
             } else {
                 throw e;
             }
