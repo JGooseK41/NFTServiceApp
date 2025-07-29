@@ -737,6 +737,40 @@
             border-color: var(--accent-blue);
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
+        
+        /* Highlight empty required fields */
+        .form-input:placeholder-shown {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Normal styling for filled fields */
+        .form-input:not(:placeholder-shown) {
+            background: var(--primary-dark);
+            border-color: var(--border-color);
+        }
+        
+        /* Required field indicator for empty fields */
+        .form-input:required:placeholder-shown {
+            background: rgba(245, 158, 11, 0.05);
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+        
+        /* Success indicator for filled required fields */
+        .form-input:required:not(:placeholder-shown):valid {
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+        
+        /* Make textarea follow same pattern */
+        textarea.form-input:placeholder-shown {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        textarea.form-input:not(:placeholder-shown) {
+            background: var(--primary-dark);
+            border-color: var(--border-color);
+        }
 
         .form-help {
             font-size: 0.75rem;
@@ -4487,9 +4521,9 @@
                         
                         <div class="preview-details">
                             <div class="form-group">
-                                <label class="form-label">Recipient Address</label>
+                                <label class="form-label">Recipient Address <span style="color: var(--error);">*</span></label>
                                 <input type="text" class="form-input" id="mintRecipient" 
-                                       placeholder="Enter recipient's TRON address">
+                                       placeholder="Enter recipient's TRON address" required>
                                 <div class="validation-message" id="recipientValidation" style="display: none;"></div>
                             </div>
                             
