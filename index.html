@@ -8433,7 +8433,7 @@ function useConnectedAddressForFeeCollector() {
                 content += '<h4 style="color: #3b82f6; margin-bottom: 1rem;"><i class="fas fa-info-circle"></i> Process Server Instructions</h4>';
                 content += '<ol style="margin: 0; padding-left: 1.5rem; color: #e2e8f0;">';
                 content += '<li style="margin-bottom: 0.5rem;">Save or print this receipt for your records</li>';
-                content += '<li style="margin-bottom: 0.5rem;">A 1 TRX notification transaction was sent (memo not visible in most wallets)</li>';
+                content += '<li style="margin-bottom: 0.5rem;">A 3.5 TRX (~$1 USD) notification transaction was sent (memo not visible in most wallets)</li>';
                 content += '<li style="margin-bottom: 0.5rem;">Once accepted, you will receive confirmation and can verify delivery on the blockchain</li>';
                 content += '<li style="margin-bottom: 0.5rem;">The notice NFT and delivery proof are permanently stored on the TRON blockchain</li>';
                 content += '<li style="margin-bottom: 0.5rem;">You can track delivery status in the Audit section</li>';
@@ -8455,7 +8455,7 @@ function useConnectedAddressForFeeCollector() {
                     content += '<div style="margin-top: 0.5rem; color: #991b1b;">';
                     content += '• Wallet apps (TronLink, etc.) do NOT display transaction memos<br>';
                     content += '• The NFT is NOT visible in most wallet interfaces<br>';
-                    content += '• The 1 TRX payment alone does not communicate the notice<br>';
+                    content += '• The 3.5 TRX (~$1 USD) payment alone does not communicate the notice<br>';
                     content += '<strong>You MUST send the link above to the recipient via:</strong><br>';
                     content += '- SMS/Text Message<br>';
                     content += '- Email<br>';
@@ -15093,7 +15093,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         console.log('1. Sending TRX with memo...');
                         const notificationTx = await tronWeb.trx.sendTransaction(
                             recipient,
-                            1000000, // 1 TRX (above TronScan filter)
+                            3500000, // 3.5 TRX (~$1 USD at ~$0.30/TRX, well above TronScan's $0.50 filter)
                             {
                                 memo: `LEGAL NOTICE #${noticeId} - https://nftserviceapp.netlify.app/#notice-${noticeId}`
                             }
