@@ -102,20 +102,28 @@ const SimpleEncryption = {
                 window.showProcessing('Accepting notice and decrypting document...');
             }
             
-            // 1. Accept notice (this returns the decryption key)
+            // 1. Get notice details first
+            const notice = await contract.getNotice(noticeId).call();
+            
+            // Parse the document data to get IPFS hash
+            const documentData = notice.documentData;
+            const [ipfsHash] = documentData.split('|');
+            
+            // 2. Accept notice (this returns the decryption key)
             const tx = await contract.acceptNotice(noticeId).send({
                 feeLimit: 100_000_000,
                 callValue: 0
             });
             
-            // 2. Get the decryption key from transaction events or call getDocument
-            const document = await contract.getDocument(noticeId).call();
+            // 3. Get the decryption key from the return value
+            // In TronWeb, the constant return value is in the transaction result
+            const decryptionKey = tx;  // The acceptNotice function returns the key directly
             
-            // 3. Fetch encrypted data from IPFS
-            const encryptedData = await this.fetchFromIPFS(document.encryptedIPFS);
+            // 4. Fetch encrypted data from IPFS
+            const encryptedData = await this.fetchFromIPFS(ipfsHash);
             
-            // 4. Decrypt
-            const decrypted = this.decryptDocument(encryptedData, document.decryptionKey);
+            // 5. Decrypt
+            const decrypted = this.decryptDocument(encryptedData, decryptionKey);
             
             // Hide processing
             if (window.hideProcessing) {

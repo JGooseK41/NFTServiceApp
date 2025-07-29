@@ -10904,6 +10904,53 @@ document.addEventListener('keydown', function(event) {
         window.closeAcceptModal = closeAcceptModal;
         window.closeTransactionResultModal = closeTransactionResultModal;
         window.acceptNotice = acceptNotice;
+        
+        // Display decrypted document
+        function displayDecryptedDocument(documentData, noticeId) {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'block';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-file-shield" style="color: #10b981;"></i> Decrypted Legal Document</h2>
+                        <button class="close-btn" onclick="this.closest('.modal').remove()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-success" style="margin-bottom: 1rem;">
+                            <i class="fas fa-check-circle"></i>
+                            <strong>Document Successfully Decrypted</strong>
+                            <p style="margin: 0.25rem 0 0 0;">You have accepted this legal notice. The acceptance has been recorded on the blockchain.</p>
+                        </div>
+                        
+                        <div class="document-content" style="margin-top: 1rem; padding: 1rem; background: #f9fafb; border-radius: 0.5rem; max-height: 600px; overflow-y: auto;">
+                            ${documentData.startsWith('data:image') ? 
+                                `<img src="${documentData}" style="max-width: 100%; height: auto;">` :
+                                documentData.startsWith('data:application/pdf') ?
+                                `<iframe src="${documentData}" style="width: 100%; height: 600px; border: none;"></iframe>` :
+                                `<div style="white-space: pre-wrap; font-family: monospace;">${documentData}</div>`
+                            }
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">
+                            <i class="fas fa-times"></i> Close
+                        </button>
+                        <button class="btn btn-primary" onclick="downloadDocument('${documentData}', 'notice_${noticeId}')">
+                            <i class="fas fa-download"></i> Download
+                        </button>
+                        <button class="btn btn-primary" onclick="printDocument('${documentData}')">
+                            <i class="fas fa-print"></i> Print
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        window.displayDecryptedDocument = displayDecryptedDocument;
         window.closeTxModal = closeTxModal;
         window.exportReceipt = exportReceipt;
         window.closeRegistrationModal = closeRegistrationModal;
@@ -11929,13 +11976,47 @@ document.addEventListener('keydown', function(event) {
             try {
                 showProcessing('Accepting notice...');
                 
-                await legalContract.acceptNotice(noticeId).send({
+                // Get notice details first to check if it has a document
+                const notice = await legalContract.getNotice(noticeId).call();
+                const hasDocument = (notice.packedData & 1) === 1;
+                
+                // Call acceptNotice - this returns the decryption key for documents
+                const result = await legalContract.acceptNotice(noticeId).send({
                     feeLimit: 100_000_000,
                     shouldPollResponse: true
                 });
                 
                 hideProcessing();
-                uiManager.showNotification('success', 'Notice accepted successfully!');
+                
+                // If the notice has a document, decrypt and display it
+                if (hasDocument && result) {
+                    try {
+                        showProcessing('Decrypting document...');
+                        
+                        // Parse the document data to get IPFS hash
+                        const [ipfsHash] = notice.documentData.split('|');
+                        
+                        // The result contains the decryption key
+                        const decryptionKey = result;
+                        
+                        // Fetch and decrypt the document
+                        const encryptedData = await SimpleEncryption.fetchFromIPFS(ipfsHash);
+                        const decryptedData = SimpleEncryption.decryptDocument(encryptedData, decryptionKey);
+                        
+                        hideProcessing();
+                        
+                        // Display the decrypted document
+                        displayDecryptedDocument(decryptedData, noticeId);
+                        
+                        uiManager.showNotification('success', 'Notice accepted and document decrypted!');
+                    } catch (error) {
+                        hideProcessing();
+                        console.error('Error decrypting document:', error);
+                        uiManager.showNotification('warning', 'Notice accepted but could not decrypt document');
+                    }
+                } else {
+                    uiManager.showNotification('success', 'Notice accepted successfully!');
+                }
 
                 // Update UI immediately
                 const noticeItem = document.querySelector(`[data-notice-id="${noticeId}"]`);
