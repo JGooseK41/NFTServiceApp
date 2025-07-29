@@ -12271,6 +12271,27 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         window.performAudit = performAudit;
         window.refreshMyAlerts = refreshMyAlerts;
         
+        // Update audit search UI based on search type
+        function updateAuditSearch() {
+            const searchType = document.getElementById('auditSearchType').value;
+            const searchInput = document.getElementById('auditSearchInput');
+            const searchButton = document.getElementById('performAuditBtn');
+            
+            if (searchType === 'myNotices' || searchType === 'myAlerts') {
+                // Hide search input for "My" options
+                if (searchInput) searchInput.style.display = 'none';
+                if (searchButton) {
+                    searchButton.innerHTML = '<i class="fas fa-list"></i> Load Notices';
+                }
+            } else {
+                // Show search input for specific notice ID
+                if (searchInput) searchInput.style.display = 'block';
+                if (searchButton) {
+                    searchButton.innerHTML = '<i class="fas fa-search"></i> Search';
+                }
+            }
+        }
+        
         // Debug alerts function
         async function debugAlerts() {
             if (!legalContract || !tronWeb.defaultAddress) {
