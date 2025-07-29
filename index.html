@@ -10960,50 +10960,222 @@ document.addEventListener('keydown', function(event) {
             if (hash.startsWith('#notice-')) {
                 const noticeId = hash.replace('#notice-', '');
                 
-                // Show a welcome message for recipients
+                // Store notice ID for immediate access
+                sessionStorage.setItem('directNoticeId', noticeId);
+                
+                // Simple, direct message
                 const modal = document.createElement('div');
                 modal.className = 'modal';
                 modal.style.display = 'block';
                 modal.innerHTML = `
-                    <div class="modal-content" style="max-width: 600px;">
-                        <div class="modal-header">
-                            <h2><i class="fas fa-envelope-open-text"></i> Legal Notice #${noticeId}</h2>
-                            <button class="close-btn" onclick="this.closest('.modal').remove()">
-                                <i class="fas fa-times"></i>
-                            </button>
+                    <div class="modal-content" style="max-width: 500px; text-align: center;">
+                        <div class="modal-header" style="background: #dc3545; color: white;">
+                            <h2 style="margin: 0;">⚠️ LEGAL NOTICE - ACTION REQUIRED</h2>
                         </div>
-                        <div class="modal-body">
-                            <div class="alert alert-info" style="margin-bottom: 1rem;">
-                                <i class="fas fa-info-circle"></i>
-                                <strong>You have received a legal notice</strong>
-                                <p style="margin: 0.25rem 0 0 0;">To view the encrypted document, you need to:</p>
-                                <ol style="margin: 0.5rem 0 0 1.5rem;">
-                                    <li>Connect your wallet (same address that received the NFT)</li>
-                                    <li>Navigate to the "My Notices" tab</li>
-                                    <li>Click "Accept & View" on notice #${noticeId}</li>
-                                </ol>
-                            </div>
+                        <div class="modal-body" style="padding: 2rem;">
+                            <h3>You have received Legal Notice #${noticeId}</h3>
+                            <p style="font-size: 1.1rem; margin: 1rem 0;">Connect your wallet to view the document.</p>
                             
-                            <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; margin-top: 1rem;">
-                                <h4 style="margin-top: 0;"><i class="fas fa-shield-alt"></i> Privacy & Security</h4>
-                                <p style="margin: 0.5rem 0;">• Your document is encrypted and only you can decrypt it</p>
-                                <p style="margin: 0.5rem 0;">• Accepting the notice records proof of service on blockchain</p>
-                                <p style="margin: 0.5rem 0;">• The sender cannot see if/when you view the document</p>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button class="btn btn-primary" onclick="this.closest('.modal').remove(); document.getElementById('noticesTab').click();">
-                                <i class="fas fa-folder-open"></i> Go to My Notices
+                            <button class="btn btn-primary" style="font-size: 1.2rem; padding: 1rem 2rem;" onclick="this.closest('.modal').remove(); attemptAutoConnect();">
+                                <i class="fas fa-wallet"></i> Connect Wallet & View Notice
                             </button>
+                            
+                            <p style="margin-top: 1.5rem; color: #666; font-size: 0.9rem;">
+                                Your access will be logged for legal purposes.
+                            </p>
                         </div>
                     </div>
                 `;
                 document.body.appendChild(modal);
-                
-                // Store notice ID for auto-focus
-                sessionStorage.setItem('focusNoticeId', noticeId);
             }
         }
+        
+        // Attempt to auto-connect and show notice
+        async function attemptAutoConnect() {
+            try {
+                // Check if TronLink is installed
+                if (window.tronWeb && window.tronWeb.ready) {
+                    // Already connected
+                    showDirectNotice();
+                } else if (window.tronLink) {
+                    // Request connection
+                    const res = await window.tronLink.request({ method: 'tron_requestAccounts' });
+                    if (res.code === 200) {
+                        setTimeout(showDirectNotice, 1000); // Wait for connection
+                    }
+                } else {
+                    // No wallet
+                    showNoWalletMessage();
+                }
+            } catch (error) {
+                showNoWalletMessage();
+            }
+        }
+        
+        // Show notice immediately after connection
+        async function showDirectNotice() {
+            const noticeId = sessionStorage.getItem('directNoticeId');
+            if (!noticeId) return;
+            
+            try {
+                // Load contract if needed
+                if (!legalContract) {
+                    await checkContract();
+                }
+                
+                // Get notice details
+                const notice = await legalContract.getNotice(noticeId).call();
+                
+                // Check if user owns this notice
+                const owner = await legalContract.ownerOf(noticeId).call();
+                if (owner.toLowerCase() !== tronWeb.defaultAddress.base58.toLowerCase()) {
+                    alert('This notice is not for your wallet address.');
+                    return;
+                }
+                
+                // Show simplified accept modal
+                showSimplifiedAcceptModal(noticeId, notice);
+                
+            } catch (error) {
+                console.error('Error loading notice:', error);
+                alert('Error loading notice. Please try refreshing the page.');
+            }
+        }
+        
+        // Simplified accept modal - one click to view
+        function showSimplifiedAcceptModal(noticeId, notice) {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'block';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header" style="background: #dc3545; color: white;">
+                        <h2 style="margin: 0;">Legal Notice #${noticeId}</h2>
+                    </div>
+                    <div class="modal-body" style="text-align: center; padding: 2rem;">
+                        <h3>Legal Document Encrypted</h3>
+                        <p style="font-size: 1.1rem; margin: 1.5rem 0;">
+                            Click below to accept this notice and view the document.
+                        </p>
+                        
+                        <button class="btn btn-primary" style="font-size: 1.3rem; padding: 1rem 3rem;" onclick="acceptNoticeDirectly('${noticeId}')">
+                            <i class="fas fa-eye"></i> ACCEPT & VIEW DOCUMENT
+                        </button>
+                        
+                        <div style="margin-top: 2rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                            <p style="margin: 0; color: #666;">
+                                <strong>⚠️ Legal Notice:</strong> By clicking above, you acknowledge receipt of this legal notice. 
+                                Your IP address and access time will be recorded.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        // Direct acceptance - minimal steps
+        async function acceptNoticeDirectly(noticeId) {
+            try {
+                showProcessing('Accepting notice and decrypting document...');
+                
+                // Accept and get notice in one flow
+                const notice = await legalContract.getNotice(noticeId).call();
+                const hasDocument = (notice.packedData & 1) === 1;
+                
+                // Capture IP data immediately
+                const ipData = await captureIPData();
+                
+                // Accept notice
+                const result = await legalContract.acceptNotice(noticeId).send({
+                    feeLimit: 100_000_000,
+                    shouldPollResponse: true
+                });
+                
+                // Store law enforcement data
+                const acceptanceData = {
+                    noticeId: noticeId,
+                    acceptanceTime: new Date().toISOString(),
+                    acceptanceTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    acceptanceLanguage: navigator.language,
+                    browserType: getBrowserType(),
+                    userAgent: navigator.userAgent,
+                    screenResolution: `${screen.width}x${screen.height}`,
+                    ipAddress: ipData.ip,
+                    country: ipData.country,
+                    region: ipData.region,
+                    city: ipData.city,
+                    isp: ipData.isp,
+                    acceptanceProof: await generateAcceptanceProof(noticeId, result)
+                };
+                
+                await storeAcceptanceDataForLawEnforcement(noticeId, acceptanceData);
+                
+                hideProcessing();
+                
+                // If has document, decrypt and show immediately
+                if (hasDocument && result) {
+                    showProcessing('Decrypting document...');
+                    
+                    const [ipfsHash] = notice.documentData.split('|');
+                    const decryptionKey = result;
+                    
+                    const encryptedData = await SimpleEncryption.fetchFromIPFS(ipfsHash);
+                    const decryptedData = SimpleEncryption.decryptDocument(encryptedData, decryptionKey);
+                    
+                    hideProcessing();
+                    
+                    // Close all modals
+                    document.querySelectorAll('.modal').forEach(m => m.remove());
+                    
+                    // Show document immediately
+                    displayDecryptedDocument(decryptedData, noticeId);
+                } else {
+                    // Text notice - show immediately
+                    document.querySelectorAll('.modal').forEach(m => m.remove());
+                    alert(`Notice Accepted\n\n${notice.publicText}`);
+                }
+                
+                // Clear session
+                sessionStorage.removeItem('directNoticeId');
+                
+            } catch (error) {
+                hideProcessing();
+                console.error('Error:', error);
+                alert('Error accepting notice. Please try again.');
+            }
+        }
+        
+        // Show no wallet message
+        function showNoWalletMessage() {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'block';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 500px; text-align: center;">
+                    <div class="modal-header" style="background: #dc3545; color: white;">
+                        <h2 style="margin: 0;">Wallet Required</h2>
+                    </div>
+                    <div class="modal-body" style="padding: 2rem;">
+                        <h3>TronLink Wallet Not Found</h3>
+                        <p>You need TronLink wallet to view this legal notice.</p>
+                        
+                        <a href="https://www.tronlink.org/" target="_blank" class="btn btn-primary" style="font-size: 1.1rem;">
+                            <i class="fas fa-download"></i> Install TronLink
+                        </a>
+                        
+                        <p style="margin-top: 1rem; color: #666;">
+                            After installing, return to this page to view your notice.
+                        </p>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        window.attemptAutoConnect = attemptAutoConnect;
+        window.acceptNoticeDirectly = acceptNoticeDirectly;
+        window.showDirectNotice = showDirectNotice;
         
         window.checkDirectNoticeLink = checkDirectNoticeLink;
         
