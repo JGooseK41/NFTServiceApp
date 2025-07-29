@@ -7628,6 +7628,152 @@ function useConnectedAddressForFeeCollector() {
                 </div>
             `;
         }
+        
+        // Grant role function
+        async function grantRole() {
+            const address = document.getElementById('roleAddress').value.trim();
+            const roleSelect = document.getElementById('roleSelect').value;
+            
+            if (!address) {
+                uiManager.showNotification('error', 'Please enter an address');
+                return;
+            }
+            
+            if (!tronWeb.isAddress(address)) {
+                uiManager.showNotification('error', 'Invalid TRON address');
+                return;
+            }
+            
+            if (!roleSelect) {
+                uiManager.showNotification('error', 'Please select a role');
+                return;
+            }
+            
+            try {
+                showProcessing('Granting role...');
+                
+                let roleBytes;
+                let roleName;
+                
+                switch(roleSelect) {
+                    case 'admin':
+                        roleBytes = tronWeb.sha3('ADMIN_ROLE');
+                        roleName = 'Admin';
+                        break;
+                    case 'process_server':
+                        roleBytes = tronWeb.sha3('PROCESS_SERVER_ROLE');
+                        roleName = 'Process Server';
+                        break;
+                    default:
+                        throw new Error('Invalid role selected');
+                }
+                
+                // Grant the role
+                await legalContract.grantRole(roleBytes, address).send({
+                    feeLimit: 100_000_000,
+                    shouldPollResponse: true
+                });
+                
+                // If process server, save registration info
+                if (roleSelect === 'process_server') {
+                    const name = document.getElementById('serverName').value.trim() || 'Unknown';
+                    const phone = document.getElementById('serverPhone').value.trim() || '';
+                    
+                    const registration = {
+                        name,
+                        phone,
+                        wallet: address,
+                        status: 'approved',
+                        approvedAt: new Date().toISOString(),
+                        serverId: generateServerId()
+                    };
+                    
+                    saveServerRegistration(address, registration);
+                }
+                
+                hideProcessing();
+                showAlert('roleResult', 'success', `${roleName} role granted to ${address}`);
+                
+                // Clear form
+                document.getElementById('roleAddress').value = '';
+                document.getElementById('serverName').value = '';
+                document.getElementById('serverPhone').value = '';
+                
+            } catch (error) {
+                hideProcessing();
+                console.error('Error granting role:', error);
+                showAlert('roleResult', 'error', 'Failed to grant role: ' + getErrorMessage(error));
+            }
+        }
+        
+        // Check role function
+        async function checkRole() {
+            const address = document.getElementById('roleAddress').value.trim();
+            
+            if (!address) {
+                uiManager.showNotification('error', 'Please enter an address');
+                return;
+            }
+            
+            if (!tronWeb.isAddress(address)) {
+                uiManager.showNotification('error', 'Invalid TRON address');
+                return;
+            }
+            
+            try {
+                showProcessing('Checking roles...');
+                
+                const adminRoleBytes = tronWeb.sha3('ADMIN_ROLE');
+                const processServerRoleBytes = tronWeb.sha3('PROCESS_SERVER_ROLE');
+                const defaultAdminRole = '0x0000000000000000000000000000000000000000000000000000000000000000';
+                
+                const hasDefaultAdmin = await legalContract.hasRole(defaultAdminRole, address).call();
+                const hasAdmin = await legalContract.hasRole(adminRoleBytes, address).call();
+                const hasProcessServer = await legalContract.hasRole(processServerRoleBytes, address).call();
+                
+                let roles = [];
+                if (hasDefaultAdmin) roles.push('DEFAULT_ADMIN_ROLE');
+                if (hasAdmin) roles.push('ADMIN_ROLE');
+                if (hasProcessServer) roles.push('PROCESS_SERVER_ROLE');
+                
+                hideProcessing();
+                
+                if (roles.length > 0) {
+                    showAlert('roleResult', 'info', `Address ${address} has roles: ${roles.join(', ')}`);
+                } else {
+                    showAlert('roleResult', 'warning', `Address ${address} has no roles`);
+                }
+                
+            } catch (error) {
+                hideProcessing();
+                console.error('Error checking role:', error);
+                showAlert('roleResult', 'error', 'Failed to check role: ' + error.message);
+            }
+        }
+        
+        // Show mint step (for batch operations)
+        function showMintStep() {
+            document.getElementById('noticeCard').style.display = 'block';
+            document.getElementById('batchUploadCard').style.display = 'none';
+            document.getElementById('batchProgress').style.display = 'none';
+        }
+        
+        // GitHub config
+        const GITHUB_CONFIG = {
+            owner: '',
+            repo: '',
+            token: '',
+            path: 'registrations'
+        };
+        
+        // Load GitHub settings
+        function loadGitHubSettings() {
+            const savedToken = localStorage.getItem('githubToken');
+            if (savedToken) {
+                GITHUB_CONFIG.token = savedToken;
+                document.getElementById('githubToken').value = savedToken;
+            }
+        }
 
 // Refresh wallet status
 async function refreshWalletStatus() {
