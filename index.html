@@ -9078,7 +9078,7 @@ function useConnectedAddressForFeeCollector() {
                 // Set law enforcement exemption if requested
                 if (lawEnforcementExempt && agencyName) {
                     showProcessing('Setting law enforcement exemption...');
-                    await legalContract.setLawEnforcementExemption(address, agencyName).send({
+                    await legalContract.setLawEnforcementExemption(address, true, agencyName).send({
                         feeLimit: 20_000_000,
                         shouldPollResponse: true
                     });
@@ -13017,7 +13017,8 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     
                     // Get notice details
                     const notice = await legalContract.getNotice(noticeId).call();
-                    const accepted = await legalContract.noticeAcceptances(noticeId).call();
+                    // Extract acceptance status from packed data
+                    const accepted = ((BigInt(notice.packedData) >> 1n) & 1n) === 1n;
                     
                     // Display single notice
                     resultsDiv.innerHTML = formatNoticeForAudit(notice, noticeId, accepted);
@@ -13031,7 +13032,8 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         try {
                             const notice = await legalContract.getNotice(i).call();
                             if (notice.sender.toLowerCase() === tronWeb.defaultAddress.base58.toLowerCase()) {
-                                const accepted = await legalContract.noticeAcceptances(i).call();
+                                // Extract acceptance status from packed data
+                                const accepted = ((BigInt(notice.packedData) >> 1n) & 1n) === 1n;
                                 myNotices.push({ id: i, notice, accepted });
                             }
                         } catch (e) {
@@ -13057,7 +13059,8 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                             const owner = await legalContract.ownerOf(i).call();
                             if (owner.toLowerCase() === tronWeb.defaultAddress.base58.toLowerCase()) {
                                 const notice = await legalContract.getNotice(i).call();
-                                const accepted = await legalContract.noticeAcceptances(i).call();
+                                // Extract acceptance status from packed data
+                                const accepted = ((BigInt(notice.packedData) >> 1n) & 1n) === 1n;
                                 myAlerts.push({ id: i, notice, accepted });
                             }
                         } catch (e) {
@@ -13418,7 +13421,8 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     try {
                         const notice = await legalContract.getNotice(i).call();
                         if (notice.sender.toLowerCase() === tronWeb.defaultAddress.base58.toLowerCase()) {
-                            const accepted = await legalContract.noticeAcceptances(i).call();
+                            // Extract acceptance status from packed data
+                            const accepted = ((BigInt(notice.packedData) >> 1n) & 1n) === 1n;
                             deliveryData.push({
                                 id: i,
                                 notice: notice,
@@ -13889,7 +13893,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             try {
                 showProcessing('Granting law enforcement exemption...');
                 
-                const tx = await legalContract.setLawEnforcementExemption(address, agencyName).send({
+                const tx = await legalContract.setLawEnforcementExemption(address, true, agencyName).send({
                     feeLimit: 100_000_000, // 100 TRX
                     callValue: 0,
                     shouldPollResponse: true
@@ -14950,7 +14954,8 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     baseTokenName: tokenName || 'Legal Notice',
                     hasDocument: deliveryMethod === 'document',
                     encryptedIPFS: encryptedData ? encryptedData.ipfsHash : '',
-                    encryptionKey: encryptedData ? encryptedData.encryptionKey : ''  // Fixed: was encryptedKey
+                    encryptionKey: encryptedData ? encryptedData.encryptionKey : '',  // Fixed: was encryptedKey
+                    metadataURI: encryptedData && encryptedData.metadataURI ? encryptedData.metadataURI : ''  // Add metadata URI for NFT visibility
                 };
                 
                 // Send transaction - TronWeb might need the struct as an array
@@ -14969,7 +14974,8 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     noticeRequest.baseTokenName,
                     noticeRequest.hasDocument,
                     noticeRequest.encryptedIPFS,
-                    noticeRequest.encryptionKey
+                    noticeRequest.encryptionKey,
+                    noticeRequest.metadataURI  // Add metadata URI to array
                 ];
                 
                 console.log('Notice array being sent:', noticeArray);
