@@ -9673,6 +9673,9 @@ function useConnectedAddressForFeeCollector() {
                     walletStatusCard.style.display = 'block';
                 }
                 
+                // Initialize recent activity display
+                updateRecentActivityDisplay();
+                
                 uiManager.showNotification('success', 'Contract connected successfully');
                 
             } catch (error) {
@@ -15544,6 +15547,16 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 const transactions = JSON.parse(localStorage.getItem('userTransactions') || '[]');
                 transactions.push(txData);
                 localStorage.setItem('userTransactions', JSON.stringify(transactions));
+                
+                // Add to recent activity
+                addRecentActivity('notice_created', `Legal Notice #${noticeId} created`, {
+                    noticeId: noticeId,
+                    recipient: recipient,
+                    noticeType: noticeRequest.noticeType,
+                    caseNumber: noticeRequest.caseNumber,
+                    txHash: txHash || 'N/A',
+                    fee: `${parseInt(fee) / 1000000} TRX`
+                });
 
                 
                 // Clear form
