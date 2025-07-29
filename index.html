@@ -7075,6 +7075,17 @@ function parsePackedData(packedData) {
         function closeTransactionResultModal() {
             const modal = document.getElementById('transactionResultModal');
             if (modal) modal.style.display = 'none';
+            
+            // Also close the mint modal to return to dashboard
+            const mintModal = document.getElementById('mintModal');
+            if (mintModal) {
+                mintModal.style.display = 'none';
+            }
+            
+            // Clear the form for next use
+            if (typeof resetMintForm === 'function') {
+                resetMintForm();
+            }
         }
         
         function closeTxModal() {
@@ -8294,6 +8305,13 @@ function useConnectedAddressForFeeCollector() {
 
         function closeTransactionResultModal() {
             document.getElementById('transactionResultModal').style.display = 'none';
+            // Also close the mint modal to return to dashboard
+            const mintModal = document.getElementById('mintModal');
+            if (mintModal) {
+                mintModal.style.display = 'none';
+            }
+            // Clear the form for next use
+            resetMintForm();
         }
 
         function showTransactionResult(success, txData) {
@@ -8563,6 +8581,15 @@ function useConnectedAddressForFeeCollector() {
 
         function closeTxModal() {
             document.getElementById('txModal').style.display = 'none';
+            // Also close the mint modal to return to dashboard
+            const mintModal = document.getElementById('mintModal');
+            if (mintModal) {
+                mintModal.style.display = 'none';
+            }
+            // Clear the form for next use
+            if (typeof resetMintForm === 'function') {
+                resetMintForm();
+            }
         }
 
         // Export printable receipt
