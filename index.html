@@ -10963,26 +10963,37 @@ document.addEventListener('keydown', function(event) {
                 // Store notice ID for immediate access
                 sessionStorage.setItem('directNoticeId', noticeId);
                 
-                // Simple, direct message
+                // Simple, direct message with view-only option
                 const modal = document.createElement('div');
                 modal.className = 'modal';
                 modal.style.display = 'block';
                 modal.innerHTML = `
-                    <div class="modal-content" style="max-width: 500px; text-align: center;">
+                    <div class="modal-content" style="max-width: 600px; text-align: center;">
                         <div class="modal-header" style="background: #dc3545; color: white;">
                             <h2 style="margin: 0;">⚠️ LEGAL NOTICE - ACTION REQUIRED</h2>
                         </div>
                         <div class="modal-body" style="padding: 2rem;">
                             <h3>You have received Legal Notice #${noticeId}</h3>
-                            <p style="font-size: 1.1rem; margin: 1rem 0;">Connect your wallet to view the document.</p>
+                            <p style="font-size: 1.1rem; margin: 1rem 0;">Choose how to view this notice:</p>
                             
-                            <button class="btn btn-primary" style="font-size: 1.2rem; padding: 1rem 2rem;" onclick="this.closest('.modal').remove(); attemptAutoConnect();">
-                                <i class="fas fa-wallet"></i> Connect Wallet & View Notice
-                            </button>
+                            <div style="display: flex; flex-direction: column; gap: 1rem; margin: 1.5rem 0;">
+                                <button class="btn btn-primary" style="font-size: 1.2rem; padding: 1rem 2rem;" onclick="this.closest('.modal').remove(); viewNoticeWithoutWallet('${noticeId}');">
+                                    <i class="fas fa-eye"></i> View Notice (No Wallet Required)
+                                </button>
+                                
+                                <button class="btn btn-secondary" style="font-size: 1.1rem; padding: 0.8rem 1.5rem;" onclick="this.closest('.modal').remove(); attemptAutoConnect();">
+                                    <i class="fas fa-wallet"></i> Connect Wallet to Accept Notice
+                                </button>
+                            </div>
                             
-                            <p style="margin-top: 1.5rem; color: #666; font-size: 0.9rem;">
-                                Your access will be logged for legal purposes.
-                            </p>
+                            <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; text-align: left;">
+                                <p style="margin: 0 0 0.5rem 0; font-weight: 600;">⚠️ Important:</p>
+                                <ul style="margin: 0; padding-left: 1.5rem; font-size: 0.9rem;">
+                                    <li>Viewing only does NOT count as legal acceptance</li>
+                                    <li>Your IP address and access will still be logged</li>
+                                    <li>To legally accept, you must connect your wallet</li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -11176,6 +11187,114 @@ document.addEventListener('keydown', function(event) {
         window.attemptAutoConnect = attemptAutoConnect;
         window.acceptNoticeDirectly = acceptNoticeDirectly;
         window.showDirectNotice = showDirectNotice;
+        
+        // View notice without wallet (still captures IP/device data)
+        async function viewNoticeWithoutWallet(noticeId) {
+            try {
+                showProcessing('Loading notice for viewing...');
+                
+                // Capture IP and device data immediately
+                const ipData = await captureIPData();
+                
+                // Log view attempt (not acceptance)
+                const viewData = {
+                    noticeId: noticeId,
+                    viewTime: new Date().toISOString(),
+                    viewType: 'VIEW_ONLY_NO_WALLET',
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    language: navigator.language,
+                    browserType: getBrowserType(),
+                    userAgent: navigator.userAgent,
+                    screenResolution: `${screen.width}x${screen.height}`,
+                    ipAddress: ipData.ip,
+                    country: ipData.country,
+                    region: ipData.region,
+                    city: ipData.city,
+                    isp: ipData.isp,
+                    timestamp: Date.now()
+                };
+                
+                // Store view data for law enforcement
+                const viewLogs = JSON.parse(localStorage.getItem('noticeViewLogs') || '{}');
+                if (!viewLogs[noticeId]) viewLogs[noticeId] = [];
+                viewLogs[noticeId].push(viewData);
+                localStorage.setItem('noticeViewLogs', JSON.stringify(viewLogs));
+                
+                console.log('Notice view logged (no wallet):', {
+                    noticeId: noticeId,
+                    ip: ipData.ip,
+                    location: `${ipData.city}, ${ipData.region}, ${ipData.country}`,
+                    timestamp: viewData.viewTime
+                });
+                
+                hideProcessing();
+                
+                // Show notice preview modal
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 800px;">
+                        <div class="modal-header" style="background: #dc3545; color: white;">
+                            <h2 style="margin: 0;">⚠️ LEGAL NOTICE #${noticeId} - VIEWING ONLY</h2>
+                            <button class="close-btn" onclick="this.closest('.modal').remove()" style="color: white;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-warning" style="margin-bottom: 1.5rem;">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>This is VIEW ONLY - Not Legal Acceptance</strong>
+                                <p style="margin: 0.5rem 0 0 0;">You are viewing this notice without wallet verification. This does NOT constitute legal acceptance of service.</p>
+                                <p style="margin: 0.5rem 0 0 0;">Your IP address (${ipData.ip}) and location (${ipData.city}, ${ipData.country}) have been logged.</p>
+                            </div>
+                            
+                            <div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; text-align: center;">
+                                <h3>Notice Summary</h3>
+                                <p style="font-size: 1.1rem; margin: 1rem 0;">
+                                    This legal notice contains an encrypted document that can only be viewed by the wallet owner.
+                                </p>
+                                <p style="margin: 1rem 0;">
+                                    <strong>Notice Type:</strong> Legal Service Document<br>
+                                    <strong>Recipient Wallet:</strong> View requires wallet connection<br>
+                                    <strong>Status:</strong> Awaiting Acceptance
+                                </p>
+                                
+                                <div style="margin-top: 2rem; padding: 1.5rem; background: white; border: 2px dashed #dc3545; border-radius: 8px;">
+                                    <i class="fas fa-lock" style="font-size: 3rem; color: #dc3545; margin-bottom: 1rem;"></i>
+                                    <h4 style="color: #dc3545;">Encrypted Legal Document</h4>
+                                    <p>The full document is encrypted and requires wallet authentication to decrypt and view.</p>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top: 2rem; text-align: center;">
+                                <h4>To Accept This Notice and View the Full Document:</h4>
+                                <button class="btn btn-primary" style="font-size: 1.2rem; padding: 1rem 2rem; margin-top: 1rem;" onclick="this.closest('.modal').remove(); attemptAutoConnect();">
+                                    <i class="fas fa-wallet"></i> Connect Wallet & Accept Notice
+                                </button>
+                            </div>
+                            
+                            <div class="alert alert-info" style="margin-top: 2rem;">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>Legal Notice:</strong>
+                                <p style="margin: 0.5rem 0 0 0;">
+                                    This is an official legal notice. Failure to properly accept and respond may result in default judgment or other legal consequences.
+                                    Your viewing of this notice has been recorded at ${new Date().toLocaleString()}.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                
+            } catch (error) {
+                hideProcessing();
+                console.error('Error viewing notice:', error);
+                alert('Error loading notice preview.');
+            }
+        }
+        
+        window.viewNoticeWithoutWallet = viewNoticeWithoutWallet;
         
         window.checkDirectNoticeLink = checkDirectNoticeLink;
         
