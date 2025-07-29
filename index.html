@@ -1543,8 +1543,9 @@
             left: 0;
             width: 100%;
             height: 100%;
-            opacity: 0;
+            opacity: 0.01; /* Changed from 0 to 0.01 for better browser support */
             cursor: pointer;
+            z-index: 10; /* Ensure it's on top */
         }
 
         .preview-container {
@@ -4424,6 +4425,10 @@
                         <p>Drag & drop your document here or click to browse</p>
                         <p style="font-size: 0.85rem; color: #666;">Supported formats: JPEG, PNG</p>
                         <input type="file" id="documentUpload" accept="image/jpeg,image/jpg,image/png" onchange="handleDocumentUpload(event)">
+                        <!-- Backup button in case click handler fails -->
+                        <button type="button" class="btn btn-primary" style="margin-top: 10px;" onclick="document.getElementById('documentUpload').click()">
+                            <i class="fas fa-folder-open"></i> Select File
+                        </button>
                     </div>
                     <div id="compressionStatus" class="compression-status" style="display: none;">
                         <h5 style="color: var(--accent-blue); margin-bottom: 0.5rem;">
@@ -10857,24 +10862,48 @@ async function checkUserRoles() {
             // Set up modal protection
             setupModalProtection();
             
-            // Set up upload area click handler
-            const uploadArea = document.getElementById('uploadArea');
-            if (uploadArea) {
-                console.log('Setting up upload area click handler');
-                uploadArea.addEventListener('click', function(e) {
-                    console.log('Upload area clicked', e.target);
-                    // Don't trigger if clicking on the input itself
-                    if (e.target.tagName !== 'INPUT') {
+            // Set up upload area click handler - delay to ensure modal is ready
+            setTimeout(() => {
+                const uploadArea = document.getElementById('uploadArea');
+                if (uploadArea) {
+                    console.log('Setting up upload area click handler');
+                    
+                    // Remove any existing listeners
+                    const newUploadArea = uploadArea.cloneNode(true);
+                    uploadArea.parentNode.replaceChild(newUploadArea, uploadArea);
+                    
+                    // Add new listener
+                    newUploadArea.addEventListener('click', function(e) {
+                        console.log('Upload area clicked', e.target);
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
                         const fileInput = document.getElementById('documentUpload');
-                        console.log('File input found:', fileInput);
+                        console.log('File input element:', fileInput);
+                        
                         if (fileInput) {
-                            fileInput.click();
+                            // Force click on file input
+                            try {
+                                fileInput.click();
+                                console.log('File input clicked');
+                            } catch (error) {
+                                console.error('Error clicking file input:', error);
+                            }
+                        } else {
+                            console.error('File input not found!');
                         }
+                    });
+                    
+                    // Also add listener directly to the file input as backup
+                    const fileInput = document.getElementById('documentUpload');
+                    if (fileInput) {
+                        console.log('File input found, setting up change listener');
+                        fileInput.addEventListener('change', handleDocumentUpload);
                     }
-                });
-            } else {
-                console.log('Upload area not found');
-            }
+                } else {
+                    console.log('Upload area not found on page load');
+                }
+            }, 1000);
             
             
         // Auto-save form data
