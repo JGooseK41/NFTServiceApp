@@ -4394,7 +4394,13 @@
                     <i class="fas fa-file-upload"></i>
                     Create Legal Notice
                 </h3>
-                <button class="modal-close" onclick="closeMintModal()">&times;</button>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button class="btn btn-secondary" onclick="openBatchMode()" style="font-size: 0.9rem;">
+                        <i class="fas fa-layer-group"></i>
+                        Batch Mode
+                    </button>
+                    <button class="modal-close" onclick="closeMintModal()">&times;</button>
+                </div>
             </div>
             <div class="modal-body">
                 <!-- Step 1: Upload -->
@@ -4647,14 +4653,7 @@
                                 </div>
                             </div>
                             
-                            <!-- Delivery Confirmation Options -->
-                            <div class="form-group">
-                                <label class="form-label">
-                                    <input type="checkbox" id="requireDeliveryConfirmation" style="margin-right: 8px;">
-                                    Require Delivery Confirmation
-                                </label>
-                                <p class="form-help">When enabled, you'll receive on-chain proof when the recipient accepts the notice</p>
-                            </div>
+                            <!-- Note: Delivery confirmation is automatically tracked on-chain for all notices -->
                         </div>
                     </div>
                     
@@ -4727,6 +4726,94 @@
                 <button class="btn btn-primary" onclick="closeTransactionResultModal()">
                     <i class="fas fa-check"></i> Done
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Batch Mode Modal -->
+    <div id="batchModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fas fa-layer-group"></i>
+                    Batch Legal Notice Creation
+                </h3>
+                <button class="modal-close" onclick="closeBatchModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="batchStep1">
+                    <h4>Upload Recipients CSV</h4>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <div>
+                            <strong>CSV Format Requirements:</strong>
+                            <ul style="margin: 0.5rem 0 0 1.5rem;">
+                                <li>Columns: wallet_address, notice_type, public_text (optional)</li>
+                                <li>Maximum 100 recipients per batch</li>
+                                <li>Example: TXa1b2c3..., Cease and Desist, Public notice text</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="upload-area" style="margin: 20px 0;" onclick="document.getElementById('csvUpload').click()">
+                        <input type="file" id="csvUpload" accept=".csv" style="display: none;" onchange="handleCSVUpload(event)">
+                        <i class="fas fa-file-csv" style="font-size: 3rem; color: var(--primary);"></i>
+                        <p>Click to upload CSV file</p>
+                    </div>
+                    
+                    <h4 style="margin-top: 30px;">Upload Document (Optional)</h4>
+                    <div class="upload-area" onclick="document.getElementById('batchDocumentUpload').click()">
+                        <input type="file" id="batchDocumentUpload" accept="image/*,.pdf" style="display: none;" onchange="handleBatchDocumentUpload(event)">
+                        <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: var(--primary);"></i>
+                        <p>Click to upload document</p>
+                        <p style="font-size: 0.85rem; color: #666;">Same document will be encrypted individually for each recipient</p>
+                    </div>
+                </div>
+                
+                <div id="batchStep2" style="display: none;">
+                    <h4>Review Batch Recipients</h4>
+                    <div id="batchValidationResults"></div>
+                    
+                    <div style="margin: 20px 0;">
+                        <label>Notice Details</label>
+                        <input type="text" id="batchAgencyName" placeholder="Issuing Agency" class="form-control" style="margin-bottom: 10px;">
+                        <input type="text" id="batchCaseNumber" placeholder="Case Number" class="form-control" style="margin-bottom: 10px;">
+                        <textarea id="batchRightsStatement" placeholder="Legal Rights Statement" class="form-control" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="btn-group" style="margin-top: 20px;">
+                        <button class="btn btn-secondary" onclick="batchManager.goBack()">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </button>
+                        <button class="btn btn-primary" onclick="batchManager.startBatch()">
+                            <i class="fas fa-play"></i> Start Batch Processing
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="batchStep3" style="display: none;">
+                    <h4>Processing Batch</h4>
+                    <div class="batch-progress">
+                        <div class="progress-bar">
+                            <div id="batchProgressBar" class="progress-fill" style="width: 0%"></div>
+                        </div>
+                        <p id="batchProgressText" style="text-align: center; margin-top: 10px;">0 / 0 completed</p>
+                    </div>
+                    
+                    <div id="batchResults" style="margin-top: 20px; max-height: 300px; overflow-y: auto;"></div>
+                    
+                    <div class="btn-group" style="margin-top: 20px;">
+                        <button id="pauseBatchBtn" class="btn btn-secondary" onclick="batchManager.pauseBatch()">
+                            <i class="fas fa-pause"></i> Pause
+                        </button>
+                        <button id="resumeBatchBtn" class="btn btn-secondary" onclick="batchManager.resumeBatch()" style="display: none;">
+                            <i class="fas fa-play"></i> Resume
+                        </button>
+                        <button class="btn btn-primary" onclick="batchManager.exportResults()">
+                            <i class="fas fa-download"></i> Export Results
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -7625,6 +7712,38 @@ function useConnectedAddressForFeeCollector() {
             
             document.getElementById('mintModal').style.display = 'none';
             resetMintForm();
+        }
+        
+        // Open batch mode modal
+        function openBatchMode() {
+            closeMintModal(true); // Force close mint modal
+            document.getElementById('batchModal').style.display = 'flex';
+            document.getElementById('batchStep1').style.display = 'block';
+            document.getElementById('batchStep2').style.display = 'none';
+            document.getElementById('batchStep3').style.display = 'none';
+        }
+        
+        // Close batch modal
+        function closeBatchModal() {
+            document.getElementById('batchModal').style.display = 'none';
+            // Reset batch state if needed
+            if (batchManager) {
+                batchManager.reset();
+            }
+        }
+        
+        // Handle CSV upload
+        function handleCSVUpload(event) {
+            if (batchManager) {
+                batchManager.handleCSVUpload(event);
+            }
+        }
+        
+        // Handle batch document upload
+        function handleBatchDocumentUpload(event) {
+            if (batchManager) {
+                batchManager.handleDocumentUpload(event);
+            }
         }
         
         // Check if mint form has data
@@ -11399,6 +11518,625 @@ document.addEventListener('keydown', function(event) {
         
         window.checkNewUserOnboarding = checkNewUserOnboarding;
         window.completeOnboarding = completeOnboarding;
+        
+        // Batch Operations Implementation
+        let batchRecipients = [];
+        let batchProgress = {
+            total: 0,
+            completed: 0,
+            failed: 0,
+            inProgress: false,
+            paused: false,
+            currentIndex: 0
+        };
+        
+        // Toggle batch mode
+        function toggleBatchMode() {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'block';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-users"></i> Batch Legal Notice Operations</h2>
+                        <button class="close-btn" onclick="this.closest('.modal').remove()">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Batch Mode:</strong> Send the same legal notice to multiple recipients
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Upload Recipients CSV</label>
+                            <div class="document-upload-area" style="padding: 1.5rem; text-align: center;">
+                                <i class="fas fa-file-csv" style="font-size: 3rem; color: var(--accent-blue); margin-bottom: 1rem;"></i>
+                                <h4>Upload CSV File</h4>
+                                <p>Format: wallet_address,name,reference</p>
+                                <input type="file" id="batchCSV" accept=".csv" onchange="handleBatchCSVUpload(event)" style="display: none;">
+                                <button class="btn btn-primary" onclick="document.getElementById('batchCSV').click()">
+                                    <i class="fas fa-upload"></i> Choose CSV File
+                                </button>
+                            </div>
+                            
+                            <div class="form-help" style="margin-top: 1rem;">
+                                <strong>CSV Format Example:</strong>
+                                <pre style="background: var(--bg-secondary); padding: 0.5rem; border-radius: 4px; font-size: 0.85rem;">TXa1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6,John Doe,Case #12345
+TYz9y8x7w6v5u4t3s2r1q0p9o8n7m6l5k4,Jane Smith,Case #67890
+TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
+                            </div>
+                        </div>
+                        
+                        <div id="batchValidationResults" style="display: none; margin-top: 1rem;">
+                            <!-- Validation results will appear here -->
+                        </div>
+                        
+                        <div id="batchRecipientsList" style="display: none; margin-top: 1rem;">
+                            <h4>Recipients Preview</h4>
+                            <div style="max-height: 300px; overflow-y: auto;">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Wallet Address</th>
+                                            <th>Name</th>
+                                            <th>Reference</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="batchRecipientsTable">
+                                        <!-- Recipients will be listed here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                        <button class="btn btn-primary" id="proceedBatchBtn" onclick="proceedWithBatch()" style="display: none;">
+                            <i class="fas fa-arrow-right"></i> Proceed to Notice Details
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        // Handle batch CSV upload
+        function handleBatchCSVUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                const validation = validateBatchCSV(content);
+                
+                if (validation.errors.length > 0) {
+                    showBatchValidationErrors(validation.errors);
+                } else {
+                    batchRecipients = validation.recipients;
+                    showBatchRecipientsList(batchRecipients);
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        // Validate batch CSV
+        function validateBatchCSV(csvContent) {
+            const lines = csvContent.trim().split('\n');
+            const errors = [];
+            const recipients = [];
+            const seenAddresses = new Set();
+            
+            if (lines.length === 0) {
+                errors.push('CSV file is empty');
+                return { errors, recipients };
+            }
+            
+            if (lines.length > 100) {
+                errors.push('Maximum 100 recipients per batch (current: ' + lines.length + ')');
+            }
+            
+            lines.forEach((line, index) => {
+                const fields = line.split(',').map(f => f.trim());
+                
+                if (fields.length < 1) {
+                    errors.push(`Line ${index + 1}: No wallet address provided`);
+                    return;
+                }
+                
+                const [address, name = '', reference = ''] = fields;
+                
+                // Validate address
+                if (!address) {
+                    errors.push(`Line ${index + 1}: Empty wallet address`);
+                } else if (!tronWeb.isAddress(address)) {
+                    errors.push(`Line ${index + 1}: Invalid wallet address '${address}'`);
+                } else if (seenAddresses.has(address.toLowerCase())) {
+                    errors.push(`Line ${index + 1}: Duplicate address '${address}'`);
+                } else {
+                    seenAddresses.add(address.toLowerCase());
+                    recipients.push({
+                        address: address,
+                        name: name.substring(0, 50), // Limit name length
+                        reference: reference.substring(0, 50), // Limit reference length
+                        status: 'pending',
+                        index: index
+                    });
+                }
+            });
+            
+            return { errors, recipients };
+        }
+        
+        // Show validation errors
+        function showBatchValidationErrors(errors) {
+            const resultsDiv = document.getElementById('batchValidationResults');
+            resultsDiv.style.display = 'block';
+            resultsDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Validation Errors:</strong>
+                    <ul style="margin: 0.5rem 0 0 1rem;">
+                        ${errors.map(err => `<li>${err}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        // Show recipients list
+        function showBatchRecipientsList(recipients) {
+            document.getElementById('batchValidationResults').style.display = 'none';
+            document.getElementById('batchRecipientsList').style.display = 'block';
+            document.getElementById('proceedBatchBtn').style.display = 'inline-block';
+            
+            const tbody = document.getElementById('batchRecipientsTable');
+            tbody.innerHTML = recipients.map(r => `
+                <tr>
+                    <td style="font-family: monospace; font-size: 0.85rem;">${r.address}</td>
+                    <td>${r.name || '-'}</td>
+                    <td>${r.reference || '-'}</td>
+                    <td><span class="badge badge-secondary">Ready</span></td>
+                </tr>
+            `).join('');
+        }
+        
+        // Proceed with batch
+        function proceedWithBatch() {
+            document.querySelector('.modal').remove();
+            showBatchNoticeCreation();
+        }
+        
+        // Show batch notice creation
+        function showBatchNoticeCreation() {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'block';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 900px;">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-users"></i> Batch Notice Details (${batchRecipients.length} Recipients)</h2>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>Important:</strong> The same notice will be sent to all ${batchRecipients.length} recipients
+                        </div>
+                        
+                        <!-- Copy the notice creation form here but for batch -->
+                        <div class="form-group">
+                            <label class="form-label">Notice Type</label>
+                            <select class="form-select" id="batchNoticeType">
+                                <option value="Summons">Summons</option>
+                                <option value="Subpoena">Subpoena</option>
+                                <option value="Complaint">Complaint</option>
+                                <option value="Motion">Motion</option>
+                                <option value="Order">Order</option>
+                                <option value="Notice">Notice</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Upload Document (Same for all recipients)</label>
+                            <div class="document-upload-area" style="padding: 1rem;">
+                                <input type="file" id="batchDocument" accept=".pdf,.doc,.docx,image/*" onchange="handleBatchDocumentUpload(event)">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Public Notice Text</label>
+                            <textarea class="form-input" id="batchNoticeText" rows="4" placeholder="Enter public notice text..."></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Case Number</label>
+                            <input type="text" class="form-input" id="batchCaseNumber" placeholder="e.g., 2024-CV-12345">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Issuing Agency</label>
+                            <input type="text" class="form-input" id="batchIssuingAgency" placeholder="e.g., District Court">
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Batch Fees:</strong>
+                            <ul style="margin: 0.5rem 0 0 1rem;">
+                                <li>Document notices: ${batchRecipients.length} × 150 TRX = ${batchRecipients.length * 150} TRX</li>
+                                <li>Text notices: ${batchRecipients.length} × 15 TRX = ${batchRecipients.length * 15} TRX</li>
+                                <li>Energy will be calculated before sending</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="cancelBatch()">Cancel</button>
+                        <button class="btn btn-primary" onclick="startBatchSending()">
+                            <i class="fas fa-paper-plane"></i> Start Batch Send
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        // Handle batch document upload
+        let batchDocument = null;
+        function handleBatchDocumentUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                // Same as regular document upload but for batch
+                batchDocument = file;
+                uiManager.showNotification('success', 'Document uploaded for batch send');
+            }
+        }
+        
+        // Start batch sending
+        async function startBatchSending() {
+            if (!legalContract || !tronWeb.defaultAddress) {
+                uiManager.showNotification('error', 'Please connect wallet first');
+                return;
+            }
+            
+            const noticeData = {
+                noticeType: document.getElementById('batchNoticeType').value,
+                noticeText: document.getElementById('batchNoticeText').value.trim(),
+                caseNumber: document.getElementById('batchCaseNumber').value.trim(),
+                issuingAgency: document.getElementById('batchIssuingAgency').value.trim(),
+                hasDocument: !!batchDocument
+            };
+            
+            if (noticeData.hasDocument && !batchDocument) {
+                uiManager.showNotification('error', 'Please upload a document');
+                return;
+            }
+            
+            if (!noticeData.noticeText) {
+                uiManager.showNotification('error', 'Please enter notice text');
+                return;
+            }
+            
+            // Close current modal and show progress
+            document.querySelector('.modal').remove();
+            showBatchProgress();
+            
+            // Start processing
+            batchProgress = {
+                total: batchRecipients.length,
+                completed: 0,
+                failed: 0,
+                inProgress: true,
+                paused: false,
+                currentIndex: 0
+            };
+            
+            processBatchRecipients(noticeData);
+        }
+        
+        // Show batch progress
+        function showBatchProgress() {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'block';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-tasks"></i> Batch Processing Progress</h2>
+                    </div>
+                    <div class="modal-body">
+                        <div class="progress-container" style="margin-bottom: 2rem;">
+                            <div class="progress-bar" style="height: 30px; background: #e9ecef; border-radius: 15px; overflow: hidden;">
+                                <div id="batchProgressBar" class="progress-fill" style="width: 0%; height: 100%; background: var(--accent-blue); transition: width 0.3s;">
+                                    <span id="batchProgressText" style="position: absolute; width: 100%; text-align: center; line-height: 30px; color: white; font-weight: 600;">0%</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="stats-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem;">
+                            <div class="stat-card" style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
+                                <div style="font-size: 2rem; font-weight: 700;" id="batchTotal">${batchRecipients.length}</div>
+                                <div style="color: var(--text-secondary);">Total</div>
+                            </div>
+                            <div class="stat-card" style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
+                                <div style="font-size: 2rem; font-weight: 700; color: #28a745;" id="batchCompleted">0</div>
+                                <div style="color: var(--text-secondary);">Completed</div>
+                            </div>
+                            <div class="stat-card" style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
+                                <div style="font-size: 2rem; font-weight: 700; color: #dc3545;" id="batchFailed">0</div>
+                                <div style="color: var(--text-secondary);">Failed</div>
+                            </div>
+                            <div class="stat-card" style="text-align: center; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
+                                <div style="font-size: 2rem; font-weight: 700; color: #ffc107;" id="batchRemaining">${batchRecipients.length}</div>
+                                <div style="color: var(--text-secondary);">Remaining</div>
+                            </div>
+                        </div>
+                        
+                        <div id="batchCurrentStatus" style="padding: 1rem; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 1rem;">
+                            <strong>Current:</strong> <span id="currentRecipient">Starting...</span>
+                        </div>
+                        
+                        <div style="max-height: 300px; overflow-y: auto;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Recipient</th>
+                                        <th>Status</th>
+                                        <th>Notice ID</th>
+                                        <th>Error</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="batchResultsTable">
+                                    ${batchRecipients.map((r, i) => `
+                                        <tr id="batchRow${i}">
+                                            <td>${i + 1}</td>
+                                            <td style="font-family: monospace; font-size: 0.85rem;">${r.address.substring(0, 10)}...${r.address.substring(r.address.length - 8)}</td>
+                                            <td><span class="badge badge-secondary">Pending</span></td>
+                                            <td>-</td>
+                                            <td>-</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" id="pauseBatchBtn" onclick="toggleBatchPause()">
+                            <i class="fas fa-pause"></i> Pause
+                        </button>
+                        <button class="btn btn-primary" onclick="downloadBatchResults()">
+                            <i class="fas fa-download"></i> Download Results
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        // Process batch recipients
+        async function processBatchRecipients(noticeData) {
+            // Process document once if needed
+            let encryptedDocumentData = null;
+            if (noticeData.hasDocument && batchDocument) {
+                showBatchStatus('Preparing document for encryption...');
+                // Read and prepare document (this would be encrypted per recipient in actual sending)
+                const reader = new FileReader();
+                const documentData = await new Promise((resolve) => {
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(batchDocument);
+                });
+                encryptedDocumentData = documentData;
+            }
+            
+            // Process each recipient
+            for (let i = batchProgress.currentIndex; i < batchRecipients.length; i++) {
+                if (!batchProgress.inProgress || batchProgress.paused) break;
+                
+                const recipient = batchRecipients[i];
+                batchProgress.currentIndex = i;
+                
+                showBatchStatus(`Processing ${i + 1}/${batchRecipients.length}: ${recipient.address}`);
+                updateBatchRowStatus(i, 'processing', 'Processing...');
+                
+                try {
+                    // Add small delay to prevent overwhelming the network
+                    if (i > 0) await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    // Create notice for this recipient
+                    const result = await createBatchNotice(recipient, noticeData, encryptedDocumentData);
+                    
+                    batchProgress.completed++;
+                    updateBatchRowStatus(i, 'success', 'Sent', result.noticeId);
+                    
+                } catch (error) {
+                    console.error(`Failed to send to ${recipient.address}:`, error);
+                    batchProgress.failed++;
+                    updateBatchRowStatus(i, 'failed', 'Failed', null, error.message);
+                }
+                
+                updateBatchProgress();
+            }
+            
+            // Batch complete
+            if (batchProgress.completed + batchProgress.failed >= batchProgress.total) {
+                showBatchComplete();
+            }
+        }
+        
+        // Create individual batch notice
+        async function createBatchNotice(recipient, noticeData, documentData) {
+            // Similar to regular notice creation but with batch recipient
+            const fee = noticeData.hasDocument ? 150e6 : 15e6;
+            
+            let encryptedData = null;
+            if (noticeData.hasDocument && documentData) {
+                // Encrypt document for this specific recipient
+                const encryptionKey = SimpleEncryption.generateEncryptionKey(
+                    tronWeb.defaultAddress.base58,
+                    recipient.address,
+                    Date.now()
+                );
+                
+                const encryptedDoc = SimpleEncryption.encryptDocument(documentData, encryptionKey);
+                const ipfsHash = await SimpleEncryption.uploadToIPFS(encryptedDoc);
+                
+                encryptedData = {
+                    ipfsHash: ipfsHash,
+                    encryptionKey: encryptionKey
+                };
+            }
+            
+            const noticeRequest = {
+                recipient: recipient.address,
+                publicText: noticeData.noticeText,
+                noticeType: noticeData.noticeType,
+                caseNumber: noticeData.caseNumber,
+                issuingAgency: noticeData.issuingAgency,
+                baseTokenName: `Legal Notice - ${recipient.reference || recipient.name || 'Batch'}`,
+                hasDocument: noticeData.hasDocument,
+                encryptedIPFS: encryptedData ? encryptedData.ipfsHash : '',
+                encryptedKey: encryptedData ? encryptedData.encryptionKey : ''
+            };
+            
+            const result = await legalContract.createNotice(noticeRequest).send({
+                feeLimit: 100_000_000,
+                callValue: fee,
+                shouldPollResponse: true
+            });
+            
+            // Extract notice ID from result
+            let noticeId = null;
+            if (result && result.length > 0) {
+                const eventData = result[0];
+                noticeId = eventData.noticeId || eventData._noticeId || eventData[0];
+            }
+            
+            return { noticeId, txHash: result.txid || result };
+        }
+        
+        // Update batch progress
+        function updateBatchProgress() {
+            const percent = Math.round((batchProgress.completed + batchProgress.failed) / batchProgress.total * 100);
+            document.getElementById('batchProgressBar').style.width = percent + '%';
+            document.getElementById('batchProgressText').textContent = percent + '%';
+            document.getElementById('batchCompleted').textContent = batchProgress.completed;
+            document.getElementById('batchFailed').textContent = batchProgress.failed;
+            document.getElementById('batchRemaining').textContent = batchProgress.total - batchProgress.completed - batchProgress.failed;
+        }
+        
+        // Update batch row status
+        function updateBatchRowStatus(index, status, message, noticeId = null, error = null) {
+            const row = document.getElementById(`batchRow${index}`);
+            if (!row) return;
+            
+            const cells = row.getElementsByTagName('td');
+            
+            // Status badge
+            let badgeClass = 'badge-secondary';
+            if (status === 'processing') badgeClass = 'badge-warning';
+            else if (status === 'success') badgeClass = 'badge-success';
+            else if (status === 'failed') badgeClass = 'badge-danger';
+            
+            cells[2].innerHTML = `<span class="badge ${badgeClass}">${message}</span>`;
+            
+            // Notice ID
+            if (noticeId) {
+                cells[3].textContent = noticeId;
+            }
+            
+            // Error message
+            if (error) {
+                cells[4].textContent = error.substring(0, 50);
+                cells[4].title = error; // Full error on hover
+            }
+        }
+        
+        // Show batch status
+        function showBatchStatus(message) {
+            document.getElementById('currentRecipient').textContent = message;
+        }
+        
+        // Show batch complete
+        function showBatchComplete() {
+            showBatchStatus(`Complete! Sent: ${batchProgress.completed}, Failed: ${batchProgress.failed}`);
+            document.getElementById('pauseBatchBtn').disabled = true;
+            
+            if (batchProgress.failed === 0) {
+                uiManager.showNotification('success', `All ${batchProgress.completed} notices sent successfully!`);
+            } else {
+                uiManager.showNotification('warning', `Batch complete. Sent: ${batchProgress.completed}, Failed: ${batchProgress.failed}`);
+            }
+        }
+        
+        // Toggle batch pause
+        function toggleBatchPause() {
+            batchProgress.paused = !batchProgress.paused;
+            const btn = document.getElementById('pauseBatchBtn');
+            
+            if (batchProgress.paused) {
+                btn.innerHTML = '<i class="fas fa-play"></i> Resume';
+                showBatchStatus('Paused - Click Resume to continue');
+            } else {
+                btn.innerHTML = '<i class="fas fa-pause"></i> Pause';
+                showBatchStatus('Resuming...');
+                processBatchRecipients(lastBatchNoticeData); // Resume where left off
+            }
+        }
+        
+        // Download batch results
+        function downloadBatchResults() {
+            const results = batchRecipients.map((r, i) => {
+                const row = document.getElementById(`batchRow${i}`);
+                const cells = row ? row.getElementsByTagName('td') : [];
+                
+                return {
+                    index: i + 1,
+                    address: r.address,
+                    name: r.name,
+                    reference: r.reference,
+                    status: cells[2] ? cells[2].textContent : 'Unknown',
+                    noticeId: cells[3] ? cells[3].textContent : '-',
+                    error: cells[4] ? cells[4].textContent : '-'
+                };
+            });
+            
+            const csv = [
+                'Index,Address,Name,Reference,Status,Notice ID,Error',
+                ...results.map(r => 
+                    `${r.index},"${r.address}","${r.name}","${r.reference}","${r.status}","${r.noticeId}","${r.error}"`
+                )
+            ].join('\n');
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `batch_results_${new Date().getTime()}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        // Cancel batch
+        function cancelBatch() {
+            if (confirm('Are you sure you want to cancel the batch operation?')) {
+                batchProgress.inProgress = false;
+                batchRecipients = [];
+                document.querySelector('.modal').remove();
+            }
+        }
+        
+        // Store last batch data for resume
+        let lastBatchNoticeData = null;
+        
+        window.toggleBatchMode = toggleBatchMode;
+        window.handleBatchCSVUpload = handleBatchCSVUpload;
+        window.proceedWithBatch = proceedWithBatch;
+        window.handleBatchDocumentUpload = handleBatchDocumentUpload;
+        window.startBatchSending = startBatchSending;
+        window.toggleBatchPause = toggleBatchPause;
+        window.downloadBatchResults = downloadBatchResults;
+        window.cancelBatch = cancelBatch;
         
         window.checkDirectNoticeLink = checkDirectNoticeLink;
         
