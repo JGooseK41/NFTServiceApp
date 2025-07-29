@@ -4424,6 +4424,7 @@
                         <h5 style="color: var(--accent-blue); margin-bottom: 0.5rem;">
                             <i class="fas fa-compress"></i> Processing Document
                         </h5>
+                        <div id="compressionStatusText" style="margin-bottom: 0.5rem; color: var(--text-secondary);">Preparing...</div>
                         <div class="compression-progress">
                             <div class="progress-bar">
                                 <div class="progress-fill" id="compressionProgress" style="width: 0%;"></div>
@@ -10803,6 +10804,100 @@ document.addEventListener('keydown', function(event) {
         window.changeDocument = changeDocument;
         window.handleDocumentUpload = handleDocumentUpload;
         window.createLegalNotice = createLegalNotice;
+        
+        // Document upload handler with encryption
+        async function handleDocumentUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const maxSize = 10 * 1024 * 1024; // 10MB limit
+            if (file.size > maxSize) {
+                uiManager.showNotification('error', 'File size exceeds 10MB limit');
+                return;
+            }
+            
+            try {
+                // Show processing status
+                document.getElementById('compressionStatus').style.display = 'block';
+                updateCompressionProgress(10, 'Reading file...');
+                
+                // Read file as data URL
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    try {
+                        updateCompressionProgress(30, 'Processing document...');
+                        
+                        // Store unencrypted data temporarily (will be encrypted when sent)
+                        uploadedImage = {
+                            data: e.target.result,
+                            fileName: file.name,
+                            fileType: file.type,
+                            fileSize: file.size
+                        };
+                        
+                        updateCompressionProgress(70, 'Preparing for encryption...');
+                        
+                        // Show preview
+                        const uploadResult = document.getElementById('uploadResult');
+                        const uploadedFileName = document.getElementById('uploadedFileName');
+                        const documentPreview = document.getElementById('documentPreview');
+                        
+                        if (uploadResult && uploadedFileName) {
+                            uploadedFileName.textContent = file.name;
+                            uploadResult.style.display = 'block';
+                        }
+                        
+                        // Show preview based on file type
+                        if (file.type.startsWith('image/') && documentPreview) {
+                            documentPreview.src = e.target.result;
+                            documentPreview.style.display = 'block';
+                        }
+                        
+                        updateCompressionProgress(100, 'Document ready for encrypted delivery');
+                        
+                        // Hide progress after delay
+                        setTimeout(() => {
+                            document.getElementById('compressionStatus').style.display = 'none';
+                        }, 1500);
+                        
+                        uiManager.showNotification('success', 'Document uploaded and ready for encryption');
+                        
+                    } catch (error) {
+                        console.error('Error processing document:', error);
+                        uiManager.showNotification('error', 'Failed to process document');
+                        document.getElementById('compressionStatus').style.display = 'none';
+                    }
+                };
+                
+                reader.onerror = function() {
+                    uiManager.showNotification('error', 'Failed to read file');
+                    document.getElementById('compressionStatus').style.display = 'none';
+                };
+                
+                reader.readAsDataURL(file);
+                
+            } catch (error) {
+                console.error('Error uploading document:', error);
+                uiManager.showNotification('error', 'Failed to upload document');
+                document.getElementById('compressionStatus').style.display = 'none';
+            }
+        }
+        
+        function updateCompressionProgress(percent, text) {
+            const progressFill = document.getElementById('compressionProgress');
+            const progressText = document.getElementById('compressionText');
+            const compressionText = document.getElementById('compressionStatusText');
+            
+            if (progressFill) {
+                progressFill.style.width = percent + '%';
+            }
+            if (progressText) {
+                progressText.textContent = percent + '%';
+            }
+            if (compressionText) {
+                compressionText.textContent = text;
+            }
+        }
         window.openAuditModal = openAuditModal;
         window.closeAuditModal = closeAuditModal;
         window.openAcceptModal = openAcceptModal;
@@ -12146,6 +12241,36 @@ document.addEventListener('keydown', function(event) {
                 // Calculate fee
                 const fee = await calculateFeeFromConstants(tronWeb.defaultAddress.base58);
                 
+                // If document delivery, encrypt the document first
+                let encryptedData = null;
+                if (deliveryMethod === 'document' && uploadedImage) {
+                    showProcessing('Encrypting document with recipient\'s address...');
+                    
+                    // Generate encryption key using sender and recipient addresses
+                    const encryptionKey = SimpleEncryption.generateEncryptionKey(
+                        tronWeb.defaultAddress.base58,
+                        recipient,
+                        Date.now()
+                    );
+                    
+                    // Encrypt the document
+                    const encryptedDoc = SimpleEncryption.encryptDocument(
+                        uploadedImage.data,
+                        encryptionKey
+                    );
+                    
+                    // Upload to IPFS (or mock IPFS for now)
+                    showProcessing('Uploading encrypted document to IPFS...');
+                    const ipfsHash = await SimpleEncryption.uploadToIPFS(encryptedDoc);
+                    
+                    encryptedData = {
+                        ipfsHash: ipfsHash,
+                        encryptionKey: encryptionKey
+                    };
+                    
+                    uiManager.showNotification('info', 'Document encrypted with recipient\'s wallet address');
+                }
+                
                 // Build notice request
                 const noticeRequest = {
                     recipient: recipient,
@@ -12155,8 +12280,8 @@ document.addEventListener('keydown', function(event) {
                     issuingAgency: issuingAgency || '',
                     baseTokenName: tokenName || 'Legal Notice',
                     hasDocument: deliveryMethod === 'document',
-                    encryptedIPFS: uploadedImage ? uploadedImage.ipfsHash : '',
-                    encryptedKey: uploadedImage ? uploadedImage.encryptedKey : ''
+                    encryptedIPFS: encryptedData ? encryptedData.ipfsHash : '',
+                    encryptedKey: encryptedData ? encryptedData.encryptionKey : ''
                 };
                 
                 // Send transaction
