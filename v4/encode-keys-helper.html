@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pinata Key Encoder</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        .output {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 4px;
+            margin-top: 20px;
+            display: none;
+        }
+        .code {
+            background: #1e293b;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre;
+        }
+        .warning {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            color: #92400e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Pinata Key Encoder for NFTServiceApp</h1>
+        
+        <div class="warning">
+            <strong>⚠️ Security Note:</strong> This encoding provides basic obfuscation only. 
+            Anyone with technical knowledge can still decode these keys. For production use, 
+            consider using a backend proxy service instead.
+        </div>
+
+        <h3>Step 1: Enter Your Pinata Keys</h3>
+        <label>Pinata API Key:</label>
+        <input type="text" id="apiKey" placeholder="Enter your Pinata API key">
+        
+        <label>Pinata Secret Key:</label>
+        <input type="text" id="secretKey" placeholder="Enter your Pinata secret key">
+        
+        <button onclick="encodeKeys()">Encode Keys</button>
+        
+        <div id="output" class="output">
+            <h3>Step 2: Copy This Code</h3>
+            <p>Replace the PINATA_CONFIG section in your index_v4.html with:</p>
+            <div class="code" id="encodedConfig"></div>
+            
+            <button onclick="copyToClipboard()">Copy to Clipboard</button>
+            
+            <h3>Step 3: Test Decoding</h3>
+            <button onclick="testDecode()">Test Decode</button>
+            <div id="testResult"></div>
+        </div>
+    </div>
+
+    <script>
+        function encodeKey(key) {
+            // Base64 encode, then reverse the string
+            const encoded = btoa(key);
+            return encoded.split('').reverse().join('');
+        }
+        
+        function decodeKey(encoded) {
+            // Reverse the string, then base64 decode
+            const reversed = encoded.split('').reverse().join('');
+            return atob(reversed);
+        }
+        
+        function encodeKeys() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const secretKey = document.getElementById('secretKey').value.trim();
+            
+            if (!apiKey || !secretKey) {
+                alert('Please enter both API key and secret key');
+                return;
+            }
+            
+            const encodedApi = encodeKey(apiKey);
+            const encodedSecret = encodeKey(secretKey);
+            
+            const configCode = `        // Pinata IPFS Configuration
+        window.PINATA_CONFIG = {
+            // Encoded keys for all users (can be overridden in admin panel)
+            encodedKey: '${encodedApi}',
+            encodedSecret: '${encodedSecret}'
+        };`;
+            
+            document.getElementById('encodedConfig').textContent = configCode;
+            document.getElementById('output').style.display = 'block';
+        }
+        
+        function copyToClipboard() {
+            const text = document.getElementById('encodedConfig').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Copied to clipboard!');
+            });
+        }
+        
+        function testDecode() {
+            const configText = document.getElementById('encodedConfig').textContent;
+            
+            // Extract encoded values
+            const keyMatch = configText.match(/encodedKey: '([^']+)'/);
+            const secretMatch = configText.match(/encodedSecret: '([^']+)'/);
+            
+            if (keyMatch && secretMatch) {
+                const decodedApi = decodeKey(keyMatch[1]);
+                const decodedSecret = decodeKey(secretMatch[1]);
+                
+                document.getElementById('testResult').innerHTML = `
+                    <div style="margin-top: 10px; padding: 10px; background: #d1fae5; border-radius: 4px;">
+                        <strong>✓ Decoding successful!</strong><br>
+                        API Key: ${decodedApi.substring(0, 10)}...<br>
+                        Secret: ${decodedSecret.substring(0, 10)}...
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

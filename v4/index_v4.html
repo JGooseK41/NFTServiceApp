@@ -20,6 +20,7 @@
     <script src="js/simple-encryption.js?v=2"></script>
     <script src="js/simplified-integration.js"></script>
     <script src="js/thumbnail-generator.js"></script>
+    <script src="js/ipfs-integration.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -3559,6 +3560,60 @@
                         </div>
                         <div id="githubSettingsResult"></div>
                     </div>
+
+                    <!-- Pinata IPFS Settings -->
+                    <div class="card" style="margin-top: 1.5rem;">
+                        <div class="card-header">
+                            <h2><i class="fas fa-cloud-upload-alt"></i> IPFS Storage Settings (Pinata)</h2>
+                        </div>
+                        
+                        <div class="alert alert-info" style="margin-bottom: 1rem;">
+                            <i class="fas fa-info-circle"></i>
+                            <div>
+                                <strong>Required for NFT Visibility:</strong> Configure Pinata IPFS to ensure legal notice NFTs appear in wallets.
+                                <br><small>Get free API keys at <a href="https://www.pinata.cloud" target="_blank" style="color: #3b82f6;">pinata.cloud</a></small>
+                            </div>
+                        </div>
+                        
+                        <!-- Pinata API Key -->
+                        <div class="form-group">
+                            <label class="form-label">Pinata API Key</label>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <input type="password" class="form-input" id="pinataApiKey" 
+                                       placeholder="Your Pinata API key" style="flex: 1;">
+                                <button class="btn btn-secondary btn-small" onclick="togglePinataKeyVisibility('api')" title="Show/Hide">
+                                    <i class="fas fa-eye" id="pinataApiVisibilityIcon"></i>
+                                </button>
+                            </div>
+                            <p class="form-help">Your Pinata API key for uploading to IPFS</p>
+                        </div>
+                        
+                        <!-- Pinata Secret Key -->
+                        <div class="form-group">
+                            <label class="form-label">Pinata Secret Key</label>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <input type="password" class="form-input" id="pinataSecretKey" 
+                                       placeholder="Your Pinata secret key" style="flex: 1;">
+                                <button class="btn btn-secondary btn-small" onclick="togglePinataKeyVisibility('secret')" title="Show/Hide">
+                                    <i class="fas fa-eye" id="pinataSecretVisibilityIcon"></i>
+                                </button>
+                            </div>
+                            <p class="form-help">Your Pinata secret key for authentication</p>
+                        </div>
+                        
+                        <!-- Test Connection and Save -->
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-primary" onclick="savePinataSettings()">
+                                <i class="fas fa-save"></i>
+                                Save IPFS Settings
+                            </button>
+                            <button class="btn btn-secondary" onclick="testPinataConnection()">
+                                <i class="fas fa-check-circle"></i>
+                                Test Connection
+                            </button>
+                        </div>
+                        <div id="pinataSettingsResult"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -5446,10 +5501,10 @@
         
         // Pinata IPFS Configuration
         window.PINATA_CONFIG = {
-            // Replace these with your actual Pinata API keys
-            // Or leave empty to use localStorage configuration
-            apiKey: '',
-            secretKey: ''
+            // Encoded keys for all users (can be overridden in admin panel)
+            // To encode your keys, use encode-keys-helper.html
+            encodedKey: '',  // Your encoded API key goes here
+            encodedSecret: ''  // Your encoded secret key goes here
         };
         
         // GitHub Storage Configuration
@@ -12264,6 +12319,12 @@ async function checkUserRoles() {
             
             // Check if new user needs onboarding
             checkNewUserOnboarding();
+            
+            // Load saved Pinata settings
+            if (window.IPFSIntegration) {
+                loadPinataSettings();
+            }
+            
             // Hide loader
             setTimeout(() => {
                 uiManager.hideLoader();
@@ -15075,6 +15136,87 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             keyInput.select();
             document.execCommand('copy');
             uiManager.showNotification('success', 'Encryption key copied to clipboard');
+        }
+
+        // Pinata IPFS Settings Functions
+        function togglePinataKeyVisibility(type) {
+            const input = type === 'api' ? document.getElementById('pinataApiKey') : document.getElementById('pinataSecretKey');
+            const icon = type === 'api' ? document.getElementById('pinataApiVisibilityIcon') : document.getElementById('pinataSecretVisibilityIcon');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        async function savePinataSettings() {
+            const apiKey = document.getElementById('pinataApiKey').value.trim();
+            const secretKey = document.getElementById('pinataSecretKey').value.trim();
+            
+            if (!apiKey || !secretKey) {
+                uiManager.showNotification('error', 'Please enter both API key and secret key');
+                return;
+            }
+            
+            // Save to IPFS integration
+            IPFSIntegration.saveConfig(apiKey, secretKey);
+            
+            uiManager.showNotification('success', 'Pinata IPFS settings saved successfully');
+            showAlert('pinataSettingsResult', 'success', 'Settings saved! NFT metadata will now be uploaded to IPFS.');
+        }
+
+        async function testPinataConnection() {
+            const apiKey = document.getElementById('pinataApiKey').value.trim();
+            const secretKey = document.getElementById('pinataSecretKey').value.trim();
+            
+            if (!apiKey || !secretKey) {
+                // Try to get from saved config
+                const config = IPFSIntegration.getConfig();
+                if (!config) {
+                    uiManager.showNotification('error', 'Please enter Pinata credentials first');
+                    return;
+                }
+            }
+            
+            showProcessing('Testing Pinata connection...');
+            
+            try {
+                const testResult = await IPFSIntegration.testConnection(
+                    apiKey || IPFSIntegration.getConfig().apiKey,
+                    secretKey || IPFSIntegration.getConfig().secretKey
+                );
+                
+                hideProcessing();
+                
+                if (testResult) {
+                    showAlert('pinataSettingsResult', 'success', 
+                        '✓ Successfully connected to Pinata<br>' +
+                        '✓ IPFS uploads enabled<br>' +
+                        '✓ NFTs will be visible in wallets'
+                    );
+                } else {
+                    showAlert('pinataSettingsResult', 'error', 'Invalid credentials or connection failed');
+                }
+            } catch (error) {
+                hideProcessing();
+                console.error('Error testing Pinata connection:', error);
+                showAlert('pinataSettingsResult', 'error', 'Error testing connection: ' + error.message);
+            }
+        }
+
+        // Load saved Pinata settings on page load
+        function loadPinataSettings() {
+            const config = IPFSIntegration.getConfig();
+            if (config && config.apiKey) {
+                document.getElementById('pinataApiKey').value = config.apiKey;
+                document.getElementById('pinataSecretKey').value = config.secretKey;
+                showAlert('pinataSettingsResult', 'info', 'Pinata settings loaded from storage');
+            }
         }
 
         function saveGitHubSettings() {
