@@ -1,0 +1,68 @@
+{
+  "contractName": "LegalNoticeNFT_v4_Final",
+  "contractAddress": "TSQZgUdYGm7LYSoZqr4SCKs8nb4C98ckn5",
+  "deploymentInfo": {
+    "network": "TRON",
+    "compiler": "0.8.6",
+    "optimization": {
+      "enabled": true,
+      "runs": 200
+    },
+    "contractSize": "24,542 bytes",
+    "deploymentCost": "1,149.14688 TRX",
+    "energyUsed": 76284,
+    "transactionHash": "532b3d2f36356a1b1f9096db4b01067b6b990220503eb745e8bb66824d52cf9c",
+    "deploymentDate": "2025-07-30"
+  },
+  "features": {
+    "ipfsSupport": true,
+    "batchServing": {
+      "enabled": true,
+      "maxBatchSize": 10,
+      "estimatedSavings": "75-80%"
+    },
+    "serverIdSystem": {
+      "enabled": true,
+      "startingId": 1000,
+      "autoAssignment": true
+    },
+    "serviceAttemptTracking": {
+      "enabled": true,
+      "includesNotes": true
+    }
+  },
+  "fees": {
+    "serviceFee": "20000000",
+    "creationFee": "5000000",
+    "sponsorshipFee": "2000000",
+    "note": "Fees in sun (1 TRX = 1,000,000 sun)"
+  },
+  "roles": {
+    "ADMIN_ROLE": "0xdf8b4c520ffe197c5343c6f5aec59570151ef9a492f2c624fd45ddde6135ec42",
+    "PROCESS_SERVER_ROLE": "0x4ac8bdf360a7fc85cd97c1bc9a1696926ec2e258b3977ea5f6c8fef2a4278c8e"
+  },
+  "keyFunctions": [
+    {
+      "name": "serveNotice",
+      "parameters": 10,
+      "includesMetadataURI": true
+    },
+    {
+      "name": "serveNoticeBatch",
+      "maxBatch": 10,
+      "costSavings": "75-80%"
+    },
+    {
+      "name": "getServerId",
+      "returns": "uint256"
+    },
+    {
+      "name": "recordServiceAttempt",
+      "parameters": ["noticeId", "note"]
+    }
+  ],
+  "contractUrls": {
+    "tronScan": "https://tronscan.org/#/contract/TSQZgUdYGm7LYSoZqr4SCKs8nb4C98ckn5",
+    "verification": "https://tronscan.org/#/contract/TSQZgUdYGm7LYSoZqr4SCKs8nb4C98ckn5/code"
+  }
+}
