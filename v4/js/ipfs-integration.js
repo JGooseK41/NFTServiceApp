@@ -16,12 +16,19 @@ const IPFSIntegration = {
     
     // Get Pinata configuration
     getConfig() {
+        console.log('Getting Pinata config...');
+        console.log('window.PINATA_CONFIG:', window.PINATA_CONFIG);
+        
         // First check for encoded default config
         if (window.PINATA_CONFIG && window.PINATA_CONFIG.encodedKey) {
+            console.log('Found encoded config, attempting decode...');
             try {
                 const apiKey = this.decodeConfig(window.PINATA_CONFIG.encodedKey);
                 const secretKey = this.decodeConfig(window.PINATA_CONFIG.encodedSecret);
+                console.log('Decoded API key length:', apiKey ? apiKey.length : 0);
+                console.log('Decoded secret length:', secretKey ? secretKey.length : 0);
                 if (apiKey && secretKey) {
+                    console.log('Successfully decoded Pinata config');
                     return { apiKey, secretKey };
                 }
             } catch (e) {
@@ -32,6 +39,7 @@ const IPFSIntegration = {
         // Then check localStorage for admin overrides
         const storedConfig = localStorage.getItem('pinataConfig');
         if (storedConfig) {
+            console.log('Found config in localStorage');
             try {
                 return JSON.parse(storedConfig);
             } catch (e) {
@@ -39,6 +47,7 @@ const IPFSIntegration = {
             }
         }
         
+        console.log('No Pinata config found');
         return null;
     },
     
@@ -236,25 +245,13 @@ const IPFSIntegration = {
 // Export for use
 window.IPFSIntegration = IPFSIntegration;
 
-// Override the uploadToIPFS function in SimpleEncryption to use real IPFS
-if (window.SimpleEncryption) {
-    window.SimpleEncryption.uploadToIPFS = async function(data) {
-        return await IPFSIntegration.uploadToPinata(data, {
-            name: 'encrypted-legal-document',
-            type: 'encrypted-document'
-        });
-    };
+// Set up overrides when scripts are ready
+function setupIPFSOverrides() {
+    console.log('Setting up IPFS overrides...');
+    console.log('PINATA_CONFIG available:', !!window.PINATA_CONFIG);
+    console.log('PINATA_CONFIG has encodedKey:', !!(window.PINATA_CONFIG && window.PINATA_CONFIG.encodedKey));
     
-    window.SimpleEncryption.fetchFromIPFS = async function(hash) {
-        return await IPFSIntegration.fetchFromIPFS(hash);
-    };
-}
-
-// Override the uploadToIPFS function in ThumbnailGenerator to use real IPFS
-document.addEventListener('DOMContentLoaded', function() {
-    // Wait for ThumbnailGenerator to be loaded
-    if (window.ThumbnailGenerator && window.SimpleEncryption) {
-        // Override SimpleEncryption's uploadToIPFS first
+    if (window.SimpleEncryption) {
         window.SimpleEncryption.uploadToIPFS = async function(data) {
             return await IPFSIntegration.uploadToPinata(data, {
                 name: 'encrypted-legal-document',
@@ -262,35 +259,30 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         };
         
-        // Then override ThumbnailGenerator's usage
+        window.SimpleEncryption.fetchFromIPFS = async function(hash) {
+            return await IPFSIntegration.fetchFromIPFS(hash);
+        };
+        console.log('SimpleEncryption IPFS overrides applied');
+    }
+}
+
+// Try to set up immediately if SimpleEncryption is already loaded
+if (window.SimpleEncryption) {
+    setupIPFSOverrides();
+}
+
+// Also set up on DOMContentLoaded to catch any late-loading scripts
+document.addEventListener('DOMContentLoaded', function() {
+    setupIPFSOverrides();
+    
+    // Set up ThumbnailGenerator overrides
+    if (window.ThumbnailGenerator) {
         const originalProcessDocument = window.ThumbnailGenerator.processDocumentForNFT;
         window.ThumbnailGenerator.processDocumentForNFT = async function(documentData, noticeDetails, noticeId) {
-            // Temporarily override the uploadToIPFS for this operation
-            const originalUpload = window.SimpleEncryption.uploadToIPFS;
-            
-            window.SimpleEncryption.uploadToIPFS = async function(data) {
-                if (typeof data === 'string' && data.startsWith('data:image')) {
-                    return await IPFSIntegration.uploadToPinata(data, {
-                        name: 'legal-notice-thumbnail',
-                        type: 'nft-image'
-                    });
-                } else if (typeof data === 'string') {
-                    // JSON metadata
-                    return await IPFSIntegration.uploadToPinata(data, {
-                        name: 'legal-notice-metadata',
-                        type: 'nft-metadata'
-                    });
-                }
-                return await originalUpload(data);
-            };
-            
-            // Call the original function
-            const result = await originalProcessDocument.call(this, documentData, noticeDetails, noticeId);
-            
-            // Restore original function
-            window.SimpleEncryption.uploadToIPFS = originalUpload;
-            
-            return result;
+            // Use IPFS for thumbnail processing
+            console.log('Processing document for NFT with IPFS...');
+            return await originalProcessDocument.call(this, documentData, noticeDetails, noticeId);
         };
+        console.log('ThumbnailGenerator IPFS overrides applied');
     }
 });
