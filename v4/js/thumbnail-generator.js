@@ -187,10 +187,13 @@ const ThumbnailGenerator = {
     
     // Generate metadata JSON for IPFS
     generateNFTMetadata(noticeId, thumbnailIPFSHash, noticeDetails) {
+        // Use HTTPS gateway for better wallet compatibility
+        const imageUrl = `https://gateway.pinata.cloud/ipfs/${thumbnailIPFSHash}`;
+        
         const metadata = {
             name: `Legal Notice #${noticeId}`,
             description: "SEALED LEGAL DOCUMENT - This is an official legal notice requiring your immediate attention. Visit the link to view and acknowledge receipt.",
-            image: `ipfs://${thumbnailIPFSHash}`,
+            image: imageUrl,  // Use HTTPS URL for better wallet support
             external_url: `https://nftserviceapp.netlify.app/#notice-${noticeId}`,
             attributes: [
                 {
@@ -237,30 +240,43 @@ const ThumbnailGenerator = {
             
             // Determine document type
             let documentType = 'document';
-            if (documentData.startsWith('data:image')) {
+            if (documentData && documentData.startsWith('data:image')) {
                 documentType = 'image';
-            } else if (documentData.startsWith('data:application/pdf')) {
+            } else if (documentData && documentData.startsWith('data:application/pdf')) {
                 documentType = 'pdf';
             }
             
             // Generate sealed thumbnail
-            const thumbnailData = await this.generateSealedThumbnail(documentData, documentType);
+            const thumbnailData = await this.generateSealedThumbnail(documentData || '', documentType);
             
-            // Upload thumbnail to IPFS
-            console.log('Uploading thumbnail to IPFS...');
-            const thumbnailHash = await SimpleEncryption.uploadToIPFS(thumbnailData);
+            // For mock IPFS, create a simple base64 metadata directly
+            // This ensures NFT visibility even without real IPFS
+            const simpleMetadata = {
+                name: `Legal Notice #${noticeId}`,
+                description: "SEALED LEGAL DOCUMENT - This is an official legal notice requiring your immediate attention.",
+                image: thumbnailData,  // Use base64 image directly
+                attributes: [
+                    {
+                        trait_type: "Type",
+                        value: noticeDetails.noticeType || "Legal Notice"
+                    },
+                    {
+                        trait_type: "Case Number",  
+                        value: noticeDetails.caseNumber || "Confidential"
+                    }
+                ]
+            };
             
-            // Generate metadata
-            const metadata = this.generateNFTMetadata(noticeId, thumbnailHash, noticeDetails);
+            // Convert metadata to base64 data URI
+            const metadataBase64 = btoa(JSON.stringify(simpleMetadata));
+            const metadataURI = `data:application/json;base64,${metadataBase64}`;
             
-            // Upload metadata to IPFS
-            console.log('Uploading metadata to IPFS...');
-            const metadataHash = await SimpleEncryption.uploadToIPFS(JSON.stringify(metadata));
+            console.log('Generated metadata URI:', metadataURI.substring(0, 100) + '...');
             
             return {
-                thumbnailHash,
-                metadataHash,
-                metadataURI: `ipfs://${metadataHash}`,
+                thumbnailData,
+                metadata: simpleMetadata,
+                metadataURI: metadataURI,  // Use data URI instead of IPFS for immediate availability
                 success: true
             };
             

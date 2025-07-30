@@ -16305,6 +16305,30 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     }
                 }
                 
+                // For text-only notices, generate simple metadata
+                let metadataURI = '';
+                if (deliveryMethod === 'text' || !encryptedData || !encryptedData.metadataURI) {
+                    // Generate simple metadata for text notices
+                    const textMetadata = {
+                        name: `Legal Notice - ${noticeType === 'Custom' ? customType : noticeType}`,
+                        description: publicText || 'Legal notice requiring your attention',
+                        image: 'data:image/svg+xml;base64,' + btoa(`
+                            <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+                                <rect width="400" height="400" fill="#1a1a1a"/>
+                                <text x="200" y="180" text-anchor="middle" fill="#fff" font-size="24" font-family="Arial">LEGAL NOTICE</text>
+                                <text x="200" y="220" text-anchor="middle" fill="#888" font-size="16" font-family="Arial">${noticeType === 'Custom' ? customType : noticeType}</text>
+                            </svg>
+                        `),
+                        attributes: [
+                            { trait_type: "Type", value: noticeType === 'Custom' ? customType : noticeType },
+                            { trait_type: "Agency", value: issuingAgency || 'Process Server' }
+                        ]
+                    };
+                    metadataURI = 'data:application/json;base64,' + btoa(JSON.stringify(textMetadata));
+                } else {
+                    metadataURI = encryptedData.metadataURI;
+                }
+                
                 // Build notice request
                 const noticeRequest = {
                     recipient: recipient,
@@ -16316,7 +16340,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     hasDocument: deliveryMethod === 'document',
                     encryptedIPFS: encryptedData ? encryptedData.ipfsHash : '',
                     encryptionKey: encryptedData ? encryptedData.encryptionKey : '',  // Fixed: was encryptedKey
-                    metadataURI: encryptedData && encryptedData.metadataURI ? encryptedData.metadataURI : ''  // Add metadata URI for NFT visibility
+                    metadataURI: metadataURI  // Always provide metadata URI for NFT visibility
                 };
                 
                 // Send transaction - TronWeb might need the struct as an array

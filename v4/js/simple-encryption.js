@@ -81,6 +81,14 @@ const SimpleEncryption = {
         // In production, use actual IPFS upload
         const hash = 'Qm' + CryptoJS.SHA256(data).toString().substring(0, 44);
         
+        // Log what we're uploading for debugging
+        console.log('Mock IPFS upload:', {
+            dataLength: data.length,
+            dataType: typeof data,
+            hash: hash,
+            preview: data.substring(0, 100)
+        });
+        
         // First, let's see what's taking up space
         try {
             console.log('localStorage usage before cleanup:');
