@@ -2927,11 +2927,11 @@
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
                         <input type="text" class="form-input" id="contractAddress" 
                                placeholder="Enter contract address (e.g., TXxxx...)"
-                               value="TSQZgUdYGm7LYSoZqr4SCKs8nb4C98ckn5" style="flex: 1;">
+                               value="THUoYefQtWgkSmmFqqJpYERCuqLw1As2hL" style="flex: 1;">
                         <button class="btn btn-secondary" onclick="copyAddress(document.getElementById('contractAddress').value)" title="Copy address">
                             <i class="fas fa-copy"></i>
                         </button>
-                        <a href="https://nile.tronscan.org/#/contract/TSQZgUdYGm7LYSoZqr4SCKs8nb4C98ckn5" target="_blank" class="btn btn-secondary" title="View on Nile TronScan">
+                        <a href="https://nile.tronscan.org/#/contract/THUoYefQtWgkSmmFqqJpYERCuqLw1As2hL" target="_blank" class="btn btn-secondary" title="View on Nile TronScan">
                             <i class="fas fa-external-link-alt"></i>
                         </a>
                     </div>
@@ -6885,7 +6885,7 @@
             "type": "string"
           }
         ],
-        "internalType": "struct LegalNoticeNFT_v4_Final.BatchNotice[]",
+        "internalType": "struct LegalNoticeNFT_v5_Enumerable.BatchNotice[]",
         "name": "batchNotices",
         "type": "tuple[]"
       }
@@ -7160,6 +7160,49 @@
     "inputs": [
       {
         "internalType": "uint256",
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "name": "tokenByIndex",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "name": "tokenOfOwnerByIndex",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
         "name": "",
         "type": "uint256"
       }
@@ -7167,7 +7210,7 @@
     "name": "tokenTypes",
     "outputs": [
       {
-        "internalType": "enum LegalNoticeNFT_v4_Final.NoticeType",
+        "internalType": "enum LegalNoticeNFT_v5_Enumerable.NoticeType",
         "name": "",
         "type": "uint8"
       }
@@ -7189,6 +7232,25 @@
         "internalType": "string",
         "name": "",
         "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "tokensOfOwner",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
       }
     ],
     "stateMutability": "view",
@@ -7441,7 +7503,7 @@ function parsePackedData(packedData) {
                 },
                 nile: {
                     name: 'TRON Nile Testnet',
-                    contractAddress: window.APP_CONFIG?.contracts.tron.nile || 'TSQZgUdYGm7LYSoZqr4SCKs8nb4C98ckn5',
+                    contractAddress: window.APP_CONFIG?.contracts.tron.nile || 'THUoYefQtWgkSmmFqqJpYERCuqLw1As2hL',
                     explorerUrl: 'https://nile.tronscan.org',
                     nativeToken: 'TRX',
                     chainId: null

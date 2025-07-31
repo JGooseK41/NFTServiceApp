@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NFT Viewer - Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            display: none;
+        }
+        .error {
+            color: red;
+            padding: 10px;
+            background: #fee;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            color: green;
+            padding: 10px;
+            background: #efe;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        img {
+            max-width: 300px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Legal Notice NFT Viewer</h1>
+        <p>Check if NFTs exist for an address on Nile Testnet</p>
+        
+        <label>Wallet Address:</label>
+        <input type="text" id="address" value="TFfagVe1aZpSfYaruY6xJfVPYZBuMj57FH" placeholder="Enter wallet address">
+        
+        <label>Contract Address:</label>
+        <input type="text" id="contract" value="TSQZgUdYGm7LYSoZqr4SCKs8nb4C98ckn5" readonly>
+        
+        <div style="margin-top: 20px;">
+            <button onclick="connectWallet()">Connect TronLink</button>
+            <button onclick="checkBalance()">Check NFT Balance</button>
+            <button onclick="checkTokens()">Check Specific Tokens</button>
+        </div>
+        
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        let tronWeb = null;
+        const CONTRACT_ADDRESS = 'TSQZgUdYGm7LYSoZqr4SCKs8nb4C98ckn5';
+        const ABI = [
+            {"constant":true,"inputs":[{"name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},
+            {"constant":true,"inputs":[{"name":"tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},
+            {"constant":true,"inputs":[{"name":"tokenId","type":"uint256"}],"name":"tokenURI","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},
+            {"constant":true,"inputs":[],"name":"totalSupply","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"}
+        ];
+        
+        async function connectWallet() {
+            try {
+                if (window.tronLink) {
+                    await window.tronLink.request({ method: 'tron_requestAccounts' });
+                    tronWeb = window.tronWeb;
+                    
+                    // Check network
+                    const node = tronWeb.fullNode.host;
+                    if (!node.includes('nile')) {
+                        showError('Please switch to Nile Testnet in TronLink!');
+                        return;
+                    }
+                    
+                    showSuccess('Connected to Nile Testnet!');
+                } else {
+                    showError('TronLink not found!');
+                }
+            } catch (error) {
+                showError('Error connecting: ' + error.message);
+            }
+        }
+        
+        async function checkBalance() {
+            try {
+                const address = document.getElementById('address').value;
+                if (!address) {
+                    showError('Please enter an address');
+                    return;
+                }
+                
+                // Initialize TronWeb for Nile testnet
+                if (!tronWeb) {
+                    tronWeb = new TronWeb({
+                        fullHost: 'https://nile.trongrid.io'
+                    });
+                }
+                
+                const contract = await tronWeb.contract(ABI, CONTRACT_ADDRESS);
+                const balance = await contract.balanceOf(address).call();
+                
+                showResult(`
+                    <h3>NFT Balance Check</h3>
+                    <p><strong>Address:</strong> ${address}</p>
+                    <p><strong>NFT Balance:</strong> ${balance.toString()} NFTs</p>
+                `);
+                
+            } catch (error) {
+                showError('Error checking balance: ' + error.message);
+            }
+        }
+        
+        async function checkTokens() {
+            try {
+                if (!tronWeb) {
+                    tronWeb = new TronWeb({
+                        fullHost: 'https://nile.trongrid.io'
+                    });
+                }
+                
+                const contract = await tronWeb.contract(ABI, CONTRACT_ADDRESS);
+                const totalSupply = await contract.totalSupply().call();
+                
+                let html = '<h3>Token Check Results</h3>';
+                html += `<p><strong>Total Supply:</strong> ${totalSupply.toString()}</p>`;
+                
+                // Check tokens 1-6
+                for (let i = 1; i <= 6; i++) {
+                    try {
+                        const owner = await contract.ownerOf(i).call();
+                        const uri = await contract.tokenURI(i).call();
+                        
+                        html += `<div style="border: 1px solid #ddd; padding: 10px; margin: 10px 0;">`;
+                        html += `<strong>Token #${i}</strong><br>`;
+                        html += `Owner: ${owner}<br>`;
+                        
+                        if (uri.startsWith('ipfs://')) {
+                            const ipfsHash = uri.replace('ipfs://', '');
+                            const httpUrl = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+                            html += `Metadata: <a href="${httpUrl}" target="_blank">View on IPFS</a><br>`;
+                            
+                            // Try to load metadata
+                            try {
+                                const response = await fetch(httpUrl);
+                                const metadata = await response.json();
+                                html += `Name: ${metadata.name}<br>`;
+                                if (metadata.image) {
+                                    const imageUrl = metadata.image.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+                                    html += `<img src="${imageUrl}" alt="NFT Image">`;
+                                }
+                            } catch (e) {
+                                console.error('Error loading metadata:', e);
+                            }
+                        } else if (uri.startsWith('data:')) {
+                            html += `Metadata: Data URI<br>`;
+                        }
+                        
+                        html += `</div>`;
+                    } catch (e) {
+                        html += `<p>Token #${i}: Not found or error</p>`;
+                    }
+                }
+                
+                showResult(html);
+                
+            } catch (error) {
+                showError('Error checking tokens: ' + error.message);
+            }
+        }
+        
+        function showResult(html) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = html;
+            resultDiv.style.display = 'block';
+        }
+        
+        function showError(message) {
+            showResult(`<div class="error">${message}</div>`);
+        }
+        
+        function showSuccess(message) {
+            showResult(`<div class="success">${message}</div>`);
+        }
+    </script>
+</body>
+</html>

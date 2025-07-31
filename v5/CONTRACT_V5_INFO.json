@@ -1,0 +1,95 @@
+{
+  "contractName": "LegalNoticeNFT_v5_Enumerable",
+  "contractAddress": "THUoYefQtWgkSmmFqqJpYERCuqLw1As2hL",
+  "deploymentInfo": {
+    "network": "TRON Nile Testnet",
+    "compiler": "0.8.6",
+    "optimization": {
+      "enabled": true,
+      "runs": 200
+    },
+    "contractSize": "23.93 KB",
+    "deploymentCost": "1,049.31036 TRX",
+    "energyUsed": 66208,
+    "transactionHash": "dc77fc8c70aad26a303d2d594ca021ce23e33dd9a5936a9538642619612b8bc9",
+    "deploymentDate": "2025-07-31"
+  },
+  "features": {
+    "ipfsSupport": true,
+    "batchServing": {
+      "enabled": true,
+      "maxBatchSize": 10,
+      "estimatedSavings": "75-80%"
+    },
+    "serverIdSystem": {
+      "enabled": true,
+      "startingId": 1000,
+      "autoAssignment": true
+    },
+    "serviceAttemptTracking": {
+      "enabled": true,
+      "includesNotes": true
+    },
+    "trc721Enumerable": {
+      "enabled": true,
+      "functions": [
+        "tokenOfOwnerByIndex",
+        "tokenByIndex",
+        "tokensOfOwner",
+        "totalSupply"
+      ],
+      "walletVisibility": "automatic"
+    }
+  },
+  "improvements": {
+    "fromV4": [
+      "Added TRC721 Enumerable support for automatic wallet visibility",
+      "Removed base64 encoding function to save space",
+      "Optimized error messages to fit within 24KB limit",
+      "NFTs now automatically appear in wallets without manual import"
+    ]
+  },
+  "fees": {
+    "serviceFee": "20000000",
+    "creationFee": "5000000",
+    "sponsorshipFee": "2000000",
+    "note": "Fees in sun (1 TRX = 1,000,000 sun)"
+  },
+  "roles": {
+    "ADMIN_ROLE": "0xdf8b4c520ffe197c5343c6f5aec59570151ef9a492f2c624fd45ddde6135ec42",
+    "PROCESS_SERVER_ROLE": "0x4ac8bdf360a7fc85cd97c1bc9a1696926ec2e258b3977ea5f6c8fef2a4278c8e"
+  },
+  "keyFunctions": [
+    {
+      "name": "serveNotice",
+      "parameters": 10,
+      "includesMetadataURI": true
+    },
+    {
+      "name": "serveNoticeBatch",
+      "maxBatch": 10,
+      "costSavings": "75-80%"
+    },
+    {
+      "name": "getServerId",
+      "returns": "uint256"
+    },
+    {
+      "name": "recordServiceAttempt",
+      "parameters": ["noticeId", "note"]
+    },
+    {
+      "name": "tokenOfOwnerByIndex",
+      "description": "Get token ID by index for owner"
+    },
+    {
+      "name": "tokensOfOwner",
+      "description": "Get all token IDs owned by address"
+    }
+  ],
+  "contractUrls": {
+    "tronScan": "https://nile.tronscan.org/#/contract/THUoYefQtWgkSmmFqqJpYERCuqLw1As2hL",
+    "verification": "https://nile.tronscan.org/#/contract/THUoYefQtWgkSmmFqqJpYERCuqLw1As2hL/code",
+    "transaction": "https://nile.tronscan.org/#/transaction/dc77fc8c70aad26a303d2d594ca021ce23e33dd9a5936a9538642619612b8bc9"
+  }
+}
