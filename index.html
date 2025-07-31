@@ -9460,7 +9460,7 @@ function useConnectedAddressForFeeCollector() {
                 if (txData.txHash) {
                     content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
                     content += `<span>Transaction Hash:</span>`;
-                    content += `<a href="${getContractScanUrl()}tx/${txData.txHash}" target="_blank" style="color: var(--accent-blue);">`;
+                    content += `<a href="${getTxScanUrl()}${txData.txHash}" target="_blank" style="color: var(--accent-blue);">`;
                     content += `${txData.txHash.substring(0, 10)}...${txData.txHash.substring(txData.txHash.length - 8)}`;
                     content += `</a>`;
                     content += `</div>`;
@@ -9496,7 +9496,7 @@ function useConnectedAddressForFeeCollector() {
                 // Add contract address
                 content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
                 content += `<span>Contract:</span>`;
-                content += `<a href="${getContractScanUrl()}contract/${legalContract.address}" target="_blank" style="color: var(--accent-blue); font-size: 0.9rem;">`;
+                content += `<a href="${getContractScanUrl()}" target="_blank" style="color: var(--accent-blue); font-size: 0.9rem;">`;
                 content += `${legalContract.address.substring(0, 10)}...${legalContract.address.substring(legalContract.address.length - 8)}`;
                 content += `</a>`;
                 content += `</div>`;
@@ -9571,7 +9571,7 @@ function useConnectedAddressForFeeCollector() {
                 content += '<i class="fas fa-print"></i> Print';
                 content += '</button>';
                 if (txData.txHash && txData.txHash !== 'Transaction confirmed') {
-                    content += `<a href="${getContractScanUrl()}tx/${txData.txHash}" target="_blank" class="btn btn-secondary">`;
+                    content += `<a href="${getTxScanUrl()}${txData.txHash}" target="_blank" class="btn btn-secondary">`;
                     content += '<i class="fas fa-external-link-alt"></i> View on TronScan';
                     content += '</a>';
                 }
@@ -11053,7 +11053,7 @@ async function checkUserRoles() {
                         <div class="token-detail">
                             <span>Contract:</span>
                             <span>
-                                <a href="${getContractScanUrl(contractAddress)}" target="_blank" style="color: var(--accent-blue); text-decoration: none;">
+                                <a href="${network.includes('Nile') ? 'https://nile.tronscan.org/#/contract/' : 'https://tronscan.org/#/contract/'}${contractAddress}" target="_blank" style="color: var(--accent-blue); text-decoration: none;">
                                     ${contractAddress.substring(0, 10)}...${contractAddress.substring(contractAddress.length - 8)}
                                     <i class="fas fa-external-link-alt" style="font-size: 0.75rem; margin-left: 0.25rem;"></i>
                                 </a>
@@ -11447,6 +11447,19 @@ async function checkUserRoles() {
             }
             
             return baseUrl + (legalContract ? legalContract.address : '');
+        }
+        
+        function getTxScanUrl() {
+            const network = document.getElementById('networkName').textContent;
+            let baseUrl = 'https://tronscan.org/#/transaction/';
+            
+            if (network.includes('Nile')) {
+                baseUrl = 'https://nile.tronscan.org/#/transaction/';
+            } else if (network.includes('Shasta')) {
+                baseUrl = 'https://shasta.tronscan.org/#/transaction/';
+            }
+            
+            return baseUrl;
         }
 
         function getStatusString(status) {
@@ -14279,7 +14292,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                     <div>Recipient: ${tx.recipient}</div>
                                     <div>Type: ${tx.noticeType || 'Legal Notice'}</div>
                                     <div>Fee: ${tx.fee} TRX</div>
-                                    ${tx.txid ? `<div>TX: <a href="${getContractScanUrl()}tx/${tx.txid}" target="_blank">${tx.txid.substring(0, 10)}...</a></div>` : ''}
+                                    ${tx.txid ? `<div>TX: <a href="${getTxScanUrl()}${tx.txid}" target="_blank">${tx.txid.substring(0, 10)}...</a></div>` : ''}
                                 </div>
                             `).join('') +
                             '</div>';
@@ -16659,12 +16672,11 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 });
                 
                 // Log TronScan links for debugging
-                const explorerUrl = getContractScanUrl();
                 console.log('=== VIEW ON TRONSCAN ===');
-                console.log(`View transaction: ${explorerUrl}tx/${txHash || 'Check console for tx hash'}`);
-                console.log(`View contract: ${explorerUrl}contract/${legalContract.address}`);
-                console.log(`View Alert NFT: ${explorerUrl}token721/${legalContract.address}#id=${alertId}`);
-                console.log(`View Document NFT: ${explorerUrl}token721/${legalContract.address}#id=${documentId}`);
+                console.log(`View transaction: ${getTxScanUrl()}${txHash || 'Check console for tx hash'}`);
+                console.log(`View contract: ${getContractScanUrl()}`);
+                console.log(`View Alert NFT: ${getContractScanUrl().replace('/contract/', '/token721/')}#id=${alertId}`);
+                console.log(`View Document NFT: ${getContractScanUrl().replace('/contract/', '/token721/')}#id=${documentId}`);
                 console.log('========================');
 
                 // Save transaction for analytics
