@@ -12460,7 +12460,9 @@ async function checkUserRoles() {
                 showServerFeatures: false,
                 showRecipientFeatures: true,
                 brandName: 'Block Served',
-                tagline: 'View Your Legal Notices'
+                tagline: 'View Your Legal Notices',
+                hideIPWarnings: true,
+                showFriendlyUI: true
             },
             'nftserviceapp.netlify.app': {
                 mode: 'full',
@@ -12525,6 +12527,113 @@ async function checkUserRoles() {
             
             // Update page title
             document.title = config.brandName;
+            
+            // Add recipient FAQ for blockserved.com (after DOM loads)
+            if (config.mode === 'recipient') {
+                setTimeout(() => addRecipientFAQ(), 100);
+            }
+        }
+        
+        // Add recipient-specific FAQ content
+        function addRecipientFAQ() {
+            const helpTab = document.getElementById('helpTab');
+            if (!helpTab) return;
+            
+            // Add recipient FAQ at the beginning
+            const recipientFAQ = document.createElement('div');
+            recipientFAQ.className = 'card';
+            recipientFAQ.style.marginBottom = '2rem';
+            recipientFAQ.innerHTML = `
+                <div class="card-header" style="background: #0ea5e9; color: white;">
+                    <h2 style="margin: 0;"><i class="fas fa-user-shield"></i> For Document Recipients</h2>
+                </div>
+                <div class="card-body">
+                    <div class="faq-item">
+                        <h4 style="color: #0f172a; margin-bottom: 0.5rem;">
+                            <i class="fas fa-question-circle" style="color: #0ea5e9;"></i> 
+                            Why did I receive this document?
+                        </h4>
+                        <p style="color: #64748b; margin-left: 1.5rem;">
+                            Someone has sent you an important document that requires your acknowledgment. 
+                            This could be a legal notice, business document, or other official communication.
+                        </p>
+                    </div>
+                    
+                    <div class="faq-item" style="margin-top: 1.5rem;">
+                        <h4 style="color: #0f172a; margin-bottom: 0.5rem;">
+                            <i class="fas fa-question-circle" style="color: #0ea5e9;"></i> 
+                            Is this legitimate?
+                        </h4>
+                        <p style="color: #64748b; margin-left: 1.5rem;">
+                            Yes. This system uses blockchain technology to ensure secure, verifiable document delivery. 
+                            The document was sent to your specific wallet address and cannot be faked or altered.
+                        </p>
+                    </div>
+                    
+                    <div class="faq-item" style="margin-top: 1.5rem;">
+                        <h4 style="color: #0f172a; margin-bottom: 0.5rem;">
+                            <i class="fas fa-question-circle" style="color: #0ea5e9;"></i> 
+                            Why do I need a wallet?
+                        </h4>
+                        <p style="color: #64748b; margin-left: 1.5rem;">
+                            A digital wallet creates a cryptographic signature that proves you received the document. 
+                            It's like signing for certified mail, but more secure. The wallet also protects your privacy 
+                            by ensuring only you can decrypt and view the document.
+                        </p>
+                    </div>
+                    
+                    <div class="faq-item" style="margin-top: 1.5rem;">
+                        <h4 style="color: #0f172a; margin-bottom: 0.5rem;">
+                            <i class="fas fa-question-circle" style="color: #0ea5e9;"></i> 
+                            Is my information private?
+                        </h4>
+                        <p style="color: #64748b; margin-left: 1.5rem;">
+                            Yes. Your personal information is not stored on the blockchain. Only your wallet address 
+                            and the fact that you received/accepted the document are recorded. The document itself 
+                            is encrypted and can only be viewed by you.
+                        </p>
+                    </div>
+                    
+                    <div class="faq-item" style="margin-top: 1.5rem;">
+                        <h4 style="color: #0f172a; margin-bottom: 0.5rem;">
+                            <i class="fas fa-question-circle" style="color: #0ea5e9;"></i> 
+                            What if I don't accept the document?
+                        </h4>
+                        <p style="color: #64748b; margin-left: 1.5rem;">
+                            That depends on the nature of the document. For legal notices, not responding may have 
+                            consequences such as default judgments. We recommend at least viewing the document to 
+                            understand what action, if any, is required.
+                        </p>
+                    </div>
+                    
+                    <div class="faq-item" style="margin-top: 1.5rem;">
+                        <h4 style="color: #0f172a; margin-bottom: 0.5rem;">
+                            <i class="fas fa-question-circle" style="color: #0ea5e9;"></i> 
+                            Do I have to pay anything?
+                        </h4>
+                        <p style="color: #64748b; margin-left: 1.5rem;">
+                            No! The sender has already paid all fees. They've even included 2 TRX (digital currency) 
+                            in your wallet to cover the transaction fee for accepting the document. It's completely 
+                            free for you.
+                        </p>
+                    </div>
+                    
+                    <div style="margin-top: 2rem; padding: 1rem; background: #f0f9ff; border-radius: 8px; border: 1px solid #bae6fd;">
+                        <h4 style="color: #0284c7; margin-bottom: 0.5rem;">
+                            <i class="fas fa-info-circle"></i> Quick Start Guide
+                        </h4>
+                        <ol style="margin: 0.5rem 0 0 1rem; padding-left: 1rem; color: #0369a1;">
+                            <li>Click "Quick View Document" to preview</li>
+                            <li>Get TronLink wallet (free) from your app store</li>
+                            <li>Connect wallet and sign to download full document</li>
+                            <li>Keep the NFT as proof of receipt</li>
+                        </ol>
+                    </div>
+                </div>
+            `;
+            
+            // Insert at beginning of help tab
+            helpTab.insertBefore(recipientFAQ, helpTab.firstChild);
         }
         
         document.addEventListener('DOMContentLoaded', async function() {
@@ -13220,6 +13329,83 @@ document.addEventListener('keydown', function(event) {
         
         window.displayDecryptedDocument = displayDecryptedDocument;
         
+        // Show wallet help modal for recipients
+        function showWalletHelp() {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'block';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 700px;">
+                    <div class="modal-header" style="background: #0ea5e9; color: white;">
+                        <h2 style="margin: 0;">🔐 How to Download & Sign for Your Document</h2>
+                        <button class="close-btn" onclick="this.closest('.modal').remove()" style="color: white;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body" style="padding: 2rem;">
+                        <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #bae6fd;">
+                            <p style="margin: 0; color: #0369a1;">
+                                <i class="fas fa-shield-alt"></i> <strong>Why a Digital Wallet?</strong> 
+                                A digital wallet creates a secure, verified signature that proves you received the document. 
+                                It's like signing for certified mail, but more secure and completely private.
+                            </p>
+                        </div>
+                        
+                        <h3 style="color: #0f172a; margin-bottom: 1rem;">Simple Steps:</h3>
+                        
+                        <div style="margin-bottom: 1.5rem;">
+                            <div style="display: flex; align-items: start; gap: 1rem; margin-bottom: 1rem;">
+                                <div style="background: #0ea5e9; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">1</div>
+                                <div>
+                                    <h4 style="margin: 0 0 0.5rem 0; color: #0f172a;">Get TronLink Wallet (Free)</h4>
+                                    <p style="margin: 0 0 0.5rem 0; color: #64748b;">Download from your phone's app store or browser extension store</p>
+                                    <a href="https://www.tronlink.org/" target="_blank" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                                        <i class="fas fa-download"></i> Get TronLink
+                                    </a>
+                                </div>
+                            </div>
+                            
+                            <div style="display: flex; align-items: start; gap: 1rem; margin-bottom: 1rem;">
+                                <div style="background: #0ea5e9; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">2</div>
+                                <div>
+                                    <h4 style="margin: 0 0 0.5rem 0; color: #0f172a;">Create Your Wallet</h4>
+                                    <p style="margin: 0; color: #64748b;">Follow the simple setup - takes about 2 minutes. 
+                                    Write down your recovery phrase and keep it safe!</p>
+                                </div>
+                            </div>
+                            
+                            <div style="display: flex; align-items: start; gap: 1rem;">
+                                <div style="background: #0ea5e9; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">3</div>
+                                <div>
+                                    <h4 style="margin: 0 0 0.5rem 0; color: #0f172a;">Connect & Sign</h4>
+                                    <p style="margin: 0; color: #64748b;">Return here, click "Connect Wallet", and sign for your document. 
+                                    The full document will download automatically.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="background: #fef3c7; padding: 1rem; border-radius: 8px; margin: 1.5rem 0; border: 1px solid #fde68a;">
+                            <p style="margin: 0; color: #92400e;">
+                                <i class="fas fa-gift"></i> <strong>Bonus:</strong> The sender has included 2 TRX 
+                                (digital currency) to cover any fees. It's free for you to sign!
+                            </p>
+                        </div>
+                        
+                        <div style="text-align: center; margin-top: 1.5rem;">
+                            <button class="btn btn-primary" onclick="this.closest('.modal').remove(); attemptAutoConnect();" style="padding: 0.75rem 2rem;">
+                                <i class="fas fa-wallet"></i> I Have a Wallet - Connect Now
+                            </button>
+                        </div>
+                        
+                        <p style="text-align: center; margin-top: 1rem; font-size: 0.9rem; color: #64748b;">
+                            Questions? <a href="#" onclick="this.closest('.modal').remove(); showTab('help'); return false;" style="color: #0ea5e9;">View our FAQ</a>
+                        </p>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
         // Check if user came from a direct notice link
         function checkDirectNoticeLink() {
             // Check for short URL format /n/{noticeId}
@@ -13238,40 +13424,84 @@ document.addEventListener('keydown', function(event) {
                 // Store notice ID for immediate access
                 sessionStorage.setItem('directNoticeId', noticeId);
                 
-                // Simple, direct message with view-only option
+                // Check site config for friendly UI
+                const siteConfig = getSiteConfig();
+                const isFriendlyMode = siteConfig.showFriendlyUI;
+                
                 const modal = document.createElement('div');
                 modal.className = 'modal';
                 modal.style.display = 'block';
-                modal.innerHTML = `
-                    <div class="modal-content" style="max-width: 600px; text-align: center;">
-                        <div class="modal-header" style="background: #dc3545; color: white;">
-                            <h2 style="margin: 0;">⚠️ LEGAL NOTICE - ACTION REQUIRED</h2>
-                        </div>
-                        <div class="modal-body" style="padding: 2rem;">
-                            <h3>You have received Legal Notice #${noticeId}</h3>
-                            <p style="font-size: 1.1rem; margin: 1rem 0;">Choose how to view this notice:</p>
-                            
-                            <div style="display: flex; flex-direction: column; gap: 1rem; margin: 1.5rem 0;">
-                                <button class="btn btn-primary" style="font-size: 1.2rem; padding: 1rem 2rem;" onclick="this.closest('.modal').remove(); viewNoticeWithoutWallet('${noticeId}');">
-                                    <i class="fas fa-eye"></i> View Notice (No Wallet Required)
-                                </button>
+                
+                if (isFriendlyMode) {
+                    // Friendly version for blockserved.com
+                    modal.innerHTML = `
+                        <div class="modal-content" style="max-width: 600px; text-align: center;">
+                            <div class="modal-header" style="background: #0ea5e9; color: white;">
+                                <h2 style="margin: 0;">📬 You Have a Document to View</h2>
+                            </div>
+                            <div class="modal-body" style="padding: 2rem;">
+                                <h3>Document #${noticeId} is Ready</h3>
+                                <p style="font-size: 1.1rem; margin: 1rem 0; color: #64748b;">Someone has sent you an important document that requires your attention.</p>
                                 
-                                <button class="btn btn-secondary" style="font-size: 1.1rem; padding: 0.8rem 1.5rem;" onclick="this.closest('.modal').remove(); attemptAutoConnect();">
-                                    <i class="fas fa-wallet"></i> Connect Wallet to Accept Notice
-                                </button>
+                                <div style="display: flex; flex-direction: column; gap: 1rem; margin: 1.5rem 0;">
+                                    <button class="btn btn-primary" style="font-size: 1.2rem; padding: 1rem 2rem; background: #0ea5e9;" onclick="this.closest('.modal').remove(); viewNoticeWithoutWallet('${noticeId}');">
+                                        <i class="fas fa-eye"></i> Quick View Document
+                                    </button>
+                                    
+                                    <button class="btn btn-secondary" style="font-size: 1.1rem; padding: 0.8rem 1.5rem;" onclick="this.closest('.modal').remove(); showWalletHelp();">
+                                        <i class="fas fa-download"></i> Download & Sign for Document
+                                    </button>
+                                </div>
+                                
+                                <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; margin-top: 1rem; border: 1px solid #bae6fd;">
+                                    <p style="font-size: 0.9rem; margin: 0; color: #0369a1;">
+                                        <i class="fas fa-info-circle"></i> <strong>Privacy Protected:</strong> View the document safely and securely. Your information remains private.
+                                    </p>
+                                </div>
+                                
+                                <p style="margin-top: 1rem; font-size: 0.85rem;">
+                                    <a href="#" onclick="this.closest('.modal').remove(); showTab('help'); return false;" style="color: #0ea5e9;">
+                                        Need help? View our FAQ
+                                    </a>
+                                </p>
                             </div>
-                            
-                            <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; text-align: left;">
-                                <p style="margin: 0 0 0.5rem 0; font-weight: 600;">⚠️ Important:</p>
-                                <ul style="margin: 0; padding-left: 1.5rem; font-size: 0.9rem;">
-                                    <li>Viewing only does NOT count as legal acceptance</li>
-                                    <li>Your IP address and access will still be logged</li>
-                                    <li>To legally accept, you must connect your wallet</li>
-                                </ul>
+                        </div>
+                    `;
+                } else {
+                    // Original version for other domains
+                    modal.innerHTML = `
+                        <div class="modal-content" style="max-width: 600px; text-align: center;">
+                            <div class="modal-header" style="background: #dc3545; color: white;">
+                                <h2 style="margin: 0;">⚠️ LEGAL NOTICE - ACTION REQUIRED</h2>
                             </div>
+                            <div class="modal-body" style="padding: 2rem;">
+                                <h3>You have received Legal Notice #${noticeId}</h3>
+                                <p style="font-size: 1.1rem; margin: 1rem 0;">Choose how to view this notice:</p>
+                                
+                                <div style="display: flex; flex-direction: column; gap: 1rem; margin: 1.5rem 0;">
+                                    <button class="btn btn-primary" style="font-size: 1.2rem; padding: 1rem 2rem;" onclick="this.closest('.modal').remove(); viewNoticeWithoutWallet('${noticeId}');">
+                                        <i class="fas fa-eye"></i> View Notice (No Wallet Required)
+                                    </button>
+                                    
+                                    <button class="btn btn-secondary" style="font-size: 1.1rem; padding: 0.8rem 1.5rem;" onclick="this.closest('.modal').remove(); attemptAutoConnect();">
+                                        <i class="fas fa-wallet"></i> Connect Wallet to Accept Notice
+                                    </button>
+                                </div>
+                                
+                                <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; text-align: left;">
+                                    <p style="margin: 0 0 0.5rem 0; font-weight: 600;">⚠️ Important:</p>
+                                    <ul style="margin: 0; padding-left: 1.5rem; font-size: 0.9rem;">
+                                        <li>Viewing only does NOT count as legal acceptance</li>
+                                        <li>Your IP address and access will still be logged</li>
+                                        <li>To legally accept, you must connect your wallet</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
                         </div>
                     </div>
-                `;
+                    `;
+                }
                 document.body.appendChild(modal);
             }
         }
@@ -13504,25 +13734,89 @@ document.addEventListener('keydown', function(event) {
                 
                 hideProcessing();
                 
+                // Check site config
+                const siteConfig = getSiteConfig();
+                const isFriendlyMode = siteConfig.showFriendlyUI;
+                
                 // Show notice preview modal
                 const modal = document.createElement('div');
                 modal.className = 'modal';
                 modal.style.display = 'block';
-                modal.innerHTML = `
-                    <div class="modal-content" style="max-width: 800px;">
-                        <div class="modal-header" style="background: #dc3545; color: white;">
-                            <h2 style="margin: 0;">⚠️ LEGAL NOTICE #${noticeId} - VIEWING ONLY</h2>
-                            <button class="close-btn" onclick="this.closest('.modal').remove()" style="color: white;">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="alert alert-warning" style="margin-bottom: 1.5rem;">
-                                <i class="fas fa-exclamation-triangle"></i>
-                                <strong>This is VIEW ONLY - Not Legal Acceptance</strong>
-                                <p style="margin: 0.5rem 0 0 0;">You are viewing this notice without wallet verification. This does NOT constitute legal acceptance of service.</p>
-                                <p style="margin: 0.5rem 0 0 0;">Your IP address (${ipData.ip}) and location (${ipData.city}, ${ipData.country}) have been logged.</p>
+                
+                if (isFriendlyMode) {
+                    // Friendly version for recipients
+                    modal.innerHTML = `
+                        <div class="modal-content" style="max-width: 800px;">
+                            <div class="modal-header" style="background: #0ea5e9; color: white;">
+                                <h2 style="margin: 0;">📄 Document Preview - #${noticeId}</h2>
+                                <button class="close-btn" onclick="this.closest('.modal').remove()" style="color: white;">
+                                    <i class="fas fa-times"></i>
+                                </button>
                             </div>
+                            <div class="modal-body">
+                                <div class="alert alert-info" style="margin-bottom: 1.5rem; background: #e0f2fe; border: 1px solid #7dd3fc;">
+                                    <i class="fas fa-info-circle" style="color: #0284c7;"></i>
+                                    <strong style="color: #0284c7;">Preview Mode</strong>
+                                    <p style="margin: 0.5rem 0 0 0; color: #0c4a6e;">You're viewing a preview of this document. To download the full version and create a verified receipt, please connect a wallet.</p>
+                                </div>
+                                
+                                <div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; text-align: center;">
+                                    <h3>Document Summary</h3>
+                                    <p style="font-size: 1.1rem; margin: 1rem 0; color: #64748b;">
+                                        This document has been sent to you securely via blockchain technology.
+                                    </p>
+                                    <p style="margin: 1rem 0;">
+                                        <strong>Document ID:</strong> #${noticeId}<br>
+                                        <strong>Type:</strong> Encrypted Document<br>
+                                        <strong>Status:</strong> Ready for Download
+                                    </p>
+                                    
+                                    <div style="margin-top: 2rem; padding: 1.5rem; background: white; border: 2px solid #e5e7eb; border-radius: 8px;">
+                                        <i class="fas fa-file-shield" style="font-size: 3rem; color: #0ea5e9; margin-bottom: 1rem;"></i>
+                                        <h4 style="color: #0f172a;">Secure Document</h4>
+                                        <p style="color: #64748b;">This document is encrypted for your privacy. Connect a wallet to decrypt and download.</p>
+                                    </div>
+                                </div>
+                                
+                                <div style="margin-top: 2rem; text-align: center;">
+                                    <h4 style="color: #0f172a;">Ready to Download?</h4>
+                                    <button class="btn btn-primary" style="font-size: 1.2rem; padding: 1rem 2rem; margin-top: 1rem; background: #0ea5e9;" onclick="this.closest('.modal').remove(); showWalletHelp();">
+                                        <i class="fas fa-download"></i> Download Full Document
+                                    </button>
+                                    <p style="margin-top: 1rem; color: #64748b;">
+                                        Already have a wallet? 
+                                        <a href="#" onclick="this.closest('.modal').remove(); attemptAutoConnect(); return false;" style="color: #0ea5e9;">
+                                            Connect Now
+                                        </a>
+                                    </p>
+                                </div>
+                                
+                                <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; margin-top: 2rem; border: 1px solid #bae6fd;">
+                                    <p style="margin: 0; color: #0369a1; font-size: 0.9rem;">
+                                        <i class="fas fa-shield-alt"></i> <strong>Your Privacy Matters:</strong>
+                                        This system uses blockchain technology to ensure secure, verifiable document delivery while protecting your privacy.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Original version
+                    modal.innerHTML = `
+                        <div class="modal-content" style="max-width: 800px;">
+                            <div class="modal-header" style="background: #dc3545; color: white;">
+                                <h2 style="margin: 0;">⚠️ LEGAL NOTICE #${noticeId} - VIEWING ONLY</h2>
+                                <button class="close-btn" onclick="this.closest('.modal').remove()" style="color: white;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="alert alert-warning" style="margin-bottom: 1.5rem;">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <strong>This is VIEW ONLY - Not Legal Acceptance</strong>
+                                    <p style="margin: 0.5rem 0 0 0;">You are viewing this notice without wallet verification. This does NOT constitute legal acceptance of service.</p>
+                                    <p style="margin: 0.5rem 0 0 0;">Your IP address (${ipData.ip}) and location (${ipData.city}, ${ipData.country}) have been logged.</p>
+                                </div>
                             
                             <div style="background: #f8f9fa; padding: 2rem; border-radius: 8px; text-align: center;">
                                 <h3>Notice Summary</h3>
