@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LegalNotice - Blockchain Legal Document Service</title>
     <meta name="description" content="Secure multi-chain blockchain legal document service supporting TRON, Ethereum, Polygon, and BSC">
+    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACXBIWXMAAAsTAAALEwEAmpwYAAABbElEQVQ4jZ2TvUoDQRSFv5nZzW5iYqKxUBQLC1EQBMHCRrAQfABfwNrGVnyEgI2NhY2FIAiChYWFIAiCYCEKFqKxUBQVf5JNdjOzY7K7iYkRPDAw98w5585czgX/jKqqGmNMEJgAhoE+oAN4AW6Ac+BYKXWnlLL/BYQBzBizsbe3t3J0dCSbzaZsNBqy0WjIZrMpj4+P5fb2tpyamjJABJj7NWBxcXFldnZWFgoFaYyRxhhZKBRkLBaTi4uLEoj5AdFQKLQcj8dlNpuVzWZTtpLNZmU8HpehUEgCUV8gEolEZCqVkrZty1+0bVumUikZiUQkEPEFVlZWZL1el+1Qr9fl6uqqBJZbAdN1XTudzjoJTLQCbHBwcPj29jbpRLAsSweDQemIVoDXdL3v5eUl6UTweDzSdF3XOoHpdDq9VCo9OQmKxaJMp9M6MKPU41nO5XLZ8/PzLw2FYrFYOj09zeVyuQqw+ek7PntzgCwQBKr+0l/wDvc6kKScHd8bAAAAAElFTkSuQmCC">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pica/9.0.1/pica.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/web3@4.3.0/dist/web3.min.js"></script>
@@ -13201,13 +13202,52 @@ document.addEventListener('keydown', function(event) {
                     try {
                         updateCompressionProgress(30, 'Processing document...');
                         
-                        // Store unencrypted data temporarily (will be encrypted when sent)
-                        uploadedImage = {
+                        // Check if it's a PDF or Word document that needs conversion
+                        let documentData = {
                             data: e.target.result,
                             fileName: file.name,
                             fileType: file.type,
-                            fileSize: file.size
+                            fileSize: file.size,
+                            preview: null
                         };
+                        
+                        // If it's a PDF or Word doc, convert to images
+                        if (file.type === 'application/pdf' || 
+                            file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+                            file.type === 'application/msword' ||
+                            file.name.endsWith('.pdf') || 
+                            file.name.endsWith('.doc') || 
+                            file.name.endsWith('.docx')) {
+                            
+                            updateCompressionProgress(40, 'Converting document to images...');
+                            
+                            try {
+                                // Initialize converter if needed
+                                if (!window.documentConverter) {
+                                    window.documentConverter = new DocumentConverter();
+                                    await window.documentConverter.init();
+                                }
+                                
+                                // Convert document
+                                const converted = await window.documentConverter.convertDocument(file);
+                                
+                                // Use the converted data
+                                documentData.data = converted.fullDocument;
+                                documentData.preview = converted.preview;
+                                documentData.originalType = file.type;
+                                documentData.convertedType = 'image/png';
+                                
+                                updateCompressionProgress(60, 'Document converted successfully...');
+                            } catch (convertError) {
+                                console.error('Document conversion error:', convertError);
+                                // Fall back to original data
+                                uiManager.showNotification('warning', 'Document preview may not be available');
+                            }
+                        }
+                        
+                        // Store the document data
+                        uploadedImage = documentData;
+                        window.uploadedImage = documentData; // Also store globally for thumbnail generator
                         
                         updateCompressionProgress(70, 'Preparing for encryption...');
                         
@@ -13222,9 +13262,19 @@ document.addEventListener('keydown', function(event) {
                         }
                         
                         // Show preview based on file type
-                        if (file.type.startsWith('image/') && documentPreview) {
-                            documentPreview.src = e.target.result;
-                            documentPreview.style.display = 'block';
+                        if (documentPreview) {
+                            if (documentData.preview) {
+                                // Use the generated preview for PDFs and Word docs
+                                documentPreview.src = documentData.preview;
+                                documentPreview.style.display = 'block';
+                            } else if (file.type.startsWith('image/')) {
+                                // Use original for images
+                                documentPreview.src = e.target.result;
+                                documentPreview.style.display = 'block';
+                            } else {
+                                // Hide preview for unsupported types
+                                documentPreview.style.display = 'none';
+                            }
                         }
                         
                         updateCompressionProgress(100, 'Document ready for encrypted delivery');

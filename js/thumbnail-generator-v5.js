@@ -3,7 +3,7 @@
 
 const ThumbnailGenerator = {
     // Generate thumbnail with document preview and instruction banner
-    async generateSealedThumbnail(documentData, documentType) {
+    async generateSealedThumbnail(documentData, documentType, documentPreview) {
         try {
             // Create canvas for thumbnail
             const canvas = document.createElement('canvas');
@@ -17,11 +17,14 @@ const ThumbnailGenerator = {
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            if (documentType === 'image' && documentData.startsWith('data:image')) {
+            if (documentData && documentData.startsWith('data:image')) {
                 // For image documents, show actual document as thumbnail
                 await this.drawDocumentThumbnail(ctx, documentData, canvas.width, canvas.height);
+            } else if (documentPreview && documentPreview.startsWith('data:image')) {
+                // If we have a preview image (from PDF conversion), use it
+                await this.drawDocumentThumbnail(ctx, documentPreview, canvas.width, canvas.height);
             } else {
-                // For PDFs and text, create document preview
+                // For other cases, create generic document preview
                 this.drawDocumentPreview(ctx, canvas.width, canvas.height);
             }
             
@@ -135,29 +138,39 @@ const ThumbnailGenerator = {
     // Add instruction banner overlay
     addInstructionBanner(ctx, width, height) {
         // Top banner with gradient
-        const gradient = ctx.createLinearGradient(0, 0, 0, 45);
+        const gradient = ctx.createLinearGradient(0, 0, 0, 50);
         gradient.addColorStop(0, '#dc2626');
         gradient.addColorStop(1, '#b91c1c');
         ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, width, 45);
+        ctx.fillRect(0, 0, width, 50);
         
-        // Banner text
-        ctx.font = 'bold 18px Arial';
+        // Banner text - two lines for clarity
+        ctx.font = 'bold 16px Arial';
         ctx.fillStyle = 'white';
         ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('🔒 CLICK TO ACCEPT & DOWNLOAD', width/2, 23);
+        ctx.fillText('🔒 DOCUMENT PREVIEW ONLY', width/2, 18);
+        ctx.font = 'bold 14px Arial';
+        ctx.fillText('Visit URL Below for Full Document', width/2, 36);
+        
+        // Add bottom instruction bar
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillRect(0, height - 40, width, 40);
+        
+        ctx.font = 'bold 12px Arial';
+        ctx.fillStyle = 'white';
+        ctx.textAlign = 'center';
+        ctx.fillText('See Description for Access Instructions ↓', width/2, height - 20);
         
         // Add subtle watermark
         ctx.save();
-        ctx.globalAlpha = 0.15;
-        ctx.font = 'bold 48px Arial';
+        ctx.globalAlpha = 0.1;
+        ctx.font = 'bold 36px Arial';
         ctx.fillStyle = '#dc2626';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.translate(width/2, height/2 + 30);
-        ctx.rotate(-Math.PI / 6);
-        ctx.fillText('LEGAL NOTICE', 0, 0);
+        ctx.translate(width/2, height/2);
+        ctx.rotate(-Math.PI / 8);
+        ctx.fillText('PREVIEW', 0, 0);
         ctx.restore();
     },
     
@@ -199,31 +212,37 @@ const ThumbnailGenerator = {
         
         const metadata = {
             name: `Legal Notice #${noticeId}`,
-            description: `⚖️ OFFICIAL LEGAL NOTICE - ${noticeDetails.noticeType || 'Legal Document'} ⚖️
-
-` +
+            description: `📄 OFFICIAL DOCUMENT REQUIRING YOUR SIGNATURE 📄\n\n` +
+                        `Document Type: ${noticeDetails.noticeType || 'Legal Document'}\n` +
                         `Case #: ${noticeDetails.caseNumber || 'Pending'}\n` +
-                        `Issued: ${noticeDetails.dateIssued || new Date().toLocaleDateString()}\n` +
-                        `Agency: ${noticeDetails.issuingAgency || 'Legal Department'}\n\n` +
-                        `⚠️ IMMEDIATE ACTION REQUIRED ⚠️\n` +
-                        `This NFT represents an official legal notice requiring your acknowledgment.\n\n` +
-                        `📋 TO VIEW & ACCEPT YOUR DOCUMENT:\n` +
-                        `1. Visit: ${shortUrl}\n` +
-                        `2. Connect this wallet to verify ownership\n` +
-                        `3. Click "Accept Notice" to acknowledge receipt\n` +
-                        `4. Download the complete document\n\n` +
-                        `✅ WHAT YOUR SIGNATURE MEANS:\n` +
-                        `• Confirms receipt only (NOT agreement with contents)\n` +
-                        `• Equivalent to signing for certified mail\n` +
-                        `• Creates timestamped proof of service\n` +
-                        `• Unlocks the document for viewing\n\n` +
-                        `⚠️ IMPORTANT LEGAL INFORMATION:\n` +
-                        `• Failure to respond may result in DEFAULT JUDGMENT\n` +
-                        `• You received 2 TRX to cover transaction fees\n` +
-                        `• Keep this NFT as permanent proof of service\n` +
-                        `• Document remains encrypted until accepted\n\n` +
-                        `📧 Support: support@blockserved.com\n` +
-                        `🔗 Direct Link: ${shortUrl}`,
+                        `From: ${noticeDetails.issuingAgency || 'Legal Department'}\n` +
+                        `Date: ${noticeDetails.dateIssued || new Date().toLocaleDateString()}\n\n` +
+                        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+                        `🔓 HOW TO ACCESS FULL DOCUMENT:\n` +
+                        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+                        `STEP 1: Copy this URL into your browser:\n` +
+                        `👉 ${shortUrl} 👈\n\n` +
+                        `STEP 2: Connect this wallet when prompted\n\n` +
+                        `STEP 3: Click "Accept & Download"\n\n` +
+                        `STEP 4: Your document will decrypt automatically\n\n` +
+                        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+                        `❓ WHAT YOU'RE SEEING:\n` +
+                        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+                        `The image above shows a PREVIEW of your document.\n` +
+                        `The full document is encrypted for your privacy.\n` +
+                        `Only you can decrypt it with your wallet signature.\n\n` +
+                        `This is like signing for certified mail:\n` +
+                        `• ✅ Proves you received the document\n` +
+                        `• ✅ Creates a legal record of delivery\n` +
+                        `• ✅ Does NOT mean you agree with contents\n` +
+                        `• ✅ Protects your privacy with encryption\n\n` +
+                        `⚠️ IMPORTANT: Not responding to legal notices\n` +
+                        `may have consequences. We recommend viewing\n` +
+                        `the document to understand any deadlines.\n\n` +
+                        `💡 FREE TO ACCEPT: The sender included 2 TRX\n` +
+                        `to cover your transaction fees.\n\n` +
+                        `📧 Questions? support@blockserved.com\n` +
+                        `🔗 Direct Access: ${shortUrl}`,
             image: imageUrl,
             external_url: websiteUrl,
             attributes: [
@@ -271,18 +290,30 @@ const ThumbnailGenerator = {
     // Process document and generate all required assets
     async processDocumentForNFT(documentData, noticeDetails, noticeId) {
         try {
-            console.log('Generating sealed thumbnail with instructions...');
+            console.log('Generating document preview thumbnail with instructions...');
             
-            // Determine document type
+            // Determine document type and preview
             let documentType = 'document';
+            let documentPreview = null;
+            
             if (documentData && documentData.startsWith('data:image')) {
                 documentType = 'image';
+                documentPreview = documentData; // Use the image itself as preview
             } else if (documentData && documentData.startsWith('data:application/pdf')) {
                 documentType = 'pdf';
+                // For PDFs, we should have a preview image from conversion
+                // If uploadedImage has a preview property, use it
+                if (window.uploadedImage && window.uploadedImage.preview) {
+                    documentPreview = window.uploadedImage.preview;
+                }
             }
             
             // Generate sealed thumbnail with instructions
-            const thumbnailData = await this.generateSealedThumbnail(documentData || '', documentType);
+            const thumbnailData = await this.generateSealedThumbnail(
+                documentData || '', 
+                documentType,
+                documentPreview
+            );
             
             // Upload thumbnail to IPFS
             console.log('Uploading thumbnail to IPFS...');
