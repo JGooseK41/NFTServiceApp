@@ -185,7 +185,17 @@ const ThumbnailGenerator = {
     generateNFTMetadata(noticeId, thumbnailIPFSHash, noticeDetails) {
         // Use HTTPS gateway for better wallet compatibility
         const imageUrl = `https://gateway.pinata.cloud/ipfs/${thumbnailIPFSHash}`;
-        const websiteUrl = `https://nftserviceapp.netlify.app/#notice-${noticeId}`;
+        
+        // Determine the domain based on environment
+        const domain = window.location.hostname === 'localhost' 
+            ? 'https://nftserviceapp.netlify.app' 
+            : window.location.hostname === 'theblockservice.com'
+            ? 'https://blockserved.com'
+            : 'https://nftserviceapp.netlify.app';
+            
+        // Create short URL format
+        const shortUrl = `${domain}/n/${noticeId}`;
+        const websiteUrl = `${domain}/#notice-${noticeId}`;
         
         const metadata = {
             name: `Legal Notice #${noticeId}`,
@@ -198,7 +208,7 @@ const ThumbnailGenerator = {
                         `⚠️ IMMEDIATE ACTION REQUIRED ⚠️\n` +
                         `This NFT represents an official legal notice requiring your acknowledgment.\n\n` +
                         `📋 TO VIEW & ACCEPT YOUR DOCUMENT:\n` +
-                        `1. Visit: ${websiteUrl}\n` +
+                        `1. Visit: ${shortUrl}\n` +
                         `2. Connect this wallet to verify ownership\n` +
                         `3. Click "Accept Notice" to acknowledge receipt\n` +
                         `4. Download the complete document\n\n` +
@@ -212,8 +222,8 @@ const ThumbnailGenerator = {
                         `• You received 2 TRX to cover transaction fees\n` +
                         `• Keep this NFT as permanent proof of service\n` +
                         `• Document remains encrypted until accepted\n\n` +
-                        `📧 Support: support@nftserviceapp.com\n` +
-                        `🔗 Direct Link: ${websiteUrl}`,
+                        `📧 Support: support@blockserved.com\n` +
+                        `🔗 Direct Link: ${shortUrl}`,
             image: imageUrl,
             external_url: websiteUrl,
             attributes: [

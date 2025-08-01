@@ -19,7 +19,7 @@
     <!-- Simplified Encryption (no registration needed) -->
     <script src="js/simple-encryption.js?v=2"></script>
     <script src="js/simplified-integration.js"></script>
-    <script src="js/thumbnail-generator-v5.js"></script>
+    <script src="js/thumbnail-generator-v5.js?v=2"></script>
     <script>
         // Pinata IPFS Configuration - shared across all users
         window.PINATA_CONFIG = {
@@ -2771,7 +2771,7 @@
         <div class="header-content">
             <div class="logo" onclick="location.reload()">
                 <i class="fas fa-shield-alt"></i>
-                <h1>NFT Legal Service</h1>
+                <h1 class="brand-name">NFT Legal Service</h1>
             </div>
             <div class="header-controls">
                 <div id="contractsStatus" style="display: none;">
@@ -2872,7 +2872,7 @@
 
         <!-- Tab Navigation -->
         <div class="tab-navigation">
-            <button class="tab-button active" onclick="switchTab('user')">
+            <button class="tab-button active server-only" onclick="switchTab('user')">
                 <i class="fas fa-user"></i> Process Server
                 <span class="badge" id="userBadge" style="display: none;">0</span>
             </button>
@@ -2880,7 +2880,7 @@
                 <i class="fas fa-truck"></i> Delivery Status
                 <span class="badge" id="deliveryBadge" style="display: none;">0</span>
             </button>
-            <button class="tab-button" onclick="switchTab('admin')" id="adminTabButton" style="display: none;">
+            <button class="tab-button server-only" onclick="switchTab('admin')" id="adminTabButton" style="display: none;">
                 <i class="fas fa-user-shield"></i> Admin Panel
             </button>
             <button class="tab-button" onclick="switchTab('help')">
@@ -3048,7 +3048,7 @@
 
             <!-- Quick Actions -->
             <div class="grid-3" style="margin-bottom: 2rem;">
-                <div class="action-card primary" onclick="openMintModal()">
+                <div class="action-card primary server-only" onclick="openMintModal()">
                     <i class="fas fa-file-upload"></i>
                     <h3>Create Legal Notice</h3>
                     <p>Serve legal documents to any wallet address - perfect for unknown owners</p>
@@ -4972,14 +4972,6 @@
                                 </div>
                                 
                                 <div class="form-group">
-                                    <label class="form-label">Case Number</label>
-                                    <input type="text" id="caseNumber" class="form-input" 
-                                           placeholder="e.g., CV-2024-001234 or 24-CR-5678" 
-                                           maxlength="50" required>
-                                    <p class="form-help">Official case or docket number</p>
-                                </div>
-                                
-                                <div class="form-group">
                                     <label class="form-label">Specific Details / Amount</label>
                                     <input type="text" id="caseDetails" class="form-input" 
                                            placeholder="e.g., 245,000 USDT or Property at 123 Main St" 
@@ -5008,7 +5000,7 @@
                             <!-- Text Notice Input -->
                             <div class="text-notice-input active" id="textNoticeGroup" style="display: block;">
                                 <div class="form-group" style="background: #fef3c7; padding: 1rem; border-radius: 0.5rem; border: 2px solid #f59e0b;">
-                                    <label for="noticeText" id="noticeTextLabel">
+                                    <label for="noticeText" id="noticeTextLabel" style="color: #92400e; font-weight: 600;">
                                         <i class="fas fa-globe" style="color: #f59e0b;"></i> Public Notice Text
                                     </label>
                                     <input type="text" class="form-input" id="noticeText" 
@@ -5049,10 +5041,6 @@
                                 <span>Recipient Sponsorship:</span>
                                 <span style="font-weight: 600;">2 TRX</span>
                             </div>
-                            <div class="fee-item" id="energyFeeItem" style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #334155;">
-                                <span>Estimated Energy Cost:</span>
-                                <span id="energyCostAmount" style="font-weight: 600; color: #f59e0b;">~90 TRX</span>
-                            </div>
                             <div class="fee-total" style="display: flex; justify-content: space-between; padding: 0.75rem 0 0 0; font-size: 1.125rem;">
                                 <span style="font-weight: 600;">Total Estimated Cost:</span>
                                 <span id="totalCostAmount" style="font-weight: 700; color: #10b981;">~242 TRX</span>
@@ -5060,8 +5048,7 @@
                         </div>
                         <div class="fee-notes" style="margin-top: 1rem; font-size: 0.875rem; color: #94a3b8;">
                             <p id="energyNote" style="margin: 0.5rem 0;">
-                                <i class="fas fa-info-circle"></i> Energy costs apply if you don't have staked TRX. 
-                                <a href="https://tronscan.org/#/sr/representatives" target="_blank" style="color: #3b82f6;">Stake TRX</a> to avoid energy fees.
+                                <i class="fas fa-info-circle"></i> Energy will be automatically rented for this transaction.
                             </p>
                             <p id="feeExemptionNote" style="margin: 0.5rem 0; display: none; color: #10b981;">
                                 <i class="fas fa-check-circle"></i> <span id="exemptionText">Fee exemption applied</span>
@@ -5481,6 +5468,14 @@
             serverRegistrations = {};
         }
         let recentActivity = [];
+        
+        // Get current user's agency information
+        function getCurrentUserAgency() {
+            if (!tronWeb || !tronWeb.defaultAddress) return null;
+            const userAddress = tronWeb.defaultAddress.base58;
+            const registration = serverRegistrations[userAddress];
+            return registration ? registration.agencyName : null;
+        }
         
         // Fee configuration
         let currentCreationFee = 0.1; // Default value in TRX
@@ -9135,6 +9130,19 @@ function useConnectedAddressForFeeCollector() {
                 
                 console.log('Sending batch of', batchNotices.length, 'notices');
                 
+                // Check and rent energy if needed for batch transaction
+                const estimatedEnergyPerNotice = ENERGY_RENTAL_CONFIG.energyPerNotice;
+                const totalEstimatedEnergy = estimatedEnergyPerNotice * recipients.length;
+                const energyRentalResult = await rentEnergyIfNeeded(totalEstimatedEnergy);
+                
+                if (!energyRentalResult.success) {
+                    throw new Error(energyRentalResult.error || 'Energy rental failed');
+                }
+                
+                if (energyRentalResult.rented) {
+                    console.log(`Energy rented successfully for batch of ${recipients.length} notices`);
+                }
+                
                 // Call v4 contract's serveNoticeBatch function
                 const tx = await legalContract.serveNoticeBatch(batchNotices).send({
                     feeLimit: 500_000_000, // Higher limit for batch
@@ -9509,38 +9517,46 @@ function useConnectedAddressForFeeCollector() {
                 
                 // Cost breakdown
                 content += '<div class="cost-breakdown" style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">';
-                content += '<h4 style="margin-bottom: 1rem;">Cost Breakdown</h4>';
+                content += '<h4 style="margin-bottom: 1rem;">Transaction Cost Summary</h4>';
                 
-                // Service Fee (what was sent with transaction)
-                const serviceFee = txData.feePaid || 22; // Default 20 TRX service + 2 TRX sponsorship
-                content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
-                content += `<span>Service Fee (includes 2 TRX sponsorship):</span>`;
-                content += `<strong>${serviceFee} TRX</strong>`;
-                content += `</div>`;
+                // Base fee amount based on what was actually paid
+                const baseFee = txData.feePaid || 22;
+                const isLawEnforcement = baseFee <= 2;
                 
-                // Notification Transaction
-                content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
-                content += `<span>Notification Transaction:</span>`;
-                content += `<strong>3.5 TRX (~$1 USD)</strong>`;
-                content += `</div>`;
-                
-                // Energy/Bandwidth costs (if available)
-                if (txData.energyUsed !== undefined || txData.bandwidthUsed !== undefined) {
-                    const energyCost = (txData.energyUsed || 0) * 0.00042;
-                    const bandwidthCost = (txData.bandwidthUsed || 0) * 0.001;
-                    const resourceCost = energyCost + bandwidthCost;
+                if (isLawEnforcement) {
+                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
+                    content += `<span>Law Enforcement Fee (Sponsorship Only):</span>`;
+                    content += `<strong>${baseFee} TRX</strong>`;
+                    content += `</div>`;
+                } else {
+                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
+                    content += `<span>Service Fee:</span>`;
+                    content += `<strong>20 TRX</strong>`;
+                    content += `</div>`;
                     
-                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem; opacity: 0.8;">`;
-                    content += `<span>Network Resources Used:</span>`;
-                    content += `<strong>${resourceCost.toFixed(3)} TRX</strong>`;
+                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
+                    content += `<span>Recipient Sponsorship:</span>`;
+                    content += `<strong>2 TRX</strong>`;
                     content += `</div>`;
                 }
                 
-                const totalCost = serviceFee + 3.5; // Service fee + notification
+                // Notification Transaction (included in original transaction)
+                content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem; opacity: 0.8;">`;
+                content += `<span>Notification Payment (included):</span>`;
+                content += `<strong>3.5 TRX</strong>`;
+                content += `</div>`;
+                
+                // Energy/Bandwidth costs (if available)
+                if (txData.energyUsed !== undefined && txData.energyUsed > 0) {
+                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem; opacity: 0.8;">`;
+                    content += `<span>Energy Used:</span>`;
+                    content += `<strong>${txData.energyUsed.toLocaleString()} units</strong>`;
+                    content += `</div>`;
+                }
                 
                 content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-color); font-weight: bold;">`;
-                content += `<span>Total Cost:</span>`;
-                content += `<strong style="color: var(--accent-blue);">${totalCost.toFixed(1)} TRX</strong>`;
+                content += `<span>Total Paid:</span>`;
+                content += `<strong style="color: var(--accent-blue);">${baseFee} TRX</strong>`;
                 content += `</div>`;
                 
                 content += '</div>';
@@ -9575,8 +9591,9 @@ function useConnectedAddressForFeeCollector() {
                 content += '<i class="fas fa-print"></i> Print';
                 content += '</button>';
                 if (txData.txHash && txData.txHash !== 'Transaction confirmed') {
+                    const shortHash = `${txData.txHash.substring(0, 6)}...${txData.txHash.substring(txData.txHash.length - 4)}`;
                     content += `<a href="${getTxScanUrl()}${txData.txHash}" target="_blank" class="btn btn-secondary">`;
-                    content += '<i class="fas fa-external-link-alt"></i> View on TronScan';
+                    content += `<i class="fas fa-external-link-alt"></i> ${shortHash}`;
                     content += '</a>';
                 }
                 content += '</div>';
@@ -9596,8 +9613,8 @@ function useConnectedAddressForFeeCollector() {
                     const directLink = `https://nftserviceapp.netlify.app/#notice-${txData.noticeId}`;
                     
                     content += '<div style="margin-top: 1rem; padding: 1rem; background: #fef3c7; border-radius: 0.375rem;">';
-                    content += '<strong>Recipient Link:</strong><br>';
-                    content += `<code style="user-select: all;">${directLink}</code>`;
+                    content += '<strong style="color: #92400e;">Recipient Link:</strong><br>';
+                    content += `<code style="user-select: all; color: #92400e;">${directLink}</code>`;
                     content += `<button class="btn btn-small" style="margin-left: 0.5rem;" onclick="navigator.clipboard.writeText('${directLink}')">`;
                     content += '<i class="fas fa-copy"></i> Copy';
                     content += '</button>';
@@ -9611,7 +9628,7 @@ function useConnectedAddressForFeeCollector() {
                     content += '✓ Transaction memo contains notice link (viewable on TronScan)<br>';
                     content += '✓ Legal notice permanently stored on TRON blockchain<br>';
                     content += '<div style="margin-top: 0.5rem; padding: 0.5rem; background: #fef3c7; border-radius: 0.25rem; color: #92400e;">';
-                    content += '<strong>Note:</strong> While wallet apps may not display NFTs or memos, the recipient has been legally served via blockchain. The transaction and NFT serve as immutable proof of service attempt.';
+                    content += '<strong>Note:</strong> While wallet apps may not display NFTs or memos, the recipient has been served via blockchain. The transaction and NFT serve as proof of service attempt.';
                     content += '</div>';
                     content += '</div>';
                     content += '</div>';
@@ -10311,23 +10328,45 @@ function useConnectedAddressForFeeCollector() {
                 const isProcessServer = await checkIfProcessServer();
                 const prefixElement = document.getElementById('tokenPrefix');
                 
+                // Auto-populate agency name field
+                const agencyField = document.getElementById('issuingAgency');
+                if (agencyField) {
+                    const userAgency = getCurrentUserAgency();
+                    if (userAgency) {
+                        agencyField.value = userAgency;
+                    }
+                }
+                
                 if (isProcessServer) {
-                    // Process servers are managed via roles only in this contract
-                    // Server ID is not tracked on-chain in this version
-                    const serverId = 0;
-                    
-                    if (serverId && serverId.toString() !== '0') {
-                        // Update the token prefix
-                        if (prefixElement) {
-                            prefixElement.textContent = `PS${serverId.toString().padStart(2, '0')}-`;
-                        }
+                    try {
+                        // Get server ID from v5 contract
+                        const userAddress = tronWeb.defaultAddress.base58;
+                        const serverId = await legalContract.getServerId(userAddress).call();
                         
-                        // Update the server ID display at the top
-                        const serverIdDisplay = document.getElementById('serverIdDisplay');
-                        const userServerIdSpan = document.getElementById('userServerId');
-                        if (serverIdDisplay && userServerIdSpan) {
-                            serverIdDisplay.style.display = 'block';
-                            userServerIdSpan.textContent = serverId.toString().padStart(2, '0');
+                        if (serverId && serverId.toString() !== '0') {
+                            // Update the token prefix with server ID
+                            if (prefixElement) {
+                                prefixElement.textContent = `PS#${serverId.toString()}-`;
+                            }
+                            
+                            // Update the server ID display at the top
+                            const serverIdDisplay = document.getElementById('serverIdDisplay');
+                            const userServerIdSpan = document.getElementById('userServerId');
+                            if (serverIdDisplay && userServerIdSpan) {
+                                serverIdDisplay.style.display = 'block';
+                                userServerIdSpan.textContent = serverId.toString();
+                            }
+                        } else {
+                            // Process server but no ID assigned yet
+                            if (prefixElement) {
+                                prefixElement.textContent = 'PS#?-';
+                            }
+                        }
+                    } catch (e) {
+                        // Fallback if getServerId not available
+                        console.log('Server ID not available:', e);
+                        if (prefixElement) {
+                            prefixElement.textContent = 'PS-';
                         }
                     }
                 } else {
@@ -10536,6 +10575,12 @@ function useConnectedAddressForFeeCollector() {
                 // Initialize recent activity display
                 updateRecentActivityDisplay();
                 
+                // Restore button state
+                connectBtn.innerHTML = '<i class="fas fa-check"></i> Connected';
+                connectBtn.disabled = false;
+                connectBtn.classList.remove('btn-primary');
+                connectBtn.classList.add('btn-success');
+                
                 uiManager.showNotification('success', 'Contract connected successfully');
                 
             } catch (error) {
@@ -10548,6 +10593,8 @@ function useConnectedAddressForFeeCollector() {
                 `;
                 connectBtn.disabled = false;
                 connectBtn.innerHTML = '<i class="fas fa-plug"></i> Connect Contract';
+                connectBtn.classList.remove('btn-success');
+                connectBtn.classList.add('btn-primary');
             }
         }
         
@@ -11189,41 +11236,102 @@ async function checkUserRoles() {
             updateRecentActivityDisplay();
         }
 
-        function updateRecentActivityDisplay() {
+        async function updateRecentActivityDisplay() {
             const activityDiv = document.getElementById('recentActivityContent');
             
-            if (recentActivity.length === 0) {
+            if (!legalContract || !tronWeb || !tronWeb.defaultAddress) {
                 activityDiv.innerHTML = `
                     <div class="empty-state">
                         <i class="fas fa-clipboard"></i>
-                        <h3>No recent activity</h3>
-                        <p>Your recent transactions will appear here</p>
+                        <h3>Connect wallet to view activity</h3>
+                        <p>Your recent notices will appear here</p>
                     </div>
                 `;
                 return;
             }
             
-            let html = '<div class="token-list">';
-            
-            recentActivity.forEach(activity => {
-                const icon = getActivityIcon(activity.type);
-                const timeAgo = getTimeAgo(activity.timestamp);
+            try {
+                // Show loading state
+                activityDiv.innerHTML = '<div style="text-align: center; padding: 2rem;"><i class="fas fa-spinner fa-spin"></i> Loading recent notices...</div>';
                 
-                html += `
-                    <div class="token-item" style="padding: 0.75rem 1rem;">
-                        <div style="display: flex; align-items: center; gap: 1rem;">
-                            <i class="${icon}" style="color: var(--accent-blue); font-size: 1.25rem;"></i>
-                            <div style="flex: 1;">
-                                <div style="font-weight: 500;">${escapeHtml(activity.description)}</div>
-                                <div style="font-size: 0.75rem; color: var(--text-muted);">${timeAgo}</div>
-                            </div>
+                // Get notices from contract
+                const userAddress = tronWeb.defaultAddress.base58;
+                let noticeIds = [];
+                
+                // Try to get server notices if user is a process server
+                try {
+                    const hasServerRole = await legalContract.hasRole(tronWeb.sha3('PROCESS_SERVER_ROLE'), userAddress).call();
+                    if (hasServerRole) {
+                        noticeIds = await legalContract.getServerNotices(userAddress).call();
+                    }
+                } catch (e) {
+                    console.log('Error checking server notices:', e);
+                }
+                
+                // If no server notices, check user notices
+                if (!noticeIds || noticeIds.length === 0) {
+                    try {
+                        noticeIds = await legalContract.getUserNotices(userAddress).call();
+                    } catch (e) {
+                        console.log('Error checking user notices:', e);
+                    }
+                }
+                
+                if (!noticeIds || noticeIds.length === 0) {
+                    activityDiv.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-clipboard"></i>
+                            <h3>No recent activity</h3>
+                            <p>Your served notices will appear here</p>
                         </div>
+                    `;
+                    return;
+                }
+                
+                // Get details for recent notices (max 10)
+                const recentNoticeIds = noticeIds.slice(-10).reverse();
+                let html = '<div class="token-list">';
+                
+                for (const noticeId of recentNoticeIds) {
+                    try {
+                        const notice = await legalContract.notices(noticeId).call();
+                        const timeAgo = notice.createdAt ? getTimeAgo(new Date(notice.createdAt * 1000)) : 'Unknown time';
+                        
+                        html += `
+                            <div class="token-item" style="padding: 0.75rem 1rem;">
+                                <div style="display: flex; align-items: center; gap: 1rem;">
+                                    <i class="fas fa-file-upload" style="color: var(--accent-blue); font-size: 1.25rem;"></i>
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: 500;">Notice #${noticeId} - ${notice.acknowledged ? 'Accepted' : 'Pending'}</div>
+                                        <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                                            To: ${notice.recipient.substring(0, 6)}...${notice.recipient.substring(notice.recipient.length - 4)}
+                                        </div>
+                                        <div style="font-size: 0.75rem; color: var(--text-muted);">${timeAgo}</div>
+                                    </div>
+                                    <button class="btn btn-small btn-secondary" onclick="auditNotice(${noticeId})">
+                                        <i class="fas fa-search"></i> Audit
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    } catch (e) {
+                        console.error('Error loading notice', noticeId, e);
+                    }
+                }
+                
+                html += '</div>';
+                activityDiv.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error loading recent activity:', error);
+                activityDiv.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <h3>Error loading activity</h3>
+                        <p>Unable to fetch recent notices</p>
                     </div>
                 `;
-            });
-            
-            html += '</div>';
-            activityDiv.innerHTML = html;
+            }
         }
 
         function getActivityIcon(type) {
@@ -11934,7 +12042,7 @@ async function checkUserRoles() {
         }
         
         // Energy rental configuration
-        const ENERGY_RENTAL_CONFIG = {
+        window.ENERGY_RENTAL_CONFIG = {
             // TRONSave API for energy rental
             apiUrl: 'https://api.tronsave.io/v0/order/energy',
             // Energy required per notice (increased based on actual usage)
@@ -12338,12 +12446,100 @@ async function checkUserRoles() {
             }
         });
 
+        // Site configuration based on domain
+        const SITE_CONFIG = {
+            'theblockservice.com': {
+                mode: 'server',
+                showServerFeatures: true,
+                showRecipientFeatures: false,
+                brandName: 'The Block Service',
+                tagline: 'Professional Legal Notice Service'
+            },
+            'blockserved.com': {
+                mode: 'recipient', 
+                showServerFeatures: false,
+                showRecipientFeatures: true,
+                brandName: 'Block Served',
+                tagline: 'View Your Legal Notices'
+            },
+            'nftserviceapp.netlify.app': {
+                mode: 'full',
+                showServerFeatures: true,
+                showRecipientFeatures: true,
+                brandName: 'Legal Notice NFT',
+                tagline: 'Blockchain Legal Document Service'
+            },
+            'localhost': {
+                mode: 'full',
+                showServerFeatures: true,
+                showRecipientFeatures: true,
+                brandName: 'Legal Notice NFT (Dev)',
+                tagline: 'Development Environment'
+            }
+        };
+        
+        // Get current site configuration
+        function getSiteConfig() {
+            const hostname = window.location.hostname;
+            return SITE_CONFIG[hostname] || SITE_CONFIG['nftserviceapp.netlify.app'];
+        }
+        
+        // Configure site based on domain
+        function configureSiteForMode(config) {
+            // Update brand name
+            const brandElements = document.querySelectorAll('.brand-name');
+            brandElements.forEach(el => el.textContent = config.brandName);
+            
+            // Update tagline
+            const taglineElements = document.querySelectorAll('.tagline');
+            taglineElements.forEach(el => el.textContent = config.tagline);
+            
+            // Show/hide features based on mode
+            if (!config.showServerFeatures) {
+                // Hide server-only features
+                const serverElements = document.querySelectorAll('.server-only');
+                serverElements.forEach(el => el.style.display = 'none');
+                
+                // Hide admin panel
+                const adminTab = document.querySelector('[onclick*="showTab(\'admin\')"]');
+                if (adminTab) adminTab.style.display = 'none';
+                
+                // Hide process server tab
+                const userTab = document.querySelector('[onclick*="switchTab(\'user\')"]');
+                if (userTab) userTab.style.display = 'none';
+                
+                // Make delivery tab active for recipient-only mode
+                const deliveryTab = document.querySelector('[onclick*="switchTab(\'delivery\')"]');
+                if (deliveryTab) {
+                    deliveryTab.classList.add('active');
+                    // Switch to delivery tab
+                    setTimeout(() => switchTab('delivery'), 100);
+                }
+            }
+            
+            if (!config.showRecipientFeatures) {
+                // Hide recipient-only features
+                const recipientElements = document.querySelectorAll('.recipient-only');
+                recipientElements.forEach(el => el.style.display = 'none');
+            }
+            
+            // Update page title
+            document.title = config.brandName;
+        }
+        
         document.addEventListener('DOMContentLoaded', async function() {
+            // Apply site configuration
+            const siteConfig = getSiteConfig();
+            configureSiteForMode(siteConfig);
+            
             // Check if user came from a direct notice link
             checkDirectNoticeLink();
             
-            // Check if new user needs onboarding
-            checkNewUserOnboarding();
+            // Check if new user needs onboarding (skip for recipient-only mode)
+            if (siteConfig.mode !== 'recipient') {
+                checkNewUserOnboarding();
+            }
+            
             // Hide loader
             setTimeout(() => {
                 uiManager.hideLoader();
@@ -12533,12 +12729,16 @@ deliveryOptions.forEach(option => {
             textNoticeGroup.style.display = 'block';
             textNoticeGroup.classList.add('active');
             noticeTextLabel.innerHTML = '<i class="fas fa-globe" style="color: #f59e0b;"></i> Public Notice Text';
+            noticeTextLabel.style.color = '#92400e';
+            noticeTextLabel.style.fontWeight = '600';
             noticeTextHelp.innerHTML = '<i class="fas fa-exclamation-circle"></i> This text will be publicly visible on the blockchain';
         } else if (this.value === 'text') {
             viewGatedDetails.style.display = 'none';
             textNoticeGroup.style.display = 'block';
             textNoticeGroup.classList.add('active');
             noticeTextLabel.textContent = 'Notice Text';
+            noticeTextLabel.style.color = '';
+            noticeTextLabel.style.fontWeight = '';
             noticeTextHelp.textContent = 'This text will display directly in the recipient\'s wallet';
         } else {
             viewGatedDetails.style.display = 'none';
@@ -12809,7 +13009,7 @@ document.addEventListener('keydown', function(event) {
         window.createLegalNotice = createLegalNotice;
         
         // Show mint step 2
-        function showMintStep2() {
+        async function showMintStep2() {
             document.getElementById('mintStep1').style.display = 'none';
             document.getElementById('mintStep2').style.display = 'block';
             
@@ -12819,6 +13019,45 @@ document.addEventListener('keydown', function(event) {
                 if (preview) {
                     preview.src = uploadedImage.data;
                 }
+            }
+            
+            // Update fee display for step 2
+            try {
+                const selectedMethod = document.querySelector('input[name="deliveryMethod"]:checked')?.value || 'document';
+                const baseFee = selectedMethod === 'document' ? 150 : 15;
+                const sponsorshipFee = 2;
+                
+                // Check if law enforcement
+                let finalBaseFee = baseFee;
+                let totalFee = baseFee + sponsorshipFee;
+                
+                if (legalContract && tronWeb && tronWeb.defaultAddress) {
+                    try {
+                        const userAddress = tronWeb.defaultAddress.base58;
+                        const isLawEnforcement = await legalContract.serviceFeeExemptions(userAddress).call();
+                        
+                        if (isLawEnforcement) {
+                            finalBaseFee = 0;
+                            totalFee = sponsorshipFee;
+                            document.getElementById('feeTypeLabel').textContent = 'Law Enforcement (Sponsorship Only):';
+                            document.getElementById('baseFeeAmount').textContent = sponsorshipFee + ' TRX';
+                        } else {
+                            document.getElementById('feeTypeLabel').textContent = selectedMethod === 'document' ? 'Document Notice Fee:' : 'Text Notice Fee:';
+                            document.getElementById('baseFeeAmount').textContent = baseFee + ' TRX';
+                        }
+                    } catch (e) {
+                        console.log('Could not check exemptions:', e);
+                        document.getElementById('baseFeeAmount').textContent = baseFee + ' TRX';
+                    }
+                } else {
+                    document.getElementById('baseFeeAmount').textContent = baseFee + ' TRX';
+                }
+                
+                // Update total cost
+                document.getElementById('totalCostAmount').textContent = totalFee + ' TRX';
+                
+            } catch (e) {
+                console.error('Error updating fee display:', e);
             }
         }
         
@@ -12983,6 +13222,15 @@ document.addEventListener('keydown', function(event) {
         
         // Check if user came from a direct notice link
         function checkDirectNoticeLink() {
+            // Check for short URL format /n/{noticeId}
+            const pathname = window.location.pathname;
+            if (pathname.startsWith('/n/')) {
+                const noticeId = pathname.replace('/n/', '');
+                // Redirect to hash-based URL
+                window.location.href = `${window.location.origin}/#notice-${noticeId}`;
+                return;
+            }
+            
             const hash = window.location.hash;
             if (hash.startsWith('#notice-')) {
                 const noticeId = hash.replace('#notice-', '');
@@ -13354,56 +13602,75 @@ document.addEventListener('keydown', function(event) {
                         <h2 style="margin: 0;"><i class="fas fa-rocket"></i> Welcome to NFT Legal Service</h2>
                     </div>
                     <div class="modal-body" style="padding: 2rem;">
-                        <h3 style="text-align: center; margin-bottom: 2rem;">Important Information for Process Servers</h3>
+                        <h3 style="text-align: center; margin-bottom: 2rem;">Getting Started Guide</h3>
                         
-                        <div class="alert alert-danger" style="margin-bottom: 2rem;">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            <strong>Critical: Your Wallet IS Your Identity</strong>
-                            <ul style="margin: 0.5rem 0 0 0;">
-                                <li>All notices and data are tied to your wallet address</li>
+                        <!-- Step 1: Get TronLink Wallet -->
+                        <div style="background: var(--bg-secondary); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                            <h4><i class="fas fa-download"></i> Step 1: Get TronLink Wallet</h4>
+                            <p>You'll need a TRON wallet to use this service. TronLink is the recommended wallet:</p>
+                            <div style="margin-top: 1rem;">
+                                <a href="https://www.tronlink.org/" target="_blank" class="btn btn-primary" style="margin-right: 0.5rem;">
+                                    <i class="fas fa-external-link-alt"></i> Download TronLink
+                                </a>
+                                <span style="color: var(--text-secondary); font-size: 0.9rem;">Available for Chrome, Firefox, Edge, and mobile</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Identity Warning Box -->
+                        <div style="background: #dc3545; color: white; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border: 2px solid #a02020;">
+                            <h4 style="margin: 0 0 0.5rem 0;"><i class="fas fa-exclamation-triangle"></i> Critical: Your Wallet IS Your Identity</h4>
+                            <ul style="margin: 0.5rem 0 0 0; padding-left: 1.5rem;">
+                                <li>All notices and data are permanently tied to your wallet address</li>
                                 <li>You can ONLY see notices YOU have sent</li>
                                 <li>Lost wallet = Lost access to all historical data</li>
                                 <li>No password recovery - wallet is the only key</li>
+                                <li><strong>Write down your seed phrase and store it safely!</strong></li>
                             </ul>
                         </div>
                         
-                        <div style="display: grid; gap: 1rem; margin: 2rem 0;">
-                            <div style="background: var(--bg-secondary); padding: 1.5rem; border-radius: 8px;">
-                                <h4><i class="fas fa-wallet"></i> Step 1: Secure Your Wallet</h4>
-                                <p>Write down your seed phrase and store it safely. This is your only backup.</p>
-                            </div>
-                            
-                            <div style="background: var(--bg-secondary); padding: 1.5rem; border-radius: 8px;">
-                                <h4><i class="fas fa-user-shield"></i> Step 2: Register as Process Server</h4>
-                                <p>Get approved by an admin to start serving legal notices.</p>
-                            </div>
-                            
-                            <div style="background: var(--bg-secondary); padding: 1.5rem; border-radius: 8px;">
-                                <h4><i class="fas fa-gavel"></i> Step 3: Serve Notices</h4>
-                                <p>Upload documents and serve to any TRON wallet address.</p>
-                            </div>
-                        </div>
-                        
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle"></i>
-                            <strong>Privacy & Access:</strong>
+                        <!-- Step 2: Connect Wallet -->
+                        <div style="background: var(--bg-secondary); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                            <h4><i class="fas fa-plug"></i> Step 2: Connect Your Wallet</h4>
+                            <p>Your wallet connection serves as your login to this system:</p>
                             <ul style="margin: 0.5rem 0 0 0;">
-                                <li>You can ONLY view details of notices you sent</li>
-                                <li>Recipient data is private to the sending server</li>
-                                <li>IP/location data captured only for your notices</li>
-                                <li>Analytics show only your performance metrics</li>
+                                <li>Click "Connect Wallet" in the top navigation</li>
+                                <li>Approve the connection in TronLink</li>
+                                <li>Your wallet address becomes your unique identifier</li>
+                                <li>No username/password needed - wallet is your secure login</li>
                             </ul>
                         </div>
                         
-                        <div style="text-align: center; margin-top: 2rem;">
+                        <!-- How the System Works -->
+                        <div style="display: grid; gap: 1rem; margin: 1.5rem 0;">
+                            <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px;">
+                                <h5><i class="fas fa-user-shield"></i> Register as Process Server</h5>
+                                <p style="margin: 0.5rem 0 0 0; font-size: 0.95rem;">Get approved by an admin to start serving legal notices</p>
+                            </div>
+                            
+                            <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px;">
+                                <h5><i class="fas fa-file-upload"></i> Upload Documents</h5>
+                                <p style="margin: 0.5rem 0 0 0; font-size: 0.95rem;">Convert legal documents to blockchain notices</p>
+                            </div>
+                            
+                            <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px;">
+                                <h5><i class="fas fa-paper-plane"></i> Serve to Any Wallet</h5>
+                                <p style="margin: 0.5rem 0 0 0; font-size: 0.95rem;">Send notices directly to TRON wallet addresses</p>
+                            </div>
+                        </div>
+                        
+                        <div style="text-align: center; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
                             <label style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 1rem;">
                                 <input type="checkbox" id="understoodOnboarding">
-                                <span>I understand my wallet is my only access key</span>
+                                <span>I understand my wallet is my only access key and have secured my seed phrase</span>
                             </label>
                             
-                            <button class="btn btn-primary" onclick="completeOnboarding()" disabled id="continueOnboarding">
+                            <button class="btn btn-primary" onclick="completeOnboarding()" disabled id="continueOnboarding" style="margin-right: 1rem;">
                                 <i class="fas fa-check"></i> Continue to App
                             </button>
+                            
+                            <a href="#" onclick="switchTab('help'); setTimeout(() => document.querySelector('.faq-header').click(), 100); document.querySelector('.modal').remove(); return false;" style="color: var(--accent-blue);">
+                                <i class="fas fa-question-circle"></i> View FAQ
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -16304,7 +16571,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             const noticeType = document.getElementById('noticeType')?.value || 'Legal Notice';
             const customType = document.getElementById('customNoticeType')?.value.trim() || '';
             const caseNumber = document.getElementById('mintCaseNumber')?.value.trim() || '';
-            const issuingAgency = document.getElementById('agencyName')?.value.trim() || '';
+            const issuingAgency = document.getElementById('issuingAgency')?.value.trim() || '';
             const tokenName = document.getElementById('mintTokenName')?.value.trim() || 'Legal Notice';
             const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked')?.value || 'document';
             
@@ -16360,13 +16627,14 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     const ipfsHash = await SimpleEncryption.uploadToIPFS(encryptedDoc);
                     
                     // Generate NFT metadata with sealed thumbnail BEFORE the transaction
-                    showProcessing('Creating sealed preview for NFT visibility...');
+                    showProcessing('Creating document preview for NFT visibility...');
+                    console.log('Using v5 ThumbnailGenerator to create document preview with instructions');
                     const nftAssets = await ThumbnailGenerator.processDocumentForNFT(
                         uploadedImage.data,
                         {
                             noticeType: noticeType === 'Custom' ? customType : noticeType,
                             caseNumber: caseNumber || 'Confidential',
-                            issuingAgency: issuingAgency || 'Law Enforcement'
+                            issuingAgency: issuingAgency || getCurrentUserAgency() || 'Process Server'
                         },
                         'pending' // Use placeholder ID for now
                     );
@@ -16428,6 +16696,18 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 console.log('Contract address:', legalContract.address);
                 console.log('Sender address:', tronWeb.defaultAddress.base58);
                 console.log('Fee being sent:', fee, 'sun =', fee/1000000, 'TRX');
+                
+                // Check and rent energy if needed before transaction
+                const estimatedEnergy = ENERGY_RENTAL_CONFIG.energyPerNotice;
+                const energyRentalResult = await rentEnergyIfNeeded(estimatedEnergy);
+                
+                if (!energyRentalResult.success) {
+                    throw new Error(energyRentalResult.error || 'Energy rental failed');
+                }
+                
+                if (energyRentalResult.rented) {
+                    showProcessing(`Energy rented successfully. Sending transaction...`);
+                }
                 
                 // Complete contract uses serveNotice with different parameters
                 // serveNotice(recipient, encryptedIPFS, decryptionKey, issuingAgency, noticeType, caseNumber, caseDetails, legalRights, sponsorFees)
@@ -16592,15 +16872,15 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 // Generate and update NFT metadata with sealed thumbnail
                 if (noticeId && deliveryMethod === 'document' && uploadedImage) {
                     try {
-                        console.log('Generating NFT metadata with sealed thumbnail...');
-                        showProcessing('Creating sealed preview for wallet visibility...');
+                        console.log('Generating NFT metadata with document preview (v5)...');
+                        showProcessing('Creating document preview for wallet visibility...');
                         
                         const nftAssets = await ThumbnailGenerator.processDocumentForNFT(
                             uploadedImage.data,
                             {
                                 noticeType: noticeType === 'Custom' ? customType : noticeType,
                                 caseNumber: caseNumber || 'Confidential',
-                                issuingAgency: issuingAgency || 'Law Enforcement'
+                                issuingAgency: issuingAgency || getCurrentUserAgency() || 'Process Server'
                             },
                             noticeId // Now we have the actual notice ID
                         );

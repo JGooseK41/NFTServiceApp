@@ -1,0 +1,2 @@
+# Redirect short URLs to the main app with hash routing
+/n/*  /#notice-:splat  200!
