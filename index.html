@@ -16746,6 +16746,13 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 
                 // Check and rent energy if needed before transaction
                 const estimatedEnergy = ENERGY_RENTAL_CONFIG.energyPerNotice;
+                console.log('Energy check:', {
+                    required: estimatedEnergy,
+                    network: currentNetwork,
+                    feeLimit: '300 TRX',
+                    estimatedCost: `${Math.round(estimatedEnergy * 420 / 1000000)} TRX if burned`
+                });
+                
                 const energyRentalResult = await rentEnergyIfNeeded(estimatedEnergy);
                 
                 if (!energyRentalResult.success) {
@@ -16754,6 +16761,8 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 
                 if (energyRentalResult.rented) {
                     showProcessing(`Energy rented successfully. Sending transaction...`);
+                } else if (energyRentalResult.warning) {
+                    console.warn('Energy warning:', energyRentalResult.warning);
                 }
                 
                 // Complete contract uses serveNotice with different parameters
