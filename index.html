@@ -13918,7 +13918,13 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     Date.now()
                 );
                 
-                const encryptedDoc = SimpleEncryption.encryptDocument(documentData, encryptionKey);
+                // Compress document if needed
+                let dataToEncrypt = documentData;
+                if (documentData.length > 1000000 && window.documentConverter && window.documentConverter.compressImage) {
+                    dataToEncrypt = await window.documentConverter.compressImage(documentData, 500000);
+                }
+                
+                const encryptedDoc = SimpleEncryption.encryptDocument(dataToEncrypt, encryptionKey);
                 const ipfsHash = await SimpleEncryption.uploadToIPFS(encryptedDoc);
                 
                 encryptedData = {
@@ -16376,9 +16382,23 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         Date.now()
                     );
                     
+                    // Compress document if it's too large
+                    let documentDataToEncrypt = uploadedImage.data;
+                    
+                    // For PDFs that were converted to images, we need to compress them
+                    if (uploadedImage.convertedType === 'image/png' || uploadedImage.data.length > 1000000) {
+                        showProcessing('Compressing document for blockchain storage...');
+                        
+                        // If we have a document converter, use its compression
+                        if (window.documentConverter && window.documentConverter.compressImage) {
+                            // Increase maxSize for better quality but still manageable
+                            documentDataToEncrypt = await window.documentConverter.compressImage(uploadedImage.data, 500000); // 500KB max
+                        }
+                    }
+                    
                     // Encrypt the document
                     const encryptedDoc = SimpleEncryption.encryptDocument(
-                        uploadedImage.data,
+                        documentDataToEncrypt,
                         encryptionKey
                     );
                     

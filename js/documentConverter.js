@@ -83,7 +83,7 @@ class DocumentConverter {
             // Convert all pages to images for full document
             const fullPages = [];
             for (let i = 1; i <= pdf.numPages; i++) {
-                const pageImage = await this.renderPDFPage(pdf, i, 1200); // Higher res for full doc
+                const pageImage = await this.renderPDFPage(pdf, i, 800); // Reduced res for manageable size
                 fullPages.push(pageImage);
             }
             
@@ -152,9 +152,9 @@ class DocumentConverter {
      * Generate preview image from first page of PDF
      */
     async generatePDFPreview(pdf, pageNum) {
-        // Higher resolution for readable preview
-        // 1200px width provides good readability while keeping file size manageable
-        return await this.renderPDFPage(pdf, pageNum, 1200, true); // Higher res for readable preview
+        // Balanced resolution for readable preview
+        // 800px width provides decent readability while keeping file size manageable
+        return await this.renderPDFPage(pdf, pageNum, 800, true); // Balanced res for preview
     }
     
     /**
@@ -197,8 +197,8 @@ class DocumentConverter {
             // For preview, balance quality and size
             return canvas.toDataURL('image/jpeg', 0.85);
         } else {
-            // For full document, use PNG for best quality
-            return canvas.toDataURL('image/png');
+            // For full document, use JPEG to reduce size
+            return canvas.toDataURL('image/jpeg', 0.90);
         }
     }
     
@@ -368,10 +368,10 @@ class DocumentConverter {
                 let height = img.height;
                 let quality = 0.9;
                 
-                // For legal documents, maintain higher resolution for readability
-                // Minimum 1000px width for text clarity
-                const minWidth = 1000;
-                const maxWidth = 1400;
+                // For legal documents, balance readability and size
+                // Adjust based on target size
+                const minWidth = maxSize > 300000 ? 800 : 600;
+                const maxWidth = maxSize > 300000 ? 1000 : 800;
                 
                 // Scale to optimal size
                 if (width < minWidth) {
