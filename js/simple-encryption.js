@@ -75,10 +75,24 @@ const SimpleEncryption = {
         }
     },
     
-    // Simple IPFS upload (can be replaced with actual IPFS implementation)
+    // Upload to IPFS using Pinata
     async uploadToIPFS(data) {
-        // For now, return a mock hash
-        // In production, use actual IPFS upload
+        // Try to use Pinata first
+        if (window.IPFSIntegration && window.IPFSIntegration.uploadToPinata) {
+            try {
+                console.log('Uploading to Pinata IPFS...');
+                const hash = await window.IPFSIntegration.uploadToPinata(data, {
+                    name: `legal-notice-${Date.now()}`,
+                    type: 'encrypted-document'
+                });
+                console.log('Successfully uploaded to Pinata:', hash);
+                return hash;
+            } catch (error) {
+                console.error('Pinata upload failed, using fallback:', error);
+            }
+        }
+        
+        // Fallback to mock hash + localStorage
         const hash = 'Qm' + CryptoJS.SHA256(data).toString().substring(0, 44);
         
         // First, let's see what's taking up space

@@ -28,6 +28,13 @@
             encodedKey: '=ETN1U2MzEDNkZzNmJjN4MmMkJmZ',
             encodedSecret: '==wM4MWY4kjNyIWN0gDZjFWMmFzNyETZ2YWNmBzM3MDNjFDM5EjYihTNmJWZ5UzMwMTOwQjNyUWNjNzNkdjZjRWY'
         };
+        
+        // Contract addresses for different networks
+        window.CONTRACT_ADDRESSES = {
+            mainnet: 'REPLACE_WITH_MAINNET_CONTRACT_ADDRESS', // TODO: Deploy and update
+            nile: 'THUoYefQtWgkSmmFqqJpYERCuqLw1As2hL', // Current testnet contract
+            shasta: '' // Not deployed
+        };
     </script>
     <script src="v4/js/ipfs-integration.js"></script>
     <style>
@@ -12527,8 +12534,45 @@ document.addEventListener('keydown', function(event) {
             });
         };
 
+        // Detect network and set appropriate contract address
+        async function detectNetworkAndSetContract() {
+            try {
+                if (!window.tronWeb || !window.tronWeb.ready) return;
+                
+                const node = await tronWeb.getNodeInfo();
+                const contractAddressField = document.getElementById('contractAddress');
+                if (!contractAddressField) return;
+                
+                // Detect network based on node info
+                if (node && node.network) {
+                    if (node.network.toLowerCase().includes('mainnet')) {
+                        currentNetwork = 'mainnet';
+                        contractAddressField.value = window.CONTRACT_ADDRESSES.mainnet;
+                        console.log('Detected TRON Mainnet');
+                    } else if (node.network.toLowerCase().includes('nile')) {
+                        currentNetwork = 'nile';
+                        contractAddressField.value = window.CONTRACT_ADDRESSES.nile;
+                        console.log('Detected TRON Nile Testnet');
+                    } else if (node.network.toLowerCase().includes('shasta')) {
+                        currentNetwork = 'shasta';
+                        contractAddressField.value = window.CONTRACT_ADDRESSES.shasta || '';
+                        console.log('Detected TRON Shasta Testnet');
+                    }
+                }
+            } catch (error) {
+                console.error('Error detecting network:', error);
+                // Default to Nile testnet
+                currentNetwork = 'nile';
+                const contractAddressField = document.getElementById('contractAddress');
+                if (contractAddressField) {
+                    contractAddressField.value = window.CONTRACT_ADDRESSES.nile;
+                }
+            }
+        }
+        
         // Make functions available globally
         window.connectWallet = connectWallet;
+        window.detectNetworkAndSetContract = detectNetworkAndSetContract;
         window.switchTab = switchTab;
         window.openRegistrationModal = openRegistrationModal;
         window.closeRegistrationModal = closeRegistrationModal;
