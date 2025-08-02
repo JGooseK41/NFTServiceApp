@@ -5,6 +5,14 @@ const ThumbnailGenerator = {
     // Generate thumbnail with document preview and instruction banner
     async generateSealedThumbnail(documentData, documentType, documentPreview) {
         try {
+            console.log('ThumbnailGenerator.generateSealedThumbnail called with:', {
+                hasDocumentData: !!documentData,
+                documentDataType: documentData ? documentData.substring(0, 30) : 'none',
+                hasDocumentPreview: !!documentPreview,
+                documentPreviewType: documentPreview ? documentPreview.substring(0, 30) : 'none',
+                documentType
+            });
+            
             // Create canvas for thumbnail
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
@@ -17,14 +25,23 @@ const ThumbnailGenerator = {
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            if (documentData && documentData.startsWith('data:image')) {
+            // Check if we have a valid image to use
+            let imageToUse = null;
+            
+            if (documentPreview && typeof documentPreview === 'string' && documentPreview.startsWith('data:image')) {
+                console.log('Using document preview image');
+                imageToUse = documentPreview;
+            } else if (documentData && typeof documentData === 'string' && documentData.startsWith('data:image')) {
+                console.log('Using document data image');
+                imageToUse = documentData;
+            }
+            
+            if (imageToUse) {
                 // For image documents, show actual document as thumbnail
-                await this.drawDocumentThumbnail(ctx, documentData, canvas.width, canvas.height);
-            } else if (documentPreview && documentPreview.startsWith('data:image')) {
-                // If we have a preview image (from PDF conversion), use it
-                await this.drawDocumentThumbnail(ctx, documentPreview, canvas.width, canvas.height);
+                await this.drawDocumentThumbnail(ctx, imageToUse, canvas.width, canvas.height);
             } else {
                 // For other cases, create generic document preview
+                console.log('No valid image found, using generic preview');
                 this.drawDocumentPreview(ctx, canvas.width, canvas.height);
             }
             
@@ -310,16 +327,20 @@ const ThumbnailGenerator = {
             let documentType = 'document';
             let documentPreview = null;
             
+            // First check if we have a preview from document conversion
+            if (window.uploadedImage && window.uploadedImage.preview) {
+                console.log('Using preview from uploadedImage');
+                documentPreview = window.uploadedImage.preview;
+            }
+            
             if (documentData && documentData.startsWith('data:image')) {
                 documentType = 'image';
-                documentPreview = documentData; // Use the image itself as preview
+                // If no preview, use the image itself
+                if (!documentPreview) {
+                    documentPreview = documentData;
+                }
             } else if (documentData && documentData.startsWith('data:application/pdf')) {
                 documentType = 'pdf';
-                // For PDFs, we should have a preview image from conversion
-                // If uploadedImage has a preview property, use it
-                if (window.uploadedImage && window.uploadedImage.preview) {
-                    documentPreview = window.uploadedImage.preview;
-                }
             }
             
             // Generate sealed thumbnail with instructions
