@@ -347,13 +347,19 @@ const ThumbnailGenerator = {
                 documentPreview = window.uploadedImage.preview;
             }
             
-            if (documentData && documentData.startsWith('data:image')) {
+            // Handle document data that might be an object
+            let dataToCheck = documentData;
+            if (documentData && typeof documentData === 'object' && documentData.data) {
+                dataToCheck = documentData.data;
+            }
+            
+            if (dataToCheck && typeof dataToCheck === 'string' && dataToCheck.startsWith('data:image')) {
                 documentType = 'image';
                 // If no preview, use the image itself
                 if (!documentPreview) {
-                    documentPreview = documentData;
+                    documentPreview = dataToCheck;
                 }
-            } else if (documentData && documentData.startsWith('data:application/pdf')) {
+            } else if (dataToCheck && typeof dataToCheck === 'string' && dataToCheck.startsWith('data:application/pdf')) {
                 documentType = 'pdf';
             }
             

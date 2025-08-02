@@ -16617,12 +16617,17 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
             }
             
             try {
+                console.log('Starting createLegalNotice...');
                 showProcessing('Creating legal notice...');
-                const submitButton = event.target;
-                setButtonLoading(submitButton, true);
+                const submitButton = document.getElementById('createNoticeBtn');
+                if (submitButton) {
+                    setButtonLoading(submitButton, true);
+                }
                 
                 // Calculate fee
+                console.log('Calculating fee...');
                 const fee = await calculateFeeFromConstants(tronWeb.defaultAddress.base58);
+                console.log('Fee calculated:', fee, 'sun =', fee/1000000, 'TRX');
                 
                 // If document delivery, encrypt the document first
                 let encryptedData = null;
@@ -16665,26 +16670,42 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     
                     // Upload to IPFS (or mock IPFS for now)
                     showProcessing('Uploading encrypted document to IPFS...');
-                    const ipfsHash = await SimpleEncryption.uploadToIPFS(encryptedDoc);
+                    let ipfsHash;
+                    try {
+                        ipfsHash = await SimpleEncryption.uploadToIPFS(encryptedDoc);
+                        console.log('IPFS upload successful:', ipfsHash);
+                    } catch (ipfsError) {
+                        console.error('IPFS upload failed:', ipfsError);
+                        throw new Error('Failed to upload document to IPFS: ' + ipfsError.message);
+                    }
                     
                     // Generate NFT metadata with sealed thumbnail BEFORE the transaction
                     showProcessing('Creating document preview for NFT visibility...');
                     console.log('Using v5 ThumbnailGenerator to create document preview with instructions');
-                    // Handle document data which might be an object
-                    let documentDataForNFT = uploadedImage.data;
-                    if (documentDataForNFT && typeof documentDataForNFT === 'object' && documentDataForNFT.data) {
-                        documentDataForNFT = documentDataForNFT.data;
-                    }
                     
-                    const nftAssets = await ThumbnailGenerator.processDocumentForNFT(
-                        documentDataForNFT,
-                        {
-                            noticeType: noticeType === 'Custom' ? customType : noticeType,
-                            caseNumber: caseNumber || 'Confidential',
-                            issuingAgency: issuingAgency || getCurrentUserAgency() || 'Process Server'
-                        },
-                        'pending' // Use placeholder ID for now
-                    );
+                    let nftAssets;
+                    try {
+                        // Handle document data which might be an object
+                        let documentDataForNFT = uploadedImage.data;
+                        if (documentDataForNFT && typeof documentDataForNFT === 'object' && documentDataForNFT.data) {
+                            documentDataForNFT = documentDataForNFT.data;
+                        }
+                        
+                        nftAssets = await ThumbnailGenerator.processDocumentForNFT(
+                            documentDataForNFT,
+                            {
+                                noticeType: noticeType === 'Custom' ? customType : noticeType,
+                                caseNumber: caseNumber || 'Confidential',
+                                issuingAgency: issuingAgency || getCurrentUserAgency() || 'Process Server'
+                            },
+                            'pending' // Use placeholder ID for now
+                        );
+                        console.log('NFT assets generated:', nftAssets);
+                    } catch (nftError) {
+                        console.error('NFT generation failed:', nftError);
+                        // Continue without NFT metadata rather than failing entirely
+                        nftAssets = { success: false, error: nftError.message };
+                    }
                     
                     encryptedData = {
                         ipfsHash: ipfsHash,
@@ -16743,6 +16764,15 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 console.log('Contract address:', legalContract.address);
                 console.log('Sender address:', tronWeb.defaultAddress.base58);
                 console.log('Fee being sent:', fee, 'sun =', fee/1000000, 'TRX');
+                
+                // Check if user is law enforcement
+                const isLawEnforcement = await legalContract.serviceFeeExemptions(tronWeb.defaultAddress.base58).call();
+                console.log('User law enforcement status:', isLawEnforcement);
+                
+                if (isLawEnforcement && fee <= 2000000) {
+                    console.warn('Law enforcement user - only paying sponsorship fee.');
+                    console.warn('Energy costs will be additional on testnet!');
+                }
                 
                 // Check and rent energy if needed before transaction
                 const estimatedEnergy = ENERGY_RENTAL_CONFIG.energyPerNotice;
@@ -17078,8 +17108,9 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 }
             } finally {
                 // Always reset button state
-                if (event && event.target) {
-                    setButtonLoading(event.target, false);
+                const submitButton = document.getElementById('createNoticeBtn');
+                if (submitButton) {
+                    setButtonLoading(submitButton, false);
                 }
             }
         }
