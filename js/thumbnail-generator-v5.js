@@ -7,9 +7,9 @@ const ThumbnailGenerator = {
         try {
             console.log('ThumbnailGenerator.generateSealedThumbnail called with:', {
                 hasDocumentData: !!documentData,
-                documentDataType: documentData ? documentData.substring(0, 30) : 'none',
+                documentDataType: typeof documentData === 'string' ? documentData.substring(0, 30) : typeof documentData,
                 hasDocumentPreview: !!documentPreview,
-                documentPreviewType: documentPreview ? documentPreview.substring(0, 30) : 'none',
+                documentPreviewType: typeof documentPreview === 'string' ? documentPreview.substring(0, 30) : typeof documentPreview,
                 documentType
             });
             
@@ -28,12 +28,26 @@ const ThumbnailGenerator = {
             // Check if we have a valid image to use
             let imageToUse = null;
             
-            if (documentPreview && typeof documentPreview === 'string' && documentPreview.startsWith('data:image')) {
-                console.log('Using document preview image');
-                imageToUse = documentPreview;
-            } else if (documentData && typeof documentData === 'string' && documentData.startsWith('data:image')) {
-                console.log('Using document data image');
-                imageToUse = documentData;
+            // Handle preview first (it's usually the best option)
+            if (documentPreview) {
+                if (typeof documentPreview === 'string' && documentPreview.startsWith('data:image')) {
+                    console.log('Using document preview image');
+                    imageToUse = documentPreview;
+                } else if (documentPreview.data && typeof documentPreview.data === 'string' && documentPreview.data.startsWith('data:image')) {
+                    console.log('Using document preview.data image');
+                    imageToUse = documentPreview.data;
+                }
+            }
+            
+            // If no preview, try document data
+            if (!imageToUse && documentData) {
+                if (typeof documentData === 'string' && documentData.startsWith('data:image')) {
+                    console.log('Using document data image');
+                    imageToUse = documentData;
+                } else if (documentData.data && typeof documentData.data === 'string' && documentData.data.startsWith('data:image')) {
+                    console.log('Using document data.data image');
+                    imageToUse = documentData.data;
+                }
             }
             
             if (imageToUse) {

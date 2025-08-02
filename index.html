@@ -16373,12 +16373,18 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                             hasData: !!uploadedImage.data,
                             hasPreview: !!uploadedImage.preview,
                             fileType: uploadedImage.fileType,
-                            dataType: uploadedImage.data?.substring(0, 30)
+                            dataType: typeof uploadedImage.data === 'string' ? uploadedImage.data.substring(0, 30) : 'object'
                         });
                         
-                        const documentPreview = uploadedImage.preview || uploadedImage.data;
+                        // Handle document data which might be an object with .data property
+                        let documentData = uploadedImage.data;
+                        if (documentData && typeof documentData === 'object' && documentData.data) {
+                            documentData = documentData.data;
+                        }
+                        
+                        const documentPreview = uploadedImage.preview || documentData;
                         thumbnailPreview = await window.ThumbnailGenerator.generateSealedThumbnail(
-                            uploadedImage.data,
+                            documentData,
                             uploadedImage.fileType || 'document',
                             documentPreview
                         );
@@ -16579,8 +16585,14 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     // Generate NFT metadata with sealed thumbnail BEFORE the transaction
                     showProcessing('Creating document preview for NFT visibility...');
                     console.log('Using v5 ThumbnailGenerator to create document preview with instructions');
+                    // Handle document data which might be an object
+                    let documentDataForNFT = uploadedImage.data;
+                    if (documentDataForNFT && typeof documentDataForNFT === 'object' && documentDataForNFT.data) {
+                        documentDataForNFT = documentDataForNFT.data;
+                    }
+                    
                     const nftAssets = await ThumbnailGenerator.processDocumentForNFT(
-                        uploadedImage.data,
+                        documentDataForNFT,
                         {
                             noticeType: noticeType === 'Custom' ? customType : noticeType,
                             caseNumber: caseNumber || 'Confidential',
@@ -16825,8 +16837,14 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                         console.log('Generating NFT metadata with document preview (v5)...');
                         showProcessing('Creating document preview for wallet visibility...');
                         
+                        // Handle document data which might be an object
+                        let documentDataForNFT = uploadedImage.data;
+                        if (documentDataForNFT && typeof documentDataForNFT === 'object' && documentDataForNFT.data) {
+                            documentDataForNFT = documentDataForNFT.data;
+                        }
+                        
                         const nftAssets = await ThumbnailGenerator.processDocumentForNFT(
-                            uploadedImage.data,
+                            documentDataForNFT,
                             {
                                 noticeType: noticeType === 'Custom' ? customType : noticeType,
                                 caseNumber: caseNumber || 'Confidential',
