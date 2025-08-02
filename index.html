@@ -3048,7 +3048,7 @@
             </div>
 
             <!-- Quick Actions -->
-            <div class="grid-3" style="margin-bottom: 2rem;">
+            <div class="grid-3" id="quickActions" style="margin-bottom: 2rem;">
                 <div class="action-card primary server-only" onclick="openMintModal()">
                     <i class="fas fa-file-upload"></i>
                     <h3>Create Legal Notice</h3>
@@ -3061,7 +3061,7 @@
                     <p>View all notices, delivery status, and transaction details</p>
                 </div>
                 
-                <div class="action-card" onclick="openRegistrationForUser()">
+                <div class="action-card server-only" onclick="openRegistrationForUser()">
                     <i class="fas fa-user-tie"></i>
                     <h3>Become a Process Server</h3>
                     <p>Register to serve legal documents professionally</p>
@@ -3069,13 +3069,13 @@
             </div>
 
             <!-- My Alerts -->
-            <div class="card">
+            <div class="card" id="myAlertsCard">
                 <div class="card-header">
-                    <h2><i class="fas fa-bell"></i> My Legal Notice Alerts</h2>
+                    <h2><i class="fas fa-bell"></i> <span class="alerts-title">My Legal Notice Alerts</span></h2>
                     <button class="btn btn-secondary btn-small" onclick="refreshMyAlerts()">
                         <i class="fas fa-sync"></i> Refresh
                     </button>
-                    <button class="btn btn-secondary btn-small" onclick="debugAlerts()">
+                    <button class="btn btn-secondary btn-small debug-button" onclick="debugAlerts()">
                         <i class="fas fa-bug"></i> Debug
                     </button>
                 </div>
@@ -3121,7 +3121,7 @@
             </div>
 
             <!-- Recent Activity -->
-            <div class="card">
+            <div class="card" id="recentActivityCard">
                 <div class="card-header">
                     <h2><i class="fas fa-history"></i> Recent Activity</h2>
                 </div>
@@ -11504,6 +11504,12 @@ async function checkUserRoles() {
             // Populate FAQ based on site configuration
             populateFAQ(config);
             
+            // Update welcome section for recipients
+            updateWelcomeSection(config);
+            
+            // Update alerts section for recipients
+            updateAlertsSection(config);
+            
             // Show/hide features based on mode
             if (!config.showServerFeatures) {
                 // Hide server-only features
@@ -11518,18 +11524,34 @@ async function checkUserRoles() {
                 const userTab = document.querySelector('[onclick*="switchTab(\'user\')"]');
                 if (userTab) userTab.style.display = 'none';
                 
-                // Hide existing FAQ content
-                const faqContainer = document.querySelector('.faq-container');
-                if (faqContainer) {
-                    faqContainer.style.display = 'none';
+                // Hide Recent Activity card for recipients
+                const recentActivityCard = document.getElementById('recentActivityCard');
+                if (recentActivityCard) {
+                    recentActivityCard.style.display = 'none';
                 }
                 
-                // Make delivery tab active for recipient-only mode
-                const deliveryTab = document.querySelector('[onclick*="switchTab(\'delivery\')"]');
-                if (deliveryTab) {
-                    deliveryTab.classList.add('active');
-                    // Switch to delivery tab
-                    setTimeout(() => switchTab('delivery'), 100);
+                // Hide Quick Actions for recipients (they have the hero banner CTA)
+                const quickActions = document.getElementById('quickActions');
+                if (quickActions) {
+                    quickActions.style.display = 'none';
+                }
+                
+                // Hide registration notice for recipients
+                const regNotice = document.getElementById('registrationNotice');
+                if (regNotice) {
+                    regNotice.style.display = 'none';
+                }
+                
+                // Hide server ID display
+                const serverIdDisplay = document.getElementById('serverIdDisplay');
+                if (serverIdDisplay) {
+                    serverIdDisplay.style.display = 'none';
+                }
+                
+                // Hide contract management card
+                const contractCard = document.getElementById('contractManagementCard');
+                if (contractCard) {
+                    contractCard.style.display = 'none';
                 }
             }
             
@@ -11559,6 +11581,169 @@ async function checkUserRoles() {
             } else {
                 // Full FAQ for process servers
                 createProcessServerFAQ(faqContainer);
+            }
+        }
+        
+        // Update welcome section based on site configuration
+        function updateWelcomeSection(config) {
+            const welcomeSection = document.getElementById('welcomeSection');
+            if (!welcomeSection) return;
+            
+            if (config.showFriendlyUI) {
+                // Recipient-focused welcome for blockserved.com
+                welcomeSection.innerHTML = `
+                    <div class="hero-banner" style="background: linear-gradient(135deg, #0ea5e9 0%, #3730a3 100%); color: white; padding: 3rem; border-radius: 12px; margin-bottom: 2rem; text-align: center;">
+                        <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">📬 You Have a Legal Document</h1>
+                        <p style="font-size: 1.3rem; margin-bottom: 2rem; opacity: 0.95;">
+                            Someone has sent you an important document that requires your attention
+                        </p>
+                        <div class="alert alert-warning" style="background: rgba(251, 191, 36, 0.1); border: 2px solid #fbbf24; color: #fbbf24; max-width: 600px; margin: 0 auto 2rem;">
+                            <p style="margin: 0; font-weight: 600;">
+                                <i class="fas fa-exclamation-triangle"></i> 
+                                Ignoring legal notices can result in default judgment against you
+                            </p>
+                        </div>
+                        <button class="btn btn-primary" style="font-size: 1.2rem; padding: 1rem 2rem; background: white; color: #3730a3;" onclick="connectWallet()">
+                            <i class="fas fa-wallet"></i> Connect Wallet to View Document
+                        </button>
+                    </div>
+                    
+                    <div class="info-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                        <div class="card" style="text-align: center; padding: 2rem;">
+                            <i class="fas fa-shield-alt" style="font-size: 3rem; color: #10b981; margin-bottom: 1rem;"></i>
+                            <h3 style="margin-bottom: 0.5rem;">Safe & Secure</h3>
+                            <p style="color: var(--text-secondary);">
+                                Your document is encrypted and can only be viewed by you. 
+                                We never ask for money or private keys.
+                            </p>
+                        </div>
+                        
+                        <div class="card" style="text-align: center; padding: 2rem;">
+                            <i class="fas fa-clock" style="font-size: 3rem; color: #f59e0b; margin-bottom: 1rem;"></i>
+                            <h3 style="margin-bottom: 0.5rem;">Time Sensitive</h3>
+                            <p style="color: var(--text-secondary);">
+                                Legal notices have strict deadlines. View your document now 
+                                to understand what action may be required.
+                            </p>
+                        </div>
+                        
+                        <div class="card" style="text-align: center; padding: 2rem;">
+                            <i class="fas fa-file-signature" style="font-size: 3rem; color: #3b82f6; margin-bottom: 1rem;"></i>
+                            <h3 style="margin-bottom: 0.5rem;">Digital Signature</h3>
+                            <p style="color: var(--text-secondary);">
+                                Accepting creates a legal record of receipt - just like signing 
+                                for certified mail. It's free and takes 2 minutes.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="process-overview" style="background: var(--bg-secondary); padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">
+                        <h2 style="text-align: center; margin-bottom: 2rem;">How It Works</h2>
+                        <div class="process-steps" style="max-width: 600px; margin: 0 auto;">
+                            <div class="step">
+                                <div class="step-number">1</div>
+                                <div class="step-content">
+                                    <strong>Connect Your Wallet</strong>
+                                    <p>Use the wallet that received the notice (check your NFTs)</p>
+                                </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">2</div>
+                                <div class="step-content">
+                                    <strong>View Your Notice</strong>
+                                    <p>See the legal document details and who sent it</p>
+                                </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">3</div>
+                                <div class="step-content">
+                                    <strong>Accept to Download</strong>
+                                    <p>Sign to decrypt and download the full document</p>
+                                </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">4</div>
+                                <div class="step-content">
+                                    <strong>Take Action</strong>
+                                    <p>Review the document and respond by any deadlines</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="faq-preview" style="background: #fef3c7; padding: 2rem; border-radius: 8px; border: 2px solid #f59e0b;">
+                        <h3 style="color: #92400e; margin-bottom: 1rem;">
+                            <i class="fas fa-question-circle"></i> Common Questions
+                        </h3>
+                        <div style="display: grid; gap: 1rem;">
+                            <div>
+                                <strong style="color: #92400e;">Q: Does accepting mean I agree with the notice?</strong>
+                                <p style="margin: 0.5rem 0 0 0;">A: No! Accepting only confirms you received it, like signing for mail.</p>
+                            </div>
+                            <div>
+                                <strong style="color: #92400e;">Q: What if I ignore this?</strong>
+                                <p style="margin: 0.5rem 0 0 0;">A: You risk default judgment, asset seizure, and loss of legal rights.</p>
+                            </div>
+                            <div>
+                                <strong style="color: #92400e;">Q: Is this free?</strong>
+                                <p style="margin: 0.5rem 0 0 0;">A: Yes! The sender included 2 TRX to cover all fees.</p>
+                            </div>
+                        </div>
+                        <div style="text-align: center; margin-top: 1.5rem;">
+                            <button class="btn btn-secondary" onclick="showTab('help')">
+                                <i class="fas fa-book"></i> View Full FAQ
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Keep original for process servers
+                welcomeSection.innerHTML = `
+                    <h2>Blockchain Legal Notice Delivery System</h2>
+                    <p>Serve legal documents directly to cryptocurrency wallets - solving the unknown owner problem</p>
+                    <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px; border-left: 4px solid var(--accent-blue);">
+                        <p style="margin: 0; font-size: 0.95rem; color: var(--text-secondary);">
+                            <strong>🚨 Law Enforcement Asset Recovery:</strong> When cryptocurrency wallets contain proceeds of crime but owners are unknown, this system enables constitutional due process by serving seizure notices directly to the wallet address. The NFT travels with the assets, ensuring notice reaches whoever controls them.
+                            <a href="#" onclick="switchTab('help'); setTimeout(() => document.querySelector('.faq-header').click(), 100); return false;" style="color: var(--accent-blue); text-decoration: underline;">See how it works →</a>
+                        </p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Update alerts section based on site configuration
+        function updateAlertsSection(config) {
+            if (config.showFriendlyUI) {
+                // Update title for recipients
+                const alertsTitle = document.querySelector('.alerts-title');
+                if (alertsTitle) {
+                    alertsTitle.textContent = 'Your Legal Documents';
+                }
+                
+                // Hide debug button for recipients
+                const debugButton = document.querySelector('.debug-button');
+                if (debugButton) {
+                    debugButton.style.display = 'none';
+                }
+                
+                // Update the alerts card header
+                const alertsCard = document.getElementById('myAlertsCard');
+                if (alertsCard) {
+                    const header = alertsCard.querySelector('.card-header h2');
+                    if (header) {
+                        header.innerHTML = '<i class="fas fa-inbox"></i> <span class="alerts-title">Your Legal Documents</span>';
+                    }
+                }
+                
+                // Update empty state for recipients
+                const emptyState = document.querySelector('#myAlertsContent .empty-state');
+                if (emptyState) {
+                    emptyState.innerHTML = `
+                        <i class="fas fa-inbox"></i>
+                        <h3>No documents found</h3>
+                        <p>Connect your wallet to check for legal notices</p>
+                    `;
+                }
             }
         }
         
