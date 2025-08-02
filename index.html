@@ -4054,7 +4054,7 @@
                             </div>
                             <div class="fee-total" style="display: flex; justify-content: space-between; padding: 0.75rem 0 0 0; font-size: 1.125rem;">
                                 <span style="font-weight: 600;">Total Estimated Cost:</span>
-                                <span id="totalCostAmount" style="font-weight: 700; color: #10b981;">~242 TRX</span>
+                                <span id="totalCostAmount" style="font-weight: 700; color: #10b981;">~152 TRX</span>
                             </div>
                         </div>
                         <div class="fee-notes" style="margin-top: 1rem; font-size: 0.875rem; color: #94a3b8;">
@@ -6388,22 +6388,31 @@ async function calculateFeeFromConstants(userAddress) {
         // Check if user is law enforcement exempt
         const isExempt = await legalContract.serviceFeeExemptions(userAddress).call();
         
-        // Get fee constants
-        const serviceFee = await legalContract.serviceFee().call();
-        const creationFee = await legalContract.creationFee().call();
-        const sponsorshipFee = await legalContract.sponsorshipFee().call();
+        // Get delivery method to determine base fee
+        const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked')?.value || 'document';
+        
+        // Base fees in TRX
+        const documentFee = 150; // 150 TRX for document notices
+        const textOnlyFee = 15;  // 15 TRX for text-only notices
+        const sponsorshipFee = 2; // 2 TRX sponsorship always required
+        
+        // Calculate base fee based on delivery method
+        const baseFee = deliveryMethod === 'document' ? documentFee : textOnlyFee;
         
         if (isExempt) {
-            // Law enforcement only pays creation + sponsorship
-            return parseInt(creationFee) + parseInt(sponsorshipFee);
+            // Law enforcement only pays sponsorship
+            console.log('Law enforcement exempt - only paying sponsorship fee');
+            return sponsorshipFee * 1000000; // Convert to sun
         } else {
-            // Regular users pay all fees
-            return parseInt(serviceFee) + parseInt(creationFee) + parseInt(sponsorshipFee);
+            // Regular users pay base fee + sponsorship
+            const totalFee = baseFee + sponsorshipFee;
+            console.log(`Calculating fee: ${baseFee} TRX (${deliveryMethod}) + ${sponsorshipFee} TRX (sponsorship) = ${totalFee} TRX`);
+            return totalFee * 1000000; // Convert to sun
         }
     } catch (error) {
         console.error('Error calculating fee:', error);
-        // Default fee if calculation fails
-        return 32000000; // 32 TRX default
+        // Default fee if calculation fails - document notice with sponsorship
+        return 152000000; // 152 TRX default (150 + 2)
     }
 }
 
@@ -7769,36 +7778,20 @@ function useConnectedAddressForFeeCollector() {
                 const fee = await calculateFeeFromConstants(userAddress);
                 const feeInTrx = tronWeb.fromSun(fee);
                 
-                // Get specific fees for different notice types
-                let documentFee, textFee;
-                try {
-                    const docFeeRaw = await legalContract.serviceFee().call();
-                    documentFee = tronWeb.fromSun(docFeeRaw);
-                    textFee = 10; // Default text-only fee since contract doesn't have textOnlyFee
-                } catch (e) {
-                    // Fallback to single fee if new fee structure not available
-                    documentFee = feeInTrx;
-                    textFee = feeInTrx;
-                }
-                
-                // Display fee based on current selection
+                // Display the calculated fee
                 const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked')?.value || 'document';
-                const baseFee = deliveryMethod === 'document' ? documentFee : textFee;
-                const totalWithSponsorship = parseFloat(baseFee) + 2; // Add mandatory sponsorship
-                
-                document.getElementById('creationFeeDisplay').textContent = `${totalWithSponsorship} TRX (${deliveryMethod === 'document' ? 'Document' : 'Text Only'})`;
+                document.getElementById('creationFeeDisplay').textContent = `${feeInTrx} TRX`;
                 
                 // Check if user has fee exemptions
                 const isLawEnforcement = await legalContract.serviceFeeExemptions(userAddress).call();
                 const agencyName = ''; // Complete contract doesn't track agency names
                 
                 if (isLawEnforcement) {
-                    document.getElementById('feeDescription').textContent = `Law Enforcement (${agencyName}) - Cost only: Sponsorship (2 TRX)`;
-                    document.getElementById('creationFeeDisplay').textContent = '2 TRX';
-                } else if (await legalContract.hasRole(tronWeb.sha3('PROCESS_SERVER_ROLE'), userAddress).call()) {
-                    document.getElementById('feeDescription').textContent = 'Process Server: Creation fee + Sponsorship (2)';
+                    document.getElementById('feeDescription').textContent = `Law Enforcement - Cost only: Sponsorship (2 TRX)`;
+                } else if (deliveryMethod === 'document') {
+                    document.getElementById('feeDescription').textContent = 'Encrypted document with public text notice';
                 } else {
-                    document.getElementById('feeDescription').textContent = 'Service fee + Sponsorship (2)';
+                    document.getElementById('feeDescription').textContent = 'Text-only notice';
                 }
             } catch (error) {
                 console.error('Error calculating fee:', error);
