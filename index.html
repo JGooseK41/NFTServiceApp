@@ -4066,6 +4066,10 @@
                             <i class="fas fa-arrow-left"></i>
                             Back
                         </button>
+                        <button class="btn btn-secondary" onclick="previewNFT()">
+                            <i class="fas fa-eye"></i>
+                            Preview NFT
+                        </button>
                         <button class="btn btn-primary" onclick="createLegalNotice()" id="createNoticeBtn">
                             <i class="fas fa-rocket"></i>
                             Create Legal Notice
@@ -12472,6 +12476,7 @@ document.addEventListener('keydown', function(event) {
         window.changeDocument = changeDocument;
         window.handleDocumentUpload = handleDocumentUpload;
         window.createLegalNotice = createLegalNotice;
+        window.previewNFT = previewNFT;
         
         // Show mint step 2
         async function showMintStep2() {
@@ -16324,6 +16329,153 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             }
         }
 
+        // Preview NFT function
+        async function previewNFT() {
+            try {
+                // Gather form data
+                const recipient = document.getElementById('mintRecipient').value;
+                const caseNumber = document.getElementById('mintCaseNumber').value || 'Pending';
+                const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked').value;
+                
+                if (!recipient) {
+                    uiManager.showNotification('error', 'Please enter recipient address');
+                    return;
+                }
+                
+                // Get notice details
+                const noticeDetails = {
+                    noticeType: document.getElementById('noticeType').value === 'Custom' 
+                        ? (document.getElementById('customNoticeType').value || 'Legal Notice')
+                        : document.getElementById('noticeType').value,
+                    caseNumber: caseNumber,
+                    issuingAgency: document.getElementById('issuingAgency').value || 'Law Enforcement',
+                    dateIssued: new Date().toLocaleDateString()
+                };
+                
+                // Generate preview thumbnail
+                let thumbnailPreview = null;
+                if (deliveryMethod === 'document' && uploadedImage) {
+                    showProcessing('Generating NFT preview...');
+                    
+                    if (window.ThumbnailGenerator) {
+                        const documentPreview = uploadedImage.preview || uploadedImage.data;
+                        thumbnailPreview = await window.ThumbnailGenerator.generateSealedThumbnail(
+                            uploadedImage.data,
+                            uploadedImage.fileType || 'document',
+                            documentPreview
+                        );
+                    }
+                    hideProcessing();
+                }
+                
+                // Generate metadata
+                const mockNoticeId = '12345'; // Example notice ID
+                const metadata = window.ThumbnailGenerator ? 
+                    window.ThumbnailGenerator.generateNFTMetadata(mockNoticeId, 'QmExampleHash', noticeDetails) :
+                    { name: `Legal Notice #${mockNoticeId}`, description: 'Loading...' };
+                
+                // Show preview modal
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 900px;">
+                        <div class="modal-header">
+                            <h2>NFT Preview - What Recipients Will See</h2>
+                            <button class="close-btn" onclick="this.closest('.modal').remove()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-info" style="margin-bottom: 1.5rem;">
+                                <i class="fas fa-info-circle"></i>
+                                This preview shows how the NFT will appear in the recipient's wallet
+                            </div>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                                <!-- NFT Visual Preview -->
+                                <div>
+                                    <h3 style="margin-bottom: 1rem;">NFT Thumbnail</h3>
+                                    <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; text-align: center;">
+                                        ${thumbnailPreview ? 
+                                            `<img src="${thumbnailPreview}" alt="NFT Preview" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">` :
+                                            `<div style="height: 400px; display: flex; align-items: center; justify-content: center; background: #e9ecef; border-radius: 8px;">
+                                                <div>
+                                                    <i class="fas fa-file-alt" style="font-size: 4rem; color: #6c757d; margin-bottom: 1rem;"></i>
+                                                    <p style="color: #6c757d;">Text-only notice (no thumbnail)</p>
+                                                </div>
+                                            </div>`
+                                        }
+                                    </div>
+                                    
+                                    <div style="margin-top: 1rem; padding: 1rem; background: #e7f3ff; border-radius: 8px;">
+                                        <h4 style="margin-bottom: 0.5rem; color: #0066cc;">What Recipients See:</h4>
+                                        <ul style="margin: 0; padding-left: 1.5rem; color: #333;">
+                                            <li>Document preview with instruction banner</li>
+                                            <li>Clear call-to-action to accept notice</li>
+                                            <li>Professional legal document appearance</li>
+                                            <li>No sensitive information visible</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                
+                                <!-- NFT Metadata Preview -->
+                                <div>
+                                    <h3 style="margin-bottom: 1rem;">NFT Details</h3>
+                                    <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px; max-height: 600px; overflow-y: auto;">
+                                        <h4 style="margin-top: 0;">${metadata.name}</h4>
+                                        
+                                        <div style="margin: 1rem 0;">
+                                            <strong>Description Preview:</strong>
+                                            <div style="white-space: pre-wrap; font-size: 0.85rem; background: white; padding: 1rem; border-radius: 4px; margin-top: 0.5rem; max-height: 300px; overflow-y: auto;">
+${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loading...'}
+                                            </div>
+                                        </div>
+                                        
+                                        <div style="margin-top: 1rem;">
+                                            <strong>Attributes:</strong>
+                                            <div style="display: grid; gap: 0.5rem; margin-top: 0.5rem;">
+                                                ${metadata.attributes ? metadata.attributes.map(attr => `
+                                                    <div style="background: white; padding: 0.5rem; border-radius: 4px; display: flex; justify-content: space-between;">
+                                                        <span style="color: #666;">${attr.trait_type}:</span>
+                                                        <strong>${attr.value}</strong>
+                                                    </div>
+                                                `).join('') : 'Loading...'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top: 2rem; padding: 1.5rem; background: #fff3cd; border-radius: 8px; border: 1px solid #ffeaa7;">
+                                <h4 style="margin-top: 0; color: #856404;"><i class="fas fa-lightbulb"></i> Process Server Tips</h4>
+                                <ul style="margin: 0.5rem 0 0 0; padding-left: 1.5rem; color: #856404;">
+                                    <li>The NFT will automatically appear in the recipient's wallet</li>
+                                    <li>Recipients see the thumbnail and can click through to accept</li>
+                                    <li>The 2 TRX sponsorship covers their acceptance fees</li>
+                                    <li>Once accepted, they'll receive the full decrypted document</li>
+                                </ul>
+                            </div>
+                            
+                            <div style="text-align: center; margin-top: 2rem;">
+                                <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">
+                                    <i class="fas fa-times"></i> Close Preview
+                                </button>
+                                <button class="btn btn-primary" onclick="this.closest('.modal').remove(); createLegalNotice();">
+                                    <i class="fas fa-rocket"></i> Proceed to Create Notice
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                
+            } catch (error) {
+                console.error('Preview error:', error);
+                uiManager.showNotification('error', 'Error generating preview');
+            }
+        }
+        
         // Create Legal Notice - Main function for minting NFTs
         async function createLegalNotice() {
             if (!legalContract || !tronWeb.defaultAddress) {
