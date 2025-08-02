@@ -11567,244 +11567,156 @@ async function checkUserRoles() {
             // Add critical warning banner
             const warningBanner = document.createElement('div');
             warningBanner.className = 'alert alert-danger';
-            warningBanner.style.cssText = 'font-size: 1.2rem; border: 3px solid #dc2626; margin-bottom: 2rem; padding: 1.5rem;';
+            warningBanner.style.cssText = 'font-size: 1.2rem; border: 3px solid #dc2626; margin-bottom: 2rem;';
             warningBanner.innerHTML = `
-                <h3 style="color: #dc2626; margin-top: 0;"><i class="fas fa-exclamation-triangle"></i> CRITICAL LEGAL WARNING</h3>
-                <p><strong>You have received an official legal document that requires your immediate attention.</strong></p>
-                <p style="margin-bottom: 0;">Failure to accept and respond to this notice may result in:</p>
-                <ul style="margin: 0.5rem 0;">
-                    <li><strong>DEFAULT JUDGMENT</strong> against you</li>
-                    <li><strong>PROPERTY SEIZURE</strong> or asset forfeiture</li>
-                    <li><strong>LOSS OF LEGAL RIGHTS</strong> to contest the action</li>
-                    <li><strong>CRIMINAL CHARGES</strong> for failure to comply</li>
-                </ul>
-                <p style="margin-bottom: 0; font-weight: bold;">⚠️ By ignoring this notice, you may PERMANENTLY ABANDON YOUR RIGHTS to defend yourself.</p>
-            `;
-            container.appendChild(warningBanner);
-            
-            // FAQ items focused on recipients
-            const faqItems = [
-                {
-                    question: "Why did I receive this notice in my crypto wallet?",
-                    answer: `
-                        <p>You received this notice because legal action involves your cryptocurrency wallet address. This could be due to:</p>
-                        <ul>
-                            <li>Asset forfeiture proceedings</li>
-                            <li>Court orders related to your crypto holdings</li>
-                            <li>Legal disputes involving transactions from your wallet</li>
-                            <li>Regulatory compliance requirements</li>
-                        </ul>
-                        <p><strong>This is an official legal notice with the same weight as traditional court documents.</strong></p>
-                    `
-                },
-                {
-                    question: "What happens if I don't accept this notice?",
-                    answer: `
-                        <div class="alert alert-danger">
-                            <p><strong>SEVERE CONSEQUENCES MAY INCLUDE:</strong></p>
-                        </div>
-                        <ol>
-                            <li><strong>Default Judgment:</strong> The court may rule against you without hearing your side</li>
-                            <li><strong>Asset Seizure:</strong> Your cryptocurrency may be frozen or confiscated</li>
-                            <li><strong>Criminal Charges:</strong> Failure to comply with legal notices can result in contempt charges</li>
-                            <li><strong>Loss of Defense Rights:</strong> You forfeit your opportunity to contest the action</li>
-                            <li><strong>Additional Penalties:</strong> Fines, interest, and legal fees may be added</li>
-                        </ol>
-                        <p><strong>THE COURT WILL PROCEED WITHOUT YOU - YOUR ABSENCE WILL NOT STOP THE LEGAL PROCESS</strong></p>
-                    `
-                },
-                {
-                    question: "Does accepting mean I agree with the claims?",
-                    answer: `
-                        <div class="alert alert-success">
-                            <p><strong>NO! Accepting the notice does NOT mean you agree.</strong></p>
-                        </div>
-                        <p>Accepting simply means:</p>
-                        <ul>
-                            <li>✅ You acknowledge receiving the document</li>
-                            <li>✅ You preserve your right to respond and defend yourself</li>
-                            <li>✅ You can review the full details of the legal action</li>
-                            <li>✅ You maintain your ability to hire an attorney</li>
-                        </ul>
-                        <p><strong>Think of it like signing for certified mail - it proves you received it, nothing more.</strong></p>
-                    `
-                },
-                {
-                    question: "How do I accept and view the document?",
-                    answer: `
-                        <div class="process-steps">
-                            <div class="step">
-                                <div class="step-number">1</div>
-                                <div class="step-content">
-                                    <strong>Connect Your Wallet</strong>
-                                    <p>Click "Connect Wallet" and select your crypto wallet that received the notice</p>
-                                </div>
-                            </div>
-                            <div class="step">
-                                <div class="step-number">2</div>
-                                <div class="step-content">
-                                    <strong>Find Your Notice</strong>
-                                    <p>Go to "My Notices" tab - your legal notice will be listed there</p>
-                                </div>
-                            </div>
-                            <div class="step">
-                                <div class="step-number">3</div>
-                                <div class="step-content">
-                                    <strong>Click Accept</strong>
-                                    <p>Click the "Accept" button - this creates a legal record of receipt</p>
-                                </div>
-                            </div>
-                            <div class="step">
-                                <div class="step-number">4</div>
-                                <div class="step-content">
-                                    <strong>Download Document</strong>
-                                    <p>The document will decrypt automatically for you to save and review</p>
-                                </div>
-                            </div>
-                        </div>
-                        <p><strong>IT'S FREE:</strong> The sender has included 2 TRX to cover any fees. You won't pay anything.</p>
-                    `
-                },
-                {
-                    question: "What if I don't have a crypto wallet?",
-                    answer: `
-                        <p>If you're seeing this notice, it means a legal document was sent to a crypto wallet address associated with you. You need to:</p>
-                        <ol>
-                            <li>Determine which wallet service you used (TronLink, Trust Wallet, etc.)</li>
-                            <li>Recover access to that wallet using your backup phrase</li>
-                            <li>If you can't access the wallet, you still need to respond to avoid default judgment</li>
-                        </ol>
-                        <div class="alert alert-warning">
-                            <p><strong>IMPORTANT:</strong> Inability to access your wallet does NOT excuse you from responding to legal notices. Contact an attorney immediately if you cannot access the document.</p>
-                        </div>
-                    `
-                },
-                {
-                    question: "Is this legitimate or a scam?",
-                    answer: `
-                        <p><strong>How to verify this is a real legal notice:</strong></p>
-                        <ul>
-                            <li>✅ Sent via blockchain (permanent, verifiable record)</li>
-                            <li>✅ Contains case numbers and court information</li>
-                            <li>✅ From a verified process server with ID number</li>
-                            <li>✅ The sender paid fees to deliver this notice</li>
-                        </ul>
-                        <p><strong>Scammers typically:</strong></p>
-                        <ul>
-                            <li>❌ Ask you to send crypto or money</li>
-                            <li>❌ Request your private keys or seed phrase</li>
-                            <li>❌ Use email or social media, not blockchain</li>
-                        </ul>
-                        <p><strong>This system NEVER asks for payment or private information. You're only signing to acknowledge receipt.</strong></p>
-                    `
-                },
-                {
-                    question: "What should I do after accepting the notice?",
-                    answer: `
-                        <div class="process-steps">
-                            <div class="step">
-                                <div class="step-number">1</div>
-                                <div class="step-content">
-                                    <strong>READ THE DOCUMENT CAREFULLY</strong>
-                                    <p>Understand what legal action is being taken and any deadlines</p>
-                                </div>
-                            </div>
-                            <div class="step">
-                                <div class="step-number">2</div>
-                                <div class="step-content">
-                                    <strong>NOTE ALL DEADLINES</strong>
-                                    <p>Legal notices often have strict response deadlines - missing them forfeits your rights</p>
-                                </div>
-                            </div>
-                            <div class="step">
-                                <div class="step-number">3</div>
-                                <div class="step-content">
-                                    <strong>CONSULT AN ATTORNEY</strong>
-                                    <p>Get legal advice immediately - many attorneys offer free consultations</p>
-                                </div>
-                            </div>
-                            <div class="step">
-                                <div class="step-number">4</div>
-                                <div class="step-content">
-                                    <strong>PRESERVE EVIDENCE</strong>
-                                    <p>Save the document and your acceptance receipt - you'll need these for court</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="alert alert-danger">
-                            <p><strong>DO NOT IGNORE THE NOTICE - THE LEGAL PROCESS WILL CONTINUE WITH OR WITHOUT YOUR PARTICIPATION</strong></p>
-                        </div>
-                    `
-                },
-                {
-                    question: "Can accepting this notice harm me?",
-                    answer: `
-                        <div class="alert alert-success">
-                            <p><strong>NO - Accepting PROTECTS you by preserving your legal rights.</strong></p>
-                        </div>
-                        <p><strong>Accepting the notice:</strong></p>
-                        <ul>
-                            <li>✅ Allows you to see what legal action is being taken</li>
-                            <li>✅ Preserves your right to defend yourself</li>
-                            <li>✅ Prevents default judgment due to non-response</li>
-                            <li>✅ Creates a record that you were properly notified</li>
-                        </ul>
-                        <p><strong>NOT accepting the notice:</strong></p>
-                        <ul>
-                            <li>❌ May result in default judgment against you</li>
-                            <li>❌ Forfeits your right to contest the action</li>
-                            <li>❌ Allows proceedings to continue without your input</li>
-                            <li>❌ Can lead to asset seizure without warning</li>
-                        </ul>
-                    `
-                }
-            ];
-            
-            // Create FAQ sections
-            faqItems.forEach((item, index) => {
-                const section = document.createElement('div');
-                section.className = 'faq-section';
-                section.innerHTML = `
-                    <button class="faq-header ${index < 2 ? 'active' : ''}" onclick="toggleFAQ(this)">
-                        <i class="fas fa-chevron-${index < 2 ? 'down' : 'right'}"></i>
-                        <span>${item.question}</span>
-                    </button>
-                    <div class="faq-content" style="display: ${index < 2 ? 'block' : 'none'};">
-                        ${item.answer}
+                <div class="card" style="border: 2px solid #dc2626; margin-bottom: 2rem;">
+                    <div class="card-header" style="background: #dc2626; color: white;">
+                        <h2 style="margin: 0;"><i class="fas fa-exclamation-triangle"></i> IMPORTANT: Legal Notice Received</h2>
                     </div>
-                `;
-                container.appendChild(section);
-            });
-            
-            // Add final call to action
-            const ctaSection = document.createElement('div');
-            ctaSection.className = 'card';
-            ctaSection.style.cssText = 'margin-top: 2rem; border: 2px solid #0ea5e9; text-align: center;';
-            ctaSection.innerHTML = `
-                <div class="card-header" style="background: #0ea5e9; color: white;">
-                    <h3 style="margin: 0;">Ready to View Your Document?</h3>
+                    <div class="card-body">
+                        <div class="alert alert-danger" style="font-size: 1.1rem;">
+                            <i class="fas fa-gavel"></i>
+                            <strong>WARNING:</strong> You have received an official legal notice. Ignoring this notice may result in 
+                            <strong>DEFAULT JUDGMENT</strong> against you and the <strong>LOSS OF YOUR RIGHTS</strong> to contest the matter.
+                        </div>
+                        
+                        <div class="faq-item" style="margin-top: 1.5rem;">
+                            <h4 style="color: #dc2626; margin-bottom: 0.5rem;">
+                                <i class="fas fa-exclamation-circle"></i> 
+                                What happens if I ignore this notice?
+                            </h4>
+                            <p style="color: #1f2937; margin-left: 1.5rem; font-weight: 500;">
+                                <strong>You will likely LOSE by default.</strong> The government only needs to show they made a 
+                                "diligent effort" to notify you. This blockchain notice meets that requirement. By ignoring it:
+                            </p>
+                            <ul style="margin-left: 2.5rem; color: #dc2626; font-weight: 600;">
+                                <li>The court may enter a DEFAULT JUDGMENT against you</li>
+                                <li>Your property may be SEIZED without further notice</li>
+                                <li>You ABANDON your right to contest the action</li>
+                                <li>You CANNOT claim you weren't notified</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="faq-item" style="margin-top: 1.5rem;">
+                            <h4 style="color: #0f172a; margin-bottom: 0.5rem;">
+                                <i class="fas fa-shield-alt"></i> 
+                                Why is it in my best interest to accept?
+                            </h4>
+                            <p style="color: #1f2937; margin-left: 1.5rem;">
+                                <strong>Accepting preserves your rights:</strong>
+                            </p>
+                            <ul style="margin-left: 2.5rem; color: #059669; font-weight: 500;">
+                                <li>✓ You can READ the full allegations against you</li>
+                                <li>✓ You learn the DEADLINES to respond</li>
+                                <li>✓ You preserve your RIGHT TO CONTEST</li>
+                                <li>✓ You avoid DEFAULT JUDGMENT</li>
+                                <li>✓ You get proof of when you were notified</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="faq-item" style="margin-top: 1.5rem;">
+                            <h4 style="color: #0f172a; margin-bottom: 0.5rem;">
+                                <i class="fas fa-clock"></i> 
+                                What kind of legal notice is this?
+                            </h4>
+                            <p style="color: #1f2937; margin-left: 1.5rem;">
+                                This could be:
+                            </p>
+                            <ul style="margin-left: 2.5rem;">
+                                <li><strong>Asset Forfeiture Notice</strong> - The government intends to seize property</li>
+                                <li><strong>Legal Hold</strong> - You must preserve certain documents/data</li>
+                                <li><strong>Subpoena</strong> - You're required to provide information or appear</li>
+                                <li><strong>Seizure Notice</strong> - Property has been or will be seized</li>
+                                <li><strong>Court Summons</strong> - You're being sued or charged</li>
+                            </ul>
+                            <p style="color: #dc2626; margin-left: 1.5rem; margin-top: 1rem; font-weight: 600;">
+                                You won't know which type until you accept and read it!
+                            </p>
+                        </div>
+                        
+                        <div class="faq-item" style="margin-top: 1.5rem;">
+                            <h4 style="color: #0f172a; margin-bottom: 0.5rem;">
+                                <i class="fas fa-signature"></i> 
+                                Does accepting mean I agree?
+                            </h4>
+                            <p style="color: #1f2937; margin-left: 1.5rem;">
+                                <strong>NO.</strong> Accepting only means you acknowledge RECEIVING the notice - like signing for 
+                                certified mail. It does NOT mean you agree with the contents or admit guilt. But it DOES preserve 
+                                your right to fight back.
+                            </p>
+                        </div>
+                        
+                        <div class="faq-item" style="margin-top: 1.5rem;">
+                            <h4 style="color: #0f172a; margin-bottom: 0.5rem;">
+                                <i class="fas fa-wallet"></i> 
+                                How do I accept this notice?
+                            </h4>
+                            <div style="background: #fef3c7; padding: 1rem; border-radius: 8px; margin-left: 1.5rem; border: 1px solid #fbbf24;">
+                                <ol style="margin: 0; padding-left: 1.5rem; font-weight: 500;">
+                                    <li>Get TronLink wallet (FREE) - takes 2 minutes</li>
+                                    <li>Click "Connect Wallet" on this page</li>
+                                    <li>Click "Accept Notice" - costs you NOTHING (fees already paid)</li>
+                                    <li>Read the document and note any deadlines</li>
+                                    <li>Contact a lawyer if needed</li>
+                                </ol>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 2rem; padding: 1.5rem; background: #fee2e2; border-radius: 8px; border: 2px solid #dc2626;">
+                            <h4 style="color: #dc2626; margin-bottom: 0.5rem; text-align: center;">
+                                <i class="fas fa-exclamation-triangle"></i> FINAL WARNING
+                            </h4>
+                            <p style="margin: 0; text-align: center; font-weight: 600; color: #991b1b;">
+                                The courts have ruled that blockchain notice is valid legal service.<br>
+                                Ignoring this notice is the WORST thing you can do.<br>
+                                <span style="font-size: 1.2rem;">Accept it now to protect your rights!</span>
+                            </p>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body" style="padding: 2rem;">
-                    <p style="font-size: 1.1rem; margin-bottom: 1.5rem;">
-                        Don't risk default judgment. Accept your notice now to see the full details and protect your rights.
-                    </p>
-                    <button class="btn btn-primary" style="font-size: 1.2rem; padding: 1rem 2rem;" onclick="connectWallet()">
-                        <i class="fas fa-wallet"></i> Connect Wallet & View Notice
-                    </button>
-                    <p style="margin-top: 1rem; color: #64748b;">
-                        Free to accept • Takes less than 2 minutes • Preserves your legal rights
-                    </p>
+                
+                <div class="card">
+                    <div class="card-header" style="background: #0ea5e9; color: white;">
+                        <h2 style="margin: 0;"><i class="fas fa-info-circle"></i> Technical Questions</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="faq-item">
+                            <h4 style="color: #0f172a; margin-bottom: 0.5rem;">
+                                <i class="fas fa-question-circle" style="color: #0ea5e9;"></i> 
+                                Is this legitimate?
+                            </h4>
+                            <p style="color: #64748b; margin-left: 1.5rem;">
+                                Yes. Blockchain service is recognized by courts as valid legal notice. The document cannot be 
+                                faked or altered, and the delivery is permanently recorded.
+                            </p>
+                        </div>
+                        
+                        <div class="faq-item" style="margin-top: 1.5rem;">
+                            <h4 style="color: #0f172a; margin-bottom: 0.5rem;">
+                                <i class="fas fa-question-circle" style="color: #0ea5e9;"></i> 
+                                Is it free to accept?
+                            </h4>
+                            <p style="color: #64748b; margin-left: 1.5rem;">
+                                Yes! The sender included 2 TRX to cover your transaction fee. It costs you nothing.
+                            </p>
+                        </div>
+                        
+                        <div class="faq-item" style="margin-top: 1.5rem;">
+                            <h4 style="color: #0f172a; margin-bottom: 0.5rem;">
+                                <i class="fas fa-question-circle" style="color: #0ea5e9;"></i> 
+                                Is my information private?
+                            </h4>
+                            <p style="color: #64748b; margin-left: 1.5rem;">
+                                Yes. Only your wallet address and acceptance timestamp are recorded. The document itself 
+                                is encrypted and only you can read it.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             `;
-            container.appendChild(ctaSection);
-        }
-        
-        // Create process server FAQ (stub for now - will contain full FAQ later)
-        function createProcessServerFAQ(container) {
-            // For now, just add a message
-            const message = document.createElement('p');
-            message.textContent = 'Full process server FAQ will be populated here.';
-            container.appendChild(message);
+            
+            // Add to help tab
+            helpTab.appendChild(recipientFAQ);
         }
         
         document.addEventListener('DOMContentLoaded', async function() {
