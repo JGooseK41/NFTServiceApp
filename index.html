@@ -13293,14 +13293,69 @@ document.addEventListener('keydown', function(event) {
         
         // Show onboarding modal for new users
         function showOnboardingModal() {
+            const siteConfig = getSiteConfig();
             const modal = document.createElement('div');
             modal.className = 'modal';
             modal.style.display = 'block';
-            modal.innerHTML = `
-                <div class="modal-content" style="max-width: 700px;">
-                    <div class="modal-header" style="background: var(--primary-blue); color: white;">
-                        <h2 style="margin: 0;"><i class="fas fa-rocket"></i> Welcome to NFT Legal Service</h2>
+            
+            if (siteConfig.showFriendlyUI) {
+                // Recipient-focused onboarding for blockserved.com
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 700px;">
+                        <div class="modal-header" style="background: #0ea5e9; color: white;">
+                            <h2 style="margin: 0;"><i class="fas fa-envelope-open-text"></i> Welcome to Block Record</h2>
+                        </div>
+                        <div class="modal-body" style="padding: 2rem;">
+                            <h3 style="text-align: center; margin-bottom: 2rem;">You Have a Legal Document Waiting</h3>
+                            
+                            <div style="background: #fffbeb; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border: 2px solid #f59e0b;">
+                                <h4 style="color: #78350f;"><i class="fas fa-exclamation-triangle"></i> Important Legal Notice</h4>
+                                <p style="color: #451a03;">Someone has sent you an official document that requires your attention. Ignoring legal notices can result in:</p>
+                                <ul style="color: #451a03; margin: 0.5rem 0 0 0;">
+                                    <li>Default judgment against you</li>
+                                    <li>Loss of legal rights</li>
+                                    <li>Asset seizure or forfeiture</li>
+                                </ul>
+                            </div>
+                            
+                            <div style="background: var(--bg-secondary); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                                <h4><i class="fas fa-shield-alt"></i> What You Need to Know</h4>
+                                <ul style="margin: 0.5rem 0 0 0;">
+                                    <li><strong>It's Safe:</strong> We never ask for money or private keys</li>
+                                    <li><strong>It's Free:</strong> The sender paid all fees (2 TRX included)</li>
+                                    <li><strong>It's Legal:</strong> This creates an official record of receipt</li>
+                                    <li><strong>It's Private:</strong> Only you can decrypt your document</li>
+                                </ul>
+                            </div>
+                            
+                            <div style="background: #e0f2fe; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border: 2px solid #0ea5e9;">
+                                <h4 style="color: #0369a1;"><i class="fas fa-info-circle"></i> Accepting Does NOT Mean You Agree</h4>
+                                <p style="color: #0c4a6e; margin: 0.5rem 0 0 0;">
+                                    Accepting the notice simply confirms you received it - like signing for certified mail. 
+                                    It preserves your right to respond and defend yourself.
+                                </p>
+                            </div>
+                            
+                            <div style="text-align: center; margin-top: 2rem;">
+                                <button class="btn btn-primary" onclick="completeOnboarding()" style="font-size: 1.1rem; padding: 0.75rem 2rem;">
+                                    <i class="fas fa-check"></i> I Understand - Continue
+                                </button>
+                                <div style="margin-top: 1rem;">
+                                    <a href="#" onclick="switchTab('help'); document.querySelector('.modal').remove(); return false;" style="color: #0ea5e9;">
+                                        <i class="fas fa-question-circle"></i> View FAQ for More Information
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
                     </div>
+                `;
+            } else {
+                // Original process server onboarding
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 700px;">
+                        <div class="modal-header" style="background: var(--primary-blue); color: white;">
+                            <h2 style="margin: 0;"><i class="fas fa-rocket"></i> Welcome to NFT Legal Service</h2>
+                        </div>
                     <div class="modal-body" style="padding: 2rem;">
                         <h3 style="text-align: center; margin-bottom: 2rem;">Getting Started Guide</h3>
                         
@@ -13375,12 +13430,17 @@ document.addEventListener('keydown', function(event) {
                     </div>
                 </div>
             `;
+            }
+            
             document.body.appendChild(modal);
             
-            // Enable button when checkbox checked
-            document.getElementById('understoodOnboarding').addEventListener('change', function(e) {
-                document.getElementById('continueOnboarding').disabled = !e.target.checked;
-            });
+            // Enable button when checkbox checked (only for process server version)
+            const checkbox = document.getElementById('understoodOnboarding');
+            if (checkbox) {
+                checkbox.addEventListener('change', function(e) {
+                    document.getElementById('continueOnboarding').disabled = !e.target.checked;
+                });
+            }
         }
         
         // Complete onboarding
