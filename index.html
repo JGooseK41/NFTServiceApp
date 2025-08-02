@@ -710,7 +710,7 @@
         .form-input {
             width: 100%;
             padding: 0.75rem;
-            background: var(--primary-dark);
+            background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--border-color);
             border-radius: 8px;
             color: var(--text-primary);
@@ -719,6 +719,11 @@
 	    pointer-events: auto !important;
             user-select: text !important;
             -webkit-user-select: text !important;
+        }
+        
+        .form-input:hover {
+            border-color: var(--accent-blue);
+            background: rgba(255, 255, 255, 0.08);
         }
 /* Specifically target admin panel inputs */
 #adminTab .form-input {
@@ -745,7 +750,8 @@
 }
         .form-input:focus {
             outline: none;
-            border-color: var(--accent-blue);
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.1);
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
         
@@ -4011,7 +4017,7 @@
                                     <input type="text" class="form-input" id="noticeText" 
                                            placeholder="e.g., Legal Notice: Summons for Case #CV-2024-001234"
                                            maxlength="100"
-                                           style="border: 2px solid #f59e0b;">
+                                           style="border: 2px solid #f59e0b; background: white; color: #1e293b; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
                                     <div class="char-count"><span id="charCount">0</span> / 100 characters</div>
                                     <p class="form-help" id="noticeTextHelp" style="color: #92400e; font-weight: 500;">
                                         <i class="fas fa-exclamation-circle"></i> This text will be publicly visible on the blockchain
@@ -13692,7 +13698,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         
                         <div class="form-group">
                             <label class="form-label">Public Notice Text</label>
-                            <textarea class="form-input" id="batchNoticeText" rows="4" placeholder="Enter public notice text..."></textarea>
+                            <textarea class="form-input" id="batchNoticeText" rows="4" placeholder="Enter public notice text..." style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.3);"></textarea>
                         </div>
                         
                         <div class="form-group">
