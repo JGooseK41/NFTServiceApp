@@ -12616,9 +12616,16 @@ document.addEventListener('keydown', function(event) {
                             }
                         }
                         
-                        // Store the document data
+                        // Store the document data - preserve the structure
                         uploadedImage = documentData;
                         window.uploadedImage = documentData; // Also store globally for thumbnail generator
+                        
+                        console.log('Stored uploadedImage:', {
+                            hasData: !!uploadedImage.data,
+                            hasPreview: !!uploadedImage.preview,
+                            dataType: uploadedImage.data ? typeof uploadedImage.data : 'none',
+                            previewType: uploadedImage.preview ? uploadedImage.preview.substring(0, 50) : 'none'
+                        });
                         
                         updateCompressionProgress(70, 'Preparing for encryption...');
                         
@@ -16369,20 +16376,29 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     showProcessing('Generating NFT preview...');
                     
                     if (window.ThumbnailGenerator) {
-                        console.log('Generating NFT preview with:', {
+                        console.log('Generating NFT preview with uploadedImage:', {
                             hasData: !!uploadedImage.data,
                             hasPreview: !!uploadedImage.preview,
                             fileType: uploadedImage.fileType,
-                            dataType: typeof uploadedImage.data === 'string' ? uploadedImage.data.substring(0, 30) : 'object'
+                            dataType: typeof uploadedImage.data === 'string' ? uploadedImage.data.substring(0, 30) : 'object',
+                            uploadedImage: uploadedImage
                         });
                         
                         // Handle document data which might be an object with .data property
                         let documentData = uploadedImage.data;
                         if (documentData && typeof documentData === 'object' && documentData.data) {
+                            console.log('Document data is object, extracting .data property');
                             documentData = documentData.data;
                         }
                         
                         const documentPreview = uploadedImage.preview || documentData;
+                        console.log('Final data for thumbnail:', {
+                            hasDocumentData: !!documentData,
+                            documentDataType: typeof documentData === 'string' ? documentData.substring(0, 50) : typeof documentData,
+                            hasDocumentPreview: !!documentPreview,
+                            documentPreviewType: typeof documentPreview === 'string' ? documentPreview.substring(0, 50) : typeof documentPreview
+                        });
+                        
                         thumbnailPreview = await window.ThumbnailGenerator.generateSealedThumbnail(
                             documentData,
                             uploadedImage.fileType || 'document',
@@ -16434,7 +16450,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                     
                                     <div style="margin-top: 1rem; padding: 1rem; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border: 1px solid var(--accent-blue);">
                                         <h4 style="margin-bottom: 0.5rem; color: var(--accent-blue);">What Recipients See:</h4>
-                                        <ul style="margin: 0; padding-left: 1.5rem; color: #333;">
+                                        <ul style="margin: 0; padding-left: 1.5rem; color: var(--text-primary);">
                                             <li>Document preview with instruction banner</li>
                                             <li>Clear call-to-action to accept notice</li>
                                             <li>Professional legal document appearance</li>
@@ -16561,14 +16577,21 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     // Compress document if it's too large
                     let documentDataToEncrypt = uploadedImage.data;
                     
+                    // Handle document data which might be an object with .data property
+                    if (documentDataToEncrypt && typeof documentDataToEncrypt === 'object' && documentDataToEncrypt.data) {
+                        console.log('Extracting data from object for encryption');
+                        documentDataToEncrypt = documentDataToEncrypt.data;
+                    }
+                    
                     // For PDFs that were converted to images, we need to compress them
-                    if (uploadedImage.convertedType === 'image/png' || uploadedImage.data.length > 1000000) {
+                    if (uploadedImage.convertedType === 'image/png' || 
+                        (typeof documentDataToEncrypt === 'string' && documentDataToEncrypt.length > 1000000)) {
                         showProcessing('Compressing document for blockchain storage...');
                         
                         // If we have a document converter, use its compression
                         if (window.documentConverter && window.documentConverter.compressImage) {
                             // Increase maxSize for better quality but still manageable
-                            documentDataToEncrypt = await window.documentConverter.compressImage(uploadedImage.data, 500000); // 500KB max
+                            documentDataToEncrypt = await window.documentConverter.compressImage(documentDataToEncrypt, 500000); // 500KB max
                         }
                     }
                     
