@@ -3677,7 +3677,7 @@
                     <div>
                         <strong>Important:</strong> Registration requires admin approval. You'll be notified once approved.
                         <br><small style="margin-top: 0.5rem; display: block;">
-                            <a href="#" onclick="closeRegistrationModal(); showTab('help'); setTimeout(() => { document.querySelector('.faq-header').parentElement.querySelectorAll('.faq-header')[document.querySelector('.faq-header').parentElement.querySelectorAll('.faq-header').length - 2].click(); }, 100); return false;">
+                            <a href="#" onclick="closeRegistrationModal(); switchTab('help'); setTimeout(() => { document.querySelector('.faq-header').parentElement.querySelectorAll('.faq-header')[document.querySelector('.faq-header').parentElement.querySelectorAll('.faq-header').length - 2].click(); }, 100); return false;">
                                 Learn more about becoming a Process Server <i class="fas fa-external-link-alt"></i>
                             </a>
                         </small>
@@ -11690,7 +11690,7 @@ async function checkUserRoles() {
                             </div>
                         </div>
                         <div style="text-align: center; margin-top: 1.5rem;">
-                            <button class="btn btn-secondary" onclick="showTab('help')">
+                            <button class="btn btn-secondary" onclick="switchTab('help')">
                                 <i class="fas fa-book"></i> View Full FAQ
                             </button>
                         </div>
@@ -12803,7 +12803,7 @@ document.addEventListener('keydown', function(event) {
                         </div>
                         
                         <p style="text-align: center; margin-top: 1rem; font-size: 0.9rem; color: #64748b;">
-                            Questions? <a href="#" onclick="this.closest('.modal').remove(); showTab('help'); return false;" style="color: #0ea5e9;">View our FAQ</a>
+                            Questions? <a href="#" onclick="this.closest('.modal').remove(); switchTab('help'); return false;" style="color: #0ea5e9;">View our FAQ</a>
                         </p>
                     </div>
                 </div>
@@ -12865,7 +12865,7 @@ document.addEventListener('keydown', function(event) {
                                 </div>
                                 
                                 <p style="margin-top: 1rem; font-size: 0.85rem;">
-                                    <a href="#" onclick="this.closest('.modal').remove(); showTab('help'); return false;" style="color: #0ea5e9;">
+                                    <a href="#" onclick="this.closest('.modal').remove(); switchTab('help'); return false;" style="color: #0ea5e9;">
                                         Need help? View our FAQ
                                     </a>
                                 </p>
