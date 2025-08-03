@@ -89,37 +89,16 @@ const EnergyRental = {
             // Skip network check - we're on mainnet if we got this far
             console.log('Proceeding with JustLend energy rental on mainnet');
             
-            // Get the contract instance
-            const contract = await window.tronWeb.contract().at(ENERGY_RENTAL_CONTRACT);
+            // For now, we'll skip the actual rental as the contract integration needs more research
+            // The contract exists but may require specific setup or permissions
+            console.log('JustLend contract integration pending - skipping actual rental');
             
-            // Calculate rental parameters
-            // Energy rental price is approximately 60 SUN per energy per day
-            // For immediate use (returned within minutes), it's 30 SUN per energy
-            const pricePerEnergy = 30; // SUN per energy for immediate use
-            const rentalCost = Math.ceil(amount * pricePerEnergy);
-            
-            // Convert amount to equivalent TRX delegation
-            // 1 TRX staked = ~1,500 energy
-            const trxEquivalent = Math.ceil(amount / 1500) * 1_000_000; // Convert to SUN
-            
-            console.log('JustLend rental parameters:', {
-                energyNeeded: amount,
-                trxEquivalent: trxEquivalent / 1_000_000,
-                estimatedCost: rentalCost / 1_000_000,
-                resourceType: 0 // 0 for energy
-            });
-            
-            // Call rentResource method
-            // rentResource(address receiver, uint256 amount, uint256 resourceType)
-            const tx = await contract.rentResource(
-                receiverAddress,
-                trxEquivalent.toString(),
-                0 // 0 for energy rental
-            ).send({
-                feeLimit: 100_000_000,
-                callValue: rentalCost,
-                shouldPollResponse: true
-            });
+            // Return failure to trigger the dialog
+            return { 
+                success: false, 
+                error: 'JustLend integration pending setup',
+                note: 'Energy rental service requires additional configuration'
+            };
             
             console.log('JustLend rental transaction:', tx);
             
@@ -305,14 +284,18 @@ const EnergyRental = {
                 };
             }
             
-            // If rental failed, proceed anyway without showing errors
-            console.log('Energy rental not available - proceeding with standard energy usage');
+            // If rental failed, return failure so we can show proper dialog
+            console.warn('Energy rental failed - user needs to decide');
             return {
-                success: true,
-                message: 'Proceeding with standard energy usage',
+                success: false,
+                message: 'Energy rental unavailable',
                 energyAvailable: currentEnergy,
                 energyNeeded: energyNeeded,
-                rentalNeeded: false
+                rentalNeeded: true,
+                rentalFailed: true,
+                estimatedBurnCost: savings.burningCostTRX,
+                estimatedRentalCost: savings.rentalCostTRX,
+                potentialSavings: savings.savingsTRX
             };
             
         } catch (error) {

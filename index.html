@@ -12923,6 +12923,89 @@ document.addEventListener('keydown', function(event) {
             }
         }
         
+        // Show dialog when energy rental fails
+        async function showEnergyRentalFailureDialog(energyResult) {
+            return new Promise((resolve) => {
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                modal.style.zIndex = '10000';
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 500px;">
+                        <div class="modal-header">
+                            <h3 class="modal-title">
+                                <i class="fas fa-exclamation-triangle" style="color: #f59e0b;"></i>
+                                Energy Rental Unavailable
+                            </h3>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-warning" style="background: #fef3c7; border-color: #f59e0b;">
+                                <i class="fas fa-info-circle"></i>
+                                <div style="margin-left: 0.5rem;">
+                                    <strong>Energy rental service is temporarily unavailable</strong>
+                                    <p style="margin: 0.5rem 0 0 0;">
+                                        We typically rent energy automatically to reduce your transaction costs by up to 80%. 
+                                        Since the rental service is unavailable, you'll need to pay the full network fee.
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div style="margin: 1.5rem 0;">
+                                <h4 style="margin-bottom: 1rem;">Cost Comparison:</h4>
+                                
+                                <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">
+                                    ${energyResult.estimatedBurnCost ? `
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                        <span>Without Energy Rental:</span>
+                                        <strong style="color: #dc2626;">${energyResult.estimatedBurnCost.toFixed(2)} TRX</strong>
+                                    </div>
+                                    ` : ''}
+                                    ${energyResult.estimatedRentalCost ? `
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                        <span>With Energy Rental (unavailable):</span>
+                                        <strong style="text-decoration: line-through; color: #6b7280;">${energyResult.estimatedRentalCost.toFixed(2)} TRX</strong>
+                                    </div>
+                                    ` : ''}
+                                    ${energyResult.potentialSavings ? `
+                                    <div style="display: flex; justify-content: space-between; padding-top: 0.5rem; border-top: 1px solid var(--border-color);">
+                                        <span>You would have saved:</span>
+                                        <strong style="color: #6b7280;">${energyResult.potentialSavings.toFixed(2)} TRX</strong>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                                
+                                <div class="alert alert-info" style="margin-top: 1rem;">
+                                    <i class="fas fa-lightbulb"></i>
+                                    <p style="margin: 0 0 0 0.5rem;">
+                                        <strong>Tip:</strong> If you don't have enough energy in your wallet, the network will automatically 
+                                        burn TRX to complete the transaction. This is more expensive but ensures your transaction succeeds.
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                                <button class="btn btn-secondary" onclick="this.closest('.modal').remove(); window.energyRentalFailureResolve(false);">
+                                    Cancel Transaction
+                                </button>
+                                <button class="btn btn-primary" onclick="this.closest('.modal').remove(); window.energyRentalFailureResolve(true);">
+                                    <i class="fas fa-check"></i>
+                                    Proceed Without Energy Rental
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                
+                // Set up promise resolution
+                window.energyRentalFailureResolve = (result) => {
+                    delete window.energyRentalFailureResolve;
+                    resolve(result);
+                };
+            });
+        }
+        
         // Make functions available globally
         window.connectWallet = connectWallet;
         window.detectNetworkAndSetContract = detectNetworkAndSetContract;
@@ -12930,6 +13013,7 @@ document.addEventListener('keydown', function(event) {
         window.openRegistrationModal = openRegistrationModal;
         window.closeRegistrationModal = closeRegistrationModal;
         window.closeRegistrationSuccessModal = closeRegistrationSuccessModal;
+        window.showEnergyRentalFailureDialog = showEnergyRentalFailureDialog;
         window.dismissRegistrationNotice = dismissRegistrationNotice;
         window.submitRegistration = submitRegistration;
         window.refreshPendingRegistrations = refreshPendingRegistrations;
@@ -17120,13 +17204,31 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                         tronWeb.defaultAddress.base58
                     );
                 } catch (energyError) {
-                    console.log('Energy rental not available, proceeding anyway:', energyError);
-                    energyResult = { success: true, rentalNeeded: false };
+                    console.error('Energy rental error:', energyError);
+                    energyResult = { 
+                        success: false, 
+                        rentalFailed: true,
+                        message: 'Energy rental service unavailable'
+                    };
                 }
                 
-                // Always proceed even if energy rental fails
-                if (!energyResult.success) {
-                    console.log('Energy rental failed but proceeding with transaction');
+                // If energy rental failed, show dialog to user
+                if (!energyResult.success && energyResult.rentalFailed) {
+                    hideProcessing();
+                    
+                    // Show energy rental failure dialog
+                    const userWantsToProceed = await showEnergyRentalFailureDialog(energyResult);
+                    
+                    if (!userWantsToProceed) {
+                        // User cancelled
+                        if (submitButton) {
+                            setButtonLoading(submitButton, false);
+                        }
+                        return;
+                    }
+                    
+                    // User wants to proceed without rental
+                    showProcessing('Creating legal notice...');
                     energyResult = { success: true, rentalNeeded: false };
                 }
                 
