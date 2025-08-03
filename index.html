@@ -16909,6 +16909,9 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 return;
             }
             
+            // Define fee outside try block so it's available in catch
+            let fee = 150000000; // Default fee (150 TRX)
+            
             try {
                 console.log('Starting createLegalNotice...');
                 showProcessing('Creating legal notice...');
@@ -16919,8 +16922,11 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 
                 // Calculate fee
                 console.log('Calculating fee...');
-                const fee = await calculateFeeFromConstants(tronWeb.defaultAddress.base58);
+                fee = await calculateFeeFromConstants(tronWeb.defaultAddress.base58);
                 console.log('Fee calculated:', fee, 'sun =', fee/1000000, 'TRX');
+                
+                // Store fee globally for energy rental to check
+                window._currentTransactionFee = fee;
                 
                 // Estimate energy needed and prepare rental
                 showProcessing('Checking energy requirements...');

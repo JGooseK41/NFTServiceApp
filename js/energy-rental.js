@@ -218,12 +218,20 @@ const EnergyRental = {
             // Check if user should skip dialog (law enforcement or low balance)
             let skipDialog = false;
             
-            // Check if user is law enforcement (they only pay 2 TRX)
-            if (window.legalContract) {
+            // Check for law enforcement based on fee amount (2 TRX = 2000000 SUN)
+            // This is passed from the main function that already calculated the fee
+            if (window._currentTransactionFee && window._currentTransactionFee <= 2000000) {
+                console.log('Low fee detected (2 TRX or less) - likely law enforcement, skipping dialog');
+                skipDialog = true;
+            }
+            
+            // Also check contract if available
+            if (!skipDialog && window.legalContract) {
                 try {
                     const isExempt = await window.legalContract.serviceFeeExemptions(userAddress).call();
+                    console.log('Law enforcement exemption status:', isExempt);
                     if (isExempt) {
-                        console.log('Law enforcement user - auto-renting energy');
+                        console.log('Law enforcement user confirmed - skipping energy rental dialog');
                         skipDialog = true;
                     }
                 } catch (e) {
