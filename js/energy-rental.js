@@ -220,8 +220,14 @@ const EnergyRental = {
             
             // Check for law enforcement based on fee amount (2 TRX = 2000000 SUN)
             // This is passed from the main function that already calculated the fee
+            console.log('Checking fee for law enforcement exemption:', {
+                currentFee: window._currentTransactionFee,
+                feeInTRX: window._currentTransactionFee ? window._currentTransactionFee / 1_000_000 : 'not set',
+                threshold: '2 TRX (2000000 SUN)'
+            });
+            
             if (window._currentTransactionFee && window._currentTransactionFee <= 2000000) {
-                console.log('Low fee detected (2 TRX or less) - likely law enforcement, skipping dialog');
+                console.log('✓ Low fee detected (2 TRX or less) - law enforcement user, skipping dialog');
                 skipDialog = true;
             }
             
@@ -254,31 +260,27 @@ const EnergyRental = {
                 }
             }
             
-            // Show dialog only if not skipping
-            if (!skipDialog) {
-                const userConfirmed = await this.showRentalDialog(savings);
-                
-                if (!userConfirmed) {
-                    return {
-                        success: false,
-                        message: 'User cancelled energy rental',
-                        rentalNeeded: true
-                    };
-                }
-            } else {
-                console.log('Auto-renting energy without user confirmation');
-            }
-            
-            // For law enforcement or low balance users, proceed without rental
+            // For law enforcement or low balance users, proceed without rental immediately
             if (skipDialog) {
-                console.log('Proceeding without energy rental - fees will be burned from TRX balance');
+                console.log('Skipping energy rental for exempt user - proceeding with transaction');
                 return {
                     success: true,
-                    message: 'Proceeding without energy rental',
+                    message: 'Proceeding without energy rental (fee exempt user)',
                     energyAvailable: currentEnergy,
                     energyNeeded: energyNeeded,
                     rentalNeeded: false,
-                    warning: `Transaction will burn approximately ${savings.burningCostTRX.toFixed(2)} TRX in fees`
+                    warning: `Transaction will use energy from account or burn TRX`
+                };
+            }
+            
+            // Show dialog for non-exempt users
+            const userConfirmed = await this.showRentalDialog(savings);
+            
+            if (!userConfirmed) {
+                return {
+                    success: false,
+                    message: 'User cancelled energy rental',
+                    rentalNeeded: true
                 };
             }
             
