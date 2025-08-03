@@ -36,8 +36,8 @@ const EnergyRental = {
             totalEnergy = PER_NOTICE_ENERGY * batchSize;
         }
         
-        // Add 20% buffer to ensure enough energy
-        return Math.ceil(totalEnergy * 1.2);
+        // Add 30% buffer to ensure enough energy while tuning
+        return Math.ceil(totalEnergy * 1.3);
     },
     
     // Get current energy price from rental providers
