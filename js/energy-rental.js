@@ -42,7 +42,7 @@ const EnergyRental = {
     
     // Get current energy price from rental providers
     async getEnergyPrice() {
-        // Return default pricing without external API calls
+        // Return default pricing as the external APIs are not needed
         // JustLend charges approximately 30 SUN per energy for immediate return
         return {
             provider: 'JustLend',
@@ -78,31 +78,73 @@ const EnergyRental = {
     // Rent energy from JustLend
     async rentFromJustLend(amount, receiverAddress) {
         try {
-            console.log('Simulating JustLend energy rental:', {
+            console.log('Attempting to rent energy from JustLend:', {
                 amount: amount,
                 receiver: receiverAddress
             });
             
-            // For now, simulate successful rental to avoid contract errors
-            // In production, this would actually call the JustLend contract
+            // JustLend Energy Rental Contract
+            const ENERGY_RENTAL_CONTRACT = 'TU2MJ5Veik1LRAgjeSzEdvmDYx7mefJZvd';
             
-            // Calculate simulated rental cost
+            // Check if we're on mainnet using fullNode URL
+            let isMainnet = true;
+            try {
+                if (window.tronWeb.fullNode && window.tronWeb.fullNode.host) {
+                    const nodeUrl = window.tronWeb.fullNode.host;
+                    isMainnet = nodeUrl.includes('trongrid.io') && !nodeUrl.includes('nile') && !nodeUrl.includes('shasta');
+                    console.log('JustLend network check - nodeUrl:', nodeUrl, 'isMainnet:', isMainnet);
+                }
+            } catch (e) {
+                console.error('Error checking network:', e);
+            }
+            
+            if (!isMainnet) {
+                console.warn('JustLend only available on mainnet');
+                return { success: false, error: 'JustLend only available on mainnet' };
+            }
+            
+            // Get the contract instance
+            const contract = await window.tronWeb.contract().at(ENERGY_RENTAL_CONTRACT);
+            
+            // Calculate rental parameters
+            // Energy rental price is approximately 60 SUN per energy per day
+            // For immediate use (returned within minutes), it's 30 SUN per energy
             const pricePerEnergy = 30; // SUN per energy for immediate use
             const rentalCost = Math.ceil(amount * pricePerEnergy);
             
-            console.log('Simulated JustLend rental:', {
+            // Convert amount to equivalent TRX delegation
+            // 1 TRX staked = ~1,500 energy
+            const trxEquivalent = Math.ceil(amount / 1500) * 1_000_000; // Convert to SUN
+            
+            console.log('JustLend rental parameters:', {
                 energyNeeded: amount,
+                trxEquivalent: trxEquivalent / 1_000_000,
                 estimatedCost: rentalCost / 1_000_000,
-                provider: 'JustLend (simulated)'
+                resourceType: 0 // 0 for energy
             });
             
-            // Store rental info for tracking
+            // Call rentResource method
+            // rentResource(address receiver, uint256 amount, uint256 resourceType)
+            const tx = await contract.rentResource(
+                receiverAddress,
+                trxEquivalent.toString(),
+                0 // 0 for energy rental
+            ).send({
+                feeLimit: 100_000_000,
+                callValue: rentalCost,
+                shouldPollResponse: true
+            });
+            
+            console.log('JustLend rental transaction:', tx);
+            
+            // Store rental info for potential return
             const rentalInfo = {
                 provider: 'JustLend',
                 amount: amount,
-                txId: 'sim_' + Date.now(), // Simulated transaction ID
+                txId: tx.txid || tx,
                 cost: rentalCost / 1_000_000, // Convert to TRX
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                trxEquivalent: trxEquivalent / 1_000_000
             };
             
             // Store in session for tracking
@@ -111,14 +153,23 @@ const EnergyRental = {
             }
             window._activeEnergyRentals.push(rentalInfo);
             
-            // Return success with simulated rental
             return {
                 success: true,
-                ...rentalInfo,
-                note: 'Energy rental simulated - actual contract integration pending'
+                ...rentalInfo
             };
         } catch (error) {
             console.error('JustLend rental error:', error);
+            
+            // If contract call fails, provide fallback
+            if (error.message && error.message.includes('Contract does not exist')) {
+                return {
+                    success: false,
+                    error: 'JustLend contract not found',
+                    manualUrl: 'https://app.justlend.org/energy',
+                    instructions: 'Please rent energy manually from JustLend'
+                };
+            }
+            
             return { success: false, error: error.message };
         }
     },
