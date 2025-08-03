@@ -159,8 +159,19 @@ const EnergyRental = {
             
             // First try without ABI to see what methods exist
             let testContract = await window.tronWeb.contract().at(ENERGY_RENTAL_CONTRACT);
-            if (testContract && testContract.methodInstances) {
-                console.log('Contract method signatures:', Object.keys(testContract.methodInstances));
+            if (testContract) {
+                console.log('Test contract loaded, checking methods...');
+                if (testContract.methodInstances) {
+                    console.log('Contract method signatures:', Object.keys(testContract.methodInstances));
+                }
+                // Also try to see method names another way
+                const methods = [];
+                for (let key in testContract) {
+                    if (typeof testContract[key] === 'function' && key !== 'at' && key !== 'new' && !key.startsWith('_')) {
+                        methods.push(key);
+                    }
+                }
+                console.log('Contract methods found:', methods);
             }
             
             // JustLend Energy Market ABI - try different method names
@@ -234,14 +245,15 @@ const EnergyRental = {
             });
             
             // Call rentResource with correct parameters
-            // rentResource(address receiver, uint256 amount, uint256 resourceType)
+            // Based on research, the parameters might be:
             // - receiver: address to receive the energy
-            // - amount: TRX amount to delegate (not energy amount!)
-            // - resourceType: 1 for energy (0 for bandwidth)
+            // - amount: could be energy amount OR TRX amount (testing both)
+            // - resourceType: 0 for energy, 1 for bandwidth
             console.log('Calling rentResource with parameters:', {
                 receiver: receiverAddress,
-                amount: trxAmount,
-                resourceType: 1,
+                amountInTRX: trxAmount / 1_000_000,
+                amountInEnergy: amount,
+                resourceType: 0,
                 callValue: totalPrepayment,
                 feeLimit: 100_000_000
             });
@@ -249,26 +261,27 @@ const EnergyRental = {
             let tx;
             try {
                 // Check which method exists
-                if (contract.order) {
-                    console.log('Using order method instead of rentResource');
-                    tx = await contract.order(
-                        receiverAddress,
-                        trxAmount, // TRX amount in SUN (freezeAmount)
-                        1 // 1 for energy resource
-                    ).send({
-                        feeLimit: 100_000_000,
-                        callValue: totalPrepayment, // Total prepayment including fee
-                        shouldPollResponse: true
-                    });
-                } else if (contract.rentResource) {
-                    console.log('Using rentResource method');
+                if (contract.rentResource) {
+                    console.log('Using rentResource method with energy amount');
+                    // Try with energy amount first
                     tx = await contract.rentResource(
                         receiverAddress,
-                        trxAmount, // TRX amount in SUN
-                        1 // 1 for energy (not 0!)
+                        amount, // Energy amount (not TRX)
+                        0 // 0 for energy, 1 for bandwidth
                     ).send({
                         feeLimit: 100_000_000,
-                        callValue: totalPrepayment, // Total prepayment including fee
+                        callValue: totalPrepayment, // Total prepayment in SUN
+                        shouldPollResponse: true
+                    });
+                } else if (contract.order) {
+                    console.log('Using order method as fallback');
+                    tx = await contract.order(
+                        receiverAddress,
+                        amount, // Try energy amount here too
+                        0 // 0 for energy
+                    ).send({
+                        feeLimit: 100_000_000,
+                        callValue: totalPrepayment,
                         shouldPollResponse: true
                     });
                 } else {
