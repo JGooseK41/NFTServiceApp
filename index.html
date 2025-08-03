@@ -12727,36 +12727,30 @@ document.addEventListener('keydown', function(event) {
             try {
                 if (!window.tronWeb || !window.tronWeb.ready) return;
                 
-                const node = await tronWeb.getNodeInfo();
                 const contractAddressField = document.getElementById('contractAddress');
                 const networkWarning = document.getElementById('networkWarning');
                 const tronscanLink = document.getElementById('contractTronscanLink');
+                const blockchainSelect = document.getElementById('blockchainSelect');
                 
                 if (!contractAddressField) return;
                 
-                // Detect network based on node info or fullNode URL
+                // Detect network based on fullNode URL (getNodeInfo doesn't exist)
                 let detectedNetwork = 'unknown';
-                if (node && node.network) {
-                    if (node.network.toLowerCase().includes('mainnet')) {
+                if (tronWeb.fullNode && tronWeb.fullNode.host) {
+                    const nodeUrl = tronWeb.fullNode.host;
+                    console.log('Detecting network from node URL:', nodeUrl);
+                    
+                    if (nodeUrl.includes('trongrid.io') && !nodeUrl.includes('nile') && !nodeUrl.includes('shasta')) {
                         detectedNetwork = 'mainnet';
-                    } else if (node.network.toLowerCase().includes('nile')) {
+                    } else if (nodeUrl.includes('nile')) {
                         detectedNetwork = 'nile';
-                    } else if (node.network.toLowerCase().includes('shasta')) {
-                        detectedNetwork = 'shasta';
-                    }
-                } else if (tronWeb.fullNode && tronWeb.fullNode.host) {
-                    if (tronWeb.fullNode.host.includes('trongrid.io') && !tronWeb.fullNode.host.includes('nile') && !tronWeb.fullNode.host.includes('shasta')) {
-                        detectedNetwork = 'mainnet';
-                    } else if (tronWeb.fullNode.host.includes('nile')) {
-                        detectedNetwork = 'nile';
-                    } else if (tronWeb.fullNode.host.includes('shasta')) {
+                    } else if (nodeUrl.includes('shasta')) {
                         detectedNetwork = 'shasta';
                     }
                 }
                 
                 // Update UI based on detected network
                 const networkBadge = document.getElementById('contractNetworkBadge');
-                const chainSelector = document.getElementById('chainSelector');
                 
                 if (detectedNetwork === 'mainnet') {
                     currentNetwork = 'mainnet';
@@ -12764,19 +12758,25 @@ document.addEventListener('keydown', function(event) {
                     contractAddressField.value = window.CONTRACT_ADDRESSES.mainnet;
                     if (networkWarning) networkWarning.innerHTML = '✅ Connected to <strong>TRON Mainnet</strong>';
                     if (networkBadge) networkBadge.textContent = 'Mainnet';
-                    if (chainSelector) chainSelector.value = 'tron-mainnet';
+                    if (blockchainSelect) {
+                        blockchainSelect.value = 'tron-mainnet';
+                        console.log('Updated dropdown to:', blockchainSelect.value);
+                    }
                     if (tronscanLink) {
                         tronscanLink.href = `https://tronscan.org/#/contract/${window.CONTRACT_ADDRESSES.mainnet}`;
                         tronscanLink.title = 'View on TronScan';
                     }
-                    console.log('Detected TRON Mainnet');
+                    console.log('Detected TRON Mainnet - dropdown updated');
                 } else if (detectedNetwork === 'nile') {
                     currentNetwork = 'nile';
                     currentChainType = 'tron';
                     contractAddressField.value = '';
                     if (networkWarning) networkWarning.innerHTML = '❌ Connected to <strong>Nile Testnet</strong> - No contract deployed. Please switch to Mainnet';
                     if (networkBadge) networkBadge.textContent = 'Nile Testnet';
-                    if (chainSelector) chainSelector.value = 'tron-nile';
+                    if (blockchainSelect) {
+                        blockchainSelect.value = 'tron-nile';
+                        console.log('Updated dropdown to:', blockchainSelect.value);
+                    }
                     if (tronscanLink) {
                         tronscanLink.href = '#';
                         tronscanLink.title = 'No contract on Nile';
@@ -12789,7 +12789,10 @@ document.addEventListener('keydown', function(event) {
                     contractAddressField.value = '';
                     if (networkWarning) networkWarning.innerHTML = '❌ Connected to <strong>Shasta Testnet</strong> - Contract not deployed';
                     if (networkBadge) networkBadge.textContent = 'Shasta Testnet';
-                    if (chainSelector) chainSelector.value = 'tron-shasta';
+                    if (blockchainSelect) {
+                        blockchainSelect.value = 'tron-shasta';
+                        console.log('Updated dropdown to:', blockchainSelect.value);
+                    }
                     console.log('Detected TRON Shasta Testnet - Contract not deployed');
                 } else {
                     if (networkWarning) networkWarning.innerHTML = '⚠️ Unknown network - Please connect to TRON Mainnet';
