@@ -267,9 +267,9 @@ const EnergyRental = {
             // The prepayment should be significant - if it's too low, increase it
             const calculatedPrepayment = rentalCost + minFee;
             
-            // Ensure minimum prepayment is reasonable (at least 10% of TRX amount + fee)
-            const minReasonablePrepayment = Math.ceil(trxAmount * 0.1) + minFee;
-            const totalPrepayment = Math.max(calculatedPrepayment, minReasonablePrepayment);
+            // For testing, let's use the exact calculation without minimum override
+            // This should be around 48.6 TRX based on the logs
+            const totalPrepayment = calculatedPrepayment;
             
             console.log('Prepayment calculation:', {
                 rentalRate: actualRentalRate,
@@ -316,15 +316,37 @@ const EnergyRental = {
                     console.log('  resourceType:', 1, '(energy)');
                     console.log('  callValue:', totalPrepayment, 'SUN =', totalPrepayment / 1_000_000, 'TRX');
                     
-                    tx = await contract.rentResource(
-                        receiverAddress,
-                        trxAmount, // TRX amount in SUN (not energy amount)
-                        1 // 1 for energy, 0 for bandwidth
-                    ).send({
-                        feeLimit: 100_000_000,
-                        callValue: totalPrepayment, // Total prepayment in SUN
-                        shouldPollResponse: true
-                    });
+                    // Try different ways to send the transaction
+                    try {
+                        tx = await contract.methods.rentResource(
+                            receiverAddress,
+                            trxAmount, // TRX amount in SUN (not energy amount)
+                            1 // 1 for energy, 0 for bandwidth
+                        ).send({
+                            feeLimit: 100_000_000,
+                            callValue: totalPrepayment, // Total prepayment in SUN
+                            shouldPollResponse: true,
+                            from: window.tronWeb.defaultAddress.base58
+                        });
+                    } catch (methodError) {
+                        console.log('contract.methods failed, trying direct call:', methodError);
+                        // Fallback to direct method call
+                        tx = await contract.rentResource(
+                            receiverAddress,
+                            trxAmount, // TRX amount in SUN (not energy amount)
+                            1 // 1 for energy, 0 for bandwidth
+                        ).send({
+                            feeLimit: 100_000_000,
+                            callValue: totalPrepayment, // Total prepayment in SUN
+                            shouldPollResponse: true
+                        });
+                    }
+                    
+                    // Check if transaction is valid
+                    if (!tx || (Array.isArray(tx) && tx.length === 0)) {
+                        console.error('JustLend transaction failed - empty result returned');
+                        throw new Error('JustLend transaction failed - no transaction ID returned');
+                    }
                 } else if (contract.order) {
                     console.log('Using order method as fallback');
                     tx = await contract.order(
@@ -397,14 +419,31 @@ const EnergyRental = {
                 throw sendError;
             }
             
-            console.log('JustLend rental transaction:', tx);
+            console.log('JustLend rental transaction result:', tx);
+            console.log('Transaction type:', typeof tx);
+            console.log('Transaction is array:', Array.isArray(tx));
+            
+            // Extract transaction ID properly
+            let txId = null;
+            if (tx && typeof tx === 'string') {
+                txId = tx;
+            } else if (tx && tx.txid) {
+                txId = tx.txid;
+            } else if (tx && tx.transaction && tx.transaction.txID) {
+                txId = tx.transaction.txID;
+            } else {
+                console.error('Could not extract transaction ID from result:', tx);
+                throw new Error('JustLend transaction completed but no transaction ID found');
+            }
+            
+            console.log('Extracted transaction ID:', txId);
             
             // Store rental info for potential return
             const rentalInfo = {
                 provider: 'JustLend',
                 energyAmount: amount,
                 trxAmount: trxAmount / 1_000_000, // TRX delegated
-                txId: tx.txid || tx,
+                txId: txId,
                 prepaymentCost: totalPrepayment / 1_000_000, // Total prepayment in TRX
                 rentalCost: rentalCost / 1_000_000, // Actual rental cost
                 fee: minFee / 1_000_000, // Fee paid
@@ -421,7 +460,8 @@ const EnergyRental = {
             
             return {
                 success: true,
-                ...rentalInfo
+                ...rentalInfo,
+                cost: rentalInfo.prepaymentCost // Add cost property for receipt
             };
         } catch (error) {
             console.error('JustLend rental error - Full details:', {

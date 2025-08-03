@@ -8691,8 +8691,9 @@ function useConnectedAddressForFeeCollector() {
                 content += `</div>`;
                 
                 // Energy rental section
-                if (txData.energyResult && txData.energyResult.rentalTxId) {
-                    const rentalCost = txData.energyResult.cost || 0.30; // Default to typical cost
+                if (txData.energyResult && txData.energyResult.success && txData.energyResult.rentalTxId) {
+                    // Use prepaymentCost or rentalCost from the energy result
+                    const rentalCost = txData.energyResult.prepaymentCost || txData.energyResult.rentalCost || txData.energyResult.cost || 0.30;
                     content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(0,0,0,0.2); border-radius: 0.25rem;">`;
                     content += `<span><i class="fas fa-bolt" style="color: #f59e0b;"></i> Energy Rental Cost:</span>`;
                     content += `<strong>${rentalCost.toFixed(2)} TRX</strong>`;
@@ -8714,7 +8715,12 @@ function useConnectedAddressForFeeCollector() {
                 }
                 
                 // Total line
-                const energyCost = txData.energyResult && txData.energyResult.cost ? txData.energyResult.cost : 0;
+                let energyCost = 0;
+                if (txData.energyResult && txData.energyResult.success && txData.energyResult.rentalTxId) {
+                    energyCost = txData.energyResult.prepaymentCost || txData.energyResult.rentalCost || txData.energyResult.cost || 0;
+                } else if (txData.energyUsed && txData.energyUsed > 0) {
+                    energyCost = (txData.energyUsed * 420) / 1_000_000; // Energy burn cost
+                }
                 const totalCost = baseFee + energyCost;
                 content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-top: 0.75rem; padding: 0.75rem; background: rgba(59,130,246,0.1); border-radius: 0.25rem; border: 1px solid rgba(59,130,246,0.3);">`;
                 content += `<span style="font-weight: 600; font-size: 1.1rem;"><i class="fas fa-calculator"></i> Total Transaction Cost:</span>`;
@@ -8731,6 +8737,15 @@ function useConnectedAddressForFeeCollector() {
                 content += `<li><i class="fas fa-chevron-right" style="color: #10b981; margin-right: 0.5rem;"></i>Sponsorship → Sent directly to recipient's wallet</li>`;
                 content += `<li><i class="fas fa-chevron-right" style="color: #f59e0b; margin-right: 0.5rem;"></i>Energy → Network fees for blockchain processing</li>`;
                 content += `</ul>`;
+                
+                // Show warning if energy rental failed
+                if (txData.energyResult && !txData.energyResult.success && txData.energyResult.rentalFailed) {
+                    content += `<div style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(220,38,38,0.1); border-radius: 0.25rem; border: 1px solid rgba(220,38,38,0.3);">`;
+                    content += `<i class="fas fa-exclamation-triangle" style="color: #dc2626; margin-right: 0.5rem;"></i>`;
+                    content += `<strong style="color: #dc2626;">Energy rental failed</strong> - Transaction used standard energy burning instead of rental savings.`;
+                    content += `</div>`;
+                }
+                
                 content += `</div>`;
                 
                 content += '</div>';
