@@ -53,25 +53,30 @@ const EnergyRental = {
     
     // Calculate cost comparison
     async calculateSavings(energyNeeded) {
-        const priceInfo = await this.getEnergyPrice();
-        
         // Burning cost: 420 SUN per energy
         const burningCost = energyNeeded * 420;
         
-        // Rental cost
-        const rentalCost = energyNeeded * priceInfo.pricePerEnergy;
+        // JustLend rental calculation
+        const energyStakePerTrx = 1500;
+        const trxAmount = Math.ceil(energyNeeded / energyStakePerTrx) * 1_000_000;
+        const duration = 3600; // 1 hour
+        const rentalRate = 1.16e-9; // ~1% daily rate
+        const minFee = 40 * 1_000_000; // 40 TRX minimum
+        
+        const rentalCost = Math.ceil(trxAmount * rentalRate * (duration + 86400));
+        const totalRentalCost = rentalCost + minFee;
         
         // Calculate savings
-        const savings = burningCost - rentalCost;
-        const savingsPercent = Math.round((savings / burningCost) * 100);
+        const savings = burningCost - totalRentalCost;
+        const savingsPercent = savings > 0 ? Math.round((savings / burningCost) * 100) : 0;
         
         return {
             energyNeeded,
             burningCostTRX: burningCost / 1_000_000,
-            rentalCostTRX: rentalCost / 1_000_000,
-            savingsTRX: savings / 1_000_000,
-            savingsPercent,
-            provider: priceInfo.provider
+            rentalCostTRX: totalRentalCost / 1_000_000,
+            savingsTRX: Math.max(0, savings / 1_000_000),
+            savingsPercent: Math.max(0, savingsPercent),
+            provider: 'JustLend'
         };
     },
     
@@ -86,30 +91,73 @@ const EnergyRental = {
             // JustLend Energy Rental Contract
             const ENERGY_RENTAL_CONTRACT = 'TU2MJ5Veik1LRAgjeSzEdvmDYx7mefJZvd';
             
-            // Skip network check - we're on mainnet if we got this far
-            console.log('Proceeding with JustLend energy rental on mainnet');
+            // Check if we're on mainnet
+            if (window.tronWeb.fullNode && window.tronWeb.fullNode.host) {
+                const nodeUrl = window.tronWeb.fullNode.host;
+                console.log('Current node URL:', nodeUrl);
+            }
             
-            // For now, we'll skip the actual rental as the contract integration needs more research
-            // The contract exists but may require specific setup or permissions
-            console.log('JustLend contract integration pending - skipping actual rental');
+            // Get the contract instance
+            const contract = await window.tronWeb.contract().at(ENERGY_RENTAL_CONTRACT);
+            console.log('JustLend contract loaded:', contract);
             
-            // Return failure to trigger the dialog
-            return { 
-                success: false, 
-                error: 'JustLend integration pending setup',
-                note: 'Energy rental service requires additional configuration'
-            };
+            // JustLend requires us to calculate the TRX amount needed to delegate for the energy
+            // The formula is: trxAmount = energyAmount / energyStakePerTrx
+            // Default energyStakePerTrx is approximately 1500 energy per TRX
+            const energyStakePerTrx = 1500;
+            const trxAmount = Math.ceil(amount / energyStakePerTrx) * 1_000_000; // Convert to SUN
+            
+            // For short-term rental (immediate use), we need to calculate prepayment
+            // Prepay = trxAmount * rentalRate * (duration + 86400 + liquidateThreshold) + fee
+            // For immediate use, we'll use minimal duration (1 hour = 3600 seconds)
+            const duration = 3600; // 1 hour in seconds
+            const rentalRate = 1.16e-9; // Approximate rental rate per second (1% daily rate)
+            const liquidateThreshold = 0; // Default
+            const minFee = 40 * 1_000_000; // 40 TRX minimum fee in SUN
+            
+            // Calculate prepayment
+            const rentalCost = Math.ceil(trxAmount * rentalRate * (duration + 86400 + liquidateThreshold));
+            const totalPrepayment = rentalCost + minFee;
+            
+            console.log('JustLend rental calculation:', {
+                energyNeeded: amount,
+                trxAmountSUN: trxAmount,
+                trxAmountTRX: trxAmount / 1_000_000,
+                rentalCostSUN: rentalCost,
+                minFeeSUN: minFee,
+                totalPrepaymentSUN: totalPrepayment,
+                totalPrepaymentTRX: totalPrepayment / 1_000_000
+            });
+            
+            // Call rentResource with correct parameters
+            // rentResource(address receiver, uint256 amount, uint256 resourceType)
+            // - receiver: address to receive the energy
+            // - amount: TRX amount to delegate (not energy amount!)
+            // - resourceType: 1 for energy (0 for bandwidth)
+            const tx = await contract.rentResource(
+                receiverAddress,
+                trxAmount, // TRX amount in SUN
+                1 // 1 for energy (not 0!)
+            ).send({
+                feeLimit: 100_000_000,
+                callValue: totalPrepayment, // Total prepayment including fee
+                shouldPollResponse: true
+            });
             
             console.log('JustLend rental transaction:', tx);
             
             // Store rental info for potential return
             const rentalInfo = {
                 provider: 'JustLend',
-                amount: amount,
+                energyAmount: amount,
+                trxAmount: trxAmount / 1_000_000, // TRX delegated
                 txId: tx.txid || tx,
-                cost: rentalCost / 1_000_000, // Convert to TRX
+                prepaymentCost: totalPrepayment / 1_000_000, // Total prepayment in TRX
+                rentalCost: rentalCost / 1_000_000, // Actual rental cost
+                fee: minFee / 1_000_000, // Fee paid
                 timestamp: Date.now(),
-                trxEquivalent: trxEquivalent / 1_000_000
+                receiver: receiverAddress,
+                resourceType: 1 // Energy
             };
             
             // Store in session for tracking
@@ -123,19 +171,39 @@ const EnergyRental = {
                 ...rentalInfo
             };
         } catch (error) {
-            console.error('JustLend rental error:', error);
+            console.error('JustLend rental error - Full details:', {
+                error: error,
+                message: error.message,
+                code: error.code,
+                data: error.data,
+                stack: error.stack
+            });
             
-            // If contract call fails, provide fallback
-            if (error.message && error.message.includes('Contract does not exist')) {
-                return {
-                    success: false,
-                    error: 'JustLend contract not found',
-                    manualUrl: 'https://app.justlend.org/energy',
-                    instructions: 'Please rent energy manually from JustLend'
-                };
+            // Check specific error types
+            if (error.message) {
+                if (error.message.includes('Contract does not exist')) {
+                    return {
+                        success: false,
+                        error: 'JustLend contract not found at ' + ENERGY_RENTAL_CONTRACT
+                    };
+                } else if (error.message.includes('Invalid parameters')) {
+                    return {
+                        success: false,
+                        error: 'Invalid parameters for JustLend rental'
+                    };
+                } else if (error.message.includes('Insufficient')) {
+                    return {
+                        success: false,
+                        error: 'Insufficient balance for energy rental cost'
+                    };
+                }
             }
             
-            return { success: false, error: error.message };
+            return { 
+                success: false, 
+                error: error.message || 'JustLend rental failed',
+                details: error.toString()
+            };
         }
     },
     
