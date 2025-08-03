@@ -42,44 +42,11 @@ const EnergyRental = {
     
     // Get current energy price from rental providers
     async getEnergyPrice() {
-        try {
-            // Try JustLend API first
-            const response = await fetch('https://openapi.just.network/lend/rentResource/account');
-            const data = await response.json();
-            
-            if (data && data.code === 0) {
-                // JustLend charges approximately 30-60 SUN per energy
-                // 30 SUN for immediate return, 60 SUN for daily rental
-                return {
-                    provider: 'JustLend',
-                    pricePerEnergy: 30, // Immediate use price
-                    minOrder: 10000
-                };
-            }
-        } catch (error) {
-            console.error('Error fetching JustLend price:', error);
-        }
-        
-        // Try TRONSave API
-        try {
-            const response = await fetch('https://api.tronsave.io/v0/rental-pricing');
-            const data = await response.json();
-            
-            if (data && data.price_per_energy) {
-                return {
-                    provider: 'TRONSave',
-                    pricePerEnergy: data.price_per_energy,
-                    minOrder: data.min_order || 10000
-                };
-            }
-        } catch (error) {
-            console.error('Error fetching TRONSave price:', error);
-        }
-        
-        // Default price if APIs fail (30 SUN per energy is typical for immediate use)
+        // Return default pricing as the external APIs are not needed
+        // JustLend charges approximately 30 SUN per energy for immediate return
         return {
-            provider: 'Default',
-            pricePerEnergy: 30,
+            provider: 'JustLend',
+            pricePerEnergy: 30, // Immediate use price
             minOrder: 10000
         };
     },
@@ -240,49 +207,12 @@ const EnergyRental = {
     // Rent energy from TRONSave
     async rentFromTRONSave(amount, receiverAddress) {
         try {
-            console.log('Attempting to rent energy from TRONSave:', {
-                amount: amount,
-                receiver: receiverAddress
-            });
-            
-            // TRONSave API endpoint
-            const API_URL = 'https://api.tronsave.io/v0/order/energy';
-            
-            // Calculate rental duration (1 hour = 3600000 ms)
-            const rentalDuration = 3600000; // 1 hour
-            
-            const requestData = {
-                receiver_address: receiverAddress,
-                resource_amount: amount,
-                resource_type: 'ENERGY',
-                rental_duration: rentalDuration,
-                allow_partial: false
+            console.log('TRONSave not available - returning failure');
+            // TRONSave API is not currently accessible, skip it
+            return { 
+                success: false, 
+                error: 'TRONSave service temporarily unavailable' 
             };
-            
-            console.log('TRONSave request:', requestData);
-            
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(requestData)
-            });
-            
-            const result = await response.json();
-            
-            if (result.code === 200 && result.data) {
-                console.log('TRONSave rental successful:', result);
-                return {
-                    success: true,
-                    provider: 'TRONSave',
-                    amount: amount,
-                    txId: result.data.order_id,
-                    cost: result.data.total_cost / 1_000_000 // Convert to TRX
-                };
-            }
-            
-            throw new Error(result.message || 'TRONSave rental failed');
         } catch (error) {
             console.error('TRONSave rental error:', error);
             return { success: false, error: error.message };
@@ -291,15 +221,6 @@ const EnergyRental = {
     
     // Main rental function - tries multiple providers
     async rentEnergy(amount, receiverAddress) {
-        // Check if law enforcement user (2 TRX fee or less)
-        if (window._currentTransactionFee && window._currentTransactionFee <= 2000000) {
-            console.log('Law enforcement user detected - skipping all rental attempts');
-            return {
-                success: false,
-                error: 'Law enforcement users do not need energy rental'
-            };
-        }
-        
         // Try JustLend first
         let result = await this.rentFromJustLend(amount, receiverAddress);
         if (result.success) return result;
@@ -380,79 +301,8 @@ const EnergyRental = {
             // Check if user should skip dialog (law enforcement or low balance)
             let skipDialog = false;
             
-            // Check for law enforcement based on fee amount (2 TRX = 2000000 SUN)
-            // This is passed from the main function that already calculated the fee
-            console.log('Checking fee for law enforcement exemption:', {
-                currentFee: window._currentTransactionFee,
-                feeInTRX: window._currentTransactionFee ? window._currentTransactionFee / 1_000_000 : 'not set',
-                threshold: '2 TRX (2000000 SUN)'
-            });
-            
-            if (window._currentTransactionFee && window._currentTransactionFee <= 2000000) {
-                console.log('✓ Low fee detected (2 TRX or less) - law enforcement user, skipping energy rental entirely');
-                // Return immediately for law enforcement - no rental needed
-                return {
-                    success: true,
-                    message: 'Law enforcement user - no energy rental needed',
-                    energyAvailable: currentEnergy,
-                    energyNeeded: energyNeeded,
-                    rentalNeeded: false,
-                    warning: 'Transaction will use available energy or burn TRX (law enforcement exempt)'
-                };
-            }
-            
-            // Also check contract if available
-            if (!skipDialog && window.legalContract) {
-                try {
-                    const isExempt = await window.legalContract.serviceFeeExemptions(userAddress).call();
-                    console.log('Law enforcement exemption status:', isExempt);
-                    if (isExempt) {
-                        console.log('Law enforcement user confirmed - skipping energy rental dialog');
-                        skipDialog = true;
-                    }
-                } catch (e) {
-                    console.error('Error checking exemption status:', e);
-                }
-            }
-            
-            // Check user's TRX balance
-            if (!skipDialog) {
-                try {
-                    const balance = await window.tronWeb.trx.getBalance(userAddress);
-                    const balanceTRX = balance / 1_000_000;
-                    // If user has less than 50 TRX, auto-rent to save money
-                    if (balanceTRX < 50) {
-                        console.log('Low balance detected - auto-renting energy to save fees');
-                        skipDialog = true;
-                    }
-                } catch (e) {
-                    console.error('Error checking balance:', e);
-                }
-            }
-            
-            // For law enforcement or low balance users, proceed without rental immediately
-            if (skipDialog) {
-                console.log('Skipping energy rental for exempt user - proceeding with transaction');
-                return {
-                    success: true,
-                    message: 'Proceeding without energy rental (fee exempt user)',
-                    energyAvailable: currentEnergy,
-                    energyNeeded: energyNeeded,
-                    rentalNeeded: false,
-                    warning: `Transaction will use energy from account or burn TRX`
-                };
-            }
-            
-            // Show dialog for non-exempt users
-            const userConfirmed = await this.showRentalDialog(savings);
-            
-            if (!userConfirmed) {
-                return {
-                    success: false,
-                    message: 'User cancelled energy rental',
-                    rentalNeeded: true
-                };
-            }
+            // Automatically rent energy for ALL users without dialog
+            console.log('Automatically renting energy to reduce transaction costs...');
             
             // Try to rent energy
             const rentalResult = await this.rentEnergy(energyToRent, userAddress);
