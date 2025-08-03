@@ -1,8 +1,8 @@
 {
   "contractName": "LegalNoticeNFT_v5_Enumerable",
-  "contractAddress": "THUoYefQtWgkSmmFqqJpYERCuqLw1As2hL",
+  "contractAddress": "COMPROMISED - DO NOT USE THIS CONTRACT",
   "deploymentInfo": {
-    "network": "TRON Nile Testnet",
+    "network": "TRON Nile Testnet - WALLET COMPROMISED",
     "compiler": "0.8.6",
     "optimization": {
       "enabled": true,
@@ -88,8 +88,10 @@
     }
   ],
   "contractUrls": {
-    "tronScan": "https://nile.tronscan.org/#/contract/THUoYefQtWgkSmmFqqJpYERCuqLw1As2hL",
-    "verification": "https://nile.tronscan.org/#/contract/THUoYefQtWgkSmmFqqJpYERCuqLw1As2hL/code",
-    "transaction": "https://nile.tronscan.org/#/transaction/dc77fc8c70aad26a303d2d594ca021ce23e33dd9a5936a9538642619612b8bc9"
-  }
+    "warning": "DO NOT USE THESE URLS - CONTRACT WALLET WAS COMPROMISED",
+    "tronScan": "COMPROMISED",
+    "verification": "COMPROMISED",
+    "transaction": "COMPROMISED"
+  },
+  "IMPORTANT_NOTE": "This contract's controlling wallet was compromised. DO NOT interact with this contract or send any funds to it."
 }

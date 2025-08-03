@@ -33,7 +33,7 @@
         // Contract addresses for different networks
         window.CONTRACT_ADDRESSES = {
             mainnet: 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN', // Mainnet contract - Deployed Aug 3, 2025
-            nile: 'THUoYefQtWgkSmmFqqJpYERCuqLw1As2hL', // Testnet contract
+            nile: '', // Testnet contract removed - wallet was compromised
             shasta: '' // Not deployed
         };
     </script>
@@ -6511,7 +6511,7 @@ function parsePackedData(packedData) {
                 },
                 nile: {
                     name: 'TRON Nile Testnet',
-                    contractAddress: window.APP_CONFIG?.contracts.tron.nile || 'THUoYefQtWgkSmmFqqJpYERCuqLw1As2hL',
+                    contractAddress: window.APP_CONFIG?.contracts.tron.nile || '',
                     explorerUrl: 'https://nile.tronscan.org',
                     nativeToken: 'TRX',
                     chainId: null
@@ -12705,14 +12705,15 @@ document.addEventListener('keydown', function(event) {
                     console.log('Detected TRON Mainnet');
                 } else if (detectedNetwork === 'nile') {
                     currentNetwork = 'nile';
-                    contractAddressField.value = window.CONTRACT_ADDRESSES.nile;
-                    if (networkWarning) networkWarning.innerHTML = '⚠️ Connected to <strong>Nile Testnet</strong> - Switch to Mainnet for production';
+                    contractAddressField.value = '';
+                    if (networkWarning) networkWarning.innerHTML = '❌ Connected to <strong>Nile Testnet</strong> - No contract deployed. Please switch to Mainnet';
                     if (networkBadge) networkBadge.textContent = 'Nile Testnet';
                     if (tronscanLink) {
-                        tronscanLink.href = `https://nile.tronscan.org/#/contract/${window.CONTRACT_ADDRESSES.nile}`;
-                        tronscanLink.title = 'View on Nile TronScan';
+                        tronscanLink.href = '#';
+                        tronscanLink.title = 'No contract on Nile';
+                        tronscanLink.onclick = (e) => { e.preventDefault(); uiManager.showNotification('warning', 'No contract deployed on Nile testnet'); };
                     }
-                    console.log('Detected TRON Nile Testnet');
+                    console.log('Detected TRON Nile Testnet - No contract available');
                 } else if (detectedNetwork === 'shasta') {
                     currentNetwork = 'shasta';
                     contractAddressField.value = '';
@@ -12725,11 +12726,15 @@ document.addEventListener('keydown', function(event) {
                 }
             } catch (error) {
                 console.error('Error detecting network:', error);
-                // Default to Nile testnet
-                currentNetwork = 'nile';
+                // Default to mainnet since Nile is compromised
+                currentNetwork = 'mainnet';
                 const contractAddressField = document.getElementById('contractAddress');
                 if (contractAddressField) {
-                    contractAddressField.value = window.CONTRACT_ADDRESSES.nile;
+                    contractAddressField.value = window.CONTRACT_ADDRESSES.mainnet;
+                }
+                const networkWarning = document.getElementById('networkWarning');
+                if (networkWarning) {
+                    networkWarning.innerHTML = '⚠️ Network detection failed - Defaulting to Mainnet';
                 }
             }
         }
