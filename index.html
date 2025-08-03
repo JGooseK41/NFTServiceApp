@@ -12813,6 +12813,26 @@ document.addEventListener('keydown', function(event) {
         window.closeAuditModal = closeAuditModal;
         window.openAcceptModal = openAcceptModal;
         window.closeAcceptModal = closeAcceptModal;
+        
+        // Function to audit a specific notice from Recent Activity
+        function auditNotice(noticeId) {
+            // Open the audit modal
+            openAuditModal();
+            
+            // Set the search type to notice ID
+            document.getElementById('auditSearchType').value = 'noticeId';
+            
+            // Update the search UI
+            updateAuditSearch();
+            
+            // Set the notice ID in the input field
+            document.getElementById('auditNoticeId').value = noticeId;
+            
+            // Automatically perform the search
+            performAudit();
+        }
+        
+        window.auditNotice = auditNotice;
         window.closeTransactionResultModal = closeTransactionResultModal;
         window.acceptNotice = acceptNotice;
         
