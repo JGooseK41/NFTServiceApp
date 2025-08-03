@@ -7364,6 +7364,83 @@ function useConnectedAddressForFeeCollector() {
             const selectedValue = chainSelector.value;
             const [chainType, network] = selectedValue.split('-');
             
+            // Check if user is trying to select a non-TRON network
+            if (chainType !== 'tron') {
+                // Get the network display name
+                let networkName = '';
+                if (chainType === 'evm') {
+                    if (network === 'ethereum') networkName = 'Ethereum';
+                    else if (network === 'sepolia') networkName = 'Ethereum Sepolia';
+                    else if (network === 'polygon') networkName = 'Polygon';
+                    else if (network === 'mumbai') networkName = 'Polygon Mumbai';
+                    else if (network === 'bsc') networkName = 'BNB Smart Chain';
+                    else if (network === 'bscTestnet') networkName = 'BSC Testnet';
+                }
+                
+                // Show notification about unavailable network
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                modal.style.zIndex = '10000';
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 500px;">
+                        <div class="modal-header">
+                            <h3 class="modal-title">
+                                <i class="fas fa-info-circle" style="color: #3b82f6;"></i>
+                                Network Not Available
+                            </h3>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-info" style="background: #dbeafe; border-color: #3b82f6;">
+                                <i class="fas fa-network-wired"></i>
+                                <div style="margin-left: 0.5rem;">
+                                    <strong>Contract Not Yet Deployed on ${networkName}</strong>
+                                    <p style="margin: 0.5rem 0 0 0;">
+                                        We currently only have our smart contract deployed on the TRON network. 
+                                        We haven't deployed to other networks yet as there hasn't been demand for it.
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div style="margin: 1.5rem 0;">
+                                <h4 style="margin-bottom: 0.5rem;">Need Support for ${networkName}?</h4>
+                                <p>
+                                    We're happy to deploy our contract to other blockchain networks based on customer needs. 
+                                    If you require support for ${networkName} or any other blockchain, please contact us and we'll begin the deployment process.
+                                </p>
+                                
+                                <div style="background: #f3f4f6; padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                                    <p style="margin: 0; font-weight: 600;">
+                                        <i class="fas fa-envelope"></i> Contact us at: 
+                                        <a href="mailto:info@blockserved.com" style="color: #3b82f6;">info@blockserved.com</a>
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top: 1.5rem; text-align: center;">
+                                <button class="btn btn-primary" onclick="this.closest('.modal').remove();">
+                                    <i class="fas fa-check"></i> Understood
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                
+                // Reset dropdown to TRON mainnet
+                chainSelector.value = 'tron-mainnet';
+                currentChainType = 'tron';
+                currentNetwork = 'mainnet';
+                
+                // Update contract address to mainnet
+                const contractAddressField = document.getElementById('contractAddress');
+                if (contractAddressField) {
+                    contractAddressField.value = window.CONTRACT_ADDRESSES.mainnet;
+                }
+                
+                return;
+            }
+            
             currentChainType = chainType;
             currentNetwork = network;
             
@@ -12730,7 +12807,7 @@ document.addEventListener('keydown', function(event) {
                 const contractAddressField = document.getElementById('contractAddress');
                 const networkWarning = document.getElementById('networkWarning');
                 const tronscanLink = document.getElementById('contractTronscanLink');
-                const blockchainSelect = document.getElementById('blockchainSelect');
+                const chainSelector = document.getElementById('chainSelector');
                 
                 if (!contractAddressField) return;
                 
@@ -12758,9 +12835,9 @@ document.addEventListener('keydown', function(event) {
                     contractAddressField.value = window.CONTRACT_ADDRESSES.mainnet;
                     if (networkWarning) networkWarning.innerHTML = '✅ Connected to <strong>TRON Mainnet</strong>';
                     if (networkBadge) networkBadge.textContent = 'Mainnet';
-                    if (blockchainSelect) {
-                        blockchainSelect.value = 'tron-mainnet';
-                        console.log('Updated dropdown to:', blockchainSelect.value);
+                    if (chainSelector) {
+                        chainSelector.value = 'tron-mainnet';
+                        console.log('Updated dropdown to:', chainSelector.value);
                     }
                     if (tronscanLink) {
                         tronscanLink.href = `https://tronscan.org/#/contract/${window.CONTRACT_ADDRESSES.mainnet}`;
@@ -12773,9 +12850,9 @@ document.addEventListener('keydown', function(event) {
                     contractAddressField.value = '';
                     if (networkWarning) networkWarning.innerHTML = '❌ Connected to <strong>Nile Testnet</strong> - No contract deployed. Please switch to Mainnet';
                     if (networkBadge) networkBadge.textContent = 'Nile Testnet';
-                    if (blockchainSelect) {
-                        blockchainSelect.value = 'tron-nile';
-                        console.log('Updated dropdown to:', blockchainSelect.value);
+                    if (chainSelector) {
+                        chainSelector.value = 'tron-nile';
+                        console.log('Updated dropdown to:', chainSelector.value);
                     }
                     if (tronscanLink) {
                         tronscanLink.href = '#';
@@ -12789,9 +12866,9 @@ document.addEventListener('keydown', function(event) {
                     contractAddressField.value = '';
                     if (networkWarning) networkWarning.innerHTML = '❌ Connected to <strong>Shasta Testnet</strong> - Contract not deployed';
                     if (networkBadge) networkBadge.textContent = 'Shasta Testnet';
-                    if (blockchainSelect) {
-                        blockchainSelect.value = 'tron-shasta';
-                        console.log('Updated dropdown to:', blockchainSelect.value);
+                    if (chainSelector) {
+                        chainSelector.value = 'tron-shasta';
+                        console.log('Updated dropdown to:', chainSelector.value);
                     }
                     console.log('Detected TRON Shasta Testnet - Contract not deployed');
                 } else {
