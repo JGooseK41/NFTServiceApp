@@ -53,6 +53,21 @@ const EnergyRental = {
     
     // Calculate cost comparison
     async calculateSavings(energyNeeded) {
+        console.log('Calculating savings for energy needed:', energyNeeded);
+        
+        // Validate input
+        if (!energyNeeded || isNaN(energyNeeded) || energyNeeded <= 0) {
+            console.warn('Invalid energy needed:', energyNeeded);
+            return {
+                energyNeeded: 0,
+                burningCostTRX: 0,
+                rentalCostTRX: 0,
+                savingsTRX: 0,
+                savingsPercent: 0,
+                provider: 'JustLend'
+            };
+        }
+        
         // Burning cost: 420 SUN per energy
         const burningCost = energyNeeded * 420;
         
@@ -69,6 +84,14 @@ const EnergyRental = {
         // Calculate savings
         const savings = burningCost - totalRentalCost;
         const savingsPercent = savings > 0 ? Math.round((savings / burningCost) * 100) : 0;
+        
+        console.log('Savings calculation result:', {
+            energyNeeded,
+            burningCostTRX: burningCost / 1_000_000,
+            rentalCostTRX: totalRentalCost / 1_000_000,
+            savingsTRX: Math.max(0, savings / 1_000_000),
+            savingsPercent: Math.max(0, savingsPercent)
+        });
         
         return {
             energyNeeded,
@@ -288,8 +311,20 @@ const EnergyRental = {
     // Main function to prepare energy for transaction
     async prepareEnergyForTransaction(energyNeeded, userAddress) {
         try {
+            console.log('prepareEnergyForTransaction called with:', {
+                energyNeeded,
+                userAddress
+            });
+            
+            // Validate energyNeeded
+            if (!energyNeeded || isNaN(energyNeeded) || energyNeeded <= 0) {
+                console.error('Invalid energyNeeded value:', energyNeeded);
+                energyNeeded = 50000; // Default to 50k energy if invalid
+            }
+            
             // Check current energy
             const currentEnergy = await this.checkUserEnergy(userAddress);
+            console.log('Current energy available:', currentEnergy);
             
             if (currentEnergy >= energyNeeded) {
                 return {
@@ -303,6 +338,7 @@ const EnergyRental = {
             
             // Calculate how much to rent
             const energyToRent = energyNeeded - currentEnergy;
+            console.log('Energy to rent:', energyToRent);
             
             // Check if we're on mainnet (energy rental only works on mainnet)
             let isMainnet = true;
