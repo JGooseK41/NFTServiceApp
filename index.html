@@ -12756,12 +12756,15 @@ document.addEventListener('keydown', function(event) {
                 
                 // Update UI based on detected network
                 const networkBadge = document.getElementById('contractNetworkBadge');
+                const chainSelector = document.getElementById('chainSelector');
                 
                 if (detectedNetwork === 'mainnet') {
                     currentNetwork = 'mainnet';
+                    currentChainType = 'tron';
                     contractAddressField.value = window.CONTRACT_ADDRESSES.mainnet;
                     if (networkWarning) networkWarning.innerHTML = '✅ Connected to <strong>TRON Mainnet</strong>';
                     if (networkBadge) networkBadge.textContent = 'Mainnet';
+                    if (chainSelector) chainSelector.value = 'tron-mainnet';
                     if (tronscanLink) {
                         tronscanLink.href = `https://tronscan.org/#/contract/${window.CONTRACT_ADDRESSES.mainnet}`;
                         tronscanLink.title = 'View on TronScan';
@@ -12769,9 +12772,11 @@ document.addEventListener('keydown', function(event) {
                     console.log('Detected TRON Mainnet');
                 } else if (detectedNetwork === 'nile') {
                     currentNetwork = 'nile';
+                    currentChainType = 'tron';
                     contractAddressField.value = '';
                     if (networkWarning) networkWarning.innerHTML = '❌ Connected to <strong>Nile Testnet</strong> - No contract deployed. Please switch to Mainnet';
                     if (networkBadge) networkBadge.textContent = 'Nile Testnet';
+                    if (chainSelector) chainSelector.value = 'tron-nile';
                     if (tronscanLink) {
                         tronscanLink.href = '#';
                         tronscanLink.title = 'No contract on Nile';
@@ -12780,9 +12785,11 @@ document.addEventListener('keydown', function(event) {
                     console.log('Detected TRON Nile Testnet - No contract available');
                 } else if (detectedNetwork === 'shasta') {
                     currentNetwork = 'shasta';
+                    currentChainType = 'tron';
                     contractAddressField.value = '';
                     if (networkWarning) networkWarning.innerHTML = '❌ Connected to <strong>Shasta Testnet</strong> - Contract not deployed';
                     if (networkBadge) networkBadge.textContent = 'Shasta Testnet';
+                    if (chainSelector) chainSelector.value = 'tron-shasta';
                     console.log('Detected TRON Shasta Testnet - Contract not deployed');
                 } else {
                     if (networkWarning) networkWarning.innerHTML = '⚠️ Unknown network - Please connect to TRON Mainnet';
