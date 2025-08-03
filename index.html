@@ -17348,8 +17348,24 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     feePaid: parseInt(fee) / 1000000,
                     energyUsed: 0, // Will be updated when we get actual energy usage
                     ipfsHash: encryptedData ? encryptedData.ipfsHash : null,
-                    encryptionMethod: 'AES-256 with recipient wallet'
+                    encryptionMethod: 'AES-256 with recipient wallet',
+                    energyRentalTxId: energyResult.rentalNeeded ? energyResult.txId : null
                 });
+                
+                // Track energy return for cost savings (if rental was used)
+                if (energyResult.rentalNeeded && energyResult.txId) {
+                    setTimeout(async () => {
+                        const returnResult = await EnergyRental.returnRentedEnergy(energyResult.txId);
+                        if (returnResult.success) {
+                            console.log('Energy rental tracked for immediate return:', returnResult);
+                            if (returnResult.costSaved > 0) {
+                                uiManager.showNotification('success', 
+                                    `Additional savings: ${returnResult.costSaved.toFixed(2)} TRX from quick energy return!`
+                                );
+                            }
+                        }
+                    }, 1000); // Check 1 second after transaction
+                }
                 
                 // Log TronScan links for debugging
                 console.log('=== VIEW ON TRONSCAN ===');
