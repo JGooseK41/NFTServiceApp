@@ -8657,47 +8657,80 @@ function useConnectedAddressForFeeCollector() {
                 content += '</div>';
                 
                 // Cost breakdown
-                content += '<div class="cost-breakdown" style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem;">';
-                content += '<h4 style="margin-bottom: 1rem;">Transaction Cost Summary</h4>';
+                content += '<div class="cost-breakdown" style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem; border: 1px solid var(--border-color);">';
+                content += '<h4 style="margin-bottom: 1rem; color: var(--accent-blue);"><i class="fas fa-receipt"></i> Transaction Cost Breakdown</h4>';
                 
                 // Base fee amount based on what was actually paid
                 const baseFee = txData.feePaid || 22;
                 const isLawEnforcement = baseFee <= 2;
+                const sponsorshipFee = 2; // Always 2 TRX
+                let serviceFee = 0;
                 
+                // Calculate service fee
+                if (!isLawEnforcement) {
+                    serviceFee = baseFee - sponsorshipFee; // Usually 20 TRX for regular users
+                }
+                
+                // Service fee section
                 if (isLawEnforcement) {
-                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
-                    content += `<span>Law Enforcement Fee (Sponsorship Only):</span>`;
-                    content += `<strong>${baseFee} TRX</strong>`;
+                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(34,197,94,0.1); border-radius: 0.25rem;">`;
+                    content += `<span><i class="fas fa-shield-alt" style="color: #22c55e;"></i> Service Fee (Law Enforcement Exempt):</span>`;
+                    content += `<strong style="color: #22c55e;">0.00 TRX</strong>`;
                     content += `</div>`;
                 } else {
-                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
-                    content += `<span>Service Fee:</span>`;
-                    content += `<strong>20 TRX</strong>`;
-                    content += `</div>`;
-                    
-                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
-                    content += `<span>Recipient Sponsorship:</span>`;
-                    content += `<strong>2 TRX</strong>`;
+                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(0,0,0,0.2); border-radius: 0.25rem;">`;
+                    content += `<span><i class="fas fa-file-contract" style="color: #60a5fa;"></i> Service Fee (to Contract):</span>`;
+                    content += `<strong>${serviceFee} TRX</strong>`;
                     content += `</div>`;
                 }
                 
-                // Notification Transaction (included in original transaction)
-                content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem; opacity: 0.8;">`;
-                content += `<span>Notification Payment (included):</span>`;
-                content += `<strong>3.5 TRX</strong>`;
+                // Sponsorship fee (always paid)
+                content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(0,0,0,0.2); border-radius: 0.25rem;">`;
+                content += `<span><i class="fas fa-gift" style="color: #10b981;"></i> Recipient Sponsorship (to Recipient):</span>`;
+                content += `<strong>${sponsorshipFee} TRX</strong>`;
                 content += `</div>`;
                 
-                // Energy/Bandwidth costs (if available)
-                if (txData.energyUsed !== undefined && txData.energyUsed > 0) {
-                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem; opacity: 0.8;">`;
-                    content += `<span>Energy Used:</span>`;
-                    content += `<strong>${txData.energyUsed.toLocaleString()} units</strong>`;
+                // Energy rental section
+                if (txData.energyResult && txData.energyResult.rentalTxId) {
+                    const rentalCost = txData.energyResult.cost || 0.30; // Default to typical cost
+                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(0,0,0,0.2); border-radius: 0.25rem;">`;
+                    content += `<span><i class="fas fa-bolt" style="color: #f59e0b;"></i> Energy Rental Cost:</span>`;
+                    content += `<strong>${rentalCost.toFixed(2)} TRX</strong>`;
+                    content += `</div>`;
+                    
+                    if (txData.energyResult.savedTRX) {
+                        content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(34,197,94,0.1); border-radius: 0.25rem;">`;
+                        content += `<span><i class="fas fa-piggy-bank" style="color: #22c55e;"></i> Energy Savings (vs burning TRX):</span>`;
+                        content += `<strong style="color: #22c55e;">-${txData.energyResult.savedTRX.toFixed(2)} TRX</strong>`;
+                        content += `</div>`;
+                    }
+                } else if (txData.energyUsed && txData.energyUsed > 0) {
+                    // Show energy burned if no rental
+                    const energyBurnCost = (txData.energyUsed * 420) / 1_000_000; // 420 SUN per energy
+                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(0,0,0,0.2); border-radius: 0.25rem;">`;
+                    content += `<span><i class="fas fa-fire" style="color: #dc2626;"></i> Energy Burned (${txData.energyUsed.toLocaleString()} units):</span>`;
+                    content += `<strong>${energyBurnCost.toFixed(4)} TRX</strong>`;
                     content += `</div>`;
                 }
                 
-                content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border-color); font-weight: bold;">`;
-                content += `<span>Total Paid:</span>`;
-                content += `<strong style="color: var(--accent-blue);">${baseFee} TRX</strong>`;
+                // Total line
+                const energyCost = txData.energyResult && txData.energyResult.cost ? txData.energyResult.cost : 0;
+                const totalCost = baseFee + energyCost;
+                content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-top: 0.75rem; padding: 0.75rem; background: rgba(59,130,246,0.1); border-radius: 0.25rem; border: 1px solid rgba(59,130,246,0.3);">`;
+                content += `<span style="font-weight: 600; font-size: 1.1rem;"><i class="fas fa-calculator"></i> Total Transaction Cost:</span>`;
+                content += `<strong style="font-size: 1.2rem; color: var(--accent-blue);">${totalCost.toFixed(2)} TRX</strong>`;
+                content += `</div>`;
+                
+                // Add explanation of fees
+                content += `<div style="margin-top: 1rem; padding: 0.75rem; background: rgba(0,0,0,0.1); border-radius: 0.25rem; font-size: 0.875rem;">`;
+                content += `<p style="margin: 0 0 0.5rem 0; font-weight: 600;">Fee Distribution:</p>`;
+                content += `<ul style="margin: 0; padding-left: 1.5rem; list-style: none;">`;
+                if (serviceFee > 0) {
+                    content += `<li><i class="fas fa-chevron-right" style="color: #60a5fa; margin-right: 0.5rem;"></i>Service Fee → Contract treasury for platform operations</li>`;
+                }
+                content += `<li><i class="fas fa-chevron-right" style="color: #10b981; margin-right: 0.5rem;"></i>Sponsorship → Sent directly to recipient's wallet</li>`;
+                content += `<li><i class="fas fa-chevron-right" style="color: #f59e0b; margin-right: 0.5rem;"></i>Energy → Network fees for blockchain processing</li>`;
+                content += `</ul>`;
                 content += `</div>`;
                 
                 content += '</div>';
@@ -17495,7 +17528,8 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     energyUsed: 0, // Will be updated when we get actual energy usage
                     ipfsHash: encryptedData ? encryptedData.ipfsHash : null,
                     encryptionMethod: 'AES-256 with recipient wallet',
-                    energyRentalTxId: energyResult.rentalNeeded ? energyResult.txId : null
+                    energyRentalTxId: energyResult.rentalTxId || null,
+                    energyResult: energyResult // Pass the full energy result for detailed breakdown
                 });
                 
                 // Track energy return for cost savings (if rental was used)
