@@ -42,7 +42,7 @@ const EnergyRental = {
     
     // Get current energy price from rental providers
     async getEnergyPrice() {
-        // Return default pricing as the external APIs are not needed
+        // Return default pricing - no external API needed
         // JustLend charges approximately 30 SUN per energy for immediate return
         return {
             provider: 'JustLend',
@@ -119,15 +119,18 @@ const EnergyRental = {
                 const nodeUrl = window.tronWeb.fullNode.host;
                 console.log('Current node URL:', nodeUrl);
                 
-                // Check if this is actually mainnet
-                const isMainnet = nodeUrl.includes('api.trongrid.io') && !nodeUrl.includes('nile') && !nodeUrl.includes('shasta');
+                // Check if this is actually mainnet - handle both with and without protocol
+                const isMainnet = (nodeUrl.includes('trongrid.io') || nodeUrl.includes('api.trongrid.io')) && 
+                                !nodeUrl.includes('nile') && 
+                                !nodeUrl.includes('shasta');
                 if (!isMainnet) {
-                    console.error('Not on mainnet! JustLend only works on mainnet.');
+                    console.error('Not on mainnet! JustLend only works on mainnet. Node URL:', nodeUrl);
                     return {
                         success: false,
                         error: 'JustLend energy rental only works on TRON mainnet'
                     };
                 }
+                console.log('Mainnet confirmed, proceeding with JustLend rental');
             }
             
             // Also verify the user's address
