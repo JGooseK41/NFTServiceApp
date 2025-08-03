@@ -18,11 +18,11 @@ const EnergyRental = {
     
     // Estimate energy needed for notice creation
     estimateEnergyNeeded(hasDocument, isBatch = false, batchSize = 1) {
-        // Base energy costs (approximate)
-        const BASE_ENERGY = 15000; // Base transaction
-        const DOCUMENT_ENERGY = 8000; // Additional for document
-        const IPFS_ENERGY = 5000; // IPFS metadata
-        const PER_NOTICE_ENERGY = 25000; // Per notice in batch
+        // Updated energy costs based on actual usage (~1 million for NFT minting)
+        const BASE_ENERGY = 800000; // Base NFT minting transaction
+        const DOCUMENT_ENERGY = 100000; // Additional for document storage
+        const IPFS_ENERGY = 50000; // IPFS metadata operations
+        const PER_NOTICE_ENERGY = 900000; // Per notice in batch
         
         let totalEnergy = BASE_ENERGY;
         
@@ -36,8 +36,8 @@ const EnergyRental = {
             totalEnergy = PER_NOTICE_ENERGY * batchSize;
         }
         
-        // Add 10% buffer (reduced from 20% for cost efficiency)
-        return Math.ceil(totalEnergy * 1.1);
+        // Add 20% buffer to ensure enough energy
+        return Math.ceil(totalEnergy * 1.2);
     },
     
     // Get current energy price from rental providers
