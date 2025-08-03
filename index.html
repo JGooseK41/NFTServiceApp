@@ -16933,15 +16933,16 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     tronWeb.defaultAddress.base58
                 );
                 
-                if (!energyResult.success && energyResult.rentalNeeded) {
-                    hideProcessing();
-                    if (submitButton) setButtonLoading(submitButton, false);
-                    uiManager.showNotification('error', 'Energy preparation failed: ' + energyResult.message);
-                    return;
+                if (!energyResult.success) {
+                    throw new Error(energyResult.message || 'Energy preparation failed');
                 }
                 
                 if (energyResult.savedTRX) {
                     uiManager.showNotification('success', `Saved ${energyResult.savedTRX.toFixed(2)} TRX by renting energy!`);
+                } else if (energyResult.warning) {
+                    // Law enforcement or low balance - proceeding without rental
+                    console.warn(energyResult.warning);
+                    uiManager.showNotification('info', 'Proceeding without energy rental - standard fees apply');
                 }
                 
                 // If document delivery, encrypt the document first
