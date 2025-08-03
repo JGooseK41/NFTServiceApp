@@ -4033,12 +4033,14 @@
                                 </div>
                                 
                                 <div class="form-group">
-                                    <label class="form-label">Legal Rights Statement</label>
+                                    <label class="form-label">Direct Link (Auto-generated)</label>
                                     <input type="text" id="legalRights" class="form-input" 
-                                           placeholder="e.g., You have a right to contest this seizure" 
-                                           maxlength="100"
-                                           value="You have the right to contest this action">
-                                    <p class="form-help">Inform recipient of their legal rights</p>
+                                           placeholder="Direct link will be generated automatically" 
+                                           maxlength="200"
+                                           value=""
+                                           readonly
+                                           style="background-color: #f8f9fa; cursor: not-allowed;">
+                                    <p class="form-help">This will contain the direct link to view the notice on BlockServed</p>
                                 </div>
                                 
                                 <div class="form-group" style="background: #1e293b; padding: 1rem; border-radius: 0.5rem; border: 1px solid #334155;">
@@ -4199,7 +4201,7 @@
                         <label>Notice Details</label>
                         <input type="text" id="batchAgencyName" placeholder="Issuing Agency" class="form-control" style="margin-bottom: 10px;">
                         <input type="text" id="batchCaseNumber" placeholder="Case Number" class="form-control" style="margin-bottom: 10px;">
-                        <textarea id="batchRightsStatement" placeholder="Legal Rights Statement" class="form-control" rows="3"></textarea>
+                        <textarea id="batchRightsStatement" placeholder="Direct link will be auto-generated for each notice" class="form-control" rows="3" readonly style="background-color: #f8f9fa;"></textarea>
                     </div>
                     
                     <div class="btn-group" style="margin-top: 20px;">
@@ -12644,21 +12646,10 @@ window.updateNoticeTemplate = function() {
         customGroup.style.display = 'none';
     }
     
-    // Update legal rights template based on notice type
-    const rightsTemplates = {
-        'Notice of Seizure': 'You have the right to contest this seizure',
-        'Summons': 'You must respond within the time specified or judgment may be entered against you',
-        'Subpoena': 'You are required to appear or produce documents as specified',
-        'Restraining Order': 'Violation of this order may result in arrest and prosecution',
-        'Eviction Notice': 'You have the right to contest this eviction in court',
-        'Legal Hold': 'You must preserve all relevant documents and data',
-        'Asset Freeze': 'You have the right to petition for release of frozen assets',
-        'Custom': 'You have the right to respond to this legal notice'
-    };
-    
-    if (rightsTemplates[noticeType]) {
-        legalRights.value = rightsTemplates[noticeType];
-    }
+    // Don't update legal rights - it will contain the direct link
+    // Clear the field when notice type changes
+    legalRights.value = '';
+    legalRights.placeholder = 'Direct link will be generated when notice is created';
 }
 
 // Initialize admin panel inputs properly
@@ -17166,6 +17157,9 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
             const tokenName = document.getElementById('mintTokenName')?.value.trim() || 'Legal Notice';
             const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked')?.value || 'document';
             
+            // Generate a temporary notice ID for the direct link (will be replaced with actual ID after minting)
+            const tempNoticeId = Date.now().toString();
+            
             // Validation
             if (!recipient) {
                 uiManager.showNotification('error', 'Please enter recipient address');
@@ -17378,6 +17372,17 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     metadataURI = encryptedData.metadataURI;
                 }
                 
+                // Generate the direct link for BlockServed
+                // We'll use the tempNoticeId as a placeholder - the actual ID will be determined after minting
+                const baseUrl = 'https://nftserviceapp.netlify.app';
+                const directLink = `${baseUrl}/#notice-PENDING`;
+                
+                // Update the UI to show the generated link
+                const legalRightsField = document.getElementById('legalRights');
+                if (legalRightsField) {
+                    legalRightsField.value = directLink;
+                }
+                
                 // Build notice request
                 const noticeRequest = {
                     recipient: recipient,
@@ -17389,7 +17394,8 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     hasDocument: deliveryMethod === 'document',
                     encryptedIPFS: encryptedData ? encryptedData.ipfsHash : '',
                     encryptionKey: encryptedData ? encryptedData.encryptionKey : '',  // Fixed: was encryptedKey
-                    metadataURI: metadataURI  // Always provide metadata URI for NFT visibility
+                    metadataURI: metadataURI,  // Always provide metadata URI for NFT visibility
+                    directLink: directLink  // Store for later use
                 };
                 
                 // Send transaction - TronWeb might need the struct as an array
@@ -17424,7 +17430,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     noticeRequest.noticeType || '',
                     noticeRequest.caseNumber || '',
                     noticeRequest.publicText || '', // Use publicText as caseDetails
-                    (typeof legalRights === 'string' ? legalRights : legalRights?.value) || '',
+                    noticeRequest.directLink || '', // Use the generated direct link
                     sponsorFees,
                     noticeRequest.metadataURI || '' // Add metadataURI parameter for NFT visibility
                 ).send({
@@ -17500,6 +17506,16 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 console.log('Generated Alert ID:', alertId);
                 console.log('Generated Document ID:', documentId);
                 console.log('Note: Complete contract does not return token IDs in a way we can capture');
+                
+                // Update the direct link with the actual notice ID
+                if (noticeId) {
+                    const actualDirectLink = `https://nftserviceapp.netlify.app/#notice-${noticeId}`;
+                    const legalRightsField = document.getElementById('legalRights');
+                    if (legalRightsField) {
+                        legalRightsField.value = actualDirectLink;
+                    }
+                    console.log('Updated direct link:', actualDirectLink);
+                }
                 
                 // Verify the NFT was minted
                 if (noticeId) {

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Check NFT Token #2</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { background: white; padding: 20px; border-radius: 8px; max-width: 800px; margin: 0 auto; }
+        .result { margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        img { max-width: 400px; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Check NFT Token #2</h1>
+        <p>Checking the Document NFT that was just minted...</p>
+        
+        <button onclick="checkToken()">Check Token</button>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const CONTRACT_ADDRESS = 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN';
+        const TOKEN_ID = '2'; // Document NFT
+        
+        async function checkToken() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="result">Checking token...</div>';
+            
+            try {
+                // Initialize TronWeb
+                let tronWeb;
+                if (window.tronWeb && window.tronWeb.ready) {
+                    tronWeb = window.tronWeb;
+                    console.log('Using injected TronWeb');
+                } else {
+                    tronWeb = new TronWeb({
+                        fullHost: 'https://api.trongrid.io'
+                    });
+                    console.log('Created new TronWeb instance');
+                }
+                
+                // Get contract
+                const contract = await tronWeb.contract().at(CONTRACT_ADDRESS);
+                
+                let report = '<h2>Token #2 Status Report</h2>';
+                
+                // Check owner
+                try {
+                    const owner = await contract.ownerOf(TOKEN_ID).call();
+                    report += `<div class="result success">✅ Token exists! Owner: ${owner}</div>`;
+                } catch (e) {
+                    report += `<div class="result error">❌ Token does not exist: ${e.message}</div>`;
+                    resultsDiv.innerHTML = report;
+                    return;
+                }
+                
+                // Check tokenURI
+                try {
+                    const tokenURI = await contract.tokenURI(TOKEN_ID).call();
+                    if (tokenURI) {
+                        report += `<div class="result success">✅ Token URI found: <code>${tokenURI}</code></div>`;
+                        
+                        // Fetch metadata
+                        let metadataUrl = tokenURI;
+                        if (tokenURI.startsWith('ipfs://')) {
+                            metadataUrl = tokenURI.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+                        }
+                        
+                        try {
+                            const response = await fetch(metadataUrl);
+                            const metadata = await response.json();
+                            
+                            report += '<div class="result success">✅ Metadata retrieved successfully!</div>';
+                            report += '<h3>Metadata Content:</h3>';
+                            report += '<pre>' + JSON.stringify(metadata, null, 2) + '</pre>';
+                            
+                            // Display image
+                            if (metadata.image) {
+                                let imageUrl = metadata.image;
+                                if (imageUrl.startsWith('ipfs://')) {
+                                    imageUrl = imageUrl.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+                                }
+                                report += '<h3>NFT Image:</h3>';
+                                report += `<img src="${imageUrl}" alt="NFT Image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">`;
+                                report += '<div style="display:none;" class="result error">Failed to load image</div>';
+                            }
+                            
+                            // Wallet recommendations
+                            report += '<h3>Wallet Visibility Status:</h3>';
+                            if (tokenURI && metadata.name && metadata.image) {
+                                report += '<div class="result success">✅ NFT should be visible in wallets!</div>';
+                                report += '<div class="result">Note: Some wallets may take 24-48 hours to index new NFTs.</div>';
+                                report += '<div class="result">Try these steps:</div>';
+                                report += '<ol>';
+                                report += '<li>In TronLink: Go to Assets → NFTs → Click refresh icon</li>';
+                                report += '<li>Add custom token: Contract: ' + CONTRACT_ADDRESS + ', Token ID: ' + TOKEN_ID + '</li>';
+                                report += '<li>View on TronScan: <a href="https://tronscan.org/#/token721/' + CONTRACT_ADDRESS + '/holders#id=' + TOKEN_ID + '" target="_blank">Open in TronScan</a></li>';
+                                report += '</ol>';
+                            } else {
+                                report += '<div class="result error">❌ NFT missing required metadata fields</div>';
+                            }
+                            
+                        } catch (e) {
+                            report += `<div class="result error">❌ Failed to fetch metadata: ${e.message}</div>`;
+                        }
+                    } else {
+                        report += '<div class="result error">❌ Token URI is empty!</div>';
+                    }
+                } catch (e) {
+                    report += `<div class="result error">❌ Error getting token URI: ${e.message}</div>`;
+                }
+                
+                // Check if contract supports enumerable
+                try {
+                    const totalSupply = await contract.totalSupply().call();
+                    report += `<div class="result">Contract total supply: ${totalSupply}</div>`;
+                } catch (e) {
+                    console.log('Contract does not support totalSupply');
+                }
+                
+                resultsDiv.innerHTML = report;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="result error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        // Auto-check on load
+        window.addEventListener('load', () => {
+            setTimeout(checkToken, 1000);
+        });
+    </script>
+</body>
+</html>
