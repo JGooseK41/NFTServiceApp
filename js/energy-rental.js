@@ -174,7 +174,7 @@ const EnergyRental = {
                 console.log('Contract methods found:', methods);
             }
             
-            // JustLend Energy Market ABI - try different method names
+            // JustLend Energy Rental Contract ABI based on official documentation
             const JUSTLEND_ABI = [{
                 "inputs": [
                     {"name": "receiver", "type": "address"},
@@ -184,16 +184,6 @@ const EnergyRental = {
                 "name": "rentResource",
                 "outputs": [],
                 "stateMutability": "payable",
-                "type": "function"
-            }, {
-                "inputs": [
-                    {"name": "receiver", "type": "address"},
-                    {"name": "freezeAmount", "type": "uint256"},
-                    {"name": "resource", "type": "uint256"}
-                ],
-                "name": "order",
-                "outputs": [],
-                "stateMutability": "payable", 
                 "type": "function"
             }];
             
@@ -220,7 +210,14 @@ const EnergyRental = {
             // The formula is: trxAmount = energyAmount / energyStakePerTrx
             // Default energyStakePerTrx is approximately 1500 energy per TRX
             const energyStakePerTrx = 1500;
-            const trxAmount = Math.ceil(amount / energyStakePerTrx) * 1_000_000; // Convert to SUN
+            let trxAmount = Math.ceil(amount / energyStakePerTrx) * 1_000_000; // Convert to SUN
+            
+            // Ensure minimum 1 TRX requirement
+            const MIN_TRX_AMOUNT = 1_000_000; // 1 TRX in SUN
+            if (trxAmount < MIN_TRX_AMOUNT) {
+                console.log(`TRX amount ${trxAmount / 1_000_000} is below minimum, setting to 1 TRX`);
+                trxAmount = MIN_TRX_AMOUNT;
+            }
             
             // For short-term rental (immediate use), we need to calculate prepayment
             // Prepay = trxAmount * rentalRate * (duration + 86400 + liquidateThreshold) + fee
@@ -244,17 +241,17 @@ const EnergyRental = {
                 totalPrepaymentTRX: totalPrepayment / 1_000_000
             });
             
-            // Call rentResource with correct parameters
-            // Based on research, the parameters might be:
-            // - receiver: address to receive the energy
-            // - amount: could be energy amount OR TRX amount (testing both)
-            // - resourceType: 0 for energy, 1 for bandwidth
+            // Call rentResource with correct parameters based on JustLend docs:
+            // - receiver: address to receive the energy (not a contract or unactivated account)
+            // - amount: TRX amount in SUN (minimum 1 TRX = 1,000,000 SUN)
+            // - resourceType: 0 for bandwidth, 1 for energy
             console.log('Calling rentResource with parameters:', {
                 receiver: receiverAddress,
+                amount: trxAmount,
                 amountInTRX: trxAmount / 1_000_000,
-                amountInEnergy: amount,
-                resourceType: 0,
+                resourceType: 1, // 1 for energy!
                 callValue: totalPrepayment,
+                callValueInTRX: totalPrepayment / 1_000_000,
                 feeLimit: 100_000_000
             });
             
@@ -262,12 +259,11 @@ const EnergyRental = {
             try {
                 // Check which method exists
                 if (contract.rentResource) {
-                    console.log('Using rentResource method with energy amount');
-                    // Try with energy amount first
+                    console.log('Using rentResource method');
                     tx = await contract.rentResource(
                         receiverAddress,
-                        amount, // Energy amount (not TRX)
-                        0 // 0 for energy, 1 for bandwidth
+                        trxAmount, // TRX amount in SUN (not energy amount)
+                        1 // 1 for energy, 0 for bandwidth
                     ).send({
                         feeLimit: 100_000_000,
                         callValue: totalPrepayment, // Total prepayment in SUN
@@ -277,8 +273,8 @@ const EnergyRental = {
                     console.log('Using order method as fallback');
                     tx = await contract.order(
                         receiverAddress,
-                        amount, // Try energy amount here too
-                        0 // 0 for energy
+                        trxAmount, // TRX amount in SUN
+                        1 // 1 for energy
                     ).send({
                         feeLimit: 100_000_000,
                         callValue: totalPrepayment,
