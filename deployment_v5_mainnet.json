@@ -1,0 +1,22 @@
+{
+  "network": "mainnet",
+  "contractName": "LegalNoticeNFT_v5_Enumerable",
+  "contractAddress": "TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN",
+  "transactionHash": "414ab4ff47b93fdf61f457f05b8ee4ed4db08fb04a438fb8b73e5a5dc069df96",
+  "deploymentDate": "2025-08-03",
+  "deployer": "Your deployer address",
+  "energyUsed": 5062924,
+  "deploymentCost": "0 TRX (energy rented)",
+  "features": {
+    "ipfsSupport": true,
+    "batchServing": true,
+    "trc721Enumerable": true,
+    "serverIdSystem": true,
+    "serviceAttemptTracking": true
+  },
+  "contractUrls": {
+    "tronscan": "https://tronscan.org/#/contract/TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN",
+    "verification": "https://tronscan.org/#/contract/TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN/code",
+    "transaction": "https://tronscan.org/#/transaction/414ab4ff47b93fdf61f457f05b8ee4ed4db08fb04a438fb8b73e5a5dc069df96"
+  }
+}

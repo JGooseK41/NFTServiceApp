@@ -21,6 +21,7 @@
     <script src="js/simple-encryption.js?v=2"></script>
     <script src="js/simplified-integration.js"></script>
     <script src="js/thumbnail-generator-v5.js?v=2"></script>
+    <script src="js/energy-rental.js"></script>
     <script>
         // Pinata IPFS Configuration - shared across all users
         window.PINATA_CONFIG = {
@@ -31,8 +32,8 @@
         
         // Contract addresses for different networks
         window.CONTRACT_ADDRESSES = {
-            mainnet: 'REPLACE_WITH_MAINNET_CONTRACT_ADDRESS', // TODO: Deploy and update
-            nile: 'THUoYefQtWgkSmmFqqJpYERCuqLw1As2hL', // Current testnet contract
+            mainnet: 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN', // Mainnet contract - Deployed Aug 3, 2025
+            nile: 'THUoYefQtWgkSmmFqqJpYERCuqLw1As2hL', // Testnet contract
             shasta: '' // Not deployed
         };
     </script>
@@ -2957,7 +2958,7 @@
                             <i class="fas fa-external-link-alt"></i>
                         </a>
                     </div>
-                    <p class="form-help">⚠️ Make sure your TronLink wallet is connected to <strong>Nile Testnet</strong>, not mainnet!</p>
+                    <p class="form-help" id="networkWarning">⚠️ Detecting network...</p>
                 </div>
                 <button class="btn btn-primary" onclick="connectContracts()" id="connectContractBtn">
                     <i class="fas fa-plug"></i>
@@ -8176,17 +8177,28 @@ function useConnectedAddressForFeeCollector() {
                 
                 console.log('Sending batch of', batchNotices.length, 'notices');
                 
-                // Check and rent energy if needed for batch transaction
-                const estimatedEnergyPerNotice = ENERGY_RENTAL_CONFIG.energyPerNotice;
-                const totalEstimatedEnergy = estimatedEnergyPerNotice * recipients.length;
-                const energyRentalResult = await rentEnergyIfNeeded(totalEstimatedEnergy);
+                // Estimate energy needed for batch and prepare rental using new EnergyRental module
+                const hasDocument = this.document ? true : false;
+                const totalEstimatedEnergy = EnergyRental.estimateEnergyNeeded(hasDocument, true, recipients.length);
                 
-                if (!energyRentalResult.success) {
-                    throw new Error(energyRentalResult.error || 'Energy rental failed');
+                console.log(`Checking energy for batch of ${recipients.length} notices:`, {
+                    totalEnergy: totalEstimatedEnergy,
+                    perNotice: Math.round(totalEstimatedEnergy / recipients.length)
+                });
+                
+                // Prepare energy (rent if needed)
+                const energyResult = await EnergyRental.prepareEnergyForTransaction(
+                    totalEstimatedEnergy,
+                    tronWeb.defaultAddress.base58
+                );
+                
+                if (!energyResult.success) {
+                    throw new Error(energyResult.message || 'Energy preparation failed for batch');
                 }
                 
-                if (energyRentalResult.rented) {
-                    console.log(`Energy rented successfully for batch of ${recipients.length} notices`);
+                if (energyResult.rentalNeeded && energyResult.savedTRX) {
+                    console.log(`Saved ${energyResult.savedTRX.toFixed(2)} TRX by renting energy for batch of ${recipients.length} notices`);
+                    uiManager.showNotification('success', `Saved ${energyResult.savedTRX.toFixed(2)} TRX on energy costs!`);
                 }
                 
                 // Call v4 contract's serveNoticeBatch function
@@ -11190,19 +11202,11 @@ async function checkUserRoles() {
             }
         }
         
-        // Energy rental configuration
+        // Energy rental configuration - DEPRECATED - Now using EnergyRental module
+        // Keeping for backward compatibility temporarily
         window.ENERGY_RENTAL_CONFIG = {
-            // TRONSave API for energy rental
-            apiUrl: 'https://api.tronsave.io/v0/order/energy',
-            // Energy required per notice (increased based on actual usage)
-            energyPerNotice: 500000,  // Increased from 250k to 500k
-            // Buffer to ensure enough energy (20% extra)
+            energyPerNotice: 500000,  // Used by old code
             energyBuffer: 1.2,
-            // Maximum rental price in TRX per 100k energy
-            maxPricePerUnit: 15,
-            // Rental duration in hours
-            rentalDuration: 1,
-            // Minimum energy to trigger rental
             minEnergyThreshold: 50000
         };
         
@@ -12661,23 +12665,57 @@ document.addEventListener('keydown', function(event) {
                 
                 const node = await tronWeb.getNodeInfo();
                 const contractAddressField = document.getElementById('contractAddress');
+                const networkWarning = document.getElementById('networkWarning');
+                const tronscanLink = document.querySelector('a[href*="tronscan.org"]');
+                
                 if (!contractAddressField) return;
                 
-                // Detect network based on node info
+                // Detect network based on node info or fullNode URL
+                let detectedNetwork = 'unknown';
                 if (node && node.network) {
                     if (node.network.toLowerCase().includes('mainnet')) {
-                        currentNetwork = 'mainnet';
-                        contractAddressField.value = window.CONTRACT_ADDRESSES.mainnet;
-                        console.log('Detected TRON Mainnet');
+                        detectedNetwork = 'mainnet';
                     } else if (node.network.toLowerCase().includes('nile')) {
-                        currentNetwork = 'nile';
-                        contractAddressField.value = window.CONTRACT_ADDRESSES.nile;
-                        console.log('Detected TRON Nile Testnet');
+                        detectedNetwork = 'nile';
                     } else if (node.network.toLowerCase().includes('shasta')) {
-                        currentNetwork = 'shasta';
-                        contractAddressField.value = window.CONTRACT_ADDRESSES.shasta || '';
-                        console.log('Detected TRON Shasta Testnet');
+                        detectedNetwork = 'shasta';
                     }
+                } else if (tronWeb.fullNode && tronWeb.fullNode.host) {
+                    if (tronWeb.fullNode.host.includes('trongrid.io') && !tronWeb.fullNode.host.includes('nile') && !tronWeb.fullNode.host.includes('shasta')) {
+                        detectedNetwork = 'mainnet';
+                    } else if (tronWeb.fullNode.host.includes('nile')) {
+                        detectedNetwork = 'nile';
+                    } else if (tronWeb.fullNode.host.includes('shasta')) {
+                        detectedNetwork = 'shasta';
+                    }
+                }
+                
+                // Update UI based on detected network
+                if (detectedNetwork === 'mainnet') {
+                    currentNetwork = 'mainnet';
+                    contractAddressField.value = window.CONTRACT_ADDRESSES.mainnet;
+                    if (networkWarning) networkWarning.innerHTML = '✅ Connected to <strong>TRON Mainnet</strong>';
+                    if (tronscanLink) {
+                        tronscanLink.href = `https://tronscan.org/#/contract/${window.CONTRACT_ADDRESSES.mainnet}`;
+                        tronscanLink.title = 'View on TronScan';
+                    }
+                    console.log('Detected TRON Mainnet');
+                } else if (detectedNetwork === 'nile') {
+                    currentNetwork = 'nile';
+                    contractAddressField.value = window.CONTRACT_ADDRESSES.nile;
+                    if (networkWarning) networkWarning.innerHTML = '⚠️ Connected to <strong>Nile Testnet</strong> - Switch to Mainnet for production';
+                    if (tronscanLink) {
+                        tronscanLink.href = `https://nile.tronscan.org/#/contract/${window.CONTRACT_ADDRESSES.nile}`;
+                        tronscanLink.title = 'View on Nile TronScan';
+                    }
+                    console.log('Detected TRON Nile Testnet');
+                } else if (detectedNetwork === 'shasta') {
+                    currentNetwork = 'shasta';
+                    contractAddressField.value = '';
+                    if (networkWarning) networkWarning.innerHTML = '❌ Connected to <strong>Shasta Testnet</strong> - Contract not deployed';
+                    console.log('Detected TRON Shasta Testnet - Contract not deployed');
+                } else {
+                    if (networkWarning) networkWarning.innerHTML = '⚠️ Unknown network - Please connect to TRON Mainnet';
                 }
             } catch (error) {
                 console.error('Error detecting network:', error);
@@ -16859,6 +16897,28 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 const fee = await calculateFeeFromConstants(tronWeb.defaultAddress.base58);
                 console.log('Fee calculated:', fee, 'sun =', fee/1000000, 'TRX');
                 
+                // Estimate energy needed and prepare rental
+                showProcessing('Checking energy requirements...');
+                const hasDocument = deliveryMethod === 'document' && uploadedImage;
+                const estimatedEnergy = EnergyRental.estimateEnergyNeeded(hasDocument);
+                
+                // Prepare energy (rent if needed)
+                const energyResult = await EnergyRental.prepareEnergyForTransaction(
+                    estimatedEnergy,
+                    tronWeb.defaultAddress.base58
+                );
+                
+                if (!energyResult.success && energyResult.rentalNeeded) {
+                    hideProcessing();
+                    if (submitButton) setButtonLoading(submitButton, false);
+                    uiManager.showNotification('error', 'Energy preparation failed: ' + energyResult.message);
+                    return;
+                }
+                
+                if (energyResult.savedTRX) {
+                    uiManager.showNotification('success', `Saved ${energyResult.savedTRX.toFixed(2)} TRX by renting energy!`);
+                }
+                
                 // If document delivery, encrypt the document first
                 let encryptedData = null;
                 if (deliveryMethod === 'document' && uploadedImage) {
@@ -17004,8 +17064,11 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     console.warn('Energy costs will be additional on testnet!');
                 }
                 
-                // Check and rent energy if needed before transaction
-                const estimatedEnergy = ENERGY_RENTAL_CONFIG.energyPerNotice;
+                // Estimate energy needed and prepare rental using new EnergyRental module
+                showProcessing('Checking energy requirements...');
+                const hasDocument = deliveryMethod === 'document' && uploadedImage;
+                const estimatedEnergy = EnergyRental.estimateEnergyNeeded(hasDocument);
+                
                 console.log('Energy check:', {
                     required: estimatedEnergy,
                     network: currentNetwork,
@@ -17013,16 +17076,20 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     estimatedCost: `${Math.round(estimatedEnergy * 420 / 1000000)} TRX if burned`
                 });
                 
-                const energyRentalResult = await rentEnergyIfNeeded(estimatedEnergy);
+                // Prepare energy (rent if needed)
+                const energyResult = await EnergyRental.prepareEnergyForTransaction(
+                    estimatedEnergy,
+                    tronWeb.defaultAddress.base58
+                );
                 
-                if (!energyRentalResult.success) {
-                    throw new Error(energyRentalResult.error || 'Energy rental failed');
+                if (!energyResult.success) {
+                    throw new Error(energyResult.message || 'Energy preparation failed');
                 }
                 
-                if (energyRentalResult.rented) {
-                    showProcessing(`Energy rented successfully. Sending transaction...`);
-                } else if (energyRentalResult.warning) {
-                    console.warn('Energy warning:', energyRentalResult.warning);
+                if (energyResult.rentalNeeded && energyResult.savedTRX) {
+                    showProcessing(`Saved ${energyResult.savedTRX.toFixed(2)} TRX by renting energy! Creating notice...`);
+                } else {
+                    showProcessing('Creating legal notice...');
                 }
                 
                 // Complete contract uses serveNotice with different parameters
