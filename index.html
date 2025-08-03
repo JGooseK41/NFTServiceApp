@@ -17064,33 +17064,8 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     console.warn('Energy costs will be additional on testnet!');
                 }
                 
-                // Estimate energy needed and prepare rental using new EnergyRental module
-                showProcessing('Checking energy requirements...');
-                const hasDocument = deliveryMethod === 'document' && uploadedImage;
-                const estimatedEnergy = EnergyRental.estimateEnergyNeeded(hasDocument);
-                
-                console.log('Energy check:', {
-                    required: estimatedEnergy,
-                    network: currentNetwork,
-                    feeLimit: '300 TRX',
-                    estimatedCost: `${Math.round(estimatedEnergy * 420 / 1000000)} TRX if burned`
-                });
-                
-                // Prepare energy (rent if needed)
-                const energyResult = await EnergyRental.prepareEnergyForTransaction(
-                    estimatedEnergy,
-                    tronWeb.defaultAddress.base58
-                );
-                
-                if (!energyResult.success) {
-                    throw new Error(energyResult.message || 'Energy preparation failed');
-                }
-                
-                if (energyResult.rentalNeeded && energyResult.savedTRX) {
-                    showProcessing(`Saved ${energyResult.savedTRX.toFixed(2)} TRX by renting energy! Creating notice...`);
-                } else {
-                    showProcessing('Creating legal notice...');
-                }
+                // Energy rental already handled above, proceed with transaction
+                showProcessing('Sending transaction...');
                 
                 // Complete contract uses serveNotice with different parameters
                 // serveNotice(recipient, encryptedIPFS, decryptionKey, issuingAgency, noticeType, caseNumber, caseDetails, legalRights, sponsorFees)
