@@ -457,6 +457,18 @@ const EnergyRental = {
             
             // If rental failed, return failure so we can show proper dialog
             console.warn('Energy rental failed - user needs to decide');
+            
+            // Ensure savings values are valid numbers
+            const burnCost = savings.burningCostTRX || 0;
+            const rentalCost = savings.rentalCostTRX || 0;
+            const potentialSave = savings.savingsTRX || 0;
+            
+            console.log('Rental failure - cost estimates:', {
+                burnCost,
+                rentalCost,
+                potentialSave
+            });
+            
             return {
                 success: false,
                 message: 'Energy rental unavailable',
@@ -464,9 +476,9 @@ const EnergyRental = {
                 energyNeeded: energyNeeded,
                 rentalNeeded: true,
                 rentalFailed: true,
-                estimatedBurnCost: savings.burningCostTRX,
-                estimatedRentalCost: savings.rentalCostTRX,
-                potentialSavings: savings.savingsTRX
+                estimatedBurnCost: burnCost,
+                estimatedRentalCost: rentalCost,
+                potentialSavings: potentialSave
             };
             
         } catch (error) {
@@ -521,6 +533,15 @@ const EnergyRental = {
     
     // Show rental confirmation dialog
     async showRentalDialog(savings) {
+        // Validate savings data
+        const validSavings = {
+            energyNeeded: savings.energyNeeded || 0,
+            burningCostTRX: savings.burningCostTRX || 0,
+            rentalCostTRX: savings.rentalCostTRX || 0,
+            savingsTRX: savings.savingsTRX || 0,
+            savingsPercent: savings.savingsPercent || 0
+        };
+        
         return new Promise((resolve) => {
             const modal = document.createElement('div');
             modal.className = 'modal';
@@ -530,7 +551,7 @@ const EnergyRental = {
                     <div class="modal-header">
                         <h3 class="modal-title">
                             <i class="fas fa-bolt" style="color: #f59e0b;"></i>
-                            Energy Rental - Save ${savings.savingsPercent}%
+                            Energy Rental - Save ${validSavings.savingsPercent}%
                         </h3>
                     </div>
                     <div class="modal-body">
@@ -545,19 +566,19 @@ const EnergyRental = {
                         <div style="margin: 1.5rem 0;">
                             <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #e5e7eb;">
                                 <span>Energy Needed:</span>
-                                <span style="font-weight: 600;">${savings.energyNeeded.toLocaleString()}</span>
+                                <span style="font-weight: 600;">${validSavings.energyNeeded.toLocaleString()}</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #e5e7eb;">
                                 <span>Cost without rental:</span>
-                                <span style="text-decoration: line-through; color: #6b7280;">${savings.burningCostTRX.toFixed(2)} TRX</span>
+                                <span style="text-decoration: line-through; color: #6b7280;">${validSavings.burningCostTRX.toFixed(2)} TRX</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #e5e7eb;">
                                 <span>Cost with rental:</span>
-                                <span style="font-weight: 600; color: #10b981;">${savings.rentalCostTRX.toFixed(2)} TRX</span>
+                                <span style="font-weight: 600; color: #10b981;">${validSavings.rentalCostTRX.toFixed(2)} TRX</span>
                             </div>
                             <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; font-size: 1.125rem;">
                                 <span style="font-weight: 600;">You Save:</span>
-                                <span style="font-weight: 700; color: #10b981;">${savings.savingsTRX.toFixed(2)} TRX</span>
+                                <span style="font-weight: 700; color: #10b981;">${validSavings.savingsTRX.toFixed(2)} TRX</span>
                             </div>
                         </div>
                         
