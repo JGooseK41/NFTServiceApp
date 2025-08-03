@@ -119,9 +119,17 @@ const EnergyRental = {
             // JustLend Energy Rental Contract
             const ENERGY_RENTAL_CONTRACT = 'TU2MJ5Veik1LRAgjeSzEdvmDYx7mefJZvd';
             
-            // Check if we're on mainnet
-            const node = await window.tronWeb.getNodeInfo();
-            const isMainnet = !node.network || node.network.toLowerCase().includes('mainnet');
+            // Check if we're on mainnet using fullNode URL
+            let isMainnet = true;
+            try {
+                if (window.tronWeb.fullNode && window.tronWeb.fullNode.host) {
+                    const nodeUrl = window.tronWeb.fullNode.host;
+                    isMainnet = nodeUrl.includes('trongrid.io') && !nodeUrl.includes('nile') && !nodeUrl.includes('shasta');
+                    console.log('JustLend network check - nodeUrl:', nodeUrl, 'isMainnet:', isMainnet);
+                }
+            } catch (e) {
+                console.error('Error checking network:', e);
+            }
             
             if (!isMainnet) {
                 console.warn('JustLend only available on mainnet');
@@ -283,6 +291,15 @@ const EnergyRental = {
     
     // Main rental function - tries multiple providers
     async rentEnergy(amount, receiverAddress) {
+        // Check if law enforcement user (2 TRX fee or less)
+        if (window._currentTransactionFee && window._currentTransactionFee <= 2000000) {
+            console.log('Law enforcement user detected - skipping all rental attempts');
+            return {
+                success: false,
+                error: 'Law enforcement users do not need energy rental'
+            };
+        }
+        
         // Try JustLend first
         let result = await this.rentFromJustLend(amount, receiverAddress);
         if (result.success) return result;
@@ -334,8 +351,16 @@ const EnergyRental = {
             const energyToRent = energyNeeded - currentEnergy;
             
             // Check if we're on mainnet (energy rental only works on mainnet)
-            const node = await window.tronWeb.getNodeInfo();
-            const isMainnet = !node.network || node.network.toLowerCase().includes('mainnet');
+            let isMainnet = true;
+            try {
+                if (window.tronWeb.fullNode && window.tronWeb.fullNode.host) {
+                    const nodeUrl = window.tronWeb.fullNode.host;
+                    isMainnet = nodeUrl.includes('trongrid.io') && !nodeUrl.includes('nile') && !nodeUrl.includes('shasta');
+                    console.log('Network check for energy rental - nodeUrl:', nodeUrl, 'isMainnet:', isMainnet);
+                }
+            } catch (e) {
+                console.error('Error checking network:', e);
+            }
             
             if (!isMainnet) {
                 console.log('Not on mainnet - skipping energy rental (testnet detected)');
