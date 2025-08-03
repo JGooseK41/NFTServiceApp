@@ -239,7 +239,9 @@ const EnergyRental = {
             // Prepay = trxAmount * rentalRate * (duration + 86400 + liquidateThreshold) + fee
             // For immediate use, we'll use minimal duration (1 hour = 3600 seconds)
             const duration = 3600; // 1 hour in seconds
-            const rentalRate = 1.16e-9; // Approximate rental rate per second (1% daily rate)
+            // JustLend uses a higher rate - approximately 1% daily = 0.01 / 86400 seconds
+            // But the rate is scaled by 1e18 in the contract, so we use the raw value
+            const rentalRate = 1.16e-7; // Increased rate for proper calculation
             const liquidateThreshold = 0; // Default
             const minFee = 40 * 1_000_000; // 40 TRX minimum fee in SUN
             
@@ -257,8 +259,27 @@ const EnergyRental = {
             }
             
             // Calculate prepayment with actual rate
-            const rentalCost = Math.ceil(trxAmount * actualRentalRate * (duration + 86400 + liquidateThreshold));
-            const totalPrepayment = rentalCost + minFee;
+            // According to JustLend docs: Prepay = trxAmount * rentalRate * (duration + 86400 + liquidateThreshold) + fee
+            // The 86400 represents 24 hours (1 day) which is added to the duration
+            const totalSeconds = duration + 86400 + liquidateThreshold; // 3600 + 86400 = 90000 seconds
+            const rentalCost = Math.ceil(trxAmount * actualRentalRate * totalSeconds);
+            
+            // The prepayment should be significant - if it's too low, increase it
+            const calculatedPrepayment = rentalCost + minFee;
+            
+            // Ensure minimum prepayment is reasonable (at least 10% of TRX amount + fee)
+            const minReasonablePrepayment = Math.ceil(trxAmount * 0.1) + minFee;
+            const totalPrepayment = Math.max(calculatedPrepayment, minReasonablePrepayment);
+            
+            console.log('Prepayment calculation:', {
+                rentalRate: actualRentalRate,
+                totalSeconds,
+                rentalCost: rentalCost / 1_000_000,
+                minFee: minFee / 1_000_000,
+                calculatedPrepayment: calculatedPrepayment / 1_000_000,
+                minReasonablePrepayment: minReasonablePrepayment / 1_000_000,
+                finalPrepayment: totalPrepayment / 1_000_000
+            });
             
             console.log('JustLend rental calculation:', {
                 energyNeeded: amount,
