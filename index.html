@@ -8801,7 +8801,7 @@ function useConnectedAddressForFeeCollector() {
                 content += '</ol>';
                 
                 if (txData.noticeId) {
-                    const directLink = `https://nftserviceapp.netlify.app/#notice-${txData.noticeId}`;
+                    const directLink = `https://blockserved.com/#notice-${txData.noticeId}`;
                     
                     content += '<div style="margin-top: 1rem; padding: 1rem; background: #fef3c7; border-radius: 0.375rem;">';
                     content += '<strong style="color: #92400e;">Recipient Link:</strong><br>';
@@ -17374,7 +17374,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 
                 // Generate the direct link for BlockServed
                 // We'll use the tempNoticeId as a placeholder - the actual ID will be determined after minting
-                const baseUrl = 'https://nftserviceapp.netlify.app';
+                const baseUrl = 'https://blockserved.com';
                 const directLink = `${baseUrl}/#notice-PENDING`;
                 
                 // Update the UI to show the generated link
@@ -17509,7 +17509,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 
                 // Update the direct link with the actual notice ID
                 if (noticeId) {
-                    const actualDirectLink = `https://nftserviceapp.netlify.app/#notice-${noticeId}`;
+                    const actualDirectLink = `https://blockserved.com/#notice-${noticeId}`;
                     const legalRightsField = document.getElementById('legalRights');
                     if (legalRightsField) {
                         legalRightsField.value = actualDirectLink;
@@ -17658,7 +17658,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                             recipient,
                             3500000, // 3.5 TRX (~$1 USD at ~$0.30/TRX, well above TronScan's $0.50 filter)
                             {
-                                memo: `LEGAL NOTICE #${noticeId} - https://nftserviceapp.netlify.app/#notice-${noticeId}`
+                                memo: `LEGAL NOTICE #${noticeId} - https://blockserved.com/#notice-${noticeId}`
                             }
                         );
                         console.log('   ✓ TRX sent:', notificationTx);
@@ -17673,7 +17673,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     console.log('3. NFT minted to recipient wallet: Notice ID #' + noticeId);
                     
                     // Strategy 4: Log the direct link for process server to share
-                    const directLink = `https://nftserviceapp.netlify.app/#notice-${noticeId}`;
+                    const directLink = `https://blockserved.com/#notice-${noticeId}`;
                     console.log('\n=== BLOCKCHAIN SERVICE COMPLETE ===');
                     console.log('Direct link:', directLink);
                     console.log('\nService Status:');
