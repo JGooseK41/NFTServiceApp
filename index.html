@@ -2954,11 +2954,14 @@
                         <button class="btn btn-secondary" onclick="copyAddress(document.getElementById('contractAddress').value)" title="Copy address">
                             <i class="fas fa-copy"></i>
                         </button>
+                        <button class="btn btn-secondary" onclick="detectNetworkAndSetContract()" title="Refresh network detection">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
                         <a href="#" id="contractTronscanLink" target="_blank" class="btn btn-secondary" title="View on TronScan">
                             <i class="fas fa-external-link-alt"></i>
                         </a>
                     </div>
-                    <p class="form-help" id="networkWarning">⚠️ Detecting network...</p>
+                    <p class="form-help" id="networkWarning">⚠️ Detecting network... <a href="#" onclick="detectNetworkAndSetContract(); return false;" style="color: var(--accent-blue);">Refresh</a></p>
                 </div>
                 <button class="btn btn-primary" onclick="connectContracts()" id="connectContractBtn">
                     <i class="fas fa-plug"></i>
@@ -12362,6 +12365,9 @@ async function checkUserRoles() {
                 }
             }
             
+            // Set up network monitoring
+            setupNetworkMonitoring();
+            
             // Load saved Pinata keys if in admin panel
             const savedApiKey = localStorage.getItem('pinataApiKey');
             const savedSecretKey = localStorage.getItem('pinataSecretKey');
@@ -12663,6 +12669,59 @@ document.addEventListener('keydown', function(event) {
             });
         };
 
+        // Set up network monitoring to detect wallet network changes
+        function setupNetworkMonitoring() {
+            if (!window.tronWeb) return;
+            
+            let lastNetwork = null;
+            
+            // Check network every 2 seconds
+            setInterval(async () => {
+                if (!window.tronWeb || !window.tronWeb.ready) return;
+                
+                try {
+                    const currentNode = window.tronWeb.fullNode.host;
+                    
+                    // Detect network from node URL
+                    let currentNetwork = 'unknown';
+                    if (currentNode.includes('trongrid.io') && !currentNode.includes('nile') && !currentNode.includes('shasta')) {
+                        currentNetwork = 'mainnet';
+                    } else if (currentNode.includes('nile')) {
+                        currentNetwork = 'nile';
+                    } else if (currentNode.includes('shasta')) {
+                        currentNetwork = 'shasta';
+                    }
+                    
+                    // If network changed, update everything
+                    if (lastNetwork && lastNetwork !== currentNetwork) {
+                        console.log(`Network changed from ${lastNetwork} to ${currentNetwork}`);
+                        
+                        // Update UI
+                        await detectNetworkAndSetContract();
+                        
+                        // Show notification
+                        uiManager.showNotification('info', `Network switched to ${currentNetwork === 'mainnet' ? 'Mainnet' : currentNetwork === 'nile' ? 'Nile Testnet' : 'Shasta Testnet'}`);
+                        
+                        // Reconnect contract if needed
+                        if (legalContract) {
+                            const contractAddress = document.getElementById('contractAddress')?.value;
+                            if (contractAddress) {
+                                try {
+                                    await connectContracts();
+                                } catch (e) {
+                                    console.error('Error reconnecting contract after network change:', e);
+                                }
+                            }
+                        }
+                    }
+                    
+                    lastNetwork = currentNetwork;
+                } catch (error) {
+                    console.error('Error monitoring network:', error);
+                }
+            }, 2000); // Check every 2 seconds
+        }
+        
         // Detect network and set appropriate contract address
         async function detectNetworkAndSetContract() {
             try {
