@@ -4033,14 +4033,14 @@
                                 </div>
                                 
                                 <div class="form-group">
-                                    <label class="form-label">Direct Link (Auto-generated)</label>
+                                    <label class="form-label">Legal Rights / Access Information (Auto-generated)</label>
                                     <input type="text" id="legalRights" class="form-input" 
-                                           placeholder="Direct link will be generated automatically" 
+                                           placeholder="Access information will be generated automatically" 
                                            maxlength="200"
                                            value=""
                                            readonly
                                            style="background-color: #f8f9fa; cursor: not-allowed;">
-                                    <p class="form-help">This will contain the direct link to view the notice on BlockServed</p>
+                                    <p class="form-help">This will inform recipients how to access the full document and their rights</p>
                                 </div>
                                 
                                 <div class="form-group" style="background: #1e293b; padding: 1rem; border-radius: 0.5rem; border: 1px solid #334155;">
@@ -4201,7 +4201,7 @@
                         <label>Notice Details</label>
                         <input type="text" id="batchAgencyName" placeholder="Issuing Agency" class="form-control" style="margin-bottom: 10px;">
                         <input type="text" id="batchCaseNumber" placeholder="Case Number" class="form-control" style="margin-bottom: 10px;">
-                        <textarea id="batchRightsStatement" placeholder="Direct link will be auto-generated for each notice" class="form-control" rows="3" readonly style="background-color: #f8f9fa;"></textarea>
+                        <textarea id="batchRightsStatement" placeholder="Access information will be auto-generated for each notice" class="form-control" rows="3" readonly style="background-color: #f8f9fa;"></textarea>
                     </div>
                     
                     <div class="btn-group" style="margin-top: 20px;">
@@ -12646,10 +12646,10 @@ window.updateNoticeTemplate = function() {
         customGroup.style.display = 'none';
     }
     
-    // Don't update legal rights - it will contain the direct link
+    // Don't update legal rights - it will contain the access information
     // Clear the field when notice type changes
     legalRights.value = '';
-    legalRights.placeholder = 'Direct link will be generated when notice is created';
+    legalRights.placeholder = 'Access information will be generated when notice is created';
 }
 
 // Initialize admin panel inputs properly
@@ -17372,10 +17372,10 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     metadataURI = encryptedData.metadataURI;
                 }
                 
-                // Generate the direct link for BlockServed
+                // Generate the direct link for BlockServed with informative text
                 // We'll use the tempNoticeId as a placeholder - the actual ID will be determined after minting
                 const baseUrl = 'https://blockserved.com';
-                const directLink = `${baseUrl}/#notice-PENDING`;
+                const directLink = `More information and full document available at ${baseUrl}/#notice-PENDING`;
                 
                 // Update the UI to show the generated link
                 const legalRightsField = document.getElementById('legalRights');
@@ -17509,7 +17509,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 
                 // Update the direct link with the actual notice ID
                 if (noticeId) {
-                    const actualDirectLink = `https://blockserved.com/#notice-${noticeId}`;
+                    const actualDirectLink = `More information and full document available at https://blockserved.com/#notice-${noticeId}`;
                     const legalRightsField = document.getElementById('legalRights');
                     if (legalRightsField) {
                         legalRightsField.value = actualDirectLink;
