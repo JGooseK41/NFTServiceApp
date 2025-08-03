@@ -3133,16 +3133,47 @@
                 </div>
             </div>
 
-            <!-- Recent Activity -->
-            <div class="card" id="recentActivityCard">
+            <!-- Process Server Stats -->
+            <div class="card" id="serverStatsCard">
                 <div class="card-header">
-                    <h2><i class="fas fa-history"></i> Recent Activity</h2>
+                    <h2><i class="fas fa-chart-bar"></i> My Service Statistics</h2>
                 </div>
-                <div id="recentActivityContent">
-                    <div class="empty-state">
-                        <i class="fas fa-clipboard"></i>
-                        <h3>No recent activity</h3>
-                        <p>Your recent transactions will appear here</p>
+                <div id="serverStatsContent">
+                    <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                        <div class="stat-card" style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; text-align: center;">
+                            <i class="fas fa-file-contract" style="font-size: 2rem; color: var(--accent-blue); margin-bottom: 0.5rem;"></i>
+                            <div class="stat-value" id="totalServedStat" style="font-size: 1.5rem; font-weight: bold;">0</div>
+                            <div class="stat-label" style="color: var(--text-muted); font-size: 0.875rem;">Total Served</div>
+                        </div>
+                        <div class="stat-card" style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; text-align: center;">
+                            <i class="fas fa-check-circle" style="font-size: 2rem; color: var(--success-green); margin-bottom: 0.5rem;"></i>
+                            <div class="stat-value" id="acceptedStat" style="font-size: 1.5rem; font-weight: bold;">0</div>
+                            <div class="stat-label" style="color: var(--text-muted); font-size: 0.875rem;">Accepted</div>
+                        </div>
+                        <div class="stat-card" style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; text-align: center;">
+                            <i class="fas fa-clock" style="font-size: 2rem; color: var(--warning-yellow); margin-bottom: 0.5rem;"></i>
+                            <div class="stat-value" id="pendingStat" style="font-size: 1.5rem; font-weight: bold;">0</div>
+                            <div class="stat-label" style="color: var(--text-muted); font-size: 0.875rem;">Pending</div>
+                        </div>
+                        <div class="stat-card" style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; text-align: center;">
+                            <i class="fas fa-percentage" style="font-size: 2rem; color: var(--accent-purple); margin-bottom: 0.5rem;"></i>
+                            <div class="stat-value" id="successRateStat" style="font-size: 1.5rem; font-weight: bold;">0%</div>
+                            <div class="stat-label" style="color: var(--text-muted); font-size: 0.875rem;">Success Rate</div>
+                        </div>
+                    </div>
+                    <div style="border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                        <h4 style="margin-bottom: 0.5rem; font-size: 1rem;">Quick Actions</h4>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button class="btn btn-small btn-secondary" onclick="showTab('user')">
+                                <i class="fas fa-plus"></i> New Notice
+                            </button>
+                            <button class="btn btn-small btn-secondary" onclick="showTab('delivery')">
+                                <i class="fas fa-truck"></i> Track Deliveries
+                            </button>
+                            <button class="btn btn-small btn-secondary" onclick="openAuditModal()">
+                                <i class="fas fa-search"></i> Audit Notices
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -9656,8 +9687,8 @@ function useConnectedAddressForFeeCollector() {
                     walletStatusCard.style.display = 'block';
                 }
                 
-                // Initialize recent activity display
-                updateRecentActivityDisplay();
+                // Update server stats display
+                updateServerStats();
                 
                 // Restore button state
                 connectBtn.innerHTML = '<i class="fas fa-check"></i> Connected';
@@ -10301,23 +10332,57 @@ async function checkUserRoles() {
             window.open(ipfsUrl, '_blank');
         }
 
-        // Recent activity functions
+        // Recent activity functions (deprecated - kept for compatibility)
         function addRecentActivity(type, description, details = {}) {
-            const activity = {
-                type,
-                description,
-                details,
-                timestamp: new Date()
-            };
-            
-            recentActivity.unshift(activity);
-            
-            // Keep only last 10 activities
-            if (recentActivity.length > 10) {
-                recentActivity = recentActivity.slice(0, 10);
+            // This function is deprecated but kept for compatibility
+            // The home page now shows server stats instead of recent activity
+        }
+
+        async function updateServerStats() {
+            if (!legalContract || !tronWeb || !tronWeb.defaultAddress) {
+                return;
             }
             
-            updateRecentActivityDisplay();
+            try {
+                const userAddress = tronWeb.defaultAddress.base58;
+                
+                // Get all notices served by this address
+                let totalServed = 0;
+                let accepted = 0;
+                let pending = 0;
+                
+                // Get total notices created by this server
+                const balance = await legalContract.balanceOf(userAddress).call();
+                totalServed = parseInt(balance);
+                
+                // Check each notice for acceptance status
+                for (let i = 0; i < totalServed; i++) {
+                    try {
+                        const tokenId = await legalContract.tokenOfOwnerByIndex(userAddress, i).call();
+                        const acceptedTime = await legalContract.acceptedTimestamps(tokenId).call();
+                        
+                        if (acceptedTime && acceptedTime > 0) {
+                            accepted++;
+                        } else {
+                            pending++;
+                        }
+                    } catch (err) {
+                        console.error('Error checking notice:', err);
+                    }
+                }
+                
+                // Calculate success rate
+                const successRate = totalServed > 0 ? Math.round((accepted / totalServed) * 100) : 0;
+                
+                // Update the display
+                document.getElementById('totalServedStat').textContent = totalServed;
+                document.getElementById('acceptedStat').textContent = accepted;
+                document.getElementById('pendingStat').textContent = pending;
+                document.getElementById('successRateStat').textContent = successRate + '%';
+                
+            } catch (error) {
+                console.error('Error updating server stats:', error);
+            }
         }
 
         async function updateRecentActivityDisplay() {
@@ -11603,10 +11668,10 @@ async function checkUserRoles() {
                 const userTab = document.querySelector('[onclick*="switchTab(\'user\')"]');
                 if (userTab) userTab.style.display = 'none';
                 
-                // Hide Recent Activity card for recipients
-                const recentActivityCard = document.getElementById('recentActivityCard');
-                if (recentActivityCard) {
-                    recentActivityCard.style.display = 'none';
+                // Hide Server Stats card for recipients
+                const serverStatsCard = document.getElementById('serverStatsCard');
+                if (serverStatsCard) {
+                    serverStatsCard.style.display = 'none';
                 }
                 
                 // Hide Quick Actions for recipients (they have the hero banner CTA)
@@ -12071,10 +12136,65 @@ async function checkUserRoles() {
             container.appendChild(message);
         }
         
+        // Log recipient visit with IP information
+        async function logRecipientVisit(noticeId) {
+            try {
+                // Get IP information from free service
+                const ipResponse = await fetch('https://api.ipify.org?format=json');
+                const { ip } = await ipResponse.json();
+                
+                // Get geolocation data (free tier)
+                const geoResponse = await fetch(`https://ipapi.co/${ip}/json/`);
+                const geoData = await geoResponse.json();
+                
+                const visitLog = {
+                    noticeId: noticeId,
+                    timestamp: new Date().toISOString(),
+                    ip: ip,
+                    location: {
+                        city: geoData.city || 'Unknown',
+                        region: geoData.region || 'Unknown',
+                        country: geoData.country_name || 'Unknown',
+                        countryCode: geoData.country_code || 'Unknown',
+                        timezone: geoData.timezone || 'Unknown',
+                        latitude: geoData.latitude || null,
+                        longitude: geoData.longitude || null
+                    },
+                    userAgent: navigator.userAgent,
+                    referrer: document.referrer || 'Direct',
+                    screenResolution: `${screen.width}x${screen.height}`,
+                    language: navigator.language
+                };
+                
+                // Store visit log (you could enhance this to store on IPFS or contract)
+                const visitLogs = JSON.parse(localStorage.getItem('noticeVisitLogs') || '{}');
+                if (!visitLogs[noticeId]) {
+                    visitLogs[noticeId] = [];
+                }
+                visitLogs[noticeId].push(visitLog);
+                localStorage.setItem('noticeVisitLogs', JSON.stringify(visitLogs));
+                
+                console.log('Visit logged:', visitLog);
+                return visitLog;
+                
+            } catch (error) {
+                console.error('Error logging visit:', error);
+                return null;
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', async function() {
             // Apply site configuration
             const siteConfig = getSiteConfig();
             configureSiteForMode(siteConfig);
+            
+            // Check if user came from a direct notice link and log visit
+            const urlParams = new URLSearchParams(window.location.search);
+            const noticeParam = urlParams.get('notice');
+            if (noticeParam && siteConfig.mode === 'recipient') {
+                // Log the visit for BlockServed
+                await logRecipientVisit(noticeParam);
+            }
             
             // Check if user came from a direct notice link
             checkDirectNoticeLink();
@@ -14537,6 +14657,51 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             const status = accepted ? 'Accepted' : 'Pending';
             const statusClass = accepted ? 'status-accepted' : 'status-pending';
             
+            // Get visit logs for this notice
+            let visitLogsHtml = '';
+            try {
+                const allVisitLogs = JSON.parse(localStorage.getItem('noticeVisitLogs') || '{}');
+                const noticeVisits = allVisitLogs[noticeId];
+                
+                if (noticeVisits && noticeVisits.length > 0) {
+                    visitLogsHtml = `
+                        <div style="margin-top: 1rem; padding: 1rem; background: #f0f9ff; border-radius: 0.5rem; border: 1px solid #3b82f6;">
+                            <h5 style="margin: 0 0 0.5rem 0; color: #1e40af;">
+                                <i class="fas fa-eye"></i> Recipient Visit Log (${noticeVisits.length} visit${noticeVisits.length > 1 ? 's' : ''})
+                            </h5>
+                            ${noticeVisits.map((visit, index) => `
+                                <div style="background: white; padding: 0.75rem; border-radius: 0.375rem; margin-bottom: 0.5rem; border: 1px solid #ddd;">
+                                    <div style="font-weight: 600; color: #1e40af; margin-bottom: 0.25rem;">
+                                        Visit #${index + 1} - ${new Date(visit.timestamp).toLocaleString()}
+                                    </div>
+                                    <div style="display: grid; gap: 0.25rem; font-size: 0.875rem;">
+                                        <div><strong>IP Address:</strong> ${visit.ip}</div>
+                                        <div><strong>Location:</strong> ${visit.location.city}, ${visit.location.region}, ${visit.location.country}</div>
+                                        <div><strong>Timezone:</strong> ${visit.location.timezone}</div>
+                                        ${visit.location.latitude ? `<div><strong>Coordinates:</strong> ${visit.location.latitude}, ${visit.location.longitude}</div>` : ''}
+                                        <div><strong>Device:</strong> ${visit.screenResolution} • ${visit.language}</div>
+                                        <div style="font-size: 0.75rem; color: #666; word-break: break-all;">
+                                            <strong>User Agent:</strong> ${visit.userAgent}
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } else if (!accepted) {
+                    visitLogsHtml = `
+                        <div style="margin-top: 1rem; padding: 0.75rem; background: #fef3c7; border-radius: 0.5rem;">
+                            <p style="margin: 0; color: #92400e;">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                No visits logged yet - recipient has not viewed this notice
+                            </p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error getting visit logs:', error);
+            }
+            
             // Check for service attempts (v4 contract feature)
             let serviceAttemptsHtml = '';
             let addAttemptBtn = '';
@@ -14580,6 +14745,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         <p><strong>Accepted:</strong> ${acceptedTime}</p>
                         ${notice.hasDocument ? '<p><strong>Document:</strong> Encrypted document attached</p>' : ''}
                         ${notice.publicText ? `<p><strong>Public Text:</strong> ${notice.publicText}</p>` : ''}
+                        ${visitLogsHtml}
                         ${serviceAttemptsHtml}
                         ${addAttemptBtn}
                     </div>
@@ -17134,15 +17300,8 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 transactions.push(txData);
                 localStorage.setItem('userTransactions', JSON.stringify(transactions));
                 
-                // Add to recent activity
-                addRecentActivity('notice_created', `Legal Notice #${noticeId} created`, {
-                    noticeId: noticeId,
-                    recipient: recipient,
-                    noticeType: noticeRequest.noticeType,
-                    caseNumber: noticeRequest.caseNumber,
-                    txHash: txHash || 'N/A',
-                    fee: `${parseInt(fee) / 1000000} TRX`
-                });
+                // Update server stats
+                updateServerStats();
 
                 
                 // Clear form
