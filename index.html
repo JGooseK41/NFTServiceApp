@@ -17113,13 +17113,21 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 const estimatedEnergy = EnergyRental.estimateEnergyNeeded(hasDocument);
                 
                 // Prepare energy (rent if needed) - automatic for all users
-                const energyResult = await EnergyRental.prepareEnergyForTransaction(
-                    estimatedEnergy,
-                    tronWeb.defaultAddress.base58
-                );
+                let energyResult = { success: true };
+                try {
+                    energyResult = await EnergyRental.prepareEnergyForTransaction(
+                        estimatedEnergy,
+                        tronWeb.defaultAddress.base58
+                    );
+                } catch (energyError) {
+                    console.log('Energy rental not available, proceeding anyway:', energyError);
+                    energyResult = { success: true, rentalNeeded: false };
+                }
                 
+                // Always proceed even if energy rental fails
                 if (!energyResult.success) {
-                    throw new Error(energyResult.message || 'Energy preparation failed');
+                    console.log('Energy rental failed but proceeding with transaction');
+                    energyResult = { success: true, rentalNeeded: false };
                 }
                 
                 // Only show success notification for non-law enforcement users who saved money
