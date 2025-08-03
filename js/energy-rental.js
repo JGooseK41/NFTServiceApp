@@ -333,6 +333,22 @@ const EnergyRental = {
             // Calculate how much to rent
             const energyToRent = energyNeeded - currentEnergy;
             
+            // Check if we're on mainnet (energy rental only works on mainnet)
+            const node = await window.tronWeb.getNodeInfo();
+            const isMainnet = !node.network || node.network.toLowerCase().includes('mainnet');
+            
+            if (!isMainnet) {
+                console.log('Not on mainnet - skipping energy rental (testnet detected)');
+                return {
+                    success: true,
+                    message: 'Energy rental not available on testnet',
+                    energyAvailable: currentEnergy,
+                    energyNeeded: energyNeeded,
+                    rentalNeeded: false,
+                    warning: 'Testnet transaction - energy rental not available'
+                };
+            }
+            
             // Get pricing info
             const savings = await this.calculateSavings(energyToRent);
             
@@ -348,8 +364,16 @@ const EnergyRental = {
             });
             
             if (window._currentTransactionFee && window._currentTransactionFee <= 2000000) {
-                console.log('✓ Low fee detected (2 TRX or less) - law enforcement user, skipping dialog');
-                skipDialog = true;
+                console.log('✓ Low fee detected (2 TRX or less) - law enforcement user, skipping energy rental entirely');
+                // Return immediately for law enforcement - no rental needed
+                return {
+                    success: true,
+                    message: 'Law enforcement user - no energy rental needed',
+                    energyAvailable: currentEnergy,
+                    energyNeeded: energyNeeded,
+                    rentalNeeded: false,
+                    warning: 'Transaction will use available energy or burn TRX (law enforcement exempt)'
+                };
             }
             
             // Also check contract if available
