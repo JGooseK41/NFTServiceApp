@@ -7469,6 +7469,9 @@ function useConnectedAddressForFeeCollector() {
 
                 uiManager.showNotification('success', `Connected to ${network}`);
 
+                // Detect network and set contract address
+                await detectNetworkAndSetContract();
+
                 // Check if contract is already in the address field
                 const contractAddressField = document.getElementById('contractAddress');
                 if (contractAddressField && contractAddressField.value) {
@@ -12352,6 +12355,8 @@ async function checkUserRoles() {
             if (window.tronWeb && window.tronWeb.ready) {
                 try {
                     await connectWallet();
+                    // Also detect network and set contract after auto-connect
+                    await detectNetworkAndSetContract();
                 } catch (error) {
                     console.error('Error auto-connecting wallet:', error);
                 }
@@ -13257,9 +13262,18 @@ document.addEventListener('keydown', function(event) {
             if (!noticeId) return;
             
             try {
+                // Detect network and set contract first
+                await detectNetworkAndSetContract();
+                
                 // Load contract if needed
                 if (!legalContract) {
-                    await checkContract();
+                    // Connect to the contract using the address from the field
+                    const contractAddress = document.getElementById('contractAddress')?.value;
+                    if (contractAddress) {
+                        legalContract = await tronWeb.contract(CONTRACT_ABI, contractAddress);
+                    } else {
+                        throw new Error('No contract address available');
+                    }
                 }
                 
                 // Get notice details
