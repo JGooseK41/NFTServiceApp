@@ -118,11 +118,45 @@ const EnergyRental = {
             if (window.tronWeb.fullNode && window.tronWeb.fullNode.host) {
                 const nodeUrl = window.tronWeb.fullNode.host;
                 console.log('Current node URL:', nodeUrl);
+                
+                // Check if this is actually mainnet
+                const isMainnet = nodeUrl.includes('api.trongrid.io') && !nodeUrl.includes('nile') && !nodeUrl.includes('shasta');
+                if (!isMainnet) {
+                    console.error('Not on mainnet! JustLend only works on mainnet.');
+                    return {
+                        success: false,
+                        error: 'JustLend energy rental only works on TRON mainnet'
+                    };
+                }
             }
             
+            // Also verify the user's address
+            console.log('User address for rental:', receiverAddress);
+            const userBalance = await window.tronWeb.trx.getBalance(receiverAddress);
+            console.log('User TRX balance:', userBalance / 1_000_000, 'TRX');
+            
             // Get the contract instance
+            console.log('Loading JustLend contract at:', ENERGY_RENTAL_CONTRACT);
+            
+            // First, let's verify the contract exists
+            try {
+                const contractInfo = await window.tronWeb.trx.getContract(ENERGY_RENTAL_CONTRACT);
+                console.log('Contract info retrieved:', contractInfo);
+            } catch (e) {
+                console.error('Failed to get contract info:', e);
+                return {
+                    success: false,
+                    error: 'JustLend contract not found at ' + ENERGY_RENTAL_CONTRACT + '. Are you on mainnet?'
+                };
+            }
+            
             const contract = await window.tronWeb.contract().at(ENERGY_RENTAL_CONTRACT);
             console.log('JustLend contract loaded:', contract);
+            
+            // Log available methods
+            if (contract.methods) {
+                console.log('Available contract methods:', Object.keys(contract.methods));
+            }
             
             // JustLend requires us to calculate the TRX amount needed to delegate for the energy
             // The formula is: trxAmount = energyAmount / energyStakePerTrx
@@ -157,15 +191,45 @@ const EnergyRental = {
             // - receiver: address to receive the energy
             // - amount: TRX amount to delegate (not energy amount!)
             // - resourceType: 1 for energy (0 for bandwidth)
-            const tx = await contract.rentResource(
-                receiverAddress,
-                trxAmount, // TRX amount in SUN
-                1 // 1 for energy (not 0!)
-            ).send({
-                feeLimit: 100_000_000,
-                callValue: totalPrepayment, // Total prepayment including fee
-                shouldPollResponse: true
+            console.log('Calling rentResource with parameters:', {
+                receiver: receiverAddress,
+                amount: trxAmount,
+                resourceType: 1,
+                callValue: totalPrepayment,
+                feeLimit: 100_000_000
             });
+            
+            let tx;
+            try {
+                tx = await contract.rentResource(
+                    receiverAddress,
+                    trxAmount, // TRX amount in SUN
+                    1 // 1 for energy (not 0!)
+                ).send({
+                    feeLimit: 100_000_000,
+                    callValue: totalPrepayment, // Total prepayment including fee
+                    shouldPollResponse: true
+                });
+            } catch (sendError) {
+                console.error('Contract call failed:', sendError);
+                console.error('Error details:', {
+                    message: sendError.message,
+                    error: sendError.error,
+                    code: sendError.code,
+                    data: sendError.data
+                });
+                
+                // Check if it's a specific error we can handle
+                if (sendError.message && sendError.message.includes('REVERT')) {
+                    const revertReason = sendError.message.match(/REVERT opcode executed, Reason: (.+)/)?.[1] || 'Unknown reason';
+                    return {
+                        success: false,
+                        error: `JustLend contract rejected: ${revertReason}`
+                    };
+                }
+                
+                throw sendError;
+            }
             
             console.log('JustLend rental transaction:', tx);
             

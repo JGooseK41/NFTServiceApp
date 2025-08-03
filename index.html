@@ -17228,7 +17228,8 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     }
                     
                     // User wants to proceed without rental
-                    showProcessing('Creating legal notice...');
+                    console.warn('User proceeding without energy rental - will pay full energy costs');
+                    showProcessing('Creating legal notice without energy rental...');
                     energyResult = { success: true, rentalNeeded: false };
                 }
                 
@@ -17702,7 +17703,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 });
                 
                 // Special handling for quota errors
-                if (error.name === 'QuotaExceededError' || error.message.includes('quota')) {
+                if (error.name === 'QuotaExceededError' || (error.message && error.message.includes('quota'))) {
                     console.error('=== STORAGE QUOTA EXCEEDED ===');
                     console.error('To fix this issue, please run the following command in the console:');
                     console.error('clearAllStorage()');
