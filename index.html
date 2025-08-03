@@ -17342,6 +17342,12 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     
                     if (nftAssets.success) {
                         console.log('NFT metadata uploaded:', nftAssets.metadataURI);
+                        console.log('Full NFT assets:', nftAssets);
+                        // Test if metadata is accessible
+                        if (nftAssets.metadataURI && nftAssets.metadataURI.startsWith('ipfs://')) {
+                            const testUrl = nftAssets.metadataURI.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+                            console.log('Testing metadata accessibility at:', testUrl);
+                        }
                         uiManager.showNotification('info', 'Document encrypted and NFT metadata created');
                     } else {
                         uiManager.showNotification('info', 'Document encrypted (metadata generation failed)');
@@ -17391,6 +17397,8 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 console.log('Contract address:', legalContract.address);
                 console.log('Sender address:', tronWeb.defaultAddress.base58);
                 console.log('Fee being sent:', fee, 'sun =', fee/1000000, 'TRX');
+                console.log('MetadataURI being sent:', noticeRequest.metadataURI);
+                console.log('MetadataURI length:', noticeRequest.metadataURI ? noticeRequest.metadataURI.length : 0);
                 
                 // Check if user is law enforcement
                 const isLawEnforcement = await legalContract.serviceFeeExemptions(tronWeb.defaultAddress.base58).call();
@@ -17553,7 +17561,26 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                         // Try to get token URI
                         try {
                             const tokenURI = await legalContract.tokenURI(noticeId).call();
-                            console.log('Token URI:', tokenURI);
+                            console.log('Token URI retrieved from contract:', tokenURI);
+                            if (!tokenURI) {
+                                console.error('WARNING: Token URI is empty! NFT will not display metadata in wallets.');
+                                console.log('Expected URI was:', noticeRequest.metadataURI);
+                            } else if (tokenURI.startsWith('ipfs://')) {
+                                const httpUrl = tokenURI.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+                                console.log('IPFS metadata URL:', httpUrl);
+                                // Try to fetch metadata to verify it's accessible
+                                try {
+                                    const metadataResponse = await fetch(httpUrl);
+                                    if (metadataResponse.ok) {
+                                        const metadata = await metadataResponse.json();
+                                        console.log('NFT Metadata successfully retrieved:', metadata);
+                                    } else {
+                                        console.error('Failed to fetch NFT metadata:', metadataResponse.status);
+                                    }
+                                } catch (fetchError) {
+                                    console.error('Error fetching NFT metadata:', fetchError);
+                                }
+                            }
                         } catch (e) {
                             console.log('Error getting token URI:', e.message);
                         }

@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NFT Metadata Debugger</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+        }
+        .success {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .warning {
+            background: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .metadata-preview {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .metadata-image {
+            flex: 0 0 300px;
+        }
+        .metadata-image img {
+            max-width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .metadata-details {
+            flex: 1;
+        }
+        .attribute {
+            display: inline-block;
+            background: #e9ecef;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin: 5px 5px 5px 0;
+            font-size: 12px;
+        }
+        .debug-section {
+            margin-top: 20px;
+            border-top: 2px solid #e9ecef;
+            padding-top: 20px;
+        }
+        .checklist-item {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .checklist-item.pass {
+            background: #d4edda;
+            color: #155724;
+        }
+        .checklist-item.fail {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .checklist-item.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 2px solid #3498db;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 NFT Metadata Debugger</h1>
+        <p>This tool helps diagnose why your NFT isn't displaying properly in wallets.</p>
+        
+        <div class="form-group">
+            <label>Contract Address:</label>
+            <input type="text" id="contractAddress" value="TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN" placeholder="Contract address">
+        </div>
+        
+        <div class="form-group">
+            <label>Token ID:</label>
+            <input type="text" id="tokenId" placeholder="Enter the token ID (e.g., 1754241834)">
+        </div>
+        
+        <div class="form-group">
+            <label>Network:</label>
+            <select id="network">
+                <option value="mainnet">Mainnet</option>
+                <option value="nile">Nile Testnet</option>
+                <option value="shasta">Shasta Testnet</option>
+            </select>
+        </div>
+        
+        <button onclick="debugToken()">🔍 Debug NFT Metadata</button>
+        <button onclick="testIPFSGateways()">🌐 Test IPFS Gateways</button>
+        <button onclick="validateMetadataFormat()">✅ Validate Metadata Format</button>
+    </div>
+    
+    <div id="results"></div>
+
+    <script>
+        let tronWeb = null;
+        
+        // Initialize TronWeb
+        async function initTronWeb() {
+            const network = document.getElementById('network').value;
+            let fullNodeUrl;
+            
+            switch(network) {
+                case 'mainnet':
+                    fullNodeUrl = 'https://api.trongrid.io';
+                    break;
+                case 'nile':
+                    fullNodeUrl = 'https://nile.trongrid.io';
+                    break;
+                case 'shasta':
+                    fullNodeUrl = 'https://api.shasta.trongrid.io';
+                    break;
+            }
+            
+            if (window.tronWeb && window.tronWeb.ready) {
+                tronWeb = window.tronWeb;
+            } else {
+                tronWeb = new TronWeb({
+                    fullHost: fullNodeUrl
+                });
+            }
+        }
+        
+        async function debugToken() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="result">🔄 Starting NFT metadata debug...</div>';
+            
+            await initTronWeb();
+            
+            const contractAddress = document.getElementById('contractAddress').value;
+            const tokenId = document.getElementById('tokenId').value;
+            
+            if (!contractAddress || !tokenId) {
+                resultsDiv.innerHTML = '<div class="result error">Please enter both contract address and token ID</div>';
+                return;
+            }
+            
+            let debugReport = '<div class="container"><h2>Debug Report</h2>';
+            let checks = [];
+            
+            try {
+                // Step 1: Check if token exists
+                debugReport += '<div class="debug-section"><h3>1. Token Existence Check</h3>';
+                const contract = await tronWeb.contract().at(contractAddress);
+                
+                try {
+                    const owner = await contract.ownerOf(tokenId).call();
+                    checks.push({status: 'pass', message: `✅ Token #${tokenId} exists - Owner: ${owner}`});
+                    debugReport += `<div class="result success">Token exists! Owner: ${owner}</div>`;
+                } catch (e) {
+                    checks.push({status: 'fail', message: `❌ Token #${tokenId} does not exist`});
+                    debugReport += `<div class="result error">Token does not exist: ${e.message}</div>`;
+                    resultsDiv.innerHTML = debugReport + '</div></div>';
+                    return;
+                }
+                
+                // Step 2: Get tokenURI
+                debugReport += '</div><div class="debug-section"><h3>2. Token URI Check</h3>';
+                let tokenURI;
+                try {
+                    tokenURI = await contract.tokenURI(tokenId).call();
+                    if (tokenURI) {
+                        checks.push({status: 'pass', message: `✅ Token URI found: ${tokenURI}`});
+                        debugReport += `<div class="result success">Token URI: <code>${tokenURI}</code></div>`;
+                    } else {
+                        checks.push({status: 'fail', message: '❌ Token URI is empty'});
+                        debugReport += '<div class="result error">Token URI is empty - This is why the NFT has no metadata!</div>';
+                    }
+                } catch (e) {
+                    checks.push({status: 'fail', message: '❌ Could not retrieve token URI'});
+                    debugReport += `<div class="result error">Error getting token URI: ${e.message}</div>`;
+                }
+                
+                // Step 3: Fetch metadata if URI exists
+                if (tokenURI) {
+                    debugReport += '</div><div class="debug-section"><h3>3. Metadata Retrieval</h3>';
+                    
+                    // Convert ipfs:// to https://
+                    let metadataUrl = tokenURI;
+                    if (tokenURI.startsWith('ipfs://')) {
+                        const hash = tokenURI.replace('ipfs://', '');
+                        metadataUrl = `https://gateway.pinata.cloud/ipfs/${hash}`;
+                        debugReport += `<div class="result">Converted IPFS URI to: <code>${metadataUrl}</code></div>`;
+                    }
+                    
+                    try {
+                        const response = await fetch(metadataUrl);
+                        if (response.ok) {
+                            const metadata = await response.json();
+                            checks.push({status: 'pass', message: '✅ Metadata retrieved successfully'});
+                            debugReport += '<div class="result success">Metadata retrieved successfully!</div>';
+                            debugReport += '<pre>' + JSON.stringify(metadata, null, 2) + '</pre>';
+                            
+                            // Display metadata preview
+                            debugReport += '</div><div class="debug-section"><h3>4. Metadata Preview</h3>';
+                            debugReport += '<div class="metadata-preview">';
+                            
+                            if (metadata.image) {
+                                let imageUrl = metadata.image;
+                                if (imageUrl.startsWith('ipfs://')) {
+                                    const hash = imageUrl.replace('ipfs://', '');
+                                    imageUrl = `https://gateway.pinata.cloud/ipfs/${hash}`;
+                                }
+                                debugReport += `<div class="metadata-image"><img src="${imageUrl}" alt="NFT Image" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22300%22 height=%22300%22><rect width=%22300%22 height=%22300%22 fill=%22%23ddd%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22>Image Failed to Load</text></svg>'"></div>`;
+                            }
+                            
+                            debugReport += '<div class="metadata-details">';
+                            debugReport += `<h4>${metadata.name || 'Unnamed NFT'}</h4>`;
+                            debugReport += `<p>${metadata.description || 'No description'}</p>`;
+                            
+                            if (metadata.attributes && metadata.attributes.length > 0) {
+                                debugReport += '<div><strong>Attributes:</strong><br>';
+                                metadata.attributes.forEach(attr => {
+                                    debugReport += `<span class="attribute">${attr.trait_type}: ${attr.value}</span>`;
+                                });
+                                debugReport += '</div>';
+                            }
+                            
+                            if (metadata.external_url) {
+                                debugReport += `<p><strong>External URL:</strong> <a href="${metadata.external_url}" target="_blank">${metadata.external_url}</a></p>`;
+                            }
+                            
+                            debugReport += '</div></div>';
+                            
+                            // Validate metadata format
+                            debugReport += '</div><div class="debug-section"><h3>5. Metadata Validation</h3>';
+                            const validationResults = validateMetadata(metadata);
+                            validationResults.forEach(result => {
+                                checks.push(result);
+                                debugReport += `<div class="result ${result.status === 'pass' ? 'success' : result.status === 'warning' ? 'warning' : 'error'}">${result.message}</div>`;
+                            });
+                            
+                        } else {
+                            checks.push({status: 'fail', message: `❌ Failed to fetch metadata: HTTP ${response.status}`});
+                            debugReport += `<div class="result error">Failed to fetch metadata: HTTP ${response.status}</div>`;
+                        }
+                    } catch (e) {
+                        checks.push({status: 'fail', message: '❌ Error fetching metadata'});
+                        debugReport += `<div class="result error">Error fetching metadata: ${e.message}</div>`;
+                    }
+                }
+                
+                // Summary
+                debugReport += '</div><div class="debug-section"><h3>Summary</h3>';
+                debugReport += '<div class="checklist">';
+                checks.forEach(check => {
+                    debugReport += `<div class="checklist-item ${check.status}">${check.message}</div>`;
+                });
+                debugReport += '</div>';
+                
+                // Recommendations
+                debugReport += '</div><div class="debug-section"><h3>Recommendations</h3>';
+                if (checks.some(c => c.status === 'fail')) {
+                    debugReport += '<div class="result warning">';
+                    debugReport += '<strong>To fix NFT display issues:</strong><ol>';
+                    
+                    if (!tokenURI) {
+                        debugReport += '<li>The token URI is not set. Make sure the metadataURI parameter is being passed when calling serveNotice()</li>';
+                        debugReport += '<li>Check that the IPFS upload is completing before the contract transaction</li>';
+                    }
+                    
+                    if (checks.some(c => c.message.includes('metadata format'))) {
+                        debugReport += '<li>Ensure metadata follows the TRC721 standard format</li>';
+                    }
+                    
+                    if (checks.some(c => c.message.includes('Image failed'))) {
+                        debugReport += '<li>Check that IPFS images are accessible and use HTTPS gateways</li>';
+                    }
+                    
+                    debugReport += '<li>After fixing, it may take some time for wallets to update their cache</li>';
+                    debugReport += '</ol></div>';
+                }
+                
+                debugReport += '</div>';
+                
+            } catch (error) {
+                debugReport += `<div class="result error">Error: ${error.message}</div>`;
+            }
+            
+            debugReport += '</div>';
+            resultsDiv.innerHTML = debugReport;
+        }
+        
+        function validateMetadata(metadata) {
+            const results = [];
+            
+            // Required fields
+            if (metadata.name) {
+                results.push({status: 'pass', message: '✅ Has required "name" field'});
+            } else {
+                results.push({status: 'fail', message: '❌ Missing required "name" field'});
+            }
+            
+            if (metadata.description) {
+                results.push({status: 'pass', message: '✅ Has required "description" field'});
+            } else {
+                results.push({status: 'fail', message: '❌ Missing required "description" field'});
+            }
+            
+            if (metadata.image) {
+                results.push({status: 'pass', message: '✅ Has required "image" field'});
+                
+                // Check image URL format
+                if (metadata.image.startsWith('https://') || metadata.image.startsWith('ipfs://')) {
+                    results.push({status: 'pass', message: '✅ Image URL format is valid'});
+                } else {
+                    results.push({status: 'warning', message: '⚠️ Image URL should start with https:// or ipfs://'});
+                }
+            } else {
+                results.push({status: 'fail', message: '❌ Missing required "image" field'});
+            }
+            
+            // Optional but recommended fields
+            if (metadata.external_url) {
+                results.push({status: 'pass', message: '✅ Has "external_url" field'});
+            } else {
+                results.push({status: 'warning', message: '⚠️ Consider adding "external_url" for better wallet support'});
+            }
+            
+            if (metadata.attributes && Array.isArray(metadata.attributes)) {
+                results.push({status: 'pass', message: '✅ Has valid "attributes" array'});
+            }
+            
+            return results;
+        }
+        
+        async function testIPFSGateways() {
+            const resultsDiv = document.getElementById('results');
+            const tokenId = document.getElementById('tokenId').value;
+            const contractAddress = document.getElementById('contractAddress').value;
+            
+            if (!contractAddress || !tokenId) {
+                resultsDiv.innerHTML = '<div class="result error">Please enter both contract address and token ID</div>';
+                return;
+            }
+            
+            resultsDiv.innerHTML = '<div class="result">🔄 Testing IPFS gateways...</div>';
+            
+            await initTronWeb();
+            
+            try {
+                const contract = await tronWeb.contract().at(contractAddress);
+                const tokenURI = await contract.tokenURI(tokenId).call();
+                
+                if (!tokenURI || !tokenURI.includes('ipfs')) {
+                    resultsDiv.innerHTML = '<div class="result error">Token does not have an IPFS URI</div>';
+                    return;
+                }
+                
+                const hash = tokenURI.replace('ipfs://', '').replace(/https?:\/\/[^\/]+\/ipfs\//, '');
+                
+                const gateways = [
+                    'https://gateway.pinata.cloud/ipfs/',
+                    'https://ipfs.io/ipfs/',
+                    'https://cloudflare-ipfs.com/ipfs/',
+                    'https://dweb.link/ipfs/',
+                    'https://ipfs.infura.io/ipfs/'
+                ];
+                
+                let report = '<div class="container"><h2>IPFS Gateway Test Results</h2>';
+                report += `<p>Testing hash: <code>${hash}</code></p>`;
+                
+                for (const gateway of gateways) {
+                    report += '<div class="debug-section">';
+                    report += `<h4>${gateway}</h4>`;
+                    
+                    try {
+                        const start = Date.now();
+                        const response = await fetch(gateway + hash);
+                        const time = Date.now() - start;
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            report += `<div class="result success">✅ Success (${time}ms) - Retrieved ${JSON.stringify(data).length} bytes</div>`;
+                        } else {
+                            report += `<div class="result error">❌ Failed - HTTP ${response.status}</div>`;
+                        }
+                    } catch (e) {
+                        report += `<div class="result error">❌ Error: ${e.message}</div>`;
+                    }
+                    
+                    report += '</div>';
+                }
+                
+                report += '</div>';
+                resultsDiv.innerHTML = report;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="result error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        function validateMetadataFormat() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `
+                <div class="container">
+                    <h2>TRC721 Metadata Format Guide</h2>
+                    <p>Your NFT metadata should follow this format for optimal wallet compatibility:</p>
+                    
+                    <h3>Required Fields:</h3>
+                    <pre>{
+  "name": "Legal Notice #12345",
+  "description": "Official legal notice served via blockchain",
+  "image": "https://gateway.pinata.cloud/ipfs/QmXXX..."
+}</pre>
+                    
+                    <h3>Recommended Additional Fields:</h3>
+                    <pre>{
+  "name": "Legal Notice #12345",
+  "description": "Official legal notice served via blockchain",
+  "image": "https://gateway.pinata.cloud/ipfs/QmXXX...",
+  "external_url": "https://nftserviceapp.netlify.app/#notice-12345",
+  "attributes": [
+    {
+      "trait_type": "Notice Type",
+      "value": "Summons"
+    },
+    {
+      "trait_type": "Case Number", 
+      "value": "2024-CV-12345"
+    },
+    {
+      "trait_type": "Issuing Agency",
+      "value": "District Court"
+    }
+  ]
+}</pre>
+                    
+                    <h3>Image Requirements:</h3>
+                    <ul>
+                        <li>Format: PNG, JPG, or GIF</li>
+                        <li>Recommended size: 350x350 to 1000x1000 pixels</li>
+                        <li>Must be accessible via HTTPS (not just IPFS protocol)</li>
+                        <li>File size: Under 3MB for faster loading</li>
+                    </ul>
+                    
+                    <h3>Common Issues:</h3>
+                    <div class="result warning">
+                        <ul>
+                            <li><strong>Empty tokenURI:</strong> Make sure metadataURI is passed to serveNotice()</li>
+                            <li><strong>IPFS Gateway Issues:</strong> Use reliable gateways like Pinata or IPFS.io</li>
+                            <li><strong>Wrong Image Format:</strong> Ensure image URL is HTTPS, not ipfs://</li>
+                            <li><strong>Wallet Caching:</strong> Some wallets cache metadata for 24-48 hours</li>
+                        </ul>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Auto-detect network on load
+        window.addEventListener('load', async () => {
+            if (window.tronWeb && window.tronWeb.ready) {
+                const node = window.tronWeb.fullNode.host;
+                if (node.includes('nile')) {
+                    document.getElementById('network').value = 'nile';
+                } else if (node.includes('shasta')) {
+                    document.getElementById('network').value = 'shasta';
+                } else {
+                    document.getElementById('network').value = 'mainnet';
+                }
+            }
+        });
+    </script>
+</body>
+</html>
