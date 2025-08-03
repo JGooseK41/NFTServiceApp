@@ -153,12 +153,36 @@ const EnergyRental = {
                 };
             }
             
-            const contract = await window.tronWeb.contract().at(ENERGY_RENTAL_CONTRACT);
+            // JustLend ABI for rentResource function
+            const JUSTLEND_ABI = [{
+                "inputs": [
+                    {"name": "receiver", "type": "address"},
+                    {"name": "amount", "type": "uint256"},
+                    {"name": "resourceType", "type": "uint256"}
+                ],
+                "name": "rentResource",
+                "outputs": [],
+                "stateMutability": "payable",
+                "type": "function"
+            }];
+            
+            const contract = await window.tronWeb.contract(JUSTLEND_ABI, ENERGY_RENTAL_CONTRACT);
             console.log('JustLend contract loaded:', contract);
             
             // Log available methods
             if (contract.methods) {
                 console.log('Available contract methods:', Object.keys(contract.methods));
+            } else if (contract.rentResource) {
+                console.log('rentResource method found directly on contract');
+            }
+            
+            // Validate amount
+            if (!amount || isNaN(amount) || amount <= 0) {
+                console.error('Invalid energy amount for rental:', amount);
+                return {
+                    success: false,
+                    error: 'Invalid energy amount specified'
+                };
             }
             
             // JustLend requires us to calculate the TRX amount needed to delegate for the energy
@@ -367,7 +391,19 @@ const EnergyRental = {
     async checkUserEnergy(address) {
         try {
             const resources = await window.tronWeb.trx.getAccountResources(address);
-            const currentEnergy = resources.EnergyLimit - (resources.EnergyUsed || 0);
+            console.log('Account resources:', resources);
+            
+            // Calculate available energy
+            const energyLimit = resources.EnergyLimit || 0;
+            const energyUsed = resources.EnergyUsed || 0;
+            const currentEnergy = Math.max(0, energyLimit - energyUsed);
+            
+            console.log('Energy calculation:', {
+                energyLimit,
+                energyUsed,
+                currentEnergy
+            });
+            
             return currentEnergy;
         } catch (error) {
             console.error('Error checking energy:', error);
