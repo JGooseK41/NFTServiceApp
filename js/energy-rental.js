@@ -112,6 +112,7 @@ const EnergyRental = {
             });
             
             // JustLend Energy Rental Contract
+            // Note: This might be a proxy contract based on the small bytecode
             const ENERGY_RENTAL_CONTRACT = 'TU2MJ5Veik1LRAgjeSzEdvmDYx7mefJZvd';
             
             // Check if we're on mainnet
@@ -158,20 +159,35 @@ const EnergyRental = {
             console.log('Checking contract methods...');
             
             // First try without ABI to see what methods exist
+            console.log('Loading test contract to check methods...');
             let testContract = await window.tronWeb.contract().at(ENERGY_RENTAL_CONTRACT);
             if (testContract) {
-                console.log('Test contract loaded, checking methods...');
+                console.log('Test contract loaded, analyzing structure...');
+                
+                // Check method instances
                 if (testContract.methodInstances) {
-                    console.log('Contract method signatures:', Object.keys(testContract.methodInstances));
-                }
-                // Also try to see method names another way
-                const methods = [];
-                for (let key in testContract) {
-                    if (typeof testContract[key] === 'function' && key !== 'at' && key !== 'new' && !key.startsWith('_')) {
-                        methods.push(key);
+                    const methodSigs = Object.keys(testContract.methodInstances);
+                    console.log('Method signatures found:', methodSigs);
+                    
+                    // Try to decode method names
+                    for (const sig of methodSigs) {
+                        const methodInfo = testContract.methodInstances[sig];
+                        console.log(`Method ${sig}:`, methodInfo);
                     }
                 }
-                console.log('Contract methods found:', methods);
+                
+                // Check for specific methods
+                console.log('Has rentResource?', !!testContract.rentResource);
+                console.log('Has order?', !!testContract.order);
+                
+                // List all function properties
+                const allMethods = [];
+                for (let key in testContract) {
+                    if (typeof testContract[key] === 'function') {
+                        allMethods.push(key);
+                    }
+                }
+                console.log('All function properties:', allMethods);
             }
             
             // JustLend Energy Rental Contract ABI based on official documentation
@@ -227,8 +243,21 @@ const EnergyRental = {
             const liquidateThreshold = 0; // Default
             const minFee = 40 * 1_000_000; // 40 TRX minimum fee in SUN
             
-            // Calculate prepayment
-            const rentalCost = Math.ceil(trxAmount * rentalRate * (duration + 86400 + liquidateThreshold));
+            // Try to get current rental rate from contract
+            let actualRentalRate = rentalRate;
+            try {
+                if (contract._rentalRate) {
+                    console.log('Querying current rental rate from contract...');
+                    const currentRate = await contract._rentalRate(0, 1).call(); // 0 amount, 1 for energy
+                    actualRentalRate = currentRate / 1e18; // Scale down from contract format
+                    console.log('Current rental rate from contract:', actualRentalRate);
+                }
+            } catch (e) {
+                console.log('Could not query rental rate, using default:', e);
+            }
+            
+            // Calculate prepayment with actual rate
+            const rentalCost = Math.ceil(trxAmount * actualRentalRate * (duration + 86400 + liquidateThreshold));
             const totalPrepayment = rentalCost + minFee;
             
             console.log('JustLend rental calculation:', {
@@ -260,6 +289,12 @@ const EnergyRental = {
                 // Check which method exists
                 if (contract.rentResource) {
                     console.log('Using rentResource method');
+                    console.log('Final parameters for rentResource:');
+                    console.log('  receiver:', receiverAddress);
+                    console.log('  amount:', trxAmount, 'SUN =', trxAmount / 1_000_000, 'TRX');
+                    console.log('  resourceType:', 1, '(energy)');
+                    console.log('  callValue:', totalPrepayment, 'SUN =', totalPrepayment / 1_000_000, 'TRX');
+                    
                     tx = await contract.rentResource(
                         receiverAddress,
                         trxAmount, // TRX amount in SUN (not energy amount)
@@ -294,30 +329,46 @@ const EnergyRental = {
                 
                 // Check if it's a specific error we can handle
                 if (sendError.message && sendError.message.includes('REVERT')) {
-                    console.error('JustLend REVERT error. Common causes:');
-                    console.error('1. Insufficient prepayment amount');
-                    console.error('2. Contract may be paused');
-                    console.error('3. Minimum rental amount not met');
+                    console.error('JustLend REVERT error. Transaction details:');
+                    console.error('- Receiver:', receiverAddress);
+                    console.error('- TRX amount:', trxAmount / 1_000_000, 'TRX');
+                    console.error('- Resource type:', 1, '(1=energy)');
+                    console.error('- Prepayment:', totalPrepayment / 1_000_000, 'TRX');
+                    console.error('- Energy requested:', amount);
+                    
+                    console.error('\nCommon REVERT causes:');
+                    console.error('1. Receiver is a contract (not allowed)');
+                    console.error('2. Receiver account not activated');
+                    console.error('3. Insufficient prepayment');
+                    console.error('4. Contract paused or restricted');
                     
                     // Try to extract revert reason
                     const revertMatch = sendError.message.match(/REVERT opcode executed[,:]?\s*(?:Reason:\s*)?(.+)?/i);
                     const revertReason = revertMatch?.[1] || 'Contract rejected the transaction';
                     
-                    // Check if it's a value issue
-                    if (totalPrepayment < minFee) {
-                        return {
-                            success: false,
-                            error: `Prepayment too low. Need at least ${minFee / 1_000_000} TRX`
-                        };
+                    // Check receiver address
+                    try {
+                        const accountInfo = await window.tronWeb.trx.getAccount(receiverAddress);
+                        console.log('Receiver account info:', accountInfo);
+                        
+                        if (!accountInfo || !accountInfo.address) {
+                            return {
+                                success: false,
+                                error: 'Receiver account not activated on TRON network'
+                            };
+                        }
+                    } catch (e) {
+                        console.error('Could not check receiver account:', e);
                     }
                     
                     return {
                         success: false,
                         error: `JustLend rejected: ${revertReason}`,
                         details: {
+                            receiver: receiverAddress,
                             trxAmount: trxAmount / 1_000_000,
                             prepayment: totalPrepayment / 1_000_000,
-                            minFee: minFee / 1_000_000
+                            energyRequested: amount
                         }
                     };
                 }
