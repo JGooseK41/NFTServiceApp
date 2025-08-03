@@ -2946,15 +2946,15 @@
                 </div>
                 <div id="contractContent">
                 <div class="form-group">
-                    <label class="form-label">Legal Notice Contract Address <span class="badge badge-info">Nile Testnet</span></label>
+                    <label class="form-label">Legal Notice Contract Address <span class="badge badge-info" id="contractNetworkBadge">Detecting...</span></label>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
                         <input type="text" class="form-input" id="contractAddress" 
                                placeholder="Enter contract address (e.g., TXxxx...)"
-                               value="THUoYefQtWgkSmmFqqJpYERCuqLw1As2hL" style="flex: 1;">
+                               value="" style="flex: 1;">
                         <button class="btn btn-secondary" onclick="copyAddress(document.getElementById('contractAddress').value)" title="Copy address">
                             <i class="fas fa-copy"></i>
                         </button>
-                        <a href="https://nile.tronscan.org/#/contract/THUoYefQtWgkSmmFqqJpYERCuqLw1As2hL" target="_blank" class="btn btn-secondary" title="View on Nile TronScan">
+                        <a href="#" id="contractTronscanLink" target="_blank" class="btn btn-secondary" title="View on TronScan">
                             <i class="fas fa-external-link-alt"></i>
                         </a>
                     </div>
@@ -12666,7 +12666,7 @@ document.addEventListener('keydown', function(event) {
                 const node = await tronWeb.getNodeInfo();
                 const contractAddressField = document.getElementById('contractAddress');
                 const networkWarning = document.getElementById('networkWarning');
-                const tronscanLink = document.querySelector('a[href*="tronscan.org"]');
+                const tronscanLink = document.getElementById('contractTronscanLink');
                 
                 if (!contractAddressField) return;
                 
@@ -12691,10 +12691,13 @@ document.addEventListener('keydown', function(event) {
                 }
                 
                 // Update UI based on detected network
+                const networkBadge = document.getElementById('contractNetworkBadge');
+                
                 if (detectedNetwork === 'mainnet') {
                     currentNetwork = 'mainnet';
                     contractAddressField.value = window.CONTRACT_ADDRESSES.mainnet;
                     if (networkWarning) networkWarning.innerHTML = '✅ Connected to <strong>TRON Mainnet</strong>';
+                    if (networkBadge) networkBadge.textContent = 'Mainnet';
                     if (tronscanLink) {
                         tronscanLink.href = `https://tronscan.org/#/contract/${window.CONTRACT_ADDRESSES.mainnet}`;
                         tronscanLink.title = 'View on TronScan';
@@ -12704,6 +12707,7 @@ document.addEventListener('keydown', function(event) {
                     currentNetwork = 'nile';
                     contractAddressField.value = window.CONTRACT_ADDRESSES.nile;
                     if (networkWarning) networkWarning.innerHTML = '⚠️ Connected to <strong>Nile Testnet</strong> - Switch to Mainnet for production';
+                    if (networkBadge) networkBadge.textContent = 'Nile Testnet';
                     if (tronscanLink) {
                         tronscanLink.href = `https://nile.tronscan.org/#/contract/${window.CONTRACT_ADDRESSES.nile}`;
                         tronscanLink.title = 'View on Nile TronScan';
@@ -12713,9 +12717,11 @@ document.addEventListener('keydown', function(event) {
                     currentNetwork = 'shasta';
                     contractAddressField.value = '';
                     if (networkWarning) networkWarning.innerHTML = '❌ Connected to <strong>Shasta Testnet</strong> - Contract not deployed';
+                    if (networkBadge) networkBadge.textContent = 'Shasta Testnet';
                     console.log('Detected TRON Shasta Testnet - Contract not deployed');
                 } else {
                     if (networkWarning) networkWarning.innerHTML = '⚠️ Unknown network - Please connect to TRON Mainnet';
+                    if (networkBadge) networkBadge.textContent = 'Unknown';
                 }
             } catch (error) {
                 console.error('Error detecting network:', error);
