@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Legal Notice NFT Logo Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: #f0f0f0;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        canvas {
+            border: 1px solid #ddd;
+            margin: 20px 0;
+            display: block;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        .preview {
+            margin-top: 20px;
+        }
+        .preview img {
+            max-width: 100px;
+            margin: 10px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Legal Notice NFT Logo</h1>
+        <canvas id="logo" width="512" height="512"></canvas>
+        
+        <div>
+            <button onclick="downloadPNG()">Download PNG (512x512)</button>
+            <button onclick="downloadPNG(256)">Download PNG (256x256)</button>
+            <button onclick="downloadPNG(128)">Download PNG (128x128)</button>
+            <button onclick="downloadSVG()">Download SVG</button>
+        </div>
+        
+        <div class="preview">
+            <h3>Preview at different sizes:</h3>
+            <img id="preview512" alt="512px">
+            <img id="preview256" alt="256px">
+            <img id="preview128" alt="128px">
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('logo');
+        const ctx = canvas.getContext('2d');
+        
+        function drawLogo(ctx, size) {
+            const scale = size / 512;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, size, size);
+            
+            // Background gradient
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#1a237e');
+            gradient.addColorStop(1, '#3949ab');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+            
+            // White document shape
+            ctx.save();
+            ctx.translate(size/2, size/2);
+            ctx.scale(scale, scale);
+            
+            // Document
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            ctx.shadowBlur = 20;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 10;
+            
+            // Document with folded corner
+            ctx.beginPath();
+            ctx.moveTo(-120, -160);
+            ctx.lineTo(80, -160);
+            ctx.lineTo(120, -120);
+            ctx.lineTo(120, 160);
+            ctx.lineTo(-120, 160);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Folded corner
+            ctx.fillStyle = '#e8eaf6';
+            ctx.beginPath();
+            ctx.moveTo(80, -160);
+            ctx.lineTo(120, -120);
+            ctx.lineTo(80, -120);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.shadowColor = 'transparent';
+            
+            // Text lines
+            ctx.fillStyle = '#3949ab';
+            ctx.fillRect(-80, -100, 140, 8);
+            ctx.fillRect(-80, -70, 100, 8);
+            ctx.fillRect(-80, -40, 160, 8);
+            ctx.fillRect(-80, -10, 120, 8);
+            ctx.fillRect(-80, 20, 160, 8);
+            ctx.fillRect(-80, 50, 90, 8);
+            
+            // Blockchain/NFT indicator - chain links
+            ctx.strokeStyle = '#4caf50';
+            ctx.lineWidth = 8;
+            ctx.lineCap = 'round';
+            
+            // Chain link 1
+            ctx.beginPath();
+            ctx.arc(-40, 110, 20, 0, Math.PI, true);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(-40, 110, 20, 0, Math.PI, false);
+            ctx.stroke();
+            
+            // Chain link 2
+            ctx.beginPath();
+            ctx.arc(0, 110, 20, 0, Math.PI, true);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(0, 110, 20, 0, Math.PI, false);
+            ctx.stroke();
+            
+            // Chain link 3
+            ctx.beginPath();
+            ctx.arc(40, 110, 20, 0, Math.PI, true);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(40, 110, 20, 0, Math.PI, false);
+            ctx.stroke();
+            
+            // Checkmark seal
+            ctx.fillStyle = '#4caf50';
+            ctx.beginPath();
+            ctx.arc(90, 120, 35, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // White checkmark
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(70, 120);
+            ctx.lineTo(85, 135);
+            ctx.lineTo(110, 105);
+            ctx.stroke();
+            
+            ctx.restore();
+            
+            // Add text
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `bold ${48 * scale}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('LEGAL NFT', size/2, size - 60 * scale);
+        }
+        
+        // Initial draw
+        drawLogo(ctx, 512);
+        
+        // Generate previews
+        function generatePreviews() {
+            const sizes = [512, 256, 128];
+            sizes.forEach(size => {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = size;
+                tempCanvas.height = size;
+                const tempCtx = tempCanvas.getContext('2d');
+                drawLogo(tempCtx, size);
+                document.getElementById(`preview${size}`).src = tempCanvas.toDataURL();
+            });
+        }
+        
+        generatePreviews();
+        
+        function downloadPNG(size = 512) {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = size;
+            tempCanvas.height = size;
+            const tempCtx = tempCanvas.getContext('2d');
+            drawLogo(tempCtx, size);
+            
+            const link = document.createElement('a');
+            link.download = `legal-nft-logo-${size}x${size}.png`;
+            link.href = tempCanvas.toDataURL();
+            link.click();
+        }
+        
+        function downloadSVG() {
+            const svgContent = `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a237e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3949ab;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="0" dy="2" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.3"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" fill="url(#bgGradient)"/>
+  
+  <!-- Document -->
+  <g transform="translate(256, 256)">
+    <!-- Document shape with folded corner -->
+    <path d="M -120 -160 L 80 -160 L 120 -120 L 120 160 L -120 160 Z" fill="#ffffff" filter="url(#shadow)"/>
+    <path d="M 80 -160 L 120 -120 L 80 -120 Z" fill="#e8eaf6"/>
+    
+    <!-- Text lines -->
+    <rect x="-80" y="-100" width="140" height="8" fill="#3949ab"/>
+    <rect x="-80" y="-70" width="100" height="8" fill="#3949ab"/>
+    <rect x="-80" y="-40" width="160" height="8" fill="#3949ab"/>
+    <rect x="-80" y="-10" width="120" height="8" fill="#3949ab"/>
+    <rect x="-80" y="20" width="160" height="8" fill="#3949ab"/>
+    <rect x="-80" y="50" width="90" height="8" fill="#3949ab"/>
+    
+    <!-- Blockchain chain links -->
+    <g stroke="#4caf50" stroke-width="8" fill="none" stroke-linecap="round">
+      <path d="M -60 110 A 20 20 0 0 1 -20 110"/>
+      <path d="M -60 110 A 20 20 0 0 0 -20 110"/>
+      <path d="M -20 110 A 20 20 0 0 1 20 110"/>
+      <path d="M -20 110 A 20 20 0 0 0 20 110"/>
+      <path d="M 20 110 A 20 20 0 0 1 60 110"/>
+      <path d="M 20 110 A 20 20 0 0 0 60 110"/>
+    </g>
+    
+    <!-- Checkmark seal -->
+    <circle cx="90" cy="120" r="35" fill="#4caf50"/>
+    <path d="M 70 120 L 85 135 L 110 105" stroke="#ffffff" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="256" y="460" font-family="Arial, sans-serif" font-size="48" font-weight="bold" text-anchor="middle" fill="#ffffff">LEGAL NFT</text>
+</svg>`;
+            
+            const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = 'legal-nft-logo.svg';
+            link.href = url;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
