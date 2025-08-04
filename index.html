@@ -3213,6 +3213,23 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Recent Activities -->
+            <div class="card" id="recentActivitiesCard">
+                <div class="card-header">
+                    <h2><i class="fas fa-history"></i> Recent Served Notices</h2>
+                    <button class="btn btn-secondary btn-small" onclick="refreshRecentActivities()">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
+                </div>
+                <div id="recentActivitiesContent">
+                    <div class="empty-state">
+                        <i class="fas fa-clipboard"></i>
+                        <h3>No recent activity</h3>
+                        <p>Your served notices will appear here</p>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Delivery Status Tab -->
@@ -7937,7 +7954,16 @@ function useConnectedAddressForFeeCollector() {
                         }
                     }, 1000);
                 } else {
-                    // Server mode - check if contract is already in the address field
+                    // Server mode - update stats and recent activities
+                    if (siteConfig.showServerFeatures) {
+                        // Update server statistics
+                        updateServerStats();
+                        
+                        // Refresh recent activities
+                        refreshRecentActivities();
+                    }
+                    
+                    // Check if contract is already in the address field
                     const contractAddressField = document.getElementById('contractAddress');
                     if (contractAddressField && contractAddressField.value) {
                         // Automatically connect to contract after a short delay to ensure TronWeb is ready
@@ -10278,6 +10304,13 @@ function useConnectedAddressForFeeCollector() {
                 
                 uiManager.showNotification('success', 'Contract connected successfully');
                 
+                // Update server stats and recent activities for process servers
+                const siteConfig = getSiteConfig();
+                if (siteConfig.showServerFeatures) {
+                    updateServerStats();
+                    refreshRecentActivities();
+                }
+                
             } catch (error) {
                 console.error('Contract connection error:', error);
                 contractStatus.innerHTML = `
@@ -10926,28 +10959,36 @@ async function checkUserRoles() {
             try {
                 const userAddress = tronWeb.defaultAddress.base58;
                 
-                // Get all notices served by this address
-                let totalServed = 0;
+                // Get notices served by this address from localStorage
+                const servedNotices = JSON.parse(localStorage.getItem('servedNotices') || '{}');
+                const myNotices = servedNotices[userAddress] || [];
+                
+                let totalServed = myNotices.length;
                 let accepted = 0;
                 let pending = 0;
                 
-                // Get total notices created by this server
-                const balance = await legalContract.balanceOf(userAddress).call();
-                totalServed = parseInt(balance);
-                
-                // Check each notice for acceptance status
-                for (let i = 0; i < totalServed; i++) {
+                // Check acceptance status for each notice
+                for (const noticeData of myNotices) {
                     try {
-                        const tokenId = await legalContract.tokenOfOwnerByIndex(userAddress, i).call();
-                        const acceptedTime = await legalContract.acceptedTimestamps(tokenId).call();
-                        
-                        if (acceptedTime && acceptedTime > 0) {
+                        // Check if notice has been accepted
+                        const alertData = await legalContract.alertNotices(noticeData.noticeId).call();
+                        if (alertData && alertData.acknowledged) {
                             accepted++;
                         } else {
                             pending++;
                         }
                     } catch (err) {
-                        console.error('Error checking notice:', err);
+                        // If can't get alert data, check document notices
+                        try {
+                            const docData = await legalContract.documentNotices(noticeData.noticeId).call();
+                            if (docData && docData.accepted) {
+                                accepted++;
+                            } else {
+                                pending++;
+                            }
+                        } catch (err2) {
+                            pending++;
+                        }
                     }
                 }
                 
@@ -10959,6 +11000,16 @@ async function checkUserRoles() {
                 document.getElementById('acceptedStat').textContent = accepted;
                 document.getElementById('pendingStat').textContent = pending;
                 document.getElementById('successRateStat').textContent = successRate + '%';
+                
+                // Save stats to localStorage
+                const stats = {
+                    totalServed,
+                    accepted,
+                    pending,
+                    successRate,
+                    lastUpdated: new Date().toISOString()
+                };
+                localStorage.setItem(`serverStats_${userAddress}`, JSON.stringify(stats));
                 
             } catch (error) {
                 console.error('Error updating server stats:', error);
@@ -11060,6 +11111,241 @@ async function checkUserRoles() {
                         <p>Unable to fetch recent notices</p>
                     </div>
                 `;
+            }
+        }
+
+        // New function to refresh recent activities for process servers
+        async function refreshRecentActivities() {
+            const content = document.getElementById('recentActivitiesContent');
+            if (!content) return;
+            
+            if (!legalContract || !tronWeb || !tronWeb.defaultAddress) {
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-clipboard"></i>
+                        <h3>Connect wallet to view activity</h3>
+                        <p>Your recent notices will appear here</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            try {
+                const userAddress = tronWeb.defaultAddress.base58;
+                
+                // Get served notices from localStorage
+                const servedNotices = JSON.parse(localStorage.getItem('servedNotices') || '{}');
+                const myNotices = (servedNotices[userAddress] || []).slice(-10).reverse(); // Last 10, newest first
+                
+                if (myNotices.length === 0) {
+                    content.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-clipboard"></i>
+                            <h3>No recent activity</h3>
+                            <p>Your served notices will appear here</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Show loading while checking status
+                content.innerHTML = '<div style="text-align: center; padding: 2rem;"><i class="fas fa-spinner fa-spin"></i> Loading recent notices...</div>';
+                
+                let html = '<div class="activity-list" style="max-height: 400px; overflow-y: auto;">';
+                
+                for (const noticeData of myNotices) {
+                    try {
+                        // Check acceptance status and get IP data
+                        let isAccepted = false;
+                        let acceptanceData = null;
+                        let ipData = null;
+                        
+                        // Check if notice has been accepted
+                        try {
+                            const alertData = await legalContract.alertNotices(noticeData.noticeId).call();
+                            if (alertData && alertData.acknowledged) {
+                                isAccepted = true;
+                                
+                                // Get acceptance data from localStorage
+                                const acceptances = JSON.parse(localStorage.getItem('noticeAcceptances') || '{}');
+                                acceptanceData = acceptances[noticeData.noticeId];
+                                
+                                // Get IP tracking data
+                                const visitLogs = JSON.parse(localStorage.getItem('noticeVisitLogs') || '{}');
+                                ipData = visitLogs[noticeData.noticeId] ? visitLogs[noticeData.noticeId][0] : null;
+                            }
+                        } catch (err) {
+                            console.log('Error checking alert notice:', err);
+                        }
+                        
+                        const timeAgo = getTimeAgo(new Date(noticeData.timestamp));
+                        
+                        html += `
+                            <div class="activity-item" style="padding: 1rem; border-bottom: 1px solid var(--border-color);">
+                                <div style="display: flex; justify-content: space-between; align-items: start;">
+                                    <div style="flex: 1;">
+                                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                            <i class="fas fa-file-contract" style="color: var(--accent-blue);"></i>
+                                            <strong>Notice #${noticeData.noticeId}</strong>
+                                            <span class="badge ${isAccepted ? 'badge-success' : 'badge-warning'}" style="font-size: 0.75rem;">
+                                                ${isAccepted ? '<i class="fas fa-check"></i> Accepted' : '<i class="fas fa-clock"></i> Pending'}
+                                            </span>
+                                        </div>
+                                        <div style="font-size: 0.875rem; color: var(--text-secondary);">
+                                            <div>To: ${noticeData.recipient.substring(0, 8)}...${noticeData.recipient.slice(-6)}</div>
+                                            <div>Type: ${noticeData.noticeType || 'Legal Notice'}</div>
+                                            ${noticeData.caseNumber ? `<div>Case: ${noticeData.caseNumber}</div>` : ''}
+                                            <div>Served: ${timeAgo}</div>
+                                        </div>
+                                        ${isAccepted && acceptanceData ? `
+                                            <div style="margin-top: 0.5rem; padding: 0.5rem; background: var(--bg-secondary); border-radius: 4px; font-size: 0.875rem;">
+                                                <div style="color: var(--success-green); font-weight: 500; margin-bottom: 0.25rem;">
+                                                    <i class="fas fa-check-circle"></i> Accepted on ${new Date(acceptanceData.timestamp).toLocaleString()}
+                                                </div>
+                                                ${ipData ? `
+                                                    <div style="color: var(--text-muted);">
+                                                        <i class="fas fa-map-marker-alt"></i> ${ipData.location.city}, ${ipData.location.region}, ${ipData.location.country}
+                                                        <br>
+                                                        <i class="fas fa-network-wired"></i> IP: ${ipData.ip}
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                        <button class="btn btn-small btn-secondary" onclick="viewNoticeAudit(${noticeData.noticeId})">
+                                            <i class="fas fa-search"></i> Audit
+                                        </button>
+                                        ${isAccepted ? `
+                                            <button class="btn btn-small btn-secondary" onclick="viewAcceptanceDetails(${noticeData.noticeId})">
+                                                <i class="fas fa-file-contract"></i> Receipt
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } catch (err) {
+                        console.error('Error loading notice data:', err);
+                    }
+                }
+                
+                html += '</div>';
+                content.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error refreshing recent activities:', error);
+                content.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <h3>Error loading activity</h3>
+                        <p>Unable to fetch recent notices</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Function to view acceptance details with IP data
+        async function viewAcceptanceDetails(noticeId) {
+            try {
+                // Get acceptance data
+                const acceptances = JSON.parse(localStorage.getItem('noticeAcceptances') || '{}');
+                const acceptanceData = acceptances[noticeId];
+                
+                // Get IP tracking data
+                const visitLogs = JSON.parse(localStorage.getItem('noticeVisitLogs') || '{}');
+                const ipData = visitLogs[noticeId] ? visitLogs[noticeId][0] : null;
+                
+                // Get notice details
+                const alertData = await legalContract.alertNotices(noticeId).call();
+                
+                // Create modal
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 600px;">
+                        <div class="modal-header">
+                            <h3>Acceptance Receipt - Notice #${noticeId}</h3>
+                            <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
+                        </div>
+                        <div class="modal-body">
+                            <div style="padding: 1rem; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 1rem;">
+                                <h4 style="margin-top: 0;">Notice Information</h4>
+                                <div style="display: grid; gap: 0.5rem;">
+                                    <div><strong>Type:</strong> ${alertData.noticeType || 'Legal Notice'}</div>
+                                    <div><strong>Case Number:</strong> ${alertData.caseNumber || 'N/A'}</div>
+                                    <div><strong>Recipient:</strong> ${alertData.recipient}</div>
+                                    <div><strong>Served:</strong> ${new Date(parseInt(alertData.timestamp) * 1000).toLocaleString()}</div>
+                                </div>
+                            </div>
+                            
+                            ${acceptanceData ? `
+                                <div style="padding: 1rem; background: #f0fdf4; border-radius: 8px; margin-bottom: 1rem;">
+                                    <h4 style="margin-top: 0; color: #14532d;">Acceptance Confirmation</h4>
+                                    <div style="display: grid; gap: 0.5rem;">
+                                        <div><strong>Accepted:</strong> ${new Date(acceptanceData.timestamp).toLocaleString()}</div>
+                                        <div><strong>Transaction ID:</strong> <a href="https://tronscan.org/#/transaction/${acceptanceData.txId}" target="_blank" style="color: #22c55e;">${acceptanceData.txId.substring(0, 10)}...</a></div>
+                                        <div><strong>Signature:</strong> ${acceptanceData.signature ? acceptanceData.signature.substring(0, 20) + '...' : 'On-chain signature'}</div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${ipData ? `
+                                <div style="padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                                    <h4 style="margin-top: 0;">Location & Device Information</h4>
+                                    <div style="display: grid; gap: 0.5rem;">
+                                        <div><strong>IP Address:</strong> ${ipData.ip}</div>
+                                        <div><strong>Location:</strong> ${ipData.location.city}, ${ipData.location.region}, ${ipData.location.country}</div>
+                                        ${ipData.location.latitude ? `
+                                            <div><strong>Coordinates:</strong> ${ipData.location.latitude}, ${ipData.location.longitude}</div>
+                                        ` : ''}
+                                        <div><strong>Timezone:</strong> ${ipData.location.timezone}</div>
+                                        <div><strong>Browser:</strong> ${ipData.userAgent.match(/(Chrome|Firefox|Safari|Edge)\/[\d.]+/)?.[0] || 'Unknown'}</div>
+                                        <div><strong>Screen:</strong> ${ipData.screenResolution}</div>
+                                        <div><strong>Language:</strong> ${ipData.language}</div>
+                                    </div>
+                                </div>
+                            ` : '<p>No IP tracking data available</p>'}
+                            
+                            <div style="margin-top: 1.5rem; text-align: center;">
+                                <button class="btn btn-primary" onclick="printAcceptanceReceipt(${noticeId})">
+                                    <i class="fas fa-print"></i> Print Receipt
+                                </button>
+                                <button class="btn btn-secondary" onclick="this.closest('.modal').remove()" style="margin-left: 0.5rem;">
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                
+            } catch (error) {
+                console.error('Error viewing acceptance details:', error);
+                uiManager.showNotification('error', 'Failed to load acceptance details');
+            }
+        }
+
+        // Function to view notice audit details
+        async function viewNoticeAudit(noticeId) {
+            try {
+                // Open audit modal with the notice ID pre-filled
+                openAuditModal();
+                
+                // Set search type to notice ID
+                document.getElementById('auditSearchType').value = 'noticeId';
+                updateAuditSearch();
+                
+                // Set the notice ID and search
+                document.getElementById('auditNoticeIdInput').value = noticeId;
+                
+                // Trigger the search
+                await searchNotice();
+                
+            } catch (error) {
+                console.error('Error opening audit view:', error);
+                uiManager.showNotification('error', 'Failed to open audit view');
             }
         }
 
@@ -12291,6 +12577,12 @@ async function checkUserRoles() {
                 // Hide recipient-only features
                 const recipientElements = document.querySelectorAll('.recipient-only');
                 recipientElements.forEach(el => el.style.display = 'none');
+                
+                // Hide My Legal Notice Alerts section for process servers
+                const myAlertsCard = document.getElementById('myAlertsCard');
+                if (myAlertsCard) {
+                    myAlertsCard.style.display = 'none';
+                }
             }
             
             // Update page title
@@ -19577,8 +19869,33 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 transactions.push(txData);
                 localStorage.setItem('userTransactions', JSON.stringify(transactions));
                 
+                // Save served notice for process server tracking
+                const servedNoticeData = {
+                    noticeId: noticeId,
+                    recipient: recipient,
+                    noticeType: noticeRequest.noticeType || 'Legal Notice',
+                    caseNumber: noticeRequest.caseNumber || '',
+                    timestamp: Date.now(),
+                    txHash: txHash || 'N/A',
+                    hasDocument: !!uploadedImage,
+                    documentId: documentId || null,
+                    alertId: alertId || null
+                };
+                
+                const servedNotices = JSON.parse(localStorage.getItem('servedNotices') || '{}');
+                if (!servedNotices[tronWeb.defaultAddress.base58]) {
+                    servedNotices[tronWeb.defaultAddress.base58] = [];
+                }
+                servedNotices[tronWeb.defaultAddress.base58].push(servedNoticeData);
+                localStorage.setItem('servedNotices', JSON.stringify(servedNotices));
+                
                 // Update server stats
                 updateServerStats();
+                
+                // Refresh recent activities if on home tab
+                if (document.getElementById('homeTab').style.display !== 'none') {
+                    setTimeout(() => refreshRecentActivities(), 500);
+                }
 
                 
                 // Clear form
