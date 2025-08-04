@@ -2884,7 +2884,7 @@
             <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px; border-left: 4px solid var(--accent-blue);">
                 <p style="margin: 0; font-size: 0.95rem; color: var(--text-secondary);">
                     <strong>🚨 Law Enforcement Asset Recovery:</strong> When cryptocurrency wallets contain proceeds of crime but owners are unknown, this system enables constitutional due process by serving seizure notices directly to the wallet address. The NFT travels with the assets, ensuring notice reaches whoever controls them.
-                    <a href="#" onclick="switchTab('help'); setTimeout(() => document.querySelector('.faq-header').click(), 100); return false;" style="color: var(--accent-blue); text-decoration: underline;">See how it works →</a>
+                    <a href="#" onclick="switchTab('info'); setTimeout(() => document.querySelector('.faq-header').click(), 100); return false;" style="color: var(--accent-blue); text-decoration: underline;">See how it works →</a>
                 </p>
             </div>
         </div>
@@ -2902,8 +2902,8 @@
             <button class="tab-button server-only" onclick="switchTab('admin')" id="adminTabButton" style="display: none;">
                 <i class="fas fa-user-shield"></i> Admin Panel
             </button>
-            <button class="tab-button" onclick="switchTab('help')">
-                <i class="fas fa-question-circle"></i> Help
+            <button class="tab-button" onclick="switchTab('info')">
+                <i class="fas fa-info-circle"></i> Info
             </button>
         </div>
 
@@ -3746,8 +3746,8 @@
             </div>
         </div>
 
-        <!-- Help Tab -->
-        <div id="helpTab" class="tab-content">
+        <!-- Info Tab -->
+        <div id="infoTab" class="tab-content">
             <!-- FAQ Accordion -->
             <div class="faq-container" id="faqContainer">
                 <h2 style="margin-bottom: 2rem;"><i class="fas fa-question-circle"></i> Frequently Asked Questions</h2>
@@ -3774,7 +3774,7 @@
                     <div>
                         <strong>Important:</strong> Registration requires admin approval. You'll be notified once approved.
                         <br><small style="margin-top: 0.5rem; display: block;">
-                            <a href="#" onclick="closeRegistrationModal(); switchTab('help'); setTimeout(() => { document.querySelector('.faq-header').parentElement.querySelectorAll('.faq-header')[document.querySelector('.faq-header').parentElement.querySelectorAll('.faq-header').length - 2].click(); }, 100); return false;">
+                            <a href="#" onclick="closeRegistrationModal(); switchTab('info'); setTimeout(() => { document.querySelector('.faq-header').parentElement.querySelectorAll('.faq-header')[document.querySelector('.faq-header').parentElement.querySelectorAll('.faq-header').length - 2].click(); }, 100); return false;">
                                 Learn more about becoming a Process Server <i class="fas fa-external-link-alt"></i>
                             </a>
                         </small>
@@ -4466,7 +4466,7 @@
                     Please ensure all information is correct before submitting.
                 </div>
                 <p style="margin-bottom: 1.5rem;">Please provide your professional information to complete process server registration. 
-                <a href="#" onclick="closeRegistrationModal(); switchTab('help'); document.getElementById('faq-process-server').scrollIntoView();" style="color: var(--accent-blue);">
+                <a href="#" onclick="closeRegistrationModal(); switchTab('info'); document.getElementById('faq-process-server').scrollIntoView();" style="color: var(--accent-blue);">
                     Learn more about being a process server →
                 </a></p>
                 
@@ -12718,7 +12718,7 @@ async function checkUserRoles() {
                             </div>
                         </div>
                         <div style="text-align: center; margin-top: 1.5rem;">
-                            <button class="btn btn-secondary" onclick="switchTab('help')">
+                            <button class="btn btn-secondary" onclick="switchTab('info')">
                                 <i class="fas fa-book"></i> View Full FAQ
                             </button>
                         </div>
@@ -12732,13 +12732,13 @@ async function checkUserRoles() {
                     <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px; border-left: 4px solid var(--accent-blue);">
                         <p style="margin: 0; font-size: 0.95rem; color: var(--text-secondary);">
                             <strong>🚨 Law Enforcement Asset Recovery:</strong> When cryptocurrency wallets contain proceeds of crime but owners are unknown, this system enables constitutional due process by serving seizure notices directly to the wallet address. The NFT travels with the assets, ensuring notice reaches whoever controls them.
-                            <a href="#" onclick="switchTab('help'); setTimeout(() => document.querySelector('.faq-header').click(), 100); return false;" style="color: var(--accent-blue); text-decoration: underline;">See how it works →</a>
+                            <a href="#" onclick="switchTab('info'); setTimeout(() => document.querySelector('.faq-header').click(), 100); return false;" style="color: var(--accent-blue); text-decoration: underline;">See how it works →</a>
                         </p>
                     </div>
                     <div style="margin-top: 1rem; padding: 1rem; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #22c55e;">
                         <p style="margin: 0; font-size: 0.95rem; color: #14532d;">
                             <strong>🌍 NEW: Multi-Language Support</strong> - Recipients can now view notices in 5 languages (English, Spanish, French, Chinese, Hindi), demonstrating extraordinary diligence in service attempts.
-                            <a href="#" onclick="switchTab('help'); setTimeout(() => { const faqButtons = document.querySelectorAll('.faq-question'); faqButtons.forEach(btn => { if(btn.textContent.includes('diligent service')) btn.click(); }); }, 100); return false;" style="color: #22c55e; text-decoration: underline;">Learn more →</a>
+                            <a href="#" onclick="switchTab('info'); setTimeout(() => { const faqButtons = document.querySelectorAll('.faq-question'); faqButtons.forEach(btn => { if(btn.textContent.includes('diligent service')) btn.click(); }); }, 100); return false;" style="color: #22c55e; text-decoration: underline;">Learn more →</a>
                         </p>
                     </div>
                 `;
@@ -13039,118 +13039,392 @@ async function checkUserRoles() {
             container.appendChild(ctaSection);
         }
         
-        // Create process server FAQ (stub for now - will contain full FAQ later)
+        // Create comprehensive FAQ for law enforcement and process servers
         function createProcessServerFAQ(container) {
+            // Add law enforcement focused banner
+            const lawEnforcementBanner = document.createElement('div');
+            lawEnforcementBanner.className = 'alert alert-info';
+            lawEnforcementBanner.style.cssText = 'font-size: 1.1rem; border: 2px solid #3b82f6; margin-bottom: 2rem; padding: 1.5rem;';
+            lawEnforcementBanner.innerHTML = `
+                <h3 style="color: #1e40af; margin-top: 0;"><i class="fas fa-balance-scale"></i> Blockchain Service of Process - Complete Technical & Legal Guide</h3>
+                <p><strong>This system enables constitutionally-compliant service of legal notices to cryptocurrency wallets, including cold wallets holding stolen funds.</strong></p>
+                <p>The following FAQ explains the complete process, legal validity, and why this is the most defensible method for serving unknown wallet owners.</p>
+            `;
+            container.appendChild(lawEnforcementBanner);
+            
             const faqItems = [
                 {
-                    question: "What are the fees for serving notices?",
+                    question: "🚨 Why is this the best solution for serving cold wallets holding stolen funds?",
                     answer: `
-                        <p>The fee structure is designed to cover operational costs and support recipients:</p>
-                        <ul>
-                            <li><strong>Document Notice:</strong> 152 TRX total
-                                <ul>
-                                    <li>150 TRX - Operational costs (blockchain, storage, processing)</li>
-                                    <li>2 TRX - Sponsorship fee sent to recipient</li>
-                                </ul>
-                            </li>
-                            <li><strong>Text-Only Notice:</strong> 17 TRX total
-                                <ul>
-                                    <li>15 TRX - Operational costs</li>
-                                    <li>2 TRX - Sponsorship fee sent to recipient</li>
-                                </ul>
-                            </li>
-                            <li><strong>Law Enforcement:</strong> 2 TRX only (sponsorship fee)</li>
-                        </ul>
-                        <p><strong>Important:</strong> Recipients receive a total of 5.5 TRX to ensure they can accept the notice:
-                        <ul>
-                            <li>2 TRX sponsorship fee via the smart contract</li>
-                            <li>3.5 TRX notification payment sent separately after NFT creation</li>
-                        </ul>
-                        This ensures recipients have enough TRX to cover the ~5 TRX acceptance cost and see the transaction in their wallet history.</p>
-                    `
-                },
-                {
-                    question: "Why does the recipient need TRX to accept?",
-                    answer: `
-                        <p>Accepting a notice requires a blockchain transaction that costs approximately 5 TRX in energy fees. 
-                        The 2 TRX sponsorship we send helps offset this cost. Recipients should ensure they have sufficient 
-                        TRX in their wallet for the acceptance transaction.</p>
-                    `
-                },
-                {
-                    question: "How do I become a registered process server?",
-                    answer: `
-                        <p>To serve legal notices through our platform:</p>
-                        <ol>
-                            <li>Connect your TRON wallet</li>
-                            <li>Click "Register as Process Server"</li>
-                            <li>Provide your professional information</li>
-                            <li>Wait for admin approval</li>
-                        </ol>
-                        <p>Once approved, you'll be able to serve notices with law enforcement fee exemptions.</p>
-                    `
-                },
-                {
-                    question: "What makes this legally valid?",
-                    answer: `
-                        <p>Our system provides:</p>
-                        <ul>
-                            <li>Immutable proof of service on the blockchain</li>
-                            <li>Cryptographic signatures for acceptance</li>
-                            <li>Timestamped delivery records</li>
-                            <li>Encrypted document storage on IPFS</li>
-                            <li>Jurisdictional data collection (IP, location)</li>
-                        </ul>
-                        <p>These features meet or exceed traditional service requirements.</p>
-                    `
-                },
-                {
-                    question: "How does BlockServed demonstrate diligent service attempts?",
-                    answer: `
-                        <p><strong>BlockServed goes above and beyond to ensure recipients can understand and respond to legal notices:</strong></p>
-                        
-                        <div class="alert alert-success" style="margin: 1rem 0;">
-                            <h4 style="margin-top: 0;">🌍 Multi-Language Support</h4>
-                            <p>The recipient interface at blockserved.com is fully translated into <strong>5 major languages</strong>:</p>
-                            <ul>
-                                <li>🇺🇸 <strong>English</strong></li>
-                                <li>🇪🇸 <strong>Spanish</strong> (Español)</li>
-                                <li>🇫🇷 <strong>French</strong> (Français)</li>
-                                <li>🇨🇳 <strong>Chinese</strong> (中文)</li>
-                                <li>🇮🇳 <strong>Hindi</strong> (हिन्दी)</li>
-                            </ul>
-                            <p style="margin-bottom: 0;">This ensures that non-English speaking recipients can fully understand the legal implications and their rights.</p>
+                        <div class="alert alert-success">
+                            <h4 style="margin-top: 0;">This is the ONLY method that ensures constitutional due process for unknown wallet owners</h4>
                         </div>
                         
-                        <p><strong>Additional diligence features include:</strong></p>
+                        <p><strong>Traditional service methods fail for cryptocurrency:</strong></p>
                         <ul>
-                            <li><strong>Clear Warning Messages:</strong> Critical legal warnings are displayed prominently in the recipient's chosen language</li>
-                            <li><strong>No Wallet Required to View:</strong> Recipients can view notice details without connecting a wallet first</li>
-                            <li><strong>Fee Sponsorship:</strong> Recipients receive 5.5 TRX total to ensure they can accept the notice</li>
-                            <li><strong>Simple Interface:</strong> Designed for non-technical users with clear step-by-step guidance</li>
-                            <li><strong>Persistent Availability:</strong> Notices remain accessible indefinitely at blockserved.com</li>
-                            <li><strong>IP & Location Tracking:</strong> Logs recipient visits to demonstrate actual notice viewing</li>
+                            <li>❌ <strong>Personal service:</strong> Wallet owner's identity is unknown</li>
+                            <li>❌ <strong>Mail service:</strong> No physical address associated with wallets</li>
+                            <li>❌ <strong>Publication:</strong> Owner may be in any jurisdiction worldwide</li>
+                            <li>❌ <strong>Email:</strong> No verified contact information</li>
                         </ul>
                         
-                        <p><strong>Why this matters legally:</strong></p>
-                        <p>Courts require "reasonable diligence" in attempting service. By providing notices in multiple languages and ensuring maximum accessibility, you demonstrate extraordinary efforts to ensure the recipient can understand and respond to the legal notice. This significantly strengthens your position if the recipient claims they didn't understand or couldn't access the notice.</p>
+                        <p><strong>Why blockchain service succeeds:</strong></p>
+                        <ul>
+                            <li>✅ <strong>Direct delivery:</strong> NFT goes directly INTO the wallet containing stolen funds</li>
+                            <li>✅ <strong>Travels with assets:</strong> If funds move, the notice moves with them</li>
+                            <li>✅ <strong>Permanent attachment:</strong> Cannot be separated from the wallet</li>
+                            <li>✅ <strong>Verifiable delivery:</strong> Blockchain proves exact time of service</li>
+                            <li>✅ <strong>Global reach:</strong> Works regardless of owner's location</li>
+                        </ul>
+                        
+                        <div class="alert alert-warning">
+                            <p><strong>Legal precedent:</strong> Courts have accepted email and social media service when traditional methods fail. Blockchain service is MORE reliable than these accepted methods because:</p>
+                            <ul>
+                                <li>Cryptographic proof of delivery (not just "sent")</li>
+                                <li>Cannot be filtered, blocked, or deleted</li>
+                                <li>Permanently associated with the assets in question</li>
+                            </ul>
+                        </div>
+                        
+                        <p><strong>For prosecutors:</strong> This method provides the strongest possible due process argument when seeking forfeiture of stolen cryptocurrency.</p>
+                    `
+                },
+                {
+                    question: "📋 Complete Process Flow: From Creation to Acceptance",
+                    answer: `
+                        <div class="process-steps">
+                            <h4>Phase 1: Notice Creation & Encryption</h4>
+                            <div class="step">
+                                <div class="step-number">1</div>
+                                <div class="step-content">
+                                    <strong>Document Upload</strong>
+                                    <p>Legal document (PDF) is uploaded to the system</p>
+                                </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">2</div>
+                                <div class="step-content">
+                                    <strong>Encryption</strong>
+                                    <p>Document is encrypted using AES-256-GCM with a unique key</p>
+                                </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">3</div>
+                                <div class="step-content">
+                                    <strong>IPFS Storage</strong>
+                                    <p>Encrypted document stored on IPFS (InterPlanetary File System) for permanent availability</p>
+                                </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">4</div>
+                                <div class="step-content">
+                                    <strong>NFT Minting</strong>
+                                    <p>Two NFTs created: Alert NFT (visible notice) and Document NFT (encrypted document)</p>
+                                </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">5</div>
+                                <div class="step-content">
+                                    <strong>Recipient Funding</strong>
+                                    <p>5.5 TRX total sent to recipient (2 TRX via contract + 3.5 TRX direct transfer)</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="process-steps" style="margin-top: 2rem;">
+                            <h4>Phase 2: Recipient Experience</h4>
+                            <div class="step">
+                                <div class="step-number">6</div>
+                                <div class="step-content">
+                                    <strong>Wallet Notification</strong>
+                                    <p>NFT appears in wallet with clear title: "LEGAL NOTICE - ACTION REQUIRED"</p>
+                                </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">7</div>
+                                <div class="step-content">
+                                    <strong>View Without Wallet</strong>
+                                    <p>Recipient can view notice details at blockserved.com without connecting wallet</p>
+                                </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">8</div>
+                                <div class="step-content">
+                                    <strong>Language Selection</strong>
+                                    <p>Interface available in 5 languages to ensure comprehension</p>
+                                </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">9</div>
+                                <div class="step-content">
+                                    <strong>Acceptance Signature</strong>
+                                    <p>Recipient signs blockchain transaction to acknowledge receipt (costs ~5 TRX, covered by the 5.5 TRX provided)</p>
+                                </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">10</div>
+                                <div class="step-content">
+                                    <strong>Document Decryption</strong>
+                                    <p>Upon acceptance, document automatically decrypts for viewing/download</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info" style="margin-top: 1rem;">
+                            <p><strong>IP Tracking:</strong> System logs IP address, location, device info when recipient views or accepts notice - crucial evidence for jurisdiction and actual notice.</p>
+                        </div>
+                    `
+                },
+                {
+                    question: "💰 Fee Structure and Recipient Funding Explained",
+                    answer: `
+                        <h4>Service Fees (Paid by Server)</h4>
+                        <table style="width: 100%; border-collapse: collapse; margin: 1rem 0;">
+                            <tr style="background: #f3f4f6;">
+                                <th style="padding: 0.5rem; text-align: left; border: 1px solid #e5e7eb;">Service Type</th>
+                                <th style="padding: 0.5rem; text-align: left; border: 1px solid #e5e7eb;">Total Cost</th>
+                                <th style="padding: 0.5rem; text-align: left; border: 1px solid #e5e7eb;">Breakdown</th>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem; border: 1px solid #e5e7eb;"><strong>Document Notice</strong></td>
+                                <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">152 TRX</td>
+                                <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">
+                                    • 150 TRX operational costs<br>
+                                    • 2 TRX recipient sponsorship
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem; border: 1px solid #e5e7eb;"><strong>Text Notice</strong></td>
+                                <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">17 TRX</td>
+                                <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">
+                                    • 15 TRX operational costs<br>
+                                    • 2 TRX recipient sponsorship
+                                </td>
+                            </tr>
+                            <tr style="background: #fef3c7;">
+                                <td style="padding: 0.5rem; border: 1px solid #e5e7eb;"><strong>Law Enforcement</strong></td>
+                                <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">2 TRX only</td>
+                                <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">
+                                    • Operational fees waived<br>
+                                    • 2 TRX recipient sponsorship only
+                                </td>
+                            </tr>
+                        </table>
+                        
+                        <h4>Recipient Funding (Total 5.5 TRX)</h4>
+                        <div class="alert alert-success">
+                            <p><strong>Recipients receive 5.5 TRX total to ensure they can accept the notice:</strong></p>
+                            <ol>
+                                <li><strong>2 TRX via smart contract</strong> - Automatically sent with NFT creation</li>
+                                <li><strong>3.5 TRX direct transfer</strong> - Sent immediately after NFT minting as notification payment</li>
+                            </ol>
+                            <p><strong>Why 5.5 TRX?</strong> Accepting requires ~5 TRX in blockchain energy fees. The extra 0.5 TRX ensures sufficient funds even with network fluctuations.</p>
+                        </div>
+                        
+                        <h4>Why Recipients Need TRX</h4>
+                        <p>TRON blockchain requires "energy" for transactions. Without energy, users must burn TRX. The acceptance transaction requires approximately:</p>
+                        <ul>
+                            <li>300,000-500,000 energy units</li>
+                            <li>At current rates: ~5 TRX if burning</li>
+                            <li>OR: Free if user has staked TRX for energy</li>
+                        </ul>
                         
                         <div class="alert alert-info">
-                            <p style="margin: 0;"><i class="fas fa-balance-scale"></i> <strong>Legal Tip:</strong> Document that you served notice through a system with multi-language support. This shows the court you took extra steps to ensure comprehension, especially important for international service or diverse communities.</p>
+                            <p><strong>Legal significance:</strong> By funding acceptance costs, you remove any financial barrier to the recipient acknowledging service, strengthening your due process argument.</p>
                         </div>
                     `
                 },
                 {
-                    question: "What happens after I serve a notice?",
+                    question: "⚖️ Legal Validity and Enforceability",
                     answer: `
-                        <p>After serving a notice:</p>
+                        <h4>Why Courts Accept This Method</h4>
+                        
+                        <p><strong>1. Meets Constitutional Due Process Requirements</strong></p>
+                        <ul>
+                            <li>✅ <strong>Notice:</strong> Clear, conspicuous delivery to the wallet address</li>
+                            <li>✅ <strong>Opportunity to be heard:</strong> Recipient can view and respond</li>
+                            <li>✅ <strong>Reasonable method:</strong> When traditional service is impossible</li>
+                        </ul>
+                        
+                        <p><strong>2. Superior to Accepted Alternative Methods</strong></p>
+                        <table style="width: 100%; margin: 1rem 0;">
+                            <tr>
+                                <th style="text-align: left; padding: 0.5rem;">Method</th>
+                                <th style="text-align: left; padding: 0.5rem;">Proof of Delivery</th>
+                                <th style="text-align: left; padding: 0.5rem;">Permanence</th>
+                            </tr>
+                            <tr>
+                                <td>Email Service</td>
+                                <td>Read receipts (often disabled)</td>
+                                <td>Can be deleted</td>
+                            </tr>
+                            <tr>
+                                <td>Social Media</td>
+                                <td>Platform analytics</td>
+                                <td>Account can be deleted</td>
+                            </tr>
+                            <tr style="background: #d1fae5;">
+                                <td><strong>Blockchain NFT</strong></td>
+                                <td><strong>Cryptographic proof</strong></td>
+                                <td><strong>Immutable forever</strong></td>
+                            </tr>
+                        </table>
+                        
+                        <p><strong>3. Evidence Package for Court</strong></p>
+                        <ul>
+                            <li>📄 Blockchain transaction receipts (immutable proof)</li>
+                            <li>🌐 IP logs showing recipient viewed notice</li>
+                            <li>📍 Geolocation data for jurisdiction</li>
+                            <li>✍️ Cryptographic signature of acceptance</li>
+                            <li>⏰ Precise timestamps for all actions</li>
+                            <li>🌍 Multi-language interface documentation</li>
+                        </ul>
+                        
+                        <div class="alert alert-warning">
+                            <h4>Legal Precedents Supporting Digital Service</h4>
+                            <ul>
+                                <li><strong>Rio Properties v. Rio International Interlink</strong> - Email service approved</li>
+                                <li><strong>WhosHere, Inc. v. Orun</strong> - Social media service approved</li>
+                                <li><strong>FTC v. PCCare247</strong> - Electronic service to unknown defendants</li>
+                            </ul>
+                            <p>Blockchain service is MORE reliable than these approved methods.</p>
+                        </div>
+                    `
+                },
+                {
+                    question: "🔐 Security and Encryption Details",
+                    answer: `
+                        <h4>Document Security</h4>
+                        <ul>
+                            <li><strong>Encryption:</strong> AES-256-GCM (military-grade)</li>
+                            <li><strong>Key Generation:</strong> Cryptographically secure random keys</li>
+                            <li><strong>Storage:</strong> Encrypted documents on IPFS (distributed, permanent)</li>
+                            <li><strong>Access Control:</strong> Only recipient's wallet signature can decrypt</li>
+                        </ul>
+                        
+                        <h4>Privacy Protection</h4>
+                        <ul>
+                            <li>✅ Document contents never exposed publicly</li>
+                            <li>✅ Only notice metadata visible on blockchain</li>
+                            <li>✅ Recipient identity protected until acceptance</li>
+                            <li>✅ Encryption keys never stored on-chain</li>
+                        </ul>
+                        
+                        <h4>Audit Trail</h4>
+                        <div class="alert alert-info">
+                            <p>Every action creates an immutable record:</p>
+                            <ol>
+                                <li>Notice creation (timestamp, sender, recipient wallet)</li>
+                                <li>NFT minting (token IDs, transaction hashes)</li>
+                                <li>Recipient funding (5.5 TRX transfers)</li>
+                                <li>Notice viewing (IP logs, location data)</li>
+                                <li>Acceptance signature (blockchain proof)</li>
+                                <li>Document access (decryption event)</li>
+                            </ol>
+                        </div>
+                    `
+                },
+                {
+                    question: "🎯 Best Practices for Law Enforcement",
+                    answer: `
+                        <h4>Before Serving Notice</h4>
                         <ol>
-                            <li>An NFT is minted to the recipient's wallet</li>
-                            <li>They receive 2 TRX to help with acceptance costs</li>
-                            <li>They can view the notice at blockserved.com</li>
-                            <li>You receive a transaction receipt with proof of service</li>
-                            <li>The notice is permanently recorded on the blockchain</li>
+                            <li><strong>Verify wallet address</strong> - Ensure it contains the assets in question</li>
+                            <li><strong>Document wallet activity</strong> - Screenshot balance and recent transactions</li>
+                            <li><strong>Prepare clear notice</strong> - Include case number, deadline, consequences</li>
+                            <li><strong>Consider jurisdiction</strong> - Note wallet's transaction patterns</li>
                         </ol>
+                        
+                        <h4>Serving the Notice</h4>
+                        <ol>
+                            <li><strong>Use document notice</strong> (not text-only) for complete legal documentation</li>
+                            <li><strong>Include all required elements:</strong>
+                                <ul>
+                                    <li>Court/agency information</li>
+                                    <li>Case/seizure number</li>
+                                    <li>Clear response deadline</li>
+                                    <li>Consequences of non-response</li>
+                                    <li>How to contest/respond</li>
+                                </ul>
+                            </li>
+                            <li><strong>Save all receipts</strong> - Transaction IDs, IPFS hashes, etc.</li>
+                        </ol>
+                        
+                        <h4>After Service</h4>
+                        <ol>
+                            <li><strong>Monitor wallet</strong> - Check if NFT is still there (proves ongoing control)</li>
+                            <li><strong>Track acceptance</strong> - Use audit tools to check status</li>
+                            <li><strong>Document IP logs</strong> - Save evidence of viewing/acceptance</li>
+                            <li><strong>Prepare affidavit</strong> - Include all blockchain proofs</li>
+                        </ol>
+                        
+                        <div class="alert alert-success">
+                            <h4>💡 Pro Tip: Cold Wallet Service</h4>
+                            <p>For wallets that haven't moved in years (cold storage):</p>
+                            <ul>
+                                <li>The NFT will remain with the wallet indefinitely</li>
+                                <li>If funds ever move, the notice moves with them</li>
+                                <li>This creates <strong>constructive notice</strong> - the owner cannot claim ignorance</li>
+                                <li>Document that notice has been "attached" to the assets for [time period]</li>
+                            </ul>
+                        </div>
+                    `
+                },
+                {
+                    question: "📊 Why This Beats Traditional Methods",
+                    answer: `
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr style="background: #f3f4f6;">
+                                <th style="padding: 0.75rem; text-align: left;">Feature</th>
+                                <th style="padding: 0.75rem; text-align: left;">Traditional Service</th>
+                                <th style="padding: 0.75rem; text-align: left;">Blockchain Service</th>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;"><strong>Finding recipient</strong></td>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">❌ Requires identity/address</td>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">✅ Only need wallet address</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;"><strong>Proof of delivery</strong></td>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">⚠️ Signature/affidavit</td>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">✅ Cryptographic proof</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;"><strong>Permanence</strong></td>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">❌ Paper can be lost</td>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">✅ Immutable forever</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;"><strong>Cost</strong></td>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">💰 $50-500+ per attempt</td>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">💰 ~$1 for law enforcement</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;"><strong>Speed</strong></td>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">⏰ Days to weeks</td>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">⚡ Instant delivery</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;"><strong>International service</strong></td>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">❌ Complex treaties</td>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">✅ Borderless delivery</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;"><strong>Language barriers</strong></td>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">⚠️ Often English only</td>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">✅ 5 languages supported</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;"><strong>Avoidance</strong></td>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">❌ Can dodge server</td>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">✅ Cannot avoid delivery</td>
+                            </tr>
+                        </table>
+                        
+                        <div class="alert alert-success" style="margin-top: 1rem;">
+                            <h4>The Bottom Line</h4>
+                            <p>For cryptocurrency-related cases, blockchain service is not just an alternative - it's the SUPERIOR method that provides better due process, stronger evidence, and universal accessibility.</p>
+                        </div>
                     `
                 }
             ];
@@ -14367,7 +14641,7 @@ document.addEventListener('keydown', function(event) {
                         </div>
                         
                         <p style="text-align: center; margin-top: 1rem; font-size: 0.9rem; color: #64748b;">
-                            Questions? <a href="#" onclick="this.closest('.modal').remove(); switchTab('help'); return false;" style="color: #0ea5e9;">View our FAQ</a>
+                            Questions? <a href="#" onclick="this.closest('.modal').remove(); switchTab('info'); return false;" style="color: #0ea5e9;">View our FAQ</a>
                         </p>
                     </div>
                 </div>
@@ -14429,7 +14703,7 @@ document.addEventListener('keydown', function(event) {
                                 </div>
                                 
                                 <p style="margin-top: 1rem; font-size: 0.85rem;">
-                                    <a href="#" onclick="this.closest('.modal').remove(); switchTab('help'); return false;" style="color: #0ea5e9;">
+                                    <a href="#" onclick="this.closest('.modal').remove(); switchTab('info'); return false;" style="color: #0ea5e9;">
                                         Need help? View our FAQ
                                     </a>
                                 </p>
@@ -14932,7 +15206,7 @@ document.addEventListener('keydown', function(event) {
                                     <i class="fas fa-check"></i> I Understand - Continue
                                 </button>
                                 <div style="margin-top: 1rem;">
-                                    <a href="#" onclick="switchTab('help'); document.querySelector('.modal').remove(); return false;" style="color: #0ea5e9;">
+                                    <a href="#" onclick="switchTab('info'); document.querySelector('.modal').remove(); return false;" style="color: #0ea5e9;">
                                         <i class="fas fa-question-circle"></i> View FAQ for More Information
                                     </a>
                                 </div>
@@ -15014,7 +15288,7 @@ document.addEventListener('keydown', function(event) {
                                 <i class="fas fa-check"></i> Continue to App
                             </button>
                             
-                            <a href="#" onclick="switchTab('help'); setTimeout(() => document.querySelector('.faq-header').click(), 100); document.querySelector('.modal').remove(); return false;" style="color: var(--accent-blue);">
+                            <a href="#" onclick="switchTab('info'); setTimeout(() => document.querySelector('.faq-header').click(), 100); document.querySelector('.modal').remove(); return false;" style="color: var(--accent-blue);">
                                 <i class="fas fa-question-circle"></i> View FAQ
                             </a>
                         </div>
