@@ -8343,7 +8343,7 @@ function useConnectedAddressForFeeCollector() {
                 const agencyName = ''; // Complete contract doesn't track agency names
                 
                 if (isLawEnforcement) {
-                    document.getElementById('feeDescription').textContent = `Law Enforcement - Cost only: Sponsorship (2 TRX)`;
+                    document.getElementById('feeDescription').textContent = `Law Enforcement - Service fee waived - Pay energy (90-200 TRX) + recipient (5.5 TRX)`;
                 } else if (deliveryMethod === 'document') {
                     document.getElementById('feeDescription').textContent = 'Encrypted document with public text notice';
                 } else {
@@ -13203,13 +13203,33 @@ async function checkUserRoles() {
                             </tr>
                             <tr style="background: #fef3c7;">
                                 <td style="padding: 0.5rem; border: 1px solid #e5e7eb;"><strong>Law Enforcement</strong></td>
-                                <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">2 TRX only</td>
+                                <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">~35-95 TRX</td>
                                 <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">
-                                    • Operational fees waived<br>
-                                    • 2 TRX recipient sponsorship only
+                                    • Service fees waived (saves 150 TRX)<br>
+                                    • Must pay: Energy/gas (~30-90 TRX)<br>
+                                    • Must pay: Recipient funding (5.5 TRX)
                                 </td>
                             </tr>
                         </table>
+                        
+                        <div class="alert alert-danger" style="margin: 1rem 0;">
+                            <h4 style="margin-top: 0;">⚠️ True Cost Summary (at current energy prices)</h4>
+                            <p><strong>Regular Users:</strong></p>
+                            <ul>
+                                <li>Service fees: 150-152 TRX</li>
+                                <li>Energy costs: ~90-200 TRX (without energy rental)</li>
+                                <li>Recipient funding: 5.5 TRX</li>
+                                <li><strong>Total: ~245-357 TRX ($20-30 USD)</strong></li>
+                            </ul>
+                            <p><strong>Law Enforcement:</strong></p>
+                            <ul>
+                                <li>Service fees: WAIVED (saves 150 TRX)</li>
+                                <li>Energy costs: ~90-200 TRX (without energy rental)</li>
+                                <li>Recipient funding: 5.5 TRX</li>
+                                <li><strong>Total: ~95-205 TRX ($8-17 USD)</strong></li>
+                            </ul>
+                            <p style="margin-bottom: 0;"><strong>CRITICAL:</strong> Energy rental through JustLend can reduce energy costs by 70-80%, but implementation needs improvement.</p>
+                        </div>
                         
                         <h4>Recipient Funding (Total 5.5 TRX)</h4>
                         <div class="alert alert-success">
@@ -13228,6 +13248,24 @@ async function checkUserRoles() {
                             <li>At current rates: ~5 TRX if burning</li>
                             <li>OR: Free if user has staked TRX for energy</li>
                         </ul>
+                        
+                        <h4>Energy Costs for Servers</h4>
+                        <div class="alert alert-warning">
+                            <p><strong>⚠️ CRITICAL: Energy costs are currently very high without proper energy management:</strong></p>
+                            <ul>
+                                <li><strong>Document Notice:</strong> ~1,500,000-2,000,000 energy (~150-200 TRX without rental)</li>
+                                <li><strong>Text Notice:</strong> ~500,000-800,000 energy (~50-80 TRX without rental)</li>
+                            </ul>
+                            <p><strong>URGENT: To reduce costs, you MUST:</strong></p>
+                            <ol>
+                                <li><strong>Stake TRX (Best):</strong> Stake 100,000+ TRX for permanent free energy</li>
+                                <li><strong>Use Energy Rental (Good):</strong> JustLend rental can reduce costs by 70-80% when working</li>
+                                <li><strong>Avoid Burning TRX (Worst):</strong> Current default - extremely expensive!</li>
+                            </ol>
+                            <div style="background: #fef3c7; padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                                <p style="margin: 0;"><strong>🚨 Energy rental implementation needs improvement to reliably reduce costs from ~200 TRX to ~30-40 TRX per notice.</strong></p>
+                            </div>
+                        </div>
                         
                         <div class="alert alert-info">
                             <p><strong>Legal significance:</strong> By funding acceptance costs, you remove any financial barrier to the recipient acknowledging service, strengthening your due process argument.</p>
@@ -13397,7 +13435,7 @@ async function checkUserRoles() {
                             <tr>
                                 <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;"><strong>Cost</strong></td>
                                 <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">💰 $50-500+ per attempt</td>
-                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">💰 ~$1 for law enforcement</td>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">💰 ~$3-8 total costs</td>
                             </tr>
                             <tr>
                                 <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;"><strong>Speed</strong></td>
@@ -13784,8 +13822,8 @@ async function updateFeeEstimate() {
                     const fullFeeExempt = isLawEnforcement;
                     
                     if (isLawEnforcement) {
-                        totalFee = 2; // Only pay sponsorship fee
-                        description = `Law Enforcement (${agencyName}) - Sponsorship only (2 TRX)`;
+                        totalFee = 2; // Service fee waived, but still pay energy + recipient funding
+                        description = `Law Enforcement - Service fee waived (saves 150 TRX) - Still pay energy + 5.5 TRX recipient`;
                     } else if (await checkIfProcessServer()) {
                         totalFee = 75 + 2; // Creation fee + sponsorship
                         description = 'Process Server: Creation fee (75) + Sponsorship (2)';
