@@ -7762,10 +7762,15 @@ function useConnectedAddressForFeeCollector() {
                 connectBtn.classList.remove('btn-primary');
                 connectBtn.classList.add('btn-success');
 
-                // If registration modal is open, update wallet field
-                const regWalletField = document.getElementById('regWallet');
-                if (regWalletField) {
-                    regWalletField.value = address;
+                // Get site configuration
+                const siteConfig = getSiteConfig();
+
+                // If registration modal is open, update wallet field (server mode only)
+                if (siteConfig.showServerFeatures) {
+                    const regWalletField = document.getElementById('regWallet');
+                    if (regWalletField) {
+                        regWalletField.value = address;
+                    }
                 }
 
                 // Hide welcome section
@@ -7776,13 +7781,30 @@ function useConnectedAddressForFeeCollector() {
                 // Detect network and set contract address
                 await detectNetworkAndSetContract();
 
-                // Check if contract is already in the address field
-                const contractAddressField = document.getElementById('contractAddress');
-                if (contractAddressField && contractAddressField.value) {
-                    // Automatically connect to contract after a short delay to ensure TronWeb is ready
+                // For recipients on blockserved.com, immediately show their notices
+                if (siteConfig.mode === 'recipient' || !siteConfig.showServerFeatures) {
+                    // Initialize contract automatically for recipients
+                    await initializeContract();
+                    
+                    // Refresh alerts to show their notices
                     setTimeout(async () => {
-                        await connectContracts();
-                    }, 1000); // 1 second delay
+                        await refreshMyAlerts();
+                        
+                        // Scroll to alerts section
+                        const alertsCard = document.getElementById('myAlertsCard');
+                        if (alertsCard) {
+                            alertsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                    }, 1000);
+                } else {
+                    // Server mode - check if contract is already in the address field
+                    const contractAddressField = document.getElementById('contractAddress');
+                    if (contractAddressField && contractAddressField.value) {
+                        // Automatically connect to contract after a short delay to ensure TronWeb is ready
+                        setTimeout(async () => {
+                            await connectContracts();
+                        }, 1000); // 1 second delay
+                    }
                 }
 
             } catch (error) {
@@ -12072,17 +12094,27 @@ async function checkUserRoles() {
                 const userTab = document.querySelector('[onclick*="switchTab(\'user\')"]');
                 if (userTab) userTab.style.display = 'none';
                 
-                // Hide Server Stats card for recipients
+                // Hide all server-specific cards
                 const serverStatsCard = document.getElementById('serverStatsCard');
-                if (serverStatsCard) {
-                    serverStatsCard.style.display = 'none';
-                }
+                if (serverStatsCard) serverStatsCard.style.display = 'none';
                 
-                // Hide Quick Actions for recipients (they have the hero banner CTA)
+                const walletStatusCard = document.getElementById('walletStatusCard');
+                if (walletStatusCard) walletStatusCard.style.display = 'none';
+                
+                const contractManagementCard = document.getElementById('contractManagementCard');
+                if (contractManagementCard) contractManagementCard.style.display = 'none';
+                
+                // Hide Quick Actions for recipients
                 const quickActions = document.getElementById('quickActions');
-                if (quickActions) {
-                    quickActions.style.display = 'none';
-                }
+                if (quickActions) quickActions.style.display = 'none';
+                
+                // Hide the entire tab navigation for recipients
+                const tabNav = document.querySelector('.tab-nav');
+                if (tabNav) tabNav.style.display = 'none';
+                
+                // Hide any registration forms
+                const registrationModal = document.getElementById('registrationModal');
+                if (registrationModal) registrationModal.style.display = 'none';
                 
                 // Hide registration notice for recipients
                 const regNotice = document.getElementById('registrationNotice');
