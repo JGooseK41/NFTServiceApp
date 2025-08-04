@@ -12443,6 +12443,12 @@ async function checkUserRoles() {
                             <a href="#" onclick="switchTab('help'); setTimeout(() => document.querySelector('.faq-header').click(), 100); return false;" style="color: var(--accent-blue); text-decoration: underline;">See how it works →</a>
                         </p>
                     </div>
+                    <div style="margin-top: 1rem; padding: 1rem; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #22c55e;">
+                        <p style="margin: 0; font-size: 0.95rem; color: #14532d;">
+                            <strong>🌍 NEW: Multi-Language Support</strong> - Recipients can now view notices in 5 languages (English, Spanish, French, Chinese, Hindi), demonstrating extraordinary diligence in service attempts.
+                            <a href="#" onclick="switchTab('help'); setTimeout(() => { const faqButtons = document.querySelectorAll('.faq-question'); faqButtons.forEach(btn => { if(btn.textContent.includes('diligent service')) btn.click(); }); }, 100); return false;" style="color: #22c55e; text-decoration: underline;">Learn more →</a>
+                        </p>
+                    </div>
                 `;
             }
         }
@@ -12807,6 +12813,42 @@ async function checkUserRoles() {
                     `
                 },
                 {
+                    question: "How does BlockServed demonstrate diligent service attempts?",
+                    answer: `
+                        <p><strong>BlockServed goes above and beyond to ensure recipients can understand and respond to legal notices:</strong></p>
+                        
+                        <div class="alert alert-success" style="margin: 1rem 0;">
+                            <h4 style="margin-top: 0;">🌍 Multi-Language Support</h4>
+                            <p>The recipient interface at blockserved.com is fully translated into <strong>5 major languages</strong>:</p>
+                            <ul>
+                                <li>🇺🇸 <strong>English</strong></li>
+                                <li>🇪🇸 <strong>Spanish</strong> (Español)</li>
+                                <li>🇫🇷 <strong>French</strong> (Français)</li>
+                                <li>🇨🇳 <strong>Chinese</strong> (中文)</li>
+                                <li>🇮🇳 <strong>Hindi</strong> (हिन्दी)</li>
+                            </ul>
+                            <p style="margin-bottom: 0;">This ensures that non-English speaking recipients can fully understand the legal implications and their rights.</p>
+                        </div>
+                        
+                        <p><strong>Additional diligence features include:</strong></p>
+                        <ul>
+                            <li><strong>Clear Warning Messages:</strong> Critical legal warnings are displayed prominently in the recipient's chosen language</li>
+                            <li><strong>No Wallet Required to View:</strong> Recipients can view notice details without connecting a wallet first</li>
+                            <li><strong>Fee Sponsorship:</strong> Recipients receive 5.5 TRX total to ensure they can accept the notice</li>
+                            <li><strong>Simple Interface:</strong> Designed for non-technical users with clear step-by-step guidance</li>
+                            <li><strong>Persistent Availability:</strong> Notices remain accessible indefinitely at blockserved.com</li>
+                            <li><strong>IP & Location Tracking:</strong> Logs recipient visits to demonstrate actual notice viewing</li>
+                        </ul>
+                        
+                        <p><strong>Why this matters legally:</strong></p>
+                        <p>Courts require "reasonable diligence" in attempting service. By providing notices in multiple languages and ensuring maximum accessibility, you demonstrate extraordinary efforts to ensure the recipient can understand and respond to the legal notice. This significantly strengthens your position if the recipient claims they didn't understand or couldn't access the notice.</p>
+                        
+                        <div class="alert alert-info">
+                            <p style="margin: 0;"><i class="fas fa-balance-scale"></i> <strong>Legal Tip:</strong> Document that you served notice through a system with multi-language support. This shows the court you took extra steps to ensure comprehension, especially important for international service or diverse communities.</p>
+                        </div>
+                    `
+                },
+                {
                     question: "What happens after I serve a notice?",
                     answer: `
                         <p>After serving a notice:</p>
@@ -12821,19 +12863,19 @@ async function checkUserRoles() {
                 }
             ];
             
-            faqItems.forEach(item => {
-                const faqItem = document.createElement('div');
-                faqItem.className = 'faq-item';
-                faqItem.innerHTML = `
-                    <button class="faq-question" onclick="toggleFaqItem(this)">
-                        ${item.question}
-                        <i class="fas fa-chevron-down"></i>
+            faqItems.forEach((item, index) => {
+                const section = document.createElement('div');
+                section.className = 'faq-section';
+                section.innerHTML = `
+                    <button class="faq-header" onclick="toggleFAQ(this)">
+                        <i class="fas fa-chevron-right"></i>
+                        <span>${item.question}</span>
                     </button>
-                    <div class="faq-answer">
+                    <div class="faq-content" style="display: none;">
                         ${item.answer}
                     </div>
                 `;
-                container.appendChild(faqItem);
+                container.appendChild(section);
             });
         }
         
