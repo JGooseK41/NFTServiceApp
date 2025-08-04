@@ -7690,6 +7690,36 @@ function useConnectedAddressForFeeCollector() {
             await showWalletSelector();
         }
         
+        // Initialize contract for recipients (used on BlockServed)
+        async function initializeContract() {
+            console.log('initializeContract called');
+            
+            if (!tronWeb || !tronWeb.defaultAddress) {
+                console.error('No wallet connected in initializeContract');
+                return false;
+            }
+            
+            try {
+                // Use the default contract address
+                const contractAddress = window.CONTRACT_ADDRESS || window.CONTRACT_ADDRESSES.mainnet;
+                console.log('Initializing contract at:', contractAddress);
+                
+                // Create contract instance with ABI
+                legalContract = await tronWeb.contract(CONTRACT_ABI, contractAddress);
+                console.log('Contract initialized successfully');
+                
+                // Test the contract by calling a view function
+                const testAddress = tronWeb.defaultAddress.base58;
+                const balance = await legalContract.balanceOf(testAddress).call();
+                console.log('Contract test successful, balance:', balance.toString());
+                
+                return true;
+            } catch (error) {
+                console.error('Error initializing contract:', error);
+                return false;
+            }
+        }
+        
         // Original TronLink connection logic
         async function connectTronWalletOriginal() {
             const connectBtn = document.getElementById('connectBtn');
@@ -10078,36 +10108,6 @@ function useConnectedAddressForFeeCollector() {
                 if (roleDetails) {
                     roleDetails.innerHTML = '<span style="color: var(--error);">Error checking roles: ' + error.message + '</span>';
                 }
-            }
-        }
-        
-        // Initialize contract for recipients (used on BlockServed)
-        async function initializeContract() {
-            console.log('initializeContract called');
-            
-            if (!tronWeb || !tronWeb.defaultAddress) {
-                console.error('No wallet connected in initializeContract');
-                return false;
-            }
-            
-            try {
-                // Use the default contract address
-                const contractAddress = window.CONTRACT_ADDRESS || window.CONTRACT_ADDRESSES.mainnet;
-                console.log('Initializing contract at:', contractAddress);
-                
-                // Create contract instance with ABI
-                legalContract = await tronWeb.contract(CONTRACT_ABI, contractAddress);
-                console.log('Contract initialized successfully');
-                
-                // Test the contract by calling a view function
-                const testAddress = tronWeb.defaultAddress.base58;
-                const balance = await legalContract.balanceOf(testAddress).call();
-                console.log('Contract test successful, balance:', balance.toString());
-                
-                return true;
-            } catch (error) {
-                console.error('Error initializing contract:', error);
-                return false;
             }
         }
         
@@ -16137,6 +16137,39 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             } catch (error) {
                 console.error('Error updating fee collector:', error);
                 uiManager.showNotification('error', 'Failed to update fee collector');
+            }
+        }
+        
+        // Update resource sponsorship settings
+        async function updateResourceSponsorship() {
+            const energySponsorshipInput = document.getElementById('energySponsorship');
+            const bandwidthSponsorshipInput = document.getElementById('bandwidthSponsorship');
+            
+            if (!energySponsorshipInput || !bandwidthSponsorshipInput) {
+                uiManager.showNotification('error', 'Resource sponsorship inputs not found');
+                return;
+            }
+            
+            const energyEnabled = energySponsorshipInput.checked;
+            const bandwidthEnabled = bandwidthSponsorshipInput.checked;
+            
+            try {
+                // Save to localStorage for persistence
+                localStorage.setItem('energySponsorshipEnabled', energyEnabled);
+                localStorage.setItem('bandwidthSponsorshipEnabled', bandwidthEnabled);
+                
+                uiManager.showNotification('success', 
+                    `Resource sponsorship updated: Energy ${energyEnabled ? 'enabled' : 'disabled'}, Bandwidth ${bandwidthEnabled ? 'enabled' : 'disabled'}`
+                );
+                
+                // Log for debugging
+                console.log('Resource sponsorship updated:', {
+                    energy: energyEnabled,
+                    bandwidth: bandwidthEnabled
+                });
+            } catch (error) {
+                console.error('Error updating resource sponsorship:', error);
+                uiManager.showNotification('error', 'Failed to update resource sponsorship settings');
             }
         }
         
