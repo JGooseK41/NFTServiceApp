@@ -7693,9 +7693,15 @@ function useConnectedAddressForFeeCollector() {
                 // Try TronLink-specific connection if available
                 if (window.tronLink) {
                     try {
-                        await window.tronLink.request({method: 'tron_requestAccounts'});
+                        const response = await window.tronLink.request({method: 'tron_requestAccounts'});
+                        console.log('TronLink request response:', response);
                     } catch (error) {
-                        // If TronLink request fails, continue with generic flow
+                        console.log('TronLink request error:', error);
+                        // Check if user rejected
+                        if (error.code === 4001 || error.message?.includes('rejected')) {
+                            throw new Error('Connection cancelled by user');
+                        }
+                        // If TronLink request fails for other reasons, continue with generic flow
                         console.log('TronLink request failed, trying generic connection');
                     }
                 }
@@ -7711,6 +7717,19 @@ function useConnectedAddressForFeeCollector() {
                 }
 
                 if (!window.tronWeb.ready) {
+                    // Check if TronLink exists but user cancelled
+                    if (window.tronLink) {
+                        // Try to check if wallet is locked
+                        try {
+                            const accounts = await window.tronLink.request({method: 'tron_accounts'});
+                            if (!accounts || accounts.length === 0) {
+                                throw new Error('Please unlock your TronLink wallet and try again');
+                            }
+                        } catch (e) {
+                            // User likely cancelled or wallet is locked
+                            throw new Error('Wallet connection cancelled or locked');
+                        }
+                    }
                     throw new Error('Please unlock your TRON wallet');
                 }
 
@@ -7772,7 +7791,18 @@ function useConnectedAddressForFeeCollector() {
                 connectBtn.innerHTML = '<i class="fas fa-link"></i> Connect';
                 connectBtn.disabled = false;
                 
-                uiManager.showNotification('error', error.message || 'Failed to connect wallet');
+                // Show user-friendly error messages
+                let errorMessage = error.message || 'Failed to connect wallet';
+                
+                if (error.message?.includes('cancelled') || error.code === 4001) {
+                    errorMessage = 'Connection cancelled. Please try again when ready.';
+                } else if (error.message?.includes('unlock')) {
+                    errorMessage = 'Please unlock your wallet and try again.';
+                } else if (error.message?.includes('not detected')) {
+                    errorMessage = 'No TRON wallet found. Please install TronLink or another TRON wallet.';
+                }
+                
+                uiManager.showNotification('error', errorMessage);
             }
         }
 
@@ -7888,7 +7918,18 @@ function useConnectedAddressForFeeCollector() {
                 connectBtn.innerHTML = '<i class="fas fa-link"></i> Connect';
                 connectBtn.disabled = false;
                 
-                uiManager.showNotification('error', error.message || 'Failed to connect wallet');
+                // Show user-friendly error messages
+                let errorMessage = error.message || 'Failed to connect wallet';
+                
+                if (error.message?.includes('cancelled') || error.code === 4001) {
+                    errorMessage = 'Connection cancelled. Please try again when ready.';
+                } else if (error.message?.includes('unlock')) {
+                    errorMessage = 'Please unlock your wallet and try again.';
+                } else if (error.message?.includes('not detected')) {
+                    errorMessage = 'No TRON wallet found. Please install TronLink or another TRON wallet.';
+                }
+                
+                uiManager.showNotification('error', errorMessage);
             }
         }
 
