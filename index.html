@@ -36,6 +36,9 @@
             nile: '', // Testnet contract removed - wallet was compromised
             shasta: '' // Not deployed
         };
+        
+        // Set default CONTRACT_ADDRESS for easier access
+        window.CONTRACT_ADDRESS = window.CONTRACT_ADDRESSES.mainnet;
     </script>
     <script src="v4/js/ipfs-integration.js"></script>
     <style>
@@ -6441,8 +6444,22 @@
 
 async function getRecipientNoticeIds(recipient) {
     try {
-        // Use getRecipientAlerts to get all alert IDs for this recipient
+        console.log('Getting notices for recipient:', recipient);
+        
+        // Try getRecipientNotices first (used in search)
+        try {
+            const notices = await legalContract.getRecipientNotices(recipient).call();
+            console.log('getRecipientNotices returned:', notices);
+            if (notices && notices.length > 0) {
+                return notices;
+            }
+        } catch (e) {
+            console.log('getRecipientNotices failed, trying getRecipientAlerts:', e);
+        }
+        
+        // Fallback to getRecipientAlerts
         const alertIds = await legalContract.getRecipientAlerts(recipient).call();
+        console.log('getRecipientAlerts returned:', alertIds);
         return alertIds || [];
     } catch (error) {
         console.error('Error getting recipient notices:', error);
@@ -10061,6 +10078,36 @@ function useConnectedAddressForFeeCollector() {
                 if (roleDetails) {
                     roleDetails.innerHTML = '<span style="color: var(--error);">Error checking roles: ' + error.message + '</span>';
                 }
+            }
+        }
+        
+        // Initialize contract for recipients (used on BlockServed)
+        async function initializeContract() {
+            console.log('initializeContract called');
+            
+            if (!tronWeb || !tronWeb.defaultAddress) {
+                console.error('No wallet connected in initializeContract');
+                return false;
+            }
+            
+            try {
+                // Use the default contract address
+                const contractAddress = window.CONTRACT_ADDRESS || window.CONTRACT_ADDRESSES.mainnet;
+                console.log('Initializing contract at:', contractAddress);
+                
+                // Create contract instance with ABI
+                legalContract = await tronWeb.contract(CONTRACT_ABI, contractAddress);
+                console.log('Contract initialized successfully');
+                
+                // Test the contract by calling a view function
+                const testAddress = tronWeb.defaultAddress.base58;
+                const balance = await legalContract.balanceOf(testAddress).call();
+                console.log('Contract test successful, balance:', balance.toString());
+                
+                return true;
+            } catch (error) {
+                console.error('Error initializing contract:', error);
+                return false;
             }
         }
         
@@ -15454,14 +15501,33 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             try {
                 console.log('=== ALERT DEBUG INFO ===');
                 console.log('Your address:', tronWeb.defaultAddress.base58);
+                console.log('Contract address:', legalContract._address);
                 
                 // Get total notices from contract
                 const totalNotices = await getTotalNotices();
                 console.log('Total notices:', totalNotices);
                 
+                // Test both methods
+                let noticesMethod = null;
+                let alertsMethod = null;
+                
+                try {
+                    noticesMethod = await legalContract.getRecipientNotices(tronWeb.defaultAddress.base58).call();
+                    console.log('getRecipientNotices result:', noticesMethod);
+                } catch (e) {
+                    console.log('getRecipientNotices error:', e.message);
+                }
+                
+                try {
+                    alertsMethod = await legalContract.getRecipientAlerts(tronWeb.defaultAddress.base58).call();
+                    console.log('getRecipientAlerts result:', alertsMethod);
+                } catch (e) {
+                    console.log('getRecipientAlerts error:', e.message);
+                }
+                
                 // Get recipient alerts
                 const alerts = await getRecipientNoticeIds(tronWeb.defaultAddress.base58);
-                console.log('Your alert IDs:', alerts.map(a => a.toString()));
+                console.log('getRecipientNoticeIds returned:', alerts.map(a => a.toString()));
                 
                 // Check a few recent notices to see if you're the recipient
                 if (totalNotices > 0) {
@@ -17497,17 +17563,29 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         
         // Refresh my alerts
         async function refreshMyAlerts() {
+            console.log('refreshMyAlerts called');
+            
             if (!legalContract || !tronWeb.defaultAddress) {
+                console.error('No contract or wallet connected');
                 uiManager.showNotification('error', 'Please connect wallet first');
                 return;
             }
             
             try {
                 const myAddress = tronWeb.defaultAddress.base58;
+                console.log('Refreshing alerts for address:', myAddress);
+                
                 const noticeIds = await getRecipientNoticeIds(myAddress);
+                console.log('Notice IDs found:', noticeIds);
                 
                 const alertsContent = document.getElementById('myAlertsContent');
-                if (noticeIds.length === 0) {
+                if (!alertsContent) {
+                    console.error('myAlertsContent element not found');
+                    return;
+                }
+                
+                if (!noticeIds || noticeIds.length === 0) {
+                    console.log('No notices found for this address');
                     alertsContent.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><h3>No notices received</h3></div>';
                     return;
                 }
