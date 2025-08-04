@@ -8801,12 +8801,12 @@ function useConnectedAddressForFeeCollector() {
                 content += '</ol>';
                 
                 if (txData.noticeId) {
-                    const directLink = `https://blockserved.com/#notice-${txData.noticeId}`;
+                    const directLink = `https://blockserved.com`;
                     
                     content += '<div style="margin-top: 1rem; padding: 1rem; background: #fef3c7; border-radius: 0.375rem;">';
-                    content += '<strong style="color: #92400e;">Recipient Link:</strong><br>';
-                    content += `<code style="user-select: all; color: #92400e;">${directLink}</code>`;
-                    content += `<button class="btn btn-small" style="margin-left: 0.5rem;" onclick="navigator.clipboard.writeText('${directLink}')">`;
+                    content += '<strong style="color: #92400e;">Recipient Access:</strong><br>';
+                    content += `<p style="margin: 0.5rem 0;">Recipients can view their notice by visiting <code style="user-select: all; color: #92400e;">www.blockserved.com</code> and connecting their wallet.</p>`;
+                    content += `<button class="btn btn-small" style="margin-left: 0.5rem;" onclick="navigator.clipboard.writeText('www.blockserved.com')">`;
                     content += '<i class="fas fa-copy"></i> Copy';
                     content += '</button>';
                     content += '</div>';
@@ -17372,10 +17372,9 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     metadataURI = encryptedData.metadataURI;
                 }
                 
-                // Generate the direct link for BlockServed with informative text
-                // We'll use the tempNoticeId as a placeholder - the actual ID will be determined after minting
-                const baseUrl = 'https://blockserved.com';
-                const directLink = `More information and full document available at ${baseUrl}/#notice-PENDING`;
+                // Generate the access information for BlockServed
+                // Recipients just need to go to blockserved.com and connect their wallet
+                const directLink = `More information and full document available at www.blockserved.com`;
                 
                 // Update the UI to show the generated link
                 const legalRightsField = document.getElementById('legalRights');
@@ -17507,15 +17506,8 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 console.log('Generated Document ID:', documentId);
                 console.log('Note: Complete contract does not return token IDs in a way we can capture');
                 
-                // Update the direct link with the actual notice ID
-                if (noticeId) {
-                    const actualDirectLink = `More information and full document available at https://blockserved.com/#notice-${noticeId}`;
-                    const legalRightsField = document.getElementById('legalRights');
-                    if (legalRightsField) {
-                        legalRightsField.value = actualDirectLink;
-                    }
-                    console.log('Updated direct link:', actualDirectLink);
-                }
+                // The link doesn't need updating since it's always the same
+                // Recipients connect their wallet at blockserved.com to see their notices
                 
                 // Verify the NFT was minted
                 if (noticeId) {
@@ -17658,7 +17650,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                             recipient,
                             3500000, // 3.5 TRX (~$1 USD at ~$0.30/TRX, well above TronScan's $0.50 filter)
                             {
-                                memo: `LEGAL NOTICE #${noticeId} - https://blockserved.com/#notice-${noticeId}`
+                                memo: `LEGAL NOTICE #${noticeId} - View at www.blockserved.com`
                             }
                         );
                         console.log('   ✓ TRX sent:', notificationTx);
@@ -17672,10 +17664,9 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     // Strategy 3: Direct NFT transfer attempt (already done above)
                     console.log('3. NFT minted to recipient wallet: Notice ID #' + noticeId);
                     
-                    // Strategy 4: Log the direct link for process server to share
-                    const directLink = `https://blockserved.com/#notice-${noticeId}`;
+                    // Strategy 4: Log the access information for process server to share
                     console.log('\n=== BLOCKCHAIN SERVICE COMPLETE ===');
-                    console.log('Direct link:', directLink);
+                    console.log('Recipient access: www.blockserved.com');
                     console.log('\nService Status:');
                     console.log('✓ NFT minted to wallet address');
                     console.log('✓ 3.5 TRX sent for transaction visibility');
