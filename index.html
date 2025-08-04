@@ -4351,9 +4351,13 @@
                 <div class="alert alert-info" style="margin-bottom: 1rem; background: #e0f2fe; border-color: #3b82f6;">
                     <i class="fas fa-info-circle" style="color: #3b82f6;"></i>
                     <div>
-                        <strong>Electronic Signature Request</strong>
+                        <strong>Electronic Signature Request - Receipt of Legal Document</strong>
                         <p style="margin: 0.25rem 0 0 0;">By clicking "Sign Receipt" below, you are electronically signing that you have received this legal document. This is similar to signing for certified mail or a courier delivery.</p>
                         <p style="margin: 0.25rem 0 0 0; font-weight: 600;">Important: This signature only confirms receipt. It does NOT mean you agree with the contents, admit any wrongdoing, or waive any of your legal rights.</p>
+                        <p style="margin: 0.5rem 0 0 0; color: #059669; font-weight: 600;">
+                            <i class="fas fa-unlock" style="margin-right: 0.5rem;"></i>
+                            After signing, you will gain access to view and download the complete legal document.
+                        </p>
                         <p style="margin: 0.5rem 0 0 0; color: #dc2626; font-weight: 600;">
                             <i class="fas fa-exclamation-triangle" style="margin-right: 0.5rem;"></i>
                             Warning: Failing to respond to this legal notice by the deadline may result in default judgment against you.
@@ -4393,6 +4397,13 @@
                         <div id="acceptPreview" class="token-preview" style="display: none;">
                             <img id="acceptPreviewImage" src="" alt="Document preview">
                         </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-success" style="background: #d1fae5; border-color: #10b981; margin-bottom: 1rem;">
+                    <i class="fas fa-download" style="color: #059669;"></i>
+                    <div>
+                        <strong>After Signing:</strong> You will be able to view and download the full legal document. The document is encrypted and only you can decrypt it with your wallet.
                     </div>
                 </div>
 
@@ -17426,11 +17437,10 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         
         // Notice acceptance function
         async function acceptNotice() {
-            const noticeId = document.getElementById('acceptNoticeId').textContent;
-            const acceptanceText = document.getElementById('acceptanceText').value.trim();
+            const noticeId = window.currentAcceptingNoticeId || document.getElementById('acceptNoticeId').textContent;
             
-            if (!acceptanceText) {
-                uiManager.showNotification('error', 'Please enter your acceptance text');
+            if (!noticeId || noticeId === '-') {
+                uiManager.showNotification('error', 'No notice ID found');
                 return;
             }
             
@@ -17444,11 +17454,15 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             }
             
             try {
-                showProcessing('Accepting notice...');
+                showProcessing('Signing receipt and accepting notice...');
                 
-                // Get notice details first to check if it has a document
-                const notice = await legalContract.notices(noticeId).call();
-                const hasDocument = (notice.packedData & 1) === 1;
+                // Get alert notice details
+                const alertData = await legalContract.alertNotices(noticeId).call();
+                console.log('Alert data for acceptance:', alertData);
+                
+                // Check if there's a document associated
+                const documentId = alertData.documentId;
+                const hasDocument = documentId && parseInt(documentId) > 0;
                 
                 // Call acceptNotice - this returns the decryption key for documents
                 const result = await legalContract.acceptNotice(noticeId).send({
@@ -17484,15 +17498,26 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 hideProcessing();
                 
                 // If the notice has a document, decrypt and display it
-                if (hasDocument && result) {
+                if (hasDocument) {
                     try {
+                        showProcessing('Retrieving encrypted document...');
+                        
+                        // Get document notice data
+                        const documentData = await legalContract.documentNotices(documentId).call();
+                        console.log('Document data:', documentData);
+                        
+                        const ipfsHash = documentData.encryptedIPFS;
+                        const decryptionKey = documentData.decryptionKey;
+                        
+                        if (!ipfsHash || !decryptionKey) {
+                            console.warn('No document data found');
+                            closeAcceptModal();
+                            uiManager.showNotification('success', 'Notice accepted successfully');
+                            await refreshMyAlerts();
+                            return;
+                        }
+                        
                         showProcessing('Decrypting document...');
-                        
-                        // Parse the document data to get IPFS hash
-                        const [ipfsHash] = notice.documentData.split('|');
-                        
-                        // The result contains the decryption key
-                        const decryptionKey = result;
                         
                         // Fetch and decrypt the document
                         const encryptedData = await SimpleEncryption.fetchFromIPFS(ipfsHash);
@@ -17897,9 +17922,42 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         }
         
         // Show accept modal
-        function showAcceptModal(noticeId) {
-            document.getElementById('acceptNoticeId').textContent = noticeId;
-            document.getElementById('acceptModal').style.display = 'block';
+        async function showAcceptModal(noticeId) {
+            try {
+                // Get full notice details
+                const alertData = await legalContract.alertNotices(noticeId).call();
+                console.log('Loading notice for acceptance:', alertData);
+                
+                // Populate modal fields with actual data
+                document.getElementById('acceptNoticeId').textContent = noticeId;
+                document.getElementById('acceptDocumentType').textContent = alertData.noticeType || 'Legal Notice';
+                document.getElementById('acceptJurisdiction').textContent = alertData.issuingAgency || 'Not specified';
+                document.getElementById('acceptCaseNumber').textContent = alertData.caseNumber || 'Not provided';
+                document.getElementById('acceptServer').textContent = alertData.sender ? 
+                    `${alertData.sender.substring(0, 6)}...${alertData.sender.substring(alertData.sender.length - 4)}` : 
+                    'Unknown';
+                document.getElementById('acceptTimestamp').textContent = alertData.timestamp ? 
+                    new Date(parseInt(alertData.timestamp) * 1000).toLocaleString() : 
+                    'Unknown';
+                
+                // Show preview image if available
+                const previewDiv = document.getElementById('acceptPreview');
+                const previewImage = document.getElementById('acceptPreviewImage');
+                if (alertData.previewImage && alertData.previewImage.length > 0) {
+                    previewImage.src = alertData.previewImage;
+                    previewDiv.style.display = 'block';
+                } else {
+                    previewDiv.style.display = 'none';
+                }
+                
+                // Store notice ID globally for acceptance
+                window.currentAcceptingNoticeId = noticeId;
+                
+                document.getElementById('acceptModal').style.display = 'block';
+            } catch (error) {
+                console.error('Error loading notice for acceptance:', error);
+                uiManager.showNotification('error', 'Failed to load notice details');
+            }
         }
         
         // View notice details
