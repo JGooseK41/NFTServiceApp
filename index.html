@@ -3097,6 +3097,30 @@
                     </button>
                 </div>
                 
+                <!-- Wallet Search Section (shown on blockserved.com) -->
+                <div id="walletSearchSection" style="display: none; padding: 1rem; background: #f8f9fa; border-bottom: 1px solid #e5e7eb;">
+                    <div style="max-width: 600px; margin: 0 auto;">
+                        <h3 style="margin-bottom: 1rem; color: #1e40af;">
+                            <i class="fas fa-search"></i> Search for Notices by Wallet Address
+                        </h3>
+                        <p style="margin-bottom: 1rem; color: #64748b;">
+                            Don't want to connect your wallet? Enter any wallet address to view their public notices.
+                        </p>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" 
+                                   id="walletSearchInput" 
+                                   placeholder="Enter TRON wallet address (e.g., TFfagVe1aZp...)" 
+                                   class="form-input" 
+                                   style="flex: 1;"
+                                   onkeypress="if(event.key === 'Enter') searchWalletNotices()">
+                            <button class="btn btn-primary" onclick="searchWalletNotices()">
+                                <i class="fas fa-search"></i> Search
+                            </button>
+                        </div>
+                        <div id="walletSearchError" style="color: #dc2626; margin-top: 0.5rem; display: none;"></div>
+                    </div>
+                </div>
+                
                 <!-- New user-friendly explanation banner -->
                 <div class="alert alert-info" style="margin: 1rem; display: none; background: #f0f9ff; border: 2px solid #3b82f6;" id="alertExplainer">
                     <div style="display: flex; align-items: start; gap: 1rem;">
@@ -7476,8 +7500,181 @@ function useConnectedAddressForFeeCollector() {
             }
         }
 
-        // Connect TRON wallet
+        // Detect available wallets
+        function detectAvailableWallets() {
+            const wallets = [];
+            
+            // Check for TronLink
+            if (window.tronLink) {
+                wallets.push({
+                    name: 'TronLink',
+                    icon: 'https://static.tronscan.org/production/upload/logo/TJhcvM1vUm3cAPor7Dk9cGQqJG6SiQxzqC.png',
+                    available: true,
+                    isReady: window.tronWeb && window.tronWeb.ready,
+                    type: 'tronlink'
+                });
+            }
+            
+            // Check for TokenPocket
+            if (window.tokenpocket) {
+                wallets.push({
+                    name: 'TokenPocket',
+                    icon: 'https://www.tokenpocket.pro/favicon.ico',
+                    available: true,
+                    isReady: window.tronWeb && window.tronWeb.ready,
+                    type: 'tokenpocket'
+                });
+            }
+            
+            // Check for Trust Wallet
+            if (window.trustwallet || (window.ethereum && window.ethereum.isTrust)) {
+                wallets.push({
+                    name: 'Trust Wallet',
+                    icon: 'https://trustwallet.com/assets/images/media/assets/trust_platform.svg',
+                    available: true,
+                    isReady: window.tronWeb && window.tronWeb.ready,
+                    type: 'trust'
+                });
+            }
+            
+            // Check for BitKeep/Bitget Wallet
+            if (window.bitkeep && window.bitkeep.tron) {
+                wallets.push({
+                    name: 'Bitget Wallet',
+                    icon: 'https://web3.bitget.com/favicon.ico',
+                    available: true,
+                    isReady: window.tronWeb && window.tronWeb.ready,
+                    type: 'bitkeep'
+                });
+            }
+            
+            // Check for OKX Wallet
+            if (window.okxwallet) {
+                wallets.push({
+                    name: 'OKX Wallet',
+                    icon: 'https://static.okx.com/cdn/assets/imgs/216/435B9CD6B44BD56A.png',
+                    available: true,
+                    isReady: window.tronWeb && window.tronWeb.ready,
+                    type: 'okx'
+                });
+            }
+            
+            // Check for other TRON wallets
+            if (window.tronWeb && wallets.length === 0) {
+                wallets.push({
+                    name: 'TRON Wallet',
+                    icon: '',
+                    available: true,
+                    isReady: window.tronWeb.ready,
+                    type: 'other'
+                });
+            }
+            
+            return wallets;
+        }
+        
+        // Show wallet selection modal
+        async function showWalletSelector() {
+            const wallets = detectAvailableWallets();
+            
+            // If only TronLink is detected, use it directly
+            const tronLinkWallet = wallets.find(w => w.type === 'tronlink');
+            if (wallets.length === 1 && tronLinkWallet) {
+                return await connectTronWalletOriginal();
+            }
+            
+            // If TronLink is ready but other wallets are detected, show selector
+            if (wallets.length > 1) {
+                // Create wallet selection modal
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 400px;">
+                        <div class="modal-header">
+                            <h2>Select Wallet</h2>
+                            <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
+                        </div>
+                        <div class="modal-body">
+                            <p style="margin-bottom: 1.5rem; color: #64748b;">
+                                Multiple wallets detected. Please select which wallet to connect:
+                            </p>
+                            <div style="display: grid; gap: 1rem;">
+                                ${wallets.map(wallet => `
+                                    <button class="wallet-option" onclick="selectWallet('${wallet.type}')" 
+                                            style="padding: 1rem; border: 2px solid #e5e7eb; border-radius: 8px; 
+                                                   display: flex; align-items: center; gap: 1rem; cursor: pointer;
+                                                   background: white; transition: all 0.2s; text-align: left;">
+                                        ${wallet.icon ? `<img src="${wallet.icon}" style="width: 40px; height: 40px;">` : 
+                                                       '<div style="width: 40px; height: 40px; background: #f3f4f6; border-radius: 8px;"></div>'}
+                                        <div>
+                                            <div style="font-weight: 600; color: #1e293b;">${wallet.name}</div>
+                                            <div style="font-size: 0.875rem; color: ${wallet.isReady ? '#10b981' : '#f59e0b'};">
+                                                ${wallet.isReady ? '✓ Connected' : 'Click to connect'}
+                                            </div>
+                                        </div>
+                                    </button>
+                                `).join('')}
+                            </div>
+                            <div style="margin-top: 1.5rem; padding: 1rem; background: #f8f9fa; border-radius: 6px;">
+                                <p style="margin: 0; font-size: 0.875rem; color: #64748b;">
+                                    <strong>Tip:</strong> If you want to use TronLink but Trust Wallet keeps opening, 
+                                    you may need to temporarily disable the Trust Wallet extension in your browser settings.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                
+                // Add styles for wallet options
+                const style = document.createElement('style');
+                style.textContent = `
+                    .wallet-option:hover {
+                        border-color: #3b82f6 !important;
+                        background: #f0f9ff !important;
+                        transform: translateY(-2px);
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                    }
+                `;
+                document.head.appendChild(style);
+                
+                // Close on click outside
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) modal.remove();
+                });
+                
+                return new Promise((resolve) => {
+                    window.selectWallet = async (type) => {
+                        modal.remove();
+                        if (type === 'tronlink') {
+                            await connectTronWalletOriginal();
+                        } else if (type === 'trust' && window.ethereum && window.ethereum.isTrust) {
+                            // Trust Wallet uses ethereum provider for TRON
+                            uiManager.showNotification('info', 'Connecting to Trust Wallet...');
+                            await connectTronWalletOriginal();
+                        } else {
+                            // Generic TRON wallet connection
+                            await connectTronWalletOriginal();
+                        }
+                        resolve();
+                    };
+                });
+            } else {
+                // No wallets detected or only non-TronLink wallet
+                return await connectTronWalletOriginal();
+            }
+        }
+
+        // Connect TRON wallet - now with wallet selector
         async function connectTronWallet() {
+            // Show wallet selector if multiple wallets detected
+            await showWalletSelector();
+        }
+        
+        // Original TronLink connection logic
+        async function connectTronWalletOriginal() {
             const connectBtn = document.getElementById('connectBtn');
             const walletStatus = document.getElementById('walletStatus');
             const walletAddress = document.getElementById('walletAddress');
@@ -7488,17 +7685,23 @@ function useConnectedAddressForFeeCollector() {
                 connectBtn.disabled = true;
                 connectBtn.innerHTML = '<span class="loading-spinner"></span> Connecting...';
 
-                // Check if TronWeb is available
+                // Check if TronWeb is available from any wallet
                 if (typeof window.tronWeb === 'undefined') {
-                    throw new Error('TronLink not detected. Please install TronLink extension');
+                    throw new Error('No TRON wallet detected. Please install TronLink, Trust Wallet, or another TRON-compatible wallet');
                 }
 
-                // Use recommended TronLink account request method
-                try {
-                    await window.tronLink.request({method: 'tron_requestAccounts'});
-                } catch (error) {
-                    throw new Error('Please unlock your TronLink wallet and grant permission');
+                // Try TronLink-specific connection if available
+                if (window.tronLink) {
+                    try {
+                        await window.tronLink.request({method: 'tron_requestAccounts'});
+                    } catch (error) {
+                        // If TronLink request fails, continue with generic flow
+                        console.log('TronLink request failed, trying generic connection');
+                    }
                 }
+                
+                // For other wallets, they should already have tronWeb ready
+                // or will prompt user when we try to access the account
 
                 // Wait for TronWeb to be ready
                 let tries = 0;
@@ -7508,7 +7711,7 @@ function useConnectedAddressForFeeCollector() {
                 }
 
                 if (!window.tronWeb.ready) {
-                    throw new Error('Please unlock your TronLink wallet');
+                    throw new Error('Please unlock your TRON wallet');
                 }
 
                 tronWeb = window.tronWeb;
@@ -9502,6 +9705,21 @@ function useConnectedAddressForFeeCollector() {
         
                 async function grantProcessServerRole(address, lawEnforcementExempt, agencyName) {
             try {
+                // Show confirmation modal
+                const permissions = lawEnforcementExempt ? 
+                    'Serve legal notices, Create NFTs, Access contract functions, Law enforcement fee exemption' :
+                    'Serve legal notices, Create NFTs, Access contract functions';
+                    
+                const confirmed = await showTransactionConfirmation('grantRole', {
+                    address: address,
+                    roleName: 'Process Server' + (lawEnforcementExempt ? ' (Law Enforcement)' : ''),
+                    permissions: permissions
+                });
+                
+                if (!confirmed) {
+                    return;
+                }
+                
                 showProcessing('Granting Process Server role...');
                 
                 const roleBytes = tronWeb.sha3('PROCESS_SERVER_ROLE');
@@ -11791,6 +12009,14 @@ async function checkUserRoles() {
             // Update alerts section for recipients
             updateAlertsSection(config);
             
+            // Show wallet search on blockserved.com
+            if (config.mode === 'recipient' || window.location.hostname === 'blockserved.com') {
+                const walletSearchSection = document.getElementById('walletSearchSection');
+                if (walletSearchSection) {
+                    walletSearchSection.style.display = 'block';
+                }
+            }
+            
             // Show/hide features based on mode
             if (!config.showServerFeatures) {
                 // Hide server-only features
@@ -13599,6 +13825,15 @@ document.addEventListener('keydown', function(event) {
         // Direct acceptance - minimal steps
         async function acceptNoticeDirectly(noticeId) {
             try {
+                // Show confirmation modal first
+                const confirmed = await showTransactionConfirmation('acceptNotice', {
+                    noticeId: noticeId
+                });
+                
+                if (!confirmed) {
+                    return;
+                }
+                
                 showProcessing('Accepting notice and decrypting document...');
                 
                 // Accept and get notice in one flow
@@ -16633,6 +16868,210 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
 	// Simplified system - no encryption setup needed
     
         
+        // Get current network name
+        function getCurrentNetwork() {
+            if (!tronWeb || !tronWeb.fullNode) return 'Unknown';
+            const host = tronWeb.fullNode.host;
+            if (host.includes('trongrid.io') && !host.includes('shasta') && !host.includes('nile')) {
+                return 'TRON Mainnet';
+            } else if (host.includes('nile')) {
+                return 'Nile Testnet';
+            } else if (host.includes('shasta')) {
+                return 'Shasta Testnet';
+            }
+            return 'Unknown Network';
+        }
+        
+        // Show transaction confirmation modal before any wallet signature
+        async function showTransactionConfirmation(type, details = {}) {
+            return new Promise((resolve, reject) => {
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                
+                let title, description, permissions, warnings, gasInfo;
+                
+                switch(type) {
+                    case 'acceptNotice':
+                        title = '📝 Legal Notice Acceptance';
+                        description = `
+                            <p><strong>You are about to digitally sign receipt of a legal notice.</strong></p>
+                            <p>Notice ID: <code>#${details.noticeId}</code></p>
+                            <p>This action will:</p>
+                            <ul style="text-align: left; margin: 1rem 0;">
+                                <li>✅ Create a permanent blockchain record that you received this notice</li>
+                                <li>✅ Timestamp your acceptance with the current date and time</li>
+                                <li>✅ Allow you to decrypt and view the full document</li>
+                                <li>✅ Store your acceptance signature on the blockchain</li>
+                            </ul>
+                        `;
+                        permissions = `
+                            <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                                <h4 style="margin: 0 0 0.5rem 0; color: #1e40af;">What this signature means:</h4>
+                                <p style="margin: 0; color: #1e3a8a;">
+                                    This is equivalent to signing for certified mail. It proves you received the document 
+                                    but does NOT mean you agree with its contents or admit any wrongdoing.
+                                </p>
+                            </div>
+                        `;
+                        warnings = `
+                            <div style="background: #fef3c7; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                                <h4 style="margin: 0 0 0.5rem 0; color: #92400e;">⚠️ Important Legal Notice:</h4>
+                                <p style="margin: 0; color: #92400e;">
+                                    By accepting, you acknowledge receipt of this legal document. 
+                                    Deadlines mentioned in the document may begin from this acceptance date.
+                                    Consider seeking legal advice if you have questions.
+                                </p>
+                            </div>
+                        `;
+                        gasInfo = 'Estimated cost: ~5-10 TRX in energy fees';
+                        break;
+                        
+                    case 'serveNotice':
+                        title = '⚖️ Serve Legal Notice';
+                        description = `
+                            <p><strong>You are about to serve an official legal notice via blockchain.</strong></p>
+                            <p>Recipient: <code>${details.recipient}</code></p>
+                            <p>Notice Type: ${details.noticeType}</p>
+                            ${details.caseNumber ? `<p>Case #: ${details.caseNumber}</p>` : ''}
+                            <p>This action will:</p>
+                            <ul style="text-align: left; margin: 1rem 0;">
+                                <li>📤 Mint an NFT to the recipient's wallet as proof of service</li>
+                                <li>🔐 Encrypt the document (only recipient can decrypt)</li>
+                                <li>💰 Send ${details.sponsorshipAmount || '2'} TRX to cover recipient's acceptance fees</li>
+                                <li>📝 Create immutable proof of service on the blockchain</li>
+                                <li>⏰ Record exact timestamp of service</li>
+                            </ul>
+                        `;
+                        permissions = `
+                            <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                                <h4 style="margin: 0 0 0.5rem 0; color: #1e40af;">Contract Permissions:</h4>
+                                <p style="margin: 0.5rem 0; color: #1e3a8a;">
+                                    • <strong>NFT Minting:</strong> Creates a TRC-721 token in recipient's wallet<br>
+                                    • <strong>Data Storage:</strong> Stores encrypted document hash on IPFS<br>
+                                    • <strong>TRX Transfer:</strong> Sends sponsorship amount to recipient<br>
+                                    • <strong>Event Logging:</strong> Records service details on blockchain
+                                </p>
+                            </div>
+                        `;
+                        warnings = details.isPublicNotice ? `
+                            <div style="background: #fef3c7; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                                <h4 style="margin: 0 0 0.5rem 0; color: #92400e;">⚠️ Public Notice Warning:</h4>
+                                <p style="margin: 0; color: #92400e;">
+                                    The notice text will be publicly visible on the blockchain. 
+                                    Ensure it contains no sensitive information.
+                                </p>
+                            </div>
+                        ` : '';
+                        gasInfo = `Total cost: ${details.totalCost || 'Calculating...'} TRX (includes fees + sponsorship)`;
+                        break;
+                        
+                    case 'grantRole':
+                        title = '👤 Grant Administrative Role';
+                        description = `
+                            <p><strong>You are about to grant administrative privileges.</strong></p>
+                            <p>Address: <code>${details.address}</code></p>
+                            <p>Role: ${details.roleName}</p>
+                            <p>This action will:</p>
+                            <ul style="text-align: left; margin: 1rem 0;">
+                                <li>🔑 Grant permanent administrative access</li>
+                                <li>⚡ Allow this address to: ${details.permissions}</li>
+                            </ul>
+                        `;
+                        permissions = `
+                            <div style="background: #fee2e2; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                                <h4 style="margin: 0 0 0.5rem 0; color: #dc2626;">🚨 Security Warning:</h4>
+                                <p style="margin: 0; color: #991b1b;">
+                                    This is a high-privilege operation. The granted permissions cannot be easily revoked.
+                                    Only grant roles to addresses you absolutely trust.
+                                </p>
+                            </div>
+                        `;
+                        warnings = '';
+                        gasInfo = 'Estimated cost: ~10-20 TRX in energy fees';
+                        break;
+                        
+                    case 'updateFee':
+                        title = '💰 Update Contract Fee';
+                        description = `
+                            <p><strong>You are about to modify contract fee settings.</strong></p>
+                            <p>Fee Type: ${details.feeType}</p>
+                            <p>Current: ${details.currentFee} TRX</p>
+                            <p>New: ${details.newFee} TRX</p>
+                            <p>This will affect all future transactions of this type.</p>
+                        `;
+                        permissions = `
+                            <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                                <h4 style="margin: 0 0 0.5rem 0; color: #1e40af;">Admin Permission Required:</h4>
+                                <p style="margin: 0; color: #1e3a8a;">
+                                    Only contract administrators can modify fee settings.
+                                </p>
+                            </div>
+                        `;
+                        warnings = '';
+                        gasInfo = 'Estimated cost: ~5-10 TRX in energy fees';
+                        break;
+                        
+                    default:
+                        title = '🔐 Transaction Confirmation';
+                        description = '<p>You are about to sign a blockchain transaction.</p>';
+                        permissions = '';
+                        warnings = '';
+                        gasInfo = 'Estimated cost: Variable';
+                }
+                
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 600px;">
+                        <div class="modal-header" style="background: #1e293b; color: white;">
+                            <h2 style="margin: 0;">${title}</h2>
+                        </div>
+                        <div class="modal-body" style="padding: 2rem;">
+                            <div style="text-align: center;">
+                                ${description}
+                            </div>
+                            ${permissions}
+                            ${warnings}
+                            <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                                <p style="margin: 0; font-size: 0.875rem; color: #64748b;">
+                                    <strong>Network:</strong> ${details.network || 'TRON'}<br>
+                                    <strong>Gas Fee:</strong> ${gasInfo}<br>
+                                    <strong>Contract:</strong> <code style="font-size: 0.75rem;">${details.contractAddress || window.CONTRACT_ADDRESS || 'Not specified'}</code>
+                                </p>
+                            </div>
+                            <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 2rem;">
+                                <button class="btn btn-secondary" onclick="this.closest('.modal').remove(); window.txConfirmReject()">
+                                    <i class="fas fa-times"></i> Cancel
+                                </button>
+                                <button class="btn btn-primary" onclick="this.closest('.modal').remove(); window.txConfirmResolve()">
+                                    <i class="fas fa-check"></i> Confirm & Sign
+                                </button>
+                            </div>
+                            <p style="margin: 1rem 0 0 0; font-size: 0.75rem; color: #94a3b8; text-align: center;">
+                                After clicking confirm, your wallet will open for final signature
+                            </p>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                
+                // Set up promise handlers
+                window.txConfirmResolve = () => resolve(true);
+                window.txConfirmReject = () => {
+                    resolve(false);
+                    uiManager.showNotification('info', 'Transaction cancelled');
+                };
+                
+                // Close on background click
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.remove();
+                        window.txConfirmReject();
+                    }
+                });
+            });
+        }
+        
         // Notice acceptance function
         async function acceptNotice() {
             const noticeId = document.getElementById('acceptNoticeId').textContent;
@@ -16640,6 +17079,15 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             
             if (!acceptanceText) {
                 uiManager.showNotification('error', 'Please enter your acceptance text');
+                return;
+            }
+            
+            // Show confirmation modal
+            const confirmed = await showTransactionConfirmation('acceptNotice', {
+                noticeId: noticeId
+            });
+            
+            if (!confirmed) {
                 return;
             }
             
@@ -16734,6 +17182,243 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 hideProcessing();
                 console.error('Error accepting notice:', error);
                 uiManager.showNotification('error', 'Failed to accept: ' + getErrorMessage(error));
+            }
+        }
+        
+        // Search for notices by wallet address (public view)
+        async function searchWalletNotices() {
+            const walletInput = document.getElementById('walletSearchInput');
+            const errorDiv = document.getElementById('walletSearchError');
+            const alertsContent = document.getElementById('myAlertsContent');
+            
+            if (!walletInput || !errorDiv || !alertsContent) {
+                console.error('Required elements not found');
+                return;
+            }
+            
+            errorDiv.style.display = 'none';
+            errorDiv.textContent = '';
+            
+            const walletAddress = walletInput.value.trim();
+            
+            // Validate wallet address
+            if (!walletAddress) {
+                errorDiv.textContent = 'Please enter a wallet address';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            // Basic TRON address validation (starts with T and is 34 characters)
+            if (!walletAddress.startsWith('T') || walletAddress.length !== 34) {
+                errorDiv.textContent = 'Invalid TRON wallet address';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            // Show loading state
+            alertsContent.innerHTML = `
+                <div style="text-align: center; padding: 2rem;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #3b82f6;"></i>
+                    <p style="margin-top: 1rem; color: #64748b;">Searching for notices...</p>
+                </div>
+            `;
+            
+            try {
+                // Initialize TronWeb if needed for public search
+                if (!window.tronWeb || !window.tronWeb.ready) {
+                    // Create a read-only TronWeb instance for public searches
+                    window.tronWeb = new TronWeb({
+                        fullHost: 'https://api.trongrid.io'
+                    });
+                }
+                
+                if (!legalContract) {
+                    // Initialize contract if not already done
+                    const contractAddress = window.CONTRACT_ADDRESS || 'TNaps6xxSCuCvjxDyM2M5rhutuwq93xaLh';
+                    legalContract = await window.tronWeb.contract().at(contractAddress);
+                }
+                
+                // Get notices for the wallet
+                const notices = await legalContract.getRecipientNotices(walletAddress).call();
+                
+                if (!notices || notices.length === 0) {
+                    alertsContent.innerHTML = `
+                        <div class="empty-state" style="text-align: center; padding: 3rem;">
+                            <i class="fas fa-inbox" style="font-size: 3rem; color: #cbd5e1;"></i>
+                            <h3 style="margin-top: 1rem; color: #64748b;">No notices found</h3>
+                            <p style="color: #94a3b8;">This wallet address has no legal notices</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Display notices in read-only mode
+                let html = `
+                    <div style="padding: 1rem; background: #f0f9ff; border-radius: 8px; margin-bottom: 1rem;">
+                        <p style="margin: 0; color: #1e40af;">
+                            <i class="fas fa-info-circle"></i> 
+                            Found ${notices.length} notice${notices.length !== 1 ? 's' : ''} for wallet: 
+                            <code style="background: #dbeafe; padding: 0.25rem 0.5rem; border-radius: 4px;">${walletAddress}</code>
+                        </p>
+                        <p style="margin: 0.5rem 0 0 0; color: #64748b; font-size: 0.875rem;">
+                            Note: To accept these notices, the wallet owner must connect their wallet.
+                        </p>
+                    </div>
+                `;
+                
+                html += '<div class="notices-list">';
+                
+                for (const noticeId of notices) {
+                    try {
+                        const notice = await legalContract.notices(noticeId).call();
+                        const isAccepted = await legalContract.hasAcceptedNotice(walletAddress, noticeId).call();
+                        
+                        html += `
+                            <div class="notice-card" style="background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                                    <h3 style="margin: 0; color: #1e293b;">
+                                        <i class="fas fa-file-alt" style="color: #3b82f6;"></i> 
+                                        Notice #${noticeId}
+                                    </h3>
+                                    <span class="status-badge ${isAccepted ? 'success' : 'warning'}" style="padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.875rem;">
+                                        ${isAccepted ? 
+                                            '<i class="fas fa-check-circle"></i> Accepted' : 
+                                            '<i class="fas fa-clock"></i> Pending Acceptance'
+                                        }
+                                    </span>
+                                </div>
+                                
+                                <div class="notice-details" style="display: grid; gap: 0.75rem;">
+                                    <div style="display: flex; gap: 0.5rem;">
+                                        <strong style="color: #64748b; min-width: 120px;">Type:</strong>
+                                        <span>${notice.noticeType || 'Legal Notice'}</span>
+                                    </div>
+                                    <div style="display: flex; gap: 0.5rem;">
+                                        <strong style="color: #64748b; min-width: 120px;">Case Number:</strong>
+                                        <span>${notice.caseNumber || 'N/A'}</span>
+                                    </div>
+                                    <div style="display: flex; gap: 0.5rem;">
+                                        <strong style="color: #64748b; min-width: 120px;">From:</strong>
+                                        <span>${notice.server ? `${notice.server.substring(0, 6)}...${notice.server.slice(-4)}` : 'Unknown'}</span>
+                                    </div>
+                                    <div style="display: flex; gap: 0.5rem;">
+                                        <strong style="color: #64748b; min-width: 120px;">Agency:</strong>
+                                        <span>${notice.issuingAgency || 'Not specified'}</span>
+                                    </div>
+                                    <div style="display: flex; gap: 0.5rem;">
+                                        <strong style="color: #64748b; min-width: 120px;">Date Served:</strong>
+                                        <span>${new Date(parseInt(notice.timestamp) * 1000).toLocaleString()}</span>
+                                    </div>
+                                    ${notice.publicText ? `
+                                        <div style="margin-top: 0.5rem; padding: 0.75rem; background: #f8f9fa; border-radius: 6px;">
+                                            <strong style="color: #64748b;">Notice:</strong>
+                                            <p style="margin: 0.25rem 0 0 0;">${notice.publicText}</p>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                
+                                ${!isAccepted ? `
+                                    <div style="margin-top: 1rem; padding: 0.75rem; background: #fef3c7; border-radius: 6px; border: 1px solid #fbbf24;">
+                                        <p style="margin: 0; color: #92400e;">
+                                            <i class="fas fa-exclamation-triangle"></i> 
+                                            To view the full document, the wallet owner must connect their wallet and accept this notice.
+                                        </p>
+                                    </div>
+                                ` : `
+                                    <div style="margin-top: 1rem; padding: 0.75rem; background: #d1fae5; border-radius: 6px;">
+                                        <p style="margin: 0; color: #065f46;">
+                                            <i class="fas fa-check-circle"></i> 
+                                            This notice has been accepted and the document has been viewed.
+                                        </p>
+                                    </div>
+                                `}
+                                
+                                ${notice.metadataURI && notice.metadataURI.includes('ipfs') ? `
+                                    <div style="margin-top: 1rem;">
+                                        <button class="btn btn-secondary" onclick="viewNoticeMetadata('${notice.metadataURI}')" style="width: 100%;">
+                                            <i class="fas fa-image"></i> View NFT Preview
+                                        </button>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    } catch (error) {
+                        console.error('Error loading notice details:', error);
+                    }
+                }
+                
+                html += '</div>';
+                alertsContent.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Search error:', error);
+                alertsContent.innerHTML = `
+                    <div class="error-state" style="text-align: center; padding: 3rem;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444;"></i>
+                        <h3 style="margin-top: 1rem; color: #dc2626;">Search Failed</h3>
+                        <p style="color: #7f1d1d;">${getErrorMessage(error)}</p>
+                        <button class="btn btn-secondary" onclick="searchWalletNotices()" style="margin-top: 1rem;">
+                            <i class="fas fa-redo"></i> Try Again
+                        </button>
+                    </div>
+                `;
+            }
+        }
+        
+        // View notice metadata (for public preview)
+        async function viewNoticeMetadata(metadataURI) {
+            if (!metadataURI) return;
+            
+            try {
+                let url = metadataURI;
+                if (metadataURI.startsWith('ipfs://')) {
+                    url = metadataURI.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/');
+                }
+                
+                const response = await fetch(url);
+                const metadata = await response.json();
+                
+                // Create modal to show metadata
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 600px;">
+                        <div class="modal-header">
+                            <h2>NFT Preview</h2>
+                            <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
+                        </div>
+                        <div class="modal-body" style="text-align: center;">
+                            ${metadata.image ? `
+                                <img src="${metadata.image.startsWith('ipfs://') ? 
+                                    metadata.image.replace('ipfs://', 'https://gateway.pinata.cloud/ipfs/') : 
+                                    metadata.image}" 
+                                    style="max-width: 100%; border-radius: 8px; margin-bottom: 1rem;"
+                                    onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSI0MDAiIGZpbGw9IiNmM2Y0ZjYiLz4KPHRleHQgeD0iMjAwIiB5PSIyMDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiM5Y2EzYWYiIGZvbnQtc2l6ZT0iMTgiIGZvbnQtZmFtaWx5PSJBcmlhbCI+SW1hZ2UgTm90IEF2YWlsYWJsZTwvdGV4dD4KPC9zdmc+'">
+                            ` : ''}
+                            <h3>${metadata.name || 'Legal Notice'}</h3>
+                            <div style="text-align: left; background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                                <p style="white-space: pre-wrap; margin: 0;">${metadata.description || 'No description available'}</p>
+                            </div>
+                            ${metadata.external_url ? `
+                                <div style="margin-top: 1rem;">
+                                    <a href="${metadata.external_url}" target="_blank" class="btn btn-primary">
+                                        <i class="fas fa-external-link-alt"></i> Visit BlockServed
+                                    </a>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                
+                // Close on click outside
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) modal.remove();
+                });
+                
+            } catch (error) {
+                uiManager.showNotification('error', 'Failed to load NFT preview');
             }
         }
         
@@ -17416,6 +18101,24 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 }
                 
                 // Energy rental already handled above, proceed with transaction
+                
+                // Show confirmation modal before transaction
+                const totalCostTRX = (fee / 1000000).toFixed(2);
+                const confirmed = await showTransactionConfirmation('serveNotice', {
+                    recipient: recipient,
+                    noticeType: noticeType === 'Custom' ? customType : noticeType,
+                    caseNumber: caseNumber,
+                    sponsorshipAmount: sponsorshipAmount,
+                    totalCost: totalCostTRX,
+                    isPublicNotice: deliveryMethod === 'text',
+                    network: getCurrentNetwork()
+                });
+                
+                if (!confirmed) {
+                    hideProcessing();
+                    return;
+                }
+                
                 showProcessing('Sending transaction...');
                 
                 // Complete contract uses serveNotice with different parameters
