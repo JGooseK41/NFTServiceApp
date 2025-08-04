@@ -3103,8 +3103,8 @@
                     </button>
                 </div>
                 
-                <!-- Wallet Search Section (shown on blockserved.com) -->
-                <div id="walletSearchSection" style="display: none; padding: 1rem; background: #f8f9fa; border-bottom: 1px solid #e5e7eb;">
+                <!-- Wallet Search Section -->
+                <div id="walletSearchSection" style="padding: 1rem; background: #f8f9fa; border-bottom: 1px solid #e5e7eb;">
                     <div style="max-width: 600px; margin: 0 auto;">
                         <h3 style="margin-bottom: 1rem; color: #1e40af;">
                             <i class="fas fa-search"></i> Search for Notices by Wallet Address
@@ -6449,21 +6449,51 @@ async function getRecipientNoticeIds(recipient) {
     try {
         console.log('Getting notices for recipient:', recipient);
         
-        // Try getRecipientNotices first (used in search)
-        try {
-            const notices = await legalContract.getRecipientNotices(recipient).call();
-            console.log('getRecipientNotices returned:', notices);
-            if (notices && notices.length > 0) {
-                return notices;
-            }
-        } catch (e) {
-            console.log('getRecipientNotices failed, trying getRecipientAlerts:', e);
+        if (!legalContract) {
+            console.error('Contract not initialized');
+            return [];
         }
         
-        // Fallback to getRecipientAlerts
-        const alertIds = await legalContract.getRecipientAlerts(recipient).call();
-        console.log('getRecipientAlerts returned:', alertIds);
-        return alertIds || [];
+        // First, let's check what methods are available on the contract
+        console.log('Available contract methods:', Object.keys(legalContract.methods || {}));
+        
+        // Try different method names that might exist
+        const methodsToTry = [
+            'getRecipientNotices',
+            'getRecipientAlerts', 
+            'recipientNotices',
+            'getNoticesByRecipient',
+            'balanceOf' // If using ERC721, we might need to iterate
+        ];
+        
+        for (const method of methodsToTry) {
+            if (legalContract[method]) {
+                try {
+                    console.log(`Trying method: ${method}`);
+                    const result = await legalContract[method](recipient).call();
+                    console.log(`${method} returned:`, result);
+                    
+                    // If balanceOf, we need to get token IDs differently
+                    if (method === 'balanceOf' && result > 0) {
+                        // For ERC721, we'd need to iterate through tokens
+                        console.log('Token balance:', result.toString());
+                        // This is a fallback - ideally we'd have a better method
+                        const noticeIds = [];
+                        // Try to get owned tokens (this is contract-specific)
+                        return noticeIds;
+                    }
+                    
+                    if (result && (Array.isArray(result) ? result.length > 0 : result > 0)) {
+                        return Array.isArray(result) ? result : [result];
+                    }
+                } catch (e) {
+                    console.log(`${method} failed:`, e.message);
+                }
+            }
+        }
+        
+        console.log('No working method found to get recipient notices');
+        return [];
     } catch (error) {
         console.error('Error getting recipient notices:', error);
         return [];
@@ -6523,13 +6553,34 @@ function parseDocumentData(documentData) {
 }
 
 function parsePackedData(packedData) {
-    const data = BigInt(packedData);
-    return {
-        timestamp: Number(data >> 192n),
-        serverId: Number((data >> 64n) & 0xFFFFFFFFFFFFFFFFn),
-        hasDocument: (data & 1n) === 1n,
-        accepted: ((data >> 1n) & 1n) === 1n
-    };
+    // Add error handling for undefined or invalid packed data
+    if (packedData === undefined || packedData === null) {
+        console.warn('parsePackedData: Received undefined or null data');
+        return {
+            timestamp: 0,
+            serverId: 0,
+            hasDocument: false,
+            accepted: false
+        };
+    }
+    
+    try {
+        const data = BigInt(packedData);
+        return {
+            timestamp: Number(data >> 192n),
+            serverId: Number((data >> 64n) & 0xFFFFFFFFFFFFFFFFn),
+            hasDocument: (data & 1n) === 1n,
+            accepted: ((data >> 1n) & 1n) === 1n
+        };
+    } catch (error) {
+        console.error('parsePackedData: Error parsing data:', error, 'Input:', packedData);
+        return {
+            timestamp: 0,
+            serverId: 0,
+            hasDocument: false,
+            accepted: false
+        };
+    }
 }
 
 
@@ -7044,7 +7095,22 @@ function parsePackedData(packedData) {
                         if (!existingIds.includes(noticeId.toString())) {
                             try {
                                 const notice = await legalContract.notices(noticeId).call();
-                                const { timestamp, serverId, hasDocument, accepted } = parsePackedData(notice.packedData);
+                                console.log('New notice data:', notice);
+                                
+                                // Check if notice has packedData field
+                                let packedData = notice.packedData;
+                                if (!packedData && notice.timestamp) {
+                                    // If packedData doesn't exist, use individual fields
+                                    packedData = {
+                                        timestamp: notice.timestamp || 0,
+                                        serverId: notice.serverId || 0,
+                                        hasDocument: notice.hasDocument || false,
+                                        accepted: notice.accepted || false
+                                    };
+                                }
+                                
+                                const { timestamp, serverId, hasDocument, accepted } = 
+                                    packedData.timestamp !== undefined ? packedData : parsePackedData(packedData);
                                 
                                 newNotices.push({
                                     noticeId: noticeId.toString(),
@@ -17661,7 +17727,23 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 for (const noticeId of noticeIds) {
                     try {
                         const notice = await legalContract.notices(noticeId).call();
-                        const { timestamp, serverId, hasDocument, accepted } = parsePackedData(notice.packedData);
+                        console.log(`Notice ${noticeId} data:`, notice);
+                        
+                        // Check if notice has packedData field, if not try to construct it
+                        let packedData = notice.packedData;
+                        if (!packedData && notice.timestamp) {
+                            // If packedData doesn't exist, try to use individual fields
+                            console.log('No packedData field, using individual fields');
+                            packedData = {
+                                timestamp: notice.timestamp || 0,
+                                serverId: notice.serverId || 0,
+                                hasDocument: notice.hasDocument || false,
+                                accepted: notice.accepted || false
+                            };
+                        }
+                        
+                        const { timestamp, serverId, hasDocument, accepted } = 
+                            packedData.timestamp !== undefined ? packedData : parsePackedData(packedData);
                         
                         html += `
                             <div class="notice-item">
