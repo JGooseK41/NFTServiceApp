@@ -17354,7 +17354,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     // Generate simple metadata for text notices
                     const textMetadata = {
                         name: `Legal Notice - ${noticeType === 'Custom' ? customType : noticeType}`,
-                        description: publicText || 'Legal notice requiring your attention',
+                        description: (publicText || 'Legal notice requiring your attention') + '\n\nMore information and full document available at www.blockserved.com',
                         image: 'data:image/svg+xml;base64,' + btoa(`
                             <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
                                 <rect width="400" height="400" fill="#1a1a1a"/>
@@ -17362,6 +17362,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                                 <text x="200" y="220" text-anchor="middle" fill="#888" font-size="16" font-family="Arial">${noticeType === 'Custom' ? customType : noticeType}</text>
                             </svg>
                         `),
+                        external_url: 'https://blockserved.com',
                         attributes: [
                             { trait_type: "Type", value: noticeType === 'Custom' ? customType : noticeType },
                             { trait_type: "Agency", value: issuingAgency || 'Process Server' }

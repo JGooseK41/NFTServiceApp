@@ -237,9 +237,8 @@ const ThumbnailGenerator = {
             ? 'https://blockserved.com'
             : 'https://nftserviceapp.netlify.app';
             
-        // Create short URL format
-        const shortUrl = `${domain}/n/${noticeId}`;
-        const websiteUrl = `${domain}/#notice-${noticeId}`;
+        // Use simplified URL - just blockserved.com
+        const websiteUrl = 'https://blockserved.com';
         
         const metadata = {
             name: `Legal Notice #${noticeId}`,
@@ -251,13 +250,12 @@ const ThumbnailGenerator = {
                         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
                         `🔓 HOW TO ACCESS FULL DOCUMENT:\n` +
                         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-                        `🌐 CLICK HERE TO ACCEPT:\n` +
-                        `${shortUrl}\n\n` +
-                        `If link doesn't work, copy this URL:\n` +
-                        `👉 ${shortUrl} 👈\n\n` +
+                        `🌐 VISIT:\n` +
+                        `www.blockserved.com\n\n` +
+                        `STEP 1: Go to www.blockserved.com\n\n` +
                         `STEP 2: Connect this wallet when prompted\n\n` +
-                        `STEP 3: Click "Accept & Download"\n\n` +
-                        `STEP 4: Your document will decrypt automatically\n\n` +
+                        `STEP 3: Your notices will appear automatically\n\n` +
+                        `STEP 4: Click "Accept & Download" to view document\n\n` +
                         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
                         `❓ WHAT YOU'RE SEEING:\n` +
                         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
@@ -275,10 +273,10 @@ const ThumbnailGenerator = {
                         `💡 FREE TO ACCEPT: The sender included 2 TRX\n` +
                         `to cover your transaction fees.\n\n` +
                         `📧 Questions? support@blockserved.com\n` +
-                        `🔗 Direct Access: ${shortUrl}`,
+                        `🔗 More information and full document available at www.blockserved.com`,
             image: imageUrl,
-            external_url: shortUrl, // Use short URL for better display
-            animation_url: shortUrl, // Some wallets show this as clickable
+            external_url: websiteUrl, // Just blockserved.com
+            animation_url: websiteUrl, // Some wallets show this as clickable
             attributes: [
                 {
                     trait_type: "Status",
@@ -310,20 +308,20 @@ const ThumbnailGenerator = {
                 },
                 {
                     trait_type: "Accept Notice URL",
-                    value: shortUrl
+                    value: websiteUrl
                 }
             ],
             properties: {
                 category: "legal_document",
-                website: shortUrl,
-                accept_notice_url: shortUrl,
+                website: websiteUrl,
+                accept_notice_url: websiteUrl,
                 files: [{
-                    uri: shortUrl,
+                    uri: websiteUrl,
                     type: "text/html",
-                    name: "Accept Notice"
+                    name: "View Notices"
                 }],
                 links: {
-                    accept: shortUrl,
+                    accept: websiteUrl,
                     website: websiteUrl
                 }
             }
