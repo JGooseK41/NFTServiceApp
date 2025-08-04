@@ -3095,6 +3095,9 @@
                     <button class="btn btn-secondary btn-small" onclick="refreshMyAlerts()">
                         <i class="fas fa-sync"></i> Refresh
                     </button>
+                    <button class="btn btn-secondary btn-small" onclick="debugRefreshNotices()" title="Force initialize contract and refresh">
+                        <i class="fas fa-plug"></i> Connect & Refresh
+                    </button>
                     <button class="btn btn-secondary btn-small debug-button" onclick="debugAlerts()">
                         <i class="fas fa-bug"></i> Debug
                     </button>
@@ -7811,6 +7814,8 @@ function useConnectedAddressForFeeCollector() {
 
                 // Get site configuration
                 const siteConfig = getSiteConfig();
+                console.log('Site config:', siteConfig);
+                console.log('Current hostname:', window.location.hostname);
 
                 // If registration modal is open, update wallet field (server mode only)
                 if (siteConfig.showServerFeatures) {
@@ -7831,10 +7836,13 @@ function useConnectedAddressForFeeCollector() {
                 // For recipients on blockserved.com, immediately show their notices
                 if (siteConfig.mode === 'recipient' || !siteConfig.showServerFeatures) {
                     // Initialize contract automatically for recipients
-                    await initializeContract();
+                    console.log('Recipient mode detected, initializing contract...');
+                    const initSuccess = await initializeContract();
+                    console.log('Contract initialization result:', initSuccess);
                     
                     // Refresh alerts to show their notices
                     setTimeout(async () => {
+                        console.log('Attempting to refresh alerts...');
                         await refreshMyAlerts();
                         
                         // Scroll to alerts section
@@ -12119,12 +12127,10 @@ async function checkUserRoles() {
             // Update alerts section for recipients
             updateAlertsSection(config);
             
-            // Show wallet search on blockserved.com
-            if (config.mode === 'recipient' || window.location.hostname === 'blockserved.com') {
-                const walletSearchSection = document.getElementById('walletSearchSection');
-                if (walletSearchSection) {
-                    walletSearchSection.style.display = 'block';
-                }
+            // Always show wallet search section for all users
+            const walletSearchSection = document.getElementById('walletSearchSection');
+            if (walletSearchSection) {
+                walletSearchSection.style.display = 'block';
             }
             
             // Show/hide features based on mode
@@ -16174,6 +16180,34 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         }
         
         window.toggleRegistrationForm = toggleRegistrationForm;
+        
+        // Debug function to manually initialize and refresh notices
+        window.debugRefreshNotices = async function() {
+            console.log('=== DEBUG: Manual Notice Refresh ===');
+            console.log('1. Current wallet:', tronWeb?.defaultAddress?.base58);
+            console.log('2. Contract address:', window.CONTRACT_ADDRESS);
+            console.log('3. Contract instance:', legalContract ? 'EXISTS' : 'NOT INITIALIZED');
+            
+            if (!tronWeb || !tronWeb.defaultAddress) {
+                console.error('No wallet connected! Please connect wallet first.');
+                return;
+            }
+            
+            // Force contract initialization
+            console.log('4. Forcing contract initialization...');
+            const initResult = await initializeContract();
+            console.log('5. Init result:', initResult);
+            
+            if (!initResult) {
+                console.error('Failed to initialize contract!');
+                return;
+            }
+            
+            // Force refresh alerts
+            console.log('6. Refreshing alerts...');
+            await refreshMyAlerts();
+            console.log('7. Done! Check the My Alerts section.');
+        };
         
         async function withdrawFromContract() {
             if (!legalContract) {
