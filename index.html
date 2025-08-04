@@ -22,6 +22,7 @@
     <script src="js/simplified-integration.js"></script>
     <script src="js/thumbnail-generator-v5.js?v=2"></script>
     <script src="js/energy-rental.js?v=4"></script>
+    <script src="js/translations.js?v=1"></script>
     <script>
         // Pinata IPFS Configuration - shared across all users
         window.PINATA_CONFIG = {
@@ -3091,12 +3092,12 @@
             <!-- My Alerts -->
             <div class="card" id="myAlertsCard">
                 <div class="card-header">
-                    <h2><i class="fas fa-bell"></i> <span class="alerts-title">My Legal Notice Alerts</span></h2>
+                    <h2><i class="fas fa-bell"></i> <span class="alerts-title" data-translate="blockserved.myNotices">My Legal Notice Alerts</span></h2>
                     <button class="btn btn-secondary btn-small" onclick="refreshMyAlerts()">
-                        <i class="fas fa-sync"></i> Refresh
+                        <i class="fas fa-sync"></i> <span data-translate="blockserved.refresh">Refresh</span>
                     </button>
                     <button class="btn btn-secondary btn-small" onclick="debugRefreshNotices()" title="Force initialize contract and refresh">
-                        <i class="fas fa-plug"></i> Connect & Refresh
+                        <i class="fas fa-plug"></i> <span data-translate="blockserved.connectRefresh">Connect & Refresh</span>
                     </button>
                     <button class="btn btn-secondary btn-small debug-button" onclick="debugAlerts()">
                         <i class="fas fa-bug"></i> Debug
@@ -3107,20 +3108,21 @@
                 <div id="walletSearchSection" style="padding: 1rem; background: #f8f9fa; border-bottom: 1px solid #e5e7eb;">
                     <div style="max-width: 600px; margin: 0 auto;">
                         <h3 style="margin-bottom: 1rem; color: #1e40af;">
-                            <i class="fas fa-search"></i> Search for Notices by Wallet Address
+                            <i class="fas fa-search"></i> <span data-translate="blockserved.searchTitle">Search for Notices by Wallet Address</span>
                         </h3>
-                        <p style="margin-bottom: 1rem; color: #64748b;">
+                        <p style="margin-bottom: 1rem; color: #64748b;" data-translate="blockserved.searchDescription">
                             Don't want to connect your wallet? Enter any wallet address to view their public notices.
                         </p>
                         <div style="display: flex; gap: 0.5rem;">
                             <input type="text" 
                                    id="walletSearchInput" 
                                    placeholder="Enter TRON wallet address (e.g., TFfagVe1aZp...)" 
+                                   data-translate="blockserved.searchPlaceholder"
                                    class="form-input" 
                                    style="flex: 1;"
                                    onkeypress="if(event.key === 'Enter') searchWalletNotices()">
                             <button class="btn btn-primary" onclick="searchWalletNotices()">
-                                <i class="fas fa-search"></i> Search
+                                <i class="fas fa-search"></i> <span data-translate="blockserved.searchButton">Search</span>
                             </button>
                         </div>
                         <div id="walletSearchError" style="color: #dc2626; margin-top: 0.5rem; display: none;"></div>
@@ -4125,6 +4127,10 @@
                             <div class="fee-item" style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #334155;">
                                 <span>Recipient Sponsorship:</span>
                                 <span style="font-weight: 600;">2 TRX</span>
+                            </div>
+                            <div class="fee-item" id="energyCostRow" style="display: none; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #334155;">
+                                <span>Estimated Energy Cost:</span>
+                                <span id="energyCostDisplay" style="font-weight: 600; color: #f59e0b;">0 TRX</span>
                             </div>
                             <div class="fee-total" style="display: flex; justify-content: space-between; padding: 0.75rem 0 0 0; font-size: 1.125rem;">
                                 <span style="font-weight: 600;">Total Estimated Cost:</span>
@@ -7950,8 +7956,8 @@ function useConnectedAddressForFeeCollector() {
                 // Show user-friendly error messages
                 let errorMessage = error.message || 'Failed to connect wallet';
                 
-                if (error.message?.includes('cancelled') || error.code === 4001) {
-                    errorMessage = 'Connection cancelled. Please try again when ready.';
+                if (error.message?.includes('cancelled') || error.code === 4001 || error.message?.includes('locked')) {
+                    errorMessage = 'Please unlock and connect your wallet to continue.';
                 } else if (error.message?.includes('unlock')) {
                     errorMessage = 'Please unlock your wallet and try again.';
                 } else if (error.message?.includes('not detected')) {
@@ -8077,8 +8083,8 @@ function useConnectedAddressForFeeCollector() {
                 // Show user-friendly error messages
                 let errorMessage = error.message || 'Failed to connect wallet';
                 
-                if (error.message?.includes('cancelled') || error.code === 4001) {
-                    errorMessage = 'Connection cancelled. Please try again when ready.';
+                if (error.message?.includes('cancelled') || error.code === 4001 || error.message?.includes('locked')) {
+                    errorMessage = 'Please unlock and connect your wallet to continue.';
                 } else if (error.message?.includes('unlock')) {
                     errorMessage = 'Please unlock your wallet and try again.';
                 } else if (error.message?.includes('not detected')) {
@@ -8678,7 +8684,21 @@ function useConnectedAddressForFeeCollector() {
                 );
                 
                 if (!energyResult.success) {
-                    throw new Error(energyResult.message || 'Energy preparation failed for batch');
+                    // Check if we have alternatives to show
+                    if (energyResult.showAlternatives && window.EnergyRental) {
+                        const result = await window.EnergyRental.showAlternativesDialog(energyResult);
+                        
+                        if (result.action === 'proceed') {
+                            // User wants to burn TRX and proceed
+                            console.log('User chose to proceed with batch without energy rental');
+                        } else {
+                            // User cancelled or chose external option
+                            throw new Error('Batch processing cancelled by user');
+                        }
+                    } else {
+                        // No alternatives, just fail
+                        throw new Error(energyResult.message || 'Energy preparation failed for batch');
+                    }
                 }
                 
                 if (energyResult.rentalNeeded && energyResult.savedTRX) {
@@ -12302,21 +12322,25 @@ async function checkUserRoles() {
             if (!welcomeSection) return;
             
             if (config.showFriendlyUI) {
+                // Add language selector for recipients
+                const languageSelector = LanguageManager ? LanguageManager.createLanguageSelector() : '';
+                
                 // Recipient-focused welcome for blockserved.com
                 welcomeSection.innerHTML = `
+                    ${languageSelector}
                     <div class="hero-banner" style="background: linear-gradient(135deg, #0ea5e9 0%, #3730a3 100%); color: white; padding: 3rem; border-radius: 12px; margin-bottom: 2rem; text-align: center;">
-                        <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">📬 You Have a Legal Document</h1>
-                        <p style="font-size: 1.3rem; margin-bottom: 2rem; opacity: 0.95;">
+                        <h1 style="font-size: 2.5rem; margin-bottom: 1rem;" data-translate="blockserved.title">📬 You Have a Legal Document</h1>
+                        <p style="font-size: 1.3rem; margin-bottom: 2rem; opacity: 0.95;" data-translate="blockserved.subtitle">
                             Someone has sent you an important document that requires your attention
                         </p>
                         <div class="alert alert-warning" style="background: rgba(251, 191, 36, 0.1); border: 2px solid #fbbf24; color: #fbbf24; max-width: 600px; margin: 0 auto 2rem;">
                             <p style="margin: 0; font-weight: 600;">
                                 <i class="fas fa-exclamation-triangle"></i> 
-                                Ignoring legal notices can result in default judgment against you
+                                <span data-translate="blockserved.warningMessage">Ignoring legal notices can result in default judgment against you</span>
                             </p>
                         </div>
                         <button class="btn btn-primary" style="font-size: 1.2rem; padding: 1rem 2rem; background: white; color: #3730a3;" onclick="connectWallet()">
-                            <i class="fas fa-wallet"></i> Connect Wallet to View Document
+                            <i class="fas fa-wallet"></i> <span data-translate="blockserved.connectWallet">Connect Wallet to View Document</span>
                         </button>
                     </div>
                     
@@ -12559,7 +12583,28 @@ async function checkUserRoles() {
                                 </div>
                             </div>
                         </div>
-                        <p><strong>IT'S FREE:</strong> The sender has included 2 TRX to cover any fees. You won't pay anything.</p>
+                        <p><strong>FEES COVERED:</strong> The sender has provided 5.5 TRX total to your wallet:
+                        <ul>
+                            <li>2 TRX from the smart contract sponsorship</li>
+                            <li>3.5 TRX sent as a notification payment</li>
+                        </ul>
+                        Since acceptance costs approximately 5 TRX in network fees, you should have enough TRX to accept the notice!</p>
+                    `
+                },
+                {
+                    question: "Will accepting this cost me money?",
+                    answer: `
+                        <p>The acceptance transaction requires approximately 5 TRX in network fees (energy costs). However:</p>
+                        <ul>
+                            <li>✅ <strong>You received 5.5 TRX total:</strong> Check your wallet - you got 2 TRX from the contract + 3.5 TRX notification payment</li>
+                            <li>✅ <strong>This covers your costs:</strong> The 5.5 TRX should fully cover the ~5 TRX acceptance fee</li>
+                            <li>✅ <strong>One-time fee:</strong> This is a standard blockchain transaction fee, not a payment to anyone</li>
+                        </ul>
+                        <div class="alert alert-info">
+                            <p><strong>Why the fee?</strong> The TRON blockchain requires energy (TRX) for all transactions. 
+                            This ensures security and prevents spam. The 2 TRX sponsorship helps make acceptance more affordable.</p>
+                        </div>
+                        <p>If you need more TRX, you can purchase a small amount (5-10 TRX) from any crypto exchange.</p>
                     `
                 },
                 {
@@ -12698,10 +12743,98 @@ async function checkUserRoles() {
         
         // Create process server FAQ (stub for now - will contain full FAQ later)
         function createProcessServerFAQ(container) {
-            // For now, just add a message
-            const message = document.createElement('p');
-            message.textContent = 'Full process server FAQ will be populated here.';
-            container.appendChild(message);
+            const faqItems = [
+                {
+                    question: "What are the fees for serving notices?",
+                    answer: `
+                        <p>The fee structure is designed to cover operational costs and support recipients:</p>
+                        <ul>
+                            <li><strong>Document Notice:</strong> 152 TRX total
+                                <ul>
+                                    <li>150 TRX - Operational costs (blockchain, storage, processing)</li>
+                                    <li>2 TRX - Sponsorship fee sent to recipient</li>
+                                </ul>
+                            </li>
+                            <li><strong>Text-Only Notice:</strong> 17 TRX total
+                                <ul>
+                                    <li>15 TRX - Operational costs</li>
+                                    <li>2 TRX - Sponsorship fee sent to recipient</li>
+                                </ul>
+                            </li>
+                            <li><strong>Law Enforcement:</strong> 2 TRX only (sponsorship fee)</li>
+                        </ul>
+                        <p><strong>Important:</strong> Recipients receive a total of 5.5 TRX to ensure they can accept the notice:
+                        <ul>
+                            <li>2 TRX sponsorship fee via the smart contract</li>
+                            <li>3.5 TRX notification payment sent separately after NFT creation</li>
+                        </ul>
+                        This ensures recipients have enough TRX to cover the ~5 TRX acceptance cost and see the transaction in their wallet history.</p>
+                    `
+                },
+                {
+                    question: "Why does the recipient need TRX to accept?",
+                    answer: `
+                        <p>Accepting a notice requires a blockchain transaction that costs approximately 5 TRX in energy fees. 
+                        The 2 TRX sponsorship we send helps offset this cost. Recipients should ensure they have sufficient 
+                        TRX in their wallet for the acceptance transaction.</p>
+                    `
+                },
+                {
+                    question: "How do I become a registered process server?",
+                    answer: `
+                        <p>To serve legal notices through our platform:</p>
+                        <ol>
+                            <li>Connect your TRON wallet</li>
+                            <li>Click "Register as Process Server"</li>
+                            <li>Provide your professional information</li>
+                            <li>Wait for admin approval</li>
+                        </ol>
+                        <p>Once approved, you'll be able to serve notices with law enforcement fee exemptions.</p>
+                    `
+                },
+                {
+                    question: "What makes this legally valid?",
+                    answer: `
+                        <p>Our system provides:</p>
+                        <ul>
+                            <li>Immutable proof of service on the blockchain</li>
+                            <li>Cryptographic signatures for acceptance</li>
+                            <li>Timestamped delivery records</li>
+                            <li>Encrypted document storage on IPFS</li>
+                            <li>Jurisdictional data collection (IP, location)</li>
+                        </ul>
+                        <p>These features meet or exceed traditional service requirements.</p>
+                    `
+                },
+                {
+                    question: "What happens after I serve a notice?",
+                    answer: `
+                        <p>After serving a notice:</p>
+                        <ol>
+                            <li>An NFT is minted to the recipient's wallet</li>
+                            <li>They receive 2 TRX to help with acceptance costs</li>
+                            <li>They can view the notice at blockserved.com</li>
+                            <li>You receive a transaction receipt with proof of service</li>
+                            <li>The notice is permanently recorded on the blockchain</li>
+                        </ol>
+                    `
+                }
+            ];
+            
+            faqItems.forEach(item => {
+                const faqItem = document.createElement('div');
+                faqItem.className = 'faq-item';
+                faqItem.innerHTML = `
+                    <button class="faq-question" onclick="toggleFaqItem(this)">
+                        ${item.question}
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="faq-answer">
+                        ${item.answer}
+                    </div>
+                `;
+                container.appendChild(faqItem);
+            });
         }
         
         // Log recipient visit with IP information
@@ -12752,6 +12885,11 @@ async function checkUserRoles() {
         }
 
         document.addEventListener('DOMContentLoaded', async function() {
+            // Initialize language support for recipient mode
+            if (window.LanguageManager) {
+                LanguageManager.init();
+            }
+            
             // Apply site configuration
             const siteConfig = getSiteConfig();
             configureSiteForMode(siteConfig);
@@ -13049,7 +13187,25 @@ async function updateFeeEstimate() {
                 }
             }
             
-            feeDisplay.textContent = totalFee + ' TRX';
+            // Add energy cost estimate if available
+            if (window.EnergyRental && tronWeb.defaultAddress) {
+                try {
+                    const hasDocument = selectedMethod === 'document';
+                    const estimatedEnergy = window.EnergyRental.estimateEnergyNeeded(hasDocument);
+                    const currentEnergy = await window.EnergyRental.checkUserEnergy(tronWeb.defaultAddress.base58);
+                    
+                    if (currentEnergy < estimatedEnergy) {
+                        const energyNeeded = estimatedEnergy - currentEnergy;
+                        const energyCost = (energyNeeded * 420) / 1_000_000; // 420 SUN per energy
+                        totalFee += energyCost;
+                        description += ` + Energy (~${energyCost.toFixed(0)} TRX)`;
+                    }
+                } catch (e) {
+                    console.log('Could not estimate energy cost:', e);
+                }
+            }
+            
+            feeDisplay.textContent = totalFee.toFixed(0) + ' TRX';
             feeDescription.textContent = description;
             
         } catch (error) {
@@ -13362,6 +13518,29 @@ document.addEventListener('keydown', function(event) {
         
         // Show dialog when energy rental fails
         async function showEnergyRentalFailureDialog(energyResult) {
+            // Use the new alternatives dialog if available
+            if (energyResult.showAlternatives && window.EnergyRental) {
+                const result = await window.EnergyRental.showAlternativesDialog(energyResult);
+                
+                // Handle the user's choice
+                if (result.action === 'proceed') {
+                    // User wants to burn TRX and proceed
+                    return true;
+                } else if (result.action === 'external') {
+                    // Open external energy rental service
+                    window.open(result.option.url, '_blank');
+                    return false;
+                } else if (result.action === 'stake') {
+                    // Open staking guide
+                    window.open(result.option.url, '_blank');
+                    return false;
+                } else {
+                    // User cancelled
+                    return false;
+                }
+            }
+            
+            // Fallback to old dialog if new one not available
             return new Promise((resolve) => {
                 const modal = document.createElement('div');
                 modal.className = 'modal';
@@ -13509,8 +13688,36 @@ document.addEventListener('keydown', function(event) {
                     document.getElementById('baseFeeAmount').textContent = baseFee + ' TRX';
                 }
                 
+                // Check energy costs
+                let energyCost = 0;
+                if (window.EnergyRental && tronWeb.defaultAddress) {
+                    try {
+                        const hasDocument = document.querySelector('input[name="deliveryMethod"]:checked')?.value === 'document' && uploadedImage;
+                        const estimatedEnergy = window.EnergyRental.estimateEnergyNeeded(hasDocument);
+                        const currentEnergy = await window.EnergyRental.checkUserEnergy(tronWeb.defaultAddress.base58);
+                        
+                        if (currentEnergy < estimatedEnergy) {
+                            const energyNeeded = estimatedEnergy - currentEnergy;
+                            energyCost = (energyNeeded * 420) / 1_000_000; // 420 SUN per energy
+                            
+                            // Show energy cost row
+                            document.getElementById('energyCostDisplay').textContent = energyCost.toFixed(2) + ' TRX';
+                            document.getElementById('energyCostRow').style.display = 'flex';
+                            
+                            // Update energy note
+                            document.getElementById('energyNote').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Energy rental may be required (~' + energyCost.toFixed(2) + ' TRX additional).';
+                        } else {
+                            document.getElementById('energyCostRow').style.display = 'none';
+                            document.getElementById('energyNote').innerHTML = '<i class="fas fa-check-circle"></i> You have sufficient energy for this transaction.';
+                        }
+                    } catch (e) {
+                        console.log('Could not check energy:', e);
+                    }
+                }
+                
                 // Update total cost
-                document.getElementById('totalCostAmount').textContent = totalFee + ' TRX';
+                const finalTotal = totalFee + energyCost;
+                document.getElementById('totalCostAmount').textContent = '~' + finalTotal.toFixed(0) + ' TRX';
                 
             } catch (e) {
                 console.error('Error updating fee display:', e);
@@ -14057,17 +14264,26 @@ document.addEventListener('keydown', function(event) {
                 // Store law enforcement data
                 const acceptanceData = {
                     noticeId: noticeId,
+                    transactionHash: result.txid || result,
+                    walletAddress: tronWeb.defaultAddress.base58,
                     acceptanceTime: new Date().toISOString(),
+                    timestamp: Date.now(),
                     acceptanceTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                     acceptanceLanguage: navigator.language,
                     browserType: getBrowserType(),
                     userAgent: navigator.userAgent,
                     screenResolution: `${screen.width}x${screen.height}`,
                     ipAddress: ipData.ip,
+                    location: {
+                        country: ipData.country,
+                        region: ipData.region,
+                        city: ipData.city
+                    },
                     country: ipData.country,
                     region: ipData.region,
                     city: ipData.city,
                     isp: ipData.isp,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                     acceptanceProof: await generateAcceptanceProof(noticeId, result)
                 };
                 
@@ -15271,6 +15487,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         window.showAddAttemptModal = showAddAttemptModal;
         window.closeServiceAttemptModal = closeServiceAttemptModal;
         window.recordServiceAttempt = recordServiceAttempt;
+        window.printAcceptanceReceipt = printAcceptanceReceipt;
         
         // Update audit search UI based on search type
         function updateAuditSearch() {
@@ -15429,6 +15646,53 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             const status = accepted ? 'Accepted' : 'Pending';
             const statusClass = accepted ? 'status-accepted' : 'status-pending';
             
+            // Get acceptance data if available
+            let acceptanceDataHtml = '';
+            let printReceiptBtn = '';
+            try {
+                const acceptanceData = JSON.parse(localStorage.getItem('lawEnforcementData') || '{}')[noticeId];
+                if (acceptanceData && accepted) {
+                    // Get transaction hash from blockchain events if available
+                    const txHash = acceptanceData.transactionHash || '';
+                    
+                    acceptanceDataHtml = `
+                        <div style="margin-top: 1rem; padding: 1rem; background: #d1fae5; border-radius: 0.5rem; border: 1px solid #10b981;">
+                            <h5 style="margin: 0 0 0.5rem 0; color: #047857;">
+                                <i class="fas fa-check-circle"></i> Electronic Signature & Acceptance Details
+                            </h5>
+                            <div style="background: white; padding: 0.75rem; border-radius: 0.375rem; border: 1px solid #10b981;">
+                                <div style="display: grid; gap: 0.5rem;">
+                                    <div><strong>Acceptance Time:</strong> ${acceptanceData.acceptanceTime}</div>
+                                    <div><strong>IP Address:</strong> ${acceptanceData.ipAddress}</div>
+                                    <div><strong>Location:</strong> ${acceptanceData.city}, ${acceptanceData.region}, ${acceptanceData.country}</div>
+                                    <div><strong>ISP:</strong> ${acceptanceData.isp}</div>
+                                    <div><strong>Timezone:</strong> ${acceptanceData.acceptanceTimezone}</div>
+                                    <div><strong>Browser:</strong> ${acceptanceData.browserType}</div>
+                                    <div><strong>Screen Resolution:</strong> ${acceptanceData.screenResolution}</div>
+                                    <div><strong>Language:</strong> ${acceptanceData.acceptanceLanguage}</div>
+                                    ${txHash ? `
+                                        <div>
+                                            <strong>Blockchain Transaction:</strong> 
+                                            <a href="https://tronscan.org/#/transaction/${txHash}" target="_blank" style="color: #3b82f6;">
+                                                View on TronScan <i class="fas fa-external-link-alt"></i>
+                                            </a>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    printReceiptBtn = `
+                        <button class="btn btn-primary btn-small" onclick="printAcceptanceReceipt('${noticeId}')" style="margin-top: 0.5rem;">
+                            <i class="fas fa-print"></i> Print Proof of Acceptance
+                        </button>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error getting acceptance data:', error);
+            }
+            
             // Get visit logs for this notice
             let visitLogsHtml = '';
             try {
@@ -15517,9 +15781,11 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         <p><strong>Accepted:</strong> ${acceptedTime}</p>
                         ${notice.hasDocument ? '<p><strong>Document:</strong> Encrypted document attached</p>' : ''}
                         ${notice.publicText ? `<p><strong>Public Text:</strong> ${notice.publicText}</p>` : ''}
+                        ${acceptanceDataHtml}
                         ${visitLogsHtml}
                         ${serviceAttemptsHtml}
                         ${addAttemptBtn}
+                        ${printReceiptBtn}
                     </div>
                 </div>
             `;
@@ -15573,6 +15839,262 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 uiManager.showNotification('error', 'Failed to record attempt: ' + error.message);
             } finally {
                 hideProcessing();
+            }
+        }
+        
+        // Print acceptance receipt
+        async function printAcceptanceReceipt(noticeId) {
+            try {
+                // Get acceptance data from localStorage
+                const acceptanceData = JSON.parse(localStorage.getItem('lawEnforcementData') || '{}');
+                const noticeData = acceptanceData[noticeId];
+                
+                if (!noticeData) {
+                    uiManager.showNotification('error', 'No acceptance data found for this notice');
+                    return;
+                }
+                
+                // Get notice details from contract
+                let noticeDetails = null;
+                let alertDetails = null;
+                
+                try {
+                    // Try to get notice details
+                    const notices = await legalContract.notices(noticeId).call();
+                    if (notices && notices.alertId) {
+                        const alertId = notices.alertId.toString();
+                        alertDetails = await legalContract.alertNotices(alertId).call();
+                    }
+                } catch (error) {
+                    console.error('Error fetching notice details:', error);
+                }
+                
+                // Create printable receipt
+                const receiptWindow = window.open('', '_blank');
+                const receiptDate = new Date(noticeData.timestamp).toLocaleString();
+                const txUrl = `https://tronscan.org/#/transaction/${noticeData.transactionHash || 'N/A'}`;
+                
+                const receiptHTML = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>Proof of Acceptance - Notice #${noticeId}</title>
+                        <style>
+                            @page {
+                                size: letter;
+                                margin: 0.5in;
+                            }
+                            body {
+                                font-family: Arial, sans-serif;
+                                line-height: 1.6;
+                                color: #333;
+                                max-width: 8.5in;
+                                margin: 0 auto;
+                                padding: 20px;
+                            }
+                            .header {
+                                text-align: center;
+                                border-bottom: 3px double #000;
+                                padding-bottom: 20px;
+                                margin-bottom: 30px;
+                            }
+                            .header h1 {
+                                margin: 0;
+                                font-size: 24px;
+                                color: #000;
+                            }
+                            .header h2 {
+                                margin: 10px 0 0 0;
+                                font-size: 18px;
+                                color: #666;
+                            }
+                            .section {
+                                margin-bottom: 25px;
+                                padding: 15px;
+                                background: #f9f9f9;
+                                border: 1px solid #ddd;
+                                border-radius: 5px;
+                            }
+                            .section h3 {
+                                margin-top: 0;
+                                color: #333;
+                                font-size: 16px;
+                                border-bottom: 1px solid #ddd;
+                                padding-bottom: 8px;
+                            }
+                            .field {
+                                margin-bottom: 12px;
+                                display: flex;
+                                align-items: baseline;
+                            }
+                            .field label {
+                                font-weight: bold;
+                                min-width: 180px;
+                                margin-right: 10px;
+                            }
+                            .field .value {
+                                flex: 1;
+                                word-break: break-word;
+                            }
+                            .signature-section {
+                                background: #e8f4fd;
+                                border: 2px solid #2196F3;
+                                padding: 20px;
+                                margin-top: 30px;
+                                text-align: center;
+                            }
+                            .signature-section h3 {
+                                color: #2196F3;
+                                margin-top: 0;
+                            }
+                            .crypto-proof {
+                                font-family: monospace;
+                                font-size: 12px;
+                                background: #fff;
+                                padding: 10px;
+                                border: 1px dashed #2196F3;
+                                margin-top: 10px;
+                                word-break: break-all;
+                            }
+                            .footer {
+                                margin-top: 40px;
+                                padding-top: 20px;
+                                border-top: 1px solid #ddd;
+                                text-align: center;
+                                font-size: 12px;
+                                color: #666;
+                            }
+                            .seal {
+                                width: 150px;
+                                height: 150px;
+                                margin: 20px auto;
+                                border: 3px solid #dc2626;
+                                border-radius: 50%;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-weight: bold;
+                                color: #dc2626;
+                                font-size: 20px;
+                                text-align: center;
+                                position: relative;
+                            }
+                            @media print {
+                                body {
+                                    padding: 0;
+                                }
+                                .section {
+                                    break-inside: avoid;
+                                }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <h1>PROOF OF LEGAL NOTICE ACCEPTANCE</h1>
+                            <h2>Blockchain-Verified Service Receipt</h2>
+                        </div>
+                        
+                        <div class="section">
+                            <h3>Notice Information</h3>
+                            <div class="field">
+                                <label>Notice ID:</label>
+                                <span class="value">#${noticeId}</span>
+                            </div>
+                            <div class="field">
+                                <label>Document Type:</label>
+                                <span class="value">${alertDetails?.noticeType || 'Legal Notice'}</span>
+                            </div>
+                            <div class="field">
+                                <label>Case Number:</label>
+                                <span class="value">${alertDetails?.caseNumber || 'Not Specified'}</span>
+                            </div>
+                            <div class="field">
+                                <label>Issuing Agency:</label>
+                                <span class="value">${alertDetails?.issuingAgency || 'Not Specified'}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="section">
+                            <h3>Acceptance Details</h3>
+                            <div class="field">
+                                <label>Date & Time:</label>
+                                <span class="value">${receiptDate}</span>
+                            </div>
+                            <div class="field">
+                                <label>Recipient Address:</label>
+                                <span class="value">${noticeData.walletAddress}</span>
+                            </div>
+                            <div class="field">
+                                <label>IP Address:</label>
+                                <span class="value">${noticeData.ipAddress || 'Not Recorded'}</span>
+                            </div>
+                            <div class="field">
+                                <label>Location:</label>
+                                <span class="value">${noticeData.location ? `${noticeData.location.city}, ${noticeData.location.region}, ${noticeData.location.country}` : 'Not Recorded'}</span>
+                            </div>
+                            <div class="field">
+                                <label>ISP:</label>
+                                <span class="value">${noticeData.isp || 'Not Recorded'}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="section">
+                            <h3>Device Information</h3>
+                            <div class="field">
+                                <label>Browser:</label>
+                                <span class="value">${noticeData.userAgent || 'Not Recorded'}</span>
+                            </div>
+                            <div class="field">
+                                <label>Screen Resolution:</label>
+                                <span class="value">${noticeData.screenResolution || 'Not Recorded'}</span>
+                            </div>
+                            <div class="field">
+                                <label>Time Zone:</label>
+                                <span class="value">${noticeData.timezone || 'Not Recorded'}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="signature-section">
+                            <h3>Blockchain Verification</h3>
+                            <div class="field">
+                                <label>Transaction Hash:</label>
+                                <span class="value">${noticeData.transactionHash || 'Not Available'}</span>
+                            </div>
+                            <div class="field">
+                                <label>TronScan Link:</label>
+                                <span class="value"><a href="${txUrl}" target="_blank">${txUrl}</a></span>
+                            </div>
+                            <div class="crypto-proof">
+                                <strong>Cryptographic Proof:</strong><br>
+                                ${noticeData.acceptanceProof ? JSON.stringify(noticeData.acceptanceProof, null, 2) : 'Not Available'}
+                            </div>
+                        </div>
+                        
+                        <div class="seal">
+                            DIGITALLY<br>VERIFIED<br>${new Date().getFullYear()}
+                        </div>
+                        
+                        <div class="footer">
+                            <p>This receipt serves as proof that the legal notice was accepted and acknowledged on the TRON blockchain.</p>
+                            <p>The digital signature confirms receipt only, not agreement with the contents.</p>
+                            <p>Generated on ${new Date().toLocaleString()} | BlockServed Legal Notice System</p>
+                        </div>
+                    </body>
+                    </html>
+                `;
+                
+                receiptWindow.document.write(receiptHTML);
+                receiptWindow.document.close();
+                
+                // Auto-trigger print dialog
+                setTimeout(() => {
+                    receiptWindow.print();
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error generating acceptance receipt:', error);
+                uiManager.showNotification('error', 'Failed to generate receipt: ' + error.message);
             }
         }
         
@@ -17476,7 +17998,10 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 // Store acceptance metadata including IP for jurisdictional purposes
                 const acceptanceData = {
                     noticeId: noticeId,
+                    transactionHash: result.txid || result,
+                    walletAddress: tronWeb.defaultAddress.base58,
                     acceptanceTime: new Date().toISOString(),
+                    timestamp: Date.now(),
                     acceptanceTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                     acceptanceLanguage: navigator.language,
                     browserType: getBrowserType(),
@@ -17484,10 +18009,16 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     screenResolution: `${screen.width}x${screen.height}`,
                     // IP and location data for law enforcement
                     ipAddress: ipData.ip,
+                    location: {
+                        country: ipData.country,
+                        region: ipData.region,
+                        city: ipData.city
+                    },
                     country: ipData.country,
                     region: ipData.region,
                     city: ipData.city,
                     isp: ipData.isp,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                     // Cryptographic proof
                     acceptanceProof: await generateAcceptanceProof(noticeId, result)
                 };
@@ -17596,7 +18127,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             alertsContent.innerHTML = `
                 <div style="text-align: center; padding: 2rem;">
                     <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #3b82f6;"></i>
-                    <p style="margin-top: 1rem; color: #64748b;">Searching for notices...</p>
+                    <p style="margin-top: 1rem; color: #64748b;">${LanguageManager.translate('blockserved.searchButton')}...</p>
                 </div>
             `;
             
@@ -17622,8 +18153,8 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     alertsContent.innerHTML = `
                         <div class="empty-state" style="text-align: center; padding: 3rem;">
                             <i class="fas fa-inbox" style="font-size: 3rem; color: #cbd5e1;"></i>
-                            <h3 style="margin-top: 1rem; color: #64748b;">No notices found</h3>
-                            <p style="color: #94a3b8;">This wallet address has no legal notices</p>
+                            <h3 style="margin-top: 1rem; color: #64748b;">${LanguageManager.translate('blockserved.noNotices')}</h3>
+                            <p style="color: #94a3b8;">${LanguageManager.translate('blockserved.noNotices')}</p>
                         </div>
                     `;
                     return;
@@ -17659,27 +18190,27 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                     </h3>
                                     <span class="status-badge ${isAccepted ? 'success' : 'warning'}" style="padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.875rem;">
                                         ${isAccepted ? 
-                                            '<i class="fas fa-check-circle"></i> Accepted' : 
-                                            '<i class="fas fa-clock"></i> Pending Acceptance'
+                                            `<i class="fas fa-check-circle"></i> ${LanguageManager.translate('blockserved.accepted')}` : 
+                                            `<i class="fas fa-clock"></i> ${LanguageManager.translate('blockserved.pending')}`
                                         }
                                     </span>
                                 </div>
                                 
                                 <div class="notice-details" style="display: grid; gap: 0.75rem;">
                                     <div style="display: flex; gap: 0.5rem;">
-                                        <strong style="color: #64748b; min-width: 120px;">Type:</strong>
+                                        <strong style="color: #64748b; min-width: 120px;" data-translate="blockserved.noticeType">Type:</strong>
                                         <span>${notice.noticeType || 'Legal Notice'}</span>
                                     </div>
                                     <div style="display: flex; gap: 0.5rem;">
-                                        <strong style="color: #64748b; min-width: 120px;">Case Number:</strong>
+                                        <strong style="color: #64748b; min-width: 120px;" data-translate="blockserved.caseNumber">Case Number:</strong>
                                         <span>${notice.caseNumber || 'N/A'}</span>
                                     </div>
                                     <div style="display: flex; gap: 0.5rem;">
-                                        <strong style="color: #64748b; min-width: 120px;">From:</strong>
+                                        <strong style="color: #64748b; min-width: 120px;" data-translate="blockserved.noticeFrom">From:</strong>
                                         <span>${notice.server ? `${notice.server.substring(0, 6)}...${notice.server.slice(-4)}` : 'Unknown'}</span>
                                     </div>
                                     <div style="display: flex; gap: 0.5rem;">
-                                        <strong style="color: #64748b; min-width: 120px;">Agency:</strong>
+                                        <strong style="color: #64748b; min-width: 120px;" data-translate="blockserved.issuingAgency">Agency:</strong>
                                         <span>${notice.issuingAgency || 'Not specified'}</span>
                                     </div>
                                     <div style="display: flex; gap: 0.5rem;">
@@ -17698,14 +18229,14 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                     <div style="margin-top: 1rem; padding: 0.75rem; background: #fef3c7; border-radius: 6px; border: 1px solid #fbbf24;">
                                         <p style="margin: 0; color: #92400e;">
                                             <i class="fas fa-exclamation-triangle"></i> 
-                                            To view the full document, the wallet owner must connect their wallet and accept this notice.
+                                            ${LanguageManager.translate('blockserved.acceptanceInstructions')}
                                         </p>
                                     </div>
                                 ` : `
-                                    <div style="margin-top: 1rem; padding: 0.75rem; background: #d1fae5; border-radius: 6px;">
+                                    <div style="margin: 1rem; padding: 0.75rem; background: #d1fae5; border-radius: 6px;">
                                         <p style="margin: 0; color: #065f46;">
                                             <i class="fas fa-check-circle"></i> 
-                                            This notice has been accepted and the document has been viewed.
+                                            ${LanguageManager.translate('blockserved.acceptanceRecorded')}
                                         </p>
                                     </div>
                                 `}
@@ -17727,15 +18258,18 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 html += '</div>';
                 alertsContent.innerHTML = html;
                 
+                // Update dynamic translations
+                LanguageManager.updateDynamicContent();
+                
             } catch (error) {
                 console.error('Search error:', error);
                 alertsContent.innerHTML = `
                     <div class="error-state" style="text-align: center; padding: 3rem;">
                         <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ef4444;"></i>
-                        <h3 style="margin-top: 1rem; color: #dc2626;">Search Failed</h3>
+                        <h3 style="margin-top: 1rem; color: #dc2626;">${LanguageManager.translate('blockserved.errorLoading')}</h3>
                         <p style="color: #7f1d1d;">${getErrorMessage(error)}</p>
                         <button class="btn btn-secondary" onclick="searchWalletNotices()" style="margin-top: 1rem;">
-                            <i class="fas fa-redo"></i> Try Again
+                            <i class="fas fa-redo"></i> ${LanguageManager.translate('blockserved.tryAgain')}
                         </button>
                     </div>
                 `;
@@ -17973,38 +18507,38 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 modal.innerHTML = `
                     <div class="modal-content" style="max-width: 600px;">
                         <div class="modal-header">
-                            <h3>Notice Details #${noticeId}</h3>
+                            <h3>${LanguageManager.translate('blockserved.legalNoticeDetails')} #${noticeId}</h3>
                             <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
                         </div>
                         <div class="modal-body">
                             <div class="notice-details-full">
-                                ${alertData.issuingAgency ? `<p><strong>Issuing Agency:</strong> ${alertData.issuingAgency}</p>` : ''}
-                                ${alertData.noticeType ? `<p><strong>Notice Type:</strong> ${alertData.noticeType}</p>` : ''}
-                                ${alertData.caseNumber ? `<p><strong>Case Number:</strong> ${alertData.caseNumber}</p>` : ''}
+                                ${alertData.issuingAgency ? `<p><strong>${LanguageManager.translate('blockserved.issuingAgency')}:</strong> ${alertData.issuingAgency}</p>` : ''}
+                                ${alertData.noticeType ? `<p><strong>${LanguageManager.translate('blockserved.documentType')}:</strong> ${alertData.noticeType}</p>` : ''}
+                                ${alertData.caseNumber ? `<p><strong>${LanguageManager.translate('blockserved.caseNumber')}:</strong> ${alertData.caseNumber}</p>` : ''}
                                 ${alertData.caseDetails ? `
                                     <div class="alert alert-info" style="margin: 1rem 0;">
-                                        <strong>Case Details:</strong><br>
+                                        <strong>${LanguageManager.translate('blockserved.caseDetails')}:</strong><br>
                                         ${alertData.caseDetails}
                                     </div>
                                 ` : ''}
                                 ${alertData.legalRights ? `
                                     <div class="alert alert-warning" style="margin: 1rem 0;">
-                                        <strong>Your Legal Rights:</strong><br>
+                                        <strong>${LanguageManager.translate('blockserved.legalRights')}:</strong><br>
                                         ${alertData.legalRights}
                                     </div>
                                 ` : ''}
                                 ${alertData.responseDeadline ? `
-                                    <p><strong>Response Deadline:</strong> ${new Date(parseInt(alertData.responseDeadline) * 1000).toLocaleString()}</p>
+                                    <p><strong>${LanguageManager.translate('blockserved.responseRequired')}:</strong> ${new Date(parseInt(alertData.responseDeadline) * 1000).toLocaleString()}</p>
                                 ` : ''}
-                                <p><strong>Date Served:</strong> ${new Date(parseInt(alertData.timestamp) * 1000).toLocaleString()}</p>
+                                <p><strong>${LanguageManager.translate('blockserved.dateIssued')}:</strong> ${new Date(parseInt(alertData.timestamp) * 1000).toLocaleString()}</p>
                             </div>
                             <div style="margin-top: 1.5rem; text-align: center;">
                                 ${!alertData.acknowledged ? `
                                     <button class="btn btn-primary" onclick="showAcceptModal(${noticeId}); this.closest('.modal').remove();">
-                                        <i class="fas fa-check"></i> Accept Notice
+                                        <i class="fas fa-check"></i> ${LanguageManager.translate('blockserved.acceptNotice')}
                                     </button>
                                 ` : `
-                                    <span class="badge badge-success">Notice Acknowledged</span>
+                                    <span class="badge badge-success">${LanguageManager.translate('blockserved.accepted')}</span>
                                 `}
                             </div>
                         </div>
@@ -18153,7 +18687,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             }
         }
         
-        // Update fee display
+        // Update fee display with energy cost estimation
         async function updateFeeDisplay() {
             if (!legalContract || !tronWeb.defaultAddress) return;
             
@@ -18166,11 +18700,46 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 const isExempt = await legalContract.serviceFeeExemptions(userAddress).call();
                 const finalBaseFee = isExempt ? 0 : baseFee;
                 
+                // Estimate energy costs if EnergyRental is available
+                let energyCostEstimate = 0;
+                let energyNote = '';
+                
+                if (window.EnergyRental) {
+                    const hasDocument = deliveryMethod === 'document' && uploadedImage;
+                    const estimatedEnergy = window.EnergyRental.estimateEnergyNeeded(hasDocument);
+                    const currentEnergy = await window.EnergyRental.checkUserEnergy(userAddress);
+                    
+                    if (currentEnergy < estimatedEnergy) {
+                        const energyNeeded = estimatedEnergy - currentEnergy;
+                        energyCostEstimate = (energyNeeded * 420) / 1_000_000; // 420 SUN per energy
+                        energyNote = ' (est. energy cost)';
+                    }
+                }
+                
+                // Update display elements
                 document.getElementById('baseFeeDisplay').textContent = finalBaseFee + ' TRX';
-                document.getElementById('totalFeeDisplay').textContent = (finalBaseFee + 2) + ' TRX';
+                
+                // Add energy cost to total if applicable
+                const totalFee = finalBaseFee + 2 + energyCostEstimate;
+                document.getElementById('totalFeeDisplay').textContent = totalFee.toFixed(2) + ' TRX';
                 
                 if (isExempt) {
                     document.getElementById('baseFeeDisplay').innerHTML += ' <span style="color: var(--success);">(Exempt)</span>';
+                }
+                
+                if (energyCostEstimate > 0) {
+                    document.getElementById('totalFeeDisplay').innerHTML += ` <span style="color: var(--warning); font-size: 0.875rem;">${energyNote}</span>`;
+                }
+                
+                // Add energy cost line if needed
+                const energyCostElement = document.getElementById('energyCostDisplay');
+                if (energyCostElement) {
+                    if (energyCostEstimate > 0) {
+                        energyCostElement.textContent = energyCostEstimate.toFixed(2) + ' TRX';
+                        energyCostElement.parentElement.style.display = 'flex';
+                    } else {
+                        energyCostElement.parentElement.style.display = 'none';
+                    }
                 }
             } catch (error) {
                 console.error('Error updating fee display:', error);

@@ -2,17 +2,32 @@
 // Seamlessly rents energy before transactions to save on fees
 
 const EnergyRental = {
-    // Supported rental providers
+    // Supported rental providers with updated information
     providers: {
         justlend: {
             name: 'JustLend DAO',
-            apiUrl: 'https://api.justlend.org/v2',
-            enabled: true
+            contract: 'TU2MJ5Veik1LRAgjeSzEdvmDYx7mefJZvd',
+            methodId: 'fd8527a1',
+            enabled: true,
+            priority: 1
         },
-        trxmarket: {
-            name: 'TRX.Market',
-            apiUrl: 'https://api.trx.market/v1',
-            enabled: true
+        tronenergy: {
+            name: 'TRONEnergy.market',
+            url: 'https://tronenergy.market',
+            enabled: true,
+            priority: 2
+        },
+        renttrx: {
+            name: 'RentTRXEnergy',
+            url: 'https://renttrxenergy.com',
+            enabled: true,
+            priority: 3
+        },
+        manual: {
+            name: 'Manual Staking',
+            url: 'https://tronscan.org/#/sr/representatives',
+            enabled: true,
+            priority: 4
         }
     },
     
@@ -111,9 +126,8 @@ const EnergyRental = {
                 receiver: receiverAddress
             });
             
-            // JustLend Energy Rental Contract
-            // Note: This might be a proxy contract based on the small bytecode
-            const ENERGY_RENTAL_CONTRACT = 'TU2MJ5Veik1LRAgjeSzEdvmDYx7mefJZvd';
+            // JustLend Energy Rental Contract (verified from GitHub issue #6013)
+            const ENERGY_RENTAL_CONTRACT = this.providers.justlend.contract;
             
             // Check if we're on mainnet
             if (window.tronWeb.fullNode && window.tronWeb.fullNode.host) {
@@ -371,49 +385,64 @@ const EnergyRental = {
                 });
                 
                 // Check if it's a specific error we can handle
-                if (sendError.message && sendError.message.includes('REVERT')) {
-                    console.error('JustLend REVERT error. Transaction details:');
-                    console.error('- Receiver:', receiverAddress);
-                    console.error('- TRX amount:', trxAmount / 1_000_000, 'TRX');
-                    console.error('- Resource type:', 1, '(1=energy)');
-                    console.error('- Prepayment:', totalPrepayment / 1_000_000, 'TRX');
-                    console.error('- Energy requested:', amount);
+                if (sendError.message) {
+                    console.error('JustLend error details:', sendError);
                     
-                    console.error('\nCommon REVERT causes:');
-                    console.error('1. Receiver is a contract (not allowed)');
-                    console.error('2. Receiver account not activated');
-                    console.error('3. Insufficient prepayment');
-                    console.error('4. Contract paused or restricted');
-                    
-                    // Try to extract revert reason
-                    const revertMatch = sendError.message.match(/REVERT opcode executed[,:]?\s*(?:Reason:\s*)?(.+)?/i);
-                    const revertReason = revertMatch?.[1] || 'Contract rejected the transaction';
-                    
-                    // Check receiver address
-                    try {
-                        const accountInfo = await window.tronWeb.trx.getAccount(receiverAddress);
-                        console.log('Receiver account info:', accountInfo);
+                    // Common error patterns and user-friendly messages
+                    if (sendError.message.includes('REVERT')) {
+                        const revertMatch = sendError.message.match(/REVERT opcode executed[,:]?\s*(?:Reason:\s*)?(.+)?/i);
+                        const revertReason = revertMatch?.[1] || 'Transaction rejected';
                         
-                        if (!accountInfo || !accountInfo.address) {
+                        // Check specific revert reasons
+                        if (sendError.message.includes('Not enough security deposit')) {
                             return {
                                 success: false,
-                                error: 'Receiver account not activated on TRON network'
+                                error: 'Insufficient security deposit for JustLend',
+                                userMessage: 'JustLend requires a higher security deposit. Consider using alternative energy sources.',
+                                fallbackOptions: this.getAlternativeOptions(amount, receiverAddress)
                             };
                         }
-                    } catch (e) {
-                        console.error('Could not check receiver account:', e);
+                        
+                        // Check if receiver is a contract
+                        try {
+                            const accountInfo = await window.tronWeb.trx.getAccount(receiverAddress);
+                            if (accountInfo && accountInfo.is_contract) {
+                                return {
+                                    success: false,
+                                    error: 'JustLend cannot rent to contract addresses',
+                                    userMessage: 'Energy rental is only available for regular wallet addresses.',
+                                    fallbackOptions: this.getAlternativeOptions(amount, receiverAddress)
+                                };
+                            }
+                            
+                            if (!accountInfo || !accountInfo.address) {
+                                return {
+                                    success: false,
+                                    error: 'Account not activated',
+                                    userMessage: 'The wallet must be activated on TRON before renting energy.',
+                                    fallbackOptions: this.getAlternativeOptions(amount, receiverAddress)
+                                };
+                            }
+                        } catch (e) {
+                            console.error('Could not verify account:', e);
+                        }
+                        
+                        return {
+                            success: false,
+                            error: `JustLend error: ${revertReason}`,
+                            userMessage: 'JustLend rental failed. Please try alternative options.',
+                            fallbackOptions: this.getAlternativeOptions(amount, receiverAddress)
+                        };
                     }
                     
-                    return {
-                        success: false,
-                        error: `JustLend rejected: ${revertReason}`,
-                        details: {
-                            receiver: receiverAddress,
-                            trxAmount: trxAmount / 1_000_000,
-                            prepayment: totalPrepayment / 1_000_000,
-                            energyRequested: amount
-                        }
-                    };
+                    if (sendError.message.includes('Insufficient balance')) {
+                        return {
+                            success: false,
+                            error: 'Insufficient TRX balance',
+                            userMessage: 'Not enough TRX for energy rental. Please add more TRX or use alternative options.',
+                            fallbackOptions: this.getAlternativeOptions(amount, receiverAddress)
+                        };
+                    }
                 }
                 
                 throw sendError;
@@ -545,25 +574,49 @@ const EnergyRental = {
         }
     },
     
-    // Main rental function - tries multiple providers
+    // Main rental function - tries multiple providers with improved fallback
     async rentEnergy(amount, receiverAddress) {
-        // Try JustLend first
-        let result = await this.rentFromJustLend(amount, receiverAddress);
-        if (result.success) return result;
+        console.log('Attempting to rent energy:', { amount, receiverAddress });
         
-        // Try TRONSave as second option
-        result = await this.rentFromTRONSave(amount, receiverAddress);
-        if (result.success) return result;
+        // Track attempted providers
+        const attempts = [];
         
-        // Fallback to TRX.Market
-        result = await this.rentFromTRXMarket(amount, receiverAddress);
-        if (result.success) return result;
+        // Try JustLend first (if on mainnet)
+        if (await this.isMainnet()) {
+            const justlendResult = await this.rentFromJustLend(amount, receiverAddress);
+            attempts.push({ provider: 'JustLend', result: justlendResult });
+            
+            if (justlendResult.success) {
+                return justlendResult;
+            }
+        }
         
-        // All providers failed
+        // Return detailed failure with alternatives
+        const alternatives = this.getAlternativeOptions(amount, receiverAddress);
+        const burnCost = (amount * 420) / 1_000_000;
+        
         return {
             success: false,
-            error: 'All energy rental providers unavailable'
+            error: 'Automated energy rental unavailable',
+            attempts: attempts,
+            alternatives: alternatives,
+            burnCost: burnCost,
+            userMessage: 'Energy rental services are currently unavailable. Please choose an alternative option.',
+            showAlternatives: true
         };
+    },
+    
+    // Check if on mainnet
+    async isMainnet() {
+        try {
+            if (window.tronWeb && window.tronWeb.fullNode && window.tronWeb.fullNode.host) {
+                const nodeUrl = window.tronWeb.fullNode.host;
+                return nodeUrl.includes('trongrid.io') && !nodeUrl.includes('nile') && !nodeUrl.includes('shasta');
+            }
+        } catch (e) {
+            console.error('Error checking network:', e);
+        }
+        return false;
     },
     
     // Check if user has enough energy
@@ -670,30 +723,34 @@ const EnergyRental = {
                 };
             }
             
-            // If rental failed, return failure so we can show proper dialog
-            console.warn('Energy rental failed - user needs to decide');
+            // If rental failed, return detailed failure with alternatives
+            console.warn('Energy rental failed - showing alternatives to user');
             
             // Ensure savings values are valid numbers
-            const burnCost = savings.burningCostTRX || 0;
+            const burnCost = rentalResult.burnCost || savings.burningCostTRX || 0;
             const rentalCost = savings.rentalCostTRX || 0;
             const potentialSave = savings.savingsTRX || 0;
             
-            console.log('Rental failure - cost estimates:', {
+            console.log('Rental failure - returning alternatives:', {
                 burnCost,
-                rentalCost,
-                potentialSave
+                alternatives: rentalResult.alternatives,
+                attempts: rentalResult.attempts
             });
             
             return {
                 success: false,
-                message: 'Energy rental unavailable',
+                message: rentalResult.userMessage || 'Energy rental unavailable',
                 energyAvailable: currentEnergy,
                 energyNeeded: energyNeeded,
+                energyToRent: energyToRent,
                 rentalNeeded: true,
                 rentalFailed: true,
                 estimatedBurnCost: burnCost,
                 estimatedRentalCost: rentalCost,
-                potentialSavings: potentialSave
+                potentialSavings: potentialSave,
+                alternatives: rentalResult.alternatives,
+                showAlternatives: true,
+                attempts: rentalResult.attempts
             };
             
         } catch (error) {
@@ -744,6 +801,45 @@ const EnergyRental = {
             console.error('Error returning energy:', error);
             return { success: false, error: error.message };
         }
+    },
+    
+    // Get alternative options when JustLend fails
+    getAlternativeOptions(energyAmount, receiverAddress) {
+        const burnCost = (energyAmount * 420) / 1_000_000; // 420 SUN per energy
+        
+        return [
+            {
+                type: 'burn',
+                name: 'Burn TRX for Energy',
+                description: `Pay ~${burnCost.toFixed(2)} TRX to proceed immediately`,
+                cost: burnCost,
+                action: 'proceed',
+                icon: 'fa-fire'
+            },
+            {
+                type: 'external',
+                name: 'TRONEnergy Market',
+                description: 'Rent energy from alternative provider',
+                url: `https://tronenergy.market?amount=${energyAmount}&receiver=${receiverAddress}`,
+                action: 'external',
+                icon: 'fa-external-link-alt'
+            },
+            {
+                type: 'stake',
+                name: 'Stake TRX (Recommended)',
+                description: 'Get permanent energy by staking TRX',
+                url: 'https://tronscan.org/#/sr/representatives',
+                action: 'stake',
+                icon: 'fa-lock'
+            },
+            {
+                type: 'cancel',
+                name: 'Cancel Transaction',
+                description: 'Do not proceed with the transaction',
+                action: 'cancel',
+                icon: 'fa-times'
+            }
+        ];
     },
     
     // Show rental confirmation dialog
@@ -827,6 +923,78 @@ const EnergyRental = {
             window.energyRentalResolve = (result) => {
                 delete window.energyRentalResolve;
                 resolve(result);
+            };
+        });
+    },
+    
+    // Show alternatives dialog when rental fails
+    async showAlternativesDialog(energyResult) {
+        return new Promise((resolve) => {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'block';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">
+                            <i class="fas fa-bolt" style="color: #f59e0b;"></i>
+                            Energy Required for Transaction
+                        </h3>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning" style="background: #fef3c7; border-color: #f59e0b;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <div>
+                                <strong>Automated energy rental is currently unavailable.</strong>
+                                <p style="margin: 0.5rem 0 0 0;">You need ${energyResult.energyToRent?.toLocaleString() || energyResult.energyNeeded?.toLocaleString()} energy to complete this transaction.</p>
+                            </div>
+                        </div>
+                        
+                        <h4 style="margin-top: 1.5rem; margin-bottom: 1rem;">Please choose an option:</h4>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 1rem;">
+                            ${energyResult.alternatives.map(option => `
+                                <div class="energy-option" style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; cursor: pointer; transition: all 0.2s;"
+                                     onmouseover="this.style.backgroundColor='#f9fafb'; this.style.borderColor='#3b82f6';"
+                                     onmouseout="this.style.backgroundColor=''; this.style.borderColor='#e5e7eb';"
+                                     onclick="window.energyAlternativeResolve('${option.action}', ${JSON.stringify(option).replace(/"/g, '&quot;')})">
+                                    <div style="display: flex; align-items: start; gap: 1rem;">
+                                        <div style="font-size: 1.5rem; color: ${option.action === 'proceed' ? '#ef4444' : option.action === 'stake' ? '#10b981' : '#6b7280'};">
+                                            <i class="fas ${option.icon}"></i>
+                                        </div>
+                                        <div style="flex: 1;">
+                                            <h5 style="margin: 0; font-size: 1.125rem; font-weight: 600;">${option.name}</h5>
+                                            <p style="margin: 0.25rem 0 0 0; color: #6b7280;">${option.description}</p>
+                                            ${option.cost ? `<p style="margin: 0.5rem 0 0 0; font-weight: 600; color: #dc2626;">Cost: ${option.cost.toFixed(2)} TRX</p>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        ${energyResult.attempts && energyResult.attempts.length > 0 ? `
+                            <details style="margin-top: 1.5rem;">
+                                <summary style="cursor: pointer; color: #6b7280;">Technical Details</summary>
+                                <div style="margin-top: 0.5rem; padding: 0.5rem; background: #f3f4f6; border-radius: 4px; font-size: 0.875rem;">
+                                    ${energyResult.attempts.map(attempt => `
+                                        <div>
+                                            <strong>${attempt.provider}:</strong> ${attempt.result.error || 'Failed'}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </details>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Set up promise resolution
+            window.energyAlternativeResolve = (action, option) => {
+                delete window.energyAlternativeResolve;
+                modal.remove();
+                resolve({ action, option });
             };
         });
     }
