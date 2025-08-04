@@ -6456,6 +6456,8 @@ async function getRecipientNoticeIds(recipient) {
         
         // First, let's check what methods are available on the contract
         console.log('Available contract methods:', Object.keys(legalContract.methods || {}));
+        console.log('Contract instance:', legalContract);
+        console.log('Contract address being used:', legalContract._address || legalContract.address);
         
         // Try different method names that might exist
         const methodsToTry = [
@@ -16248,6 +16250,65 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         window.toggleRegistrationForm = toggleRegistrationForm;
         
         // Debug function to manually initialize and refresh notices
+        // Function to check contract state
+        window.checkContractState = async function() {
+            console.log('=== CHECKING CONTRACT STATE ===');
+            
+            if (!legalContract) {
+                console.error('Contract not initialized!');
+                return;
+            }
+            
+            try {
+                // Check total notices
+                console.log('1. Checking totalNotices...');
+                const total = await legalContract.totalNotices().call();
+                console.log('Total notices in contract:', total.toString());
+                
+                // Check some recent notices
+                if (total > 0) {
+                    console.log('2. Checking last few notices...');
+                    const checkCount = Math.min(5, parseInt(total));
+                    for (let i = parseInt(total) - 1; i >= parseInt(total) - checkCount && i >= 0; i--) {
+                        try {
+                            const notice = await legalContract.notices(i).call();
+                            console.log(`Notice ${i}:`, {
+                                alertId: notice.alertId?.toString(),
+                                recipient: notice.recipient,
+                                sender: notice.server || notice.sender,
+                                timestamp: notice.timestamp?.toString()
+                            });
+                        } catch (e) {
+                            console.error(`Error reading notice ${i}:`, e.message);
+                        }
+                    }
+                }
+                
+                // Check token ownership for connected wallet
+                if (tronWeb?.defaultAddress?.base58) {
+                    console.log('3. Checking tokens for wallet:', tronWeb.defaultAddress.base58);
+                    const balance = await legalContract.balanceOf(tronWeb.defaultAddress.base58).call();
+                    console.log('Token balance:', balance.toString());
+                    
+                    // Try to get owned tokens if enumerable
+                    if (balance > 0 && legalContract.tokenOfOwnerByIndex) {
+                        console.log('4. Getting owned token IDs...');
+                        for (let i = 0; i < Math.min(5, parseInt(balance)); i++) {
+                            try {
+                                const tokenId = await legalContract.tokenOfOwnerByIndex(tronWeb.defaultAddress.base58, i).call();
+                                console.log(`Token ${i}:`, tokenId.toString());
+                            } catch (e) {
+                                console.log('tokenOfOwnerByIndex not available');
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking contract state:', error);
+            }
+        };
+        
         window.debugRefreshNotices = async function() {
             console.log('=== DEBUG: Manual Notice Refresh ===');
             console.log('1. Current wallet:', tronWeb?.defaultAddress?.base58);
@@ -16273,6 +16334,25 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             console.log('6. Refreshing alerts...');
             await refreshMyAlerts();
             console.log('7. Done! Check the My Alerts section.');
+            
+            // Additional debug: Try to check total supply or balance
+            try {
+                console.log('8. Checking NFT balance...');
+                const balance = await legalContract.balanceOf(tronWeb.defaultAddress.base58).call();
+                console.log('NFT Balance:', balance.toString());
+                
+                // Try to get recipient alerts directly
+                console.log('9. Trying recipientAlerts mapping...');
+                const alerts = await legalContract.recipientAlerts(tronWeb.defaultAddress.base58, 0).call();
+                console.log('First alert ID (if any):', alerts.toString());
+                
+                // Try getRecipientAlerts function
+                console.log('10. Trying getRecipientAlerts function...');
+                const alertsList = await legalContract.getRecipientAlerts(tronWeb.defaultAddress.base58).call();
+                console.log('Alert IDs from getRecipientAlerts:', alertsList);
+            } catch (e) {
+                console.error('Additional debug failed:', e);
+            }
         };
         
         async function withdrawFromContract() {
@@ -17729,21 +17809,53 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         const notice = await legalContract.notices(noticeId).call();
                         console.log(`Notice ${noticeId} data:`, notice);
                         
-                        // Check if notice has packedData field, if not try to construct it
-                        let packedData = notice.packedData;
-                        if (!packedData && notice.timestamp) {
-                            // If packedData doesn't exist, try to use individual fields
-                            console.log('No packedData field, using individual fields');
-                            packedData = {
-                                timestamp: notice.timestamp || 0,
-                                serverId: notice.serverId || 0,
-                                hasDocument: notice.hasDocument || false,
-                                accepted: notice.accepted || false
-                            };
+                        // Check if notice exists
+                        if (!notice) {
+                            console.warn(`Notice ${noticeId} returned undefined`);
+                            continue;
                         }
                         
-                        const { timestamp, serverId, hasDocument, accepted } = 
-                            packedData.timestamp !== undefined ? packedData : parsePackedData(packedData);
+                        // Try to get alert notice data if this is an alert ID
+                        let alertData = null;
+                        try {
+                            alertData = await legalContract.alertNotices(noticeId).call();
+                            console.log(`Alert data for ${noticeId}:`, alertData);
+                        } catch (e) {
+                            console.log(`No alert data for ${noticeId}`);
+                        }
+                        
+                        // Use alert data if available, otherwise try to parse notice data
+                        let timestamp, serverId, hasDocument, accepted;
+                        
+                        if (alertData && alertData.timestamp) {
+                            // Use alert notice data directly
+                            timestamp = parseInt(alertData.timestamp);
+                            serverId = 0; // Not in alert data
+                            hasDocument = false; // Check separately
+                            accepted = alertData.acknowledged || false;
+                        } else if (notice.timestamp) {
+                            // Direct fields available
+                            timestamp = parseInt(notice.timestamp);
+                            serverId = notice.serverId || 0;
+                            hasDocument = notice.hasDocument || false;
+                            accepted = notice.accepted || notice.acknowledged || false;
+                        } else if (notice.packedData) {
+                            // Use packed data
+                            const parsed = parsePackedData(notice.packedData);
+                            timestamp = parsed.timestamp;
+                            serverId = parsed.serverId;
+                            hasDocument = parsed.hasDocument;
+                            accepted = parsed.accepted;
+                        } else {
+                            console.warn(`Notice ${noticeId} has no recognizable data structure`);
+                            continue;
+                        }
+                        
+                        // Get sender info
+                        const sender = alertData?.sender || notice.sender || notice.server || 'Unknown';
+                        const noticeType = alertData?.noticeType || notice.noticeType || 'Legal Notice';
+                        const caseNumber = alertData?.caseNumber || notice.caseNumber || '';
+                        const issuingAgency = alertData?.issuingAgency || '';
                         
                         html += `
                             <div class="notice-item">
@@ -17754,14 +17866,19 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                     </span>
                                 </div>
                                 <div class="notice-details">
-                                    <p><strong>From:</strong> ${notice.sender}</p>
+                                    <p><strong>From:</strong> ${sender}</p>
+                                    ${issuingAgency ? `<p><strong>Agency:</strong> ${issuingAgency}</p>` : ''}
                                     <p><strong>Date:</strong> ${new Date(timestamp * 1000).toLocaleString()}</p>
-                                    <p><strong>Type:</strong> ${notice.noticeType || 'Legal Notice'}</p>
+                                    <p><strong>Type:</strong> ${noticeType}</p>
+                                    ${caseNumber ? `<p><strong>Case #:</strong> ${caseNumber}</p>` : ''}
                                     ${!accepted ? `
                                         <button class="btn btn-primary btn-small" onclick="showAcceptModal(${noticeId})">
                                             <i class="fas fa-check"></i> Accept Notice
                                         </button>
                                     ` : ''}
+                                    <button class="btn btn-secondary btn-small" onclick="viewNoticeDetails(${noticeId})" style="margin-left: 0.5rem;">
+                                        <i class="fas fa-eye"></i> View Details
+                                    </button>
                                 </div>
                             </div>
                         `;
@@ -17783,6 +17900,63 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         function showAcceptModal(noticeId) {
             document.getElementById('acceptNoticeId').textContent = noticeId;
             document.getElementById('acceptModal').style.display = 'block';
+        }
+        
+        // View notice details
+        async function viewNoticeDetails(noticeId) {
+            try {
+                // Get full notice details
+                const alertData = await legalContract.alertNotices(noticeId).call();
+                console.log('Viewing notice details:', alertData);
+                
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 600px;">
+                        <div class="modal-header">
+                            <h3>Notice Details #${noticeId}</h3>
+                            <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="notice-details-full">
+                                ${alertData.issuingAgency ? `<p><strong>Issuing Agency:</strong> ${alertData.issuingAgency}</p>` : ''}
+                                ${alertData.noticeType ? `<p><strong>Notice Type:</strong> ${alertData.noticeType}</p>` : ''}
+                                ${alertData.caseNumber ? `<p><strong>Case Number:</strong> ${alertData.caseNumber}</p>` : ''}
+                                ${alertData.caseDetails ? `
+                                    <div class="alert alert-info" style="margin: 1rem 0;">
+                                        <strong>Case Details:</strong><br>
+                                        ${alertData.caseDetails}
+                                    </div>
+                                ` : ''}
+                                ${alertData.legalRights ? `
+                                    <div class="alert alert-warning" style="margin: 1rem 0;">
+                                        <strong>Your Legal Rights:</strong><br>
+                                        ${alertData.legalRights}
+                                    </div>
+                                ` : ''}
+                                ${alertData.responseDeadline ? `
+                                    <p><strong>Response Deadline:</strong> ${new Date(parseInt(alertData.responseDeadline) * 1000).toLocaleString()}</p>
+                                ` : ''}
+                                <p><strong>Date Served:</strong> ${new Date(parseInt(alertData.timestamp) * 1000).toLocaleString()}</p>
+                            </div>
+                            <div style="margin-top: 1.5rem; text-align: center;">
+                                ${!alertData.acknowledged ? `
+                                    <button class="btn btn-primary" onclick="showAcceptModal(${noticeId}); this.closest('.modal').remove();">
+                                        <i class="fas fa-check"></i> Accept Notice
+                                    </button>
+                                ` : `
+                                    <span class="badge badge-success">Notice Acknowledged</span>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            } catch (error) {
+                console.error('Error viewing notice details:', error);
+                uiManager.showNotification('error', 'Failed to load notice details');
+            }
         }
         
         // Contract resource check
