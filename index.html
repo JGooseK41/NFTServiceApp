@@ -10999,40 +10999,63 @@ async function checkUserRoles() {
                 let accepted = 0;
                 let pending = 0;
                 
-                // Check acceptance status for each notice by querying events
+                // Check acceptance status for each notice
                 for (const noticeData of myNotices) {
                     try {
                         let isAccepted = false;
                         
-                        // Query for NoticeAccepted event for this specific notice ID
+                        // First try direct contract state check (more reliable)
                         try {
-                            const acceptanceEvents = await tronWeb.event.getEventsByContractAddress(
-                                CONTRACT_ADDRESS,
-                                {
-                                    eventName: 'NoticeAccepted',
-                                    onlyConfirmed: true,
-                                    filters: {
-                                        alertId: noticeData.noticeId
-                                    },
-                                    fingerprint: ''
-                                }
-                            );
+                            console.log(`Checking acceptance for notice ${noticeData.noticeId}...`);
                             
-                            if (acceptanceEvents && acceptanceEvents.data && acceptanceEvents.data.length > 0) {
-                                console.log(`Notice ${noticeData.noticeId} has been accepted:`, acceptanceEvents.data[0]);
+                            // Check alert notices
+                            const alertData = await legalContract.alertNotices(noticeData.noticeId).call();
+                            console.log(`Alert data for ${noticeData.noticeId}:`, alertData);
+                            
+                            // Check if acknowledged field exists and is true
+                            if (alertData && alertData.acknowledged === true) {
+                                console.log(`Notice ${noticeData.noticeId} is acknowledged in alertNotices`);
                                 isAccepted = true;
                                 accepted++;
                             } else {
-                                pending++;
+                                // Check document notices
+                                const docData = await legalContract.documentNotices(noticeData.noticeId).call();
+                                console.log(`Document data for ${noticeData.noticeId}:`, docData);
+                                
+                                if (docData && docData.accepted === true) {
+                                    console.log(`Notice ${noticeData.noticeId} is accepted in documentNotices`);
+                                    isAccepted = true;
+                                    accepted++;
+                                } else {
+                                    console.log(`Notice ${noticeData.noticeId} is still pending`);
+                                    pending++;
+                                }
                             }
-                        } catch (eventErr) {
-                            console.log(`Could not query acceptance events for notice ${noticeData.noticeId}:`, eventErr);
+                        } catch (contractErr) {
+                            console.error(`Error checking contract state for notice ${noticeData.noticeId}:`, contractErr);
                             
-                            // Fallback to checking contract state
-                            const alertData = await legalContract.alertNotices(noticeData.noticeId).call();
-                            if (alertData && (alertData.acknowledged || alertData.accepted)) {
-                                accepted++;
-                            } else {
+                            // Try event query as fallback
+                            try {
+                                const acceptanceEvents = await tronWeb.event.getEventsByContractAddress(
+                                    CONTRACT_ADDRESS,
+                                    {
+                                        eventName: 'NoticeAccepted',
+                                        onlyConfirmed: true,
+                                        filters: {
+                                            alertId: noticeData.noticeId
+                                        },
+                                        fingerprint: ''
+                                    }
+                                );
+                                
+                                if (acceptanceEvents && acceptanceEvents.data && acceptanceEvents.data.length > 0) {
+                                    console.log(`Found NoticeAccepted event for ${noticeData.noticeId}`);
+                                    accepted++;
+                                } else {
+                                    pending++;
+                                }
+                            } catch (eventErr) {
+                                console.log(`Could not query events for notice ${noticeData.noticeId}:`, eventErr);
                                 pending++;
                             }
                         }
@@ -11480,11 +11503,17 @@ async function checkUserRoles() {
                         
                         // Filter for notices from this server
                         for (const {noticeId, alertData, docData} of noticeResults) {
-                            if ((alertData && alertData.server === serverAddress) || 
-                                (docData && docData.server === serverAddress)) {
-                                
+                            console.log(`Checking notice ${noticeId} - alertData:`, alertData, 'docData:', docData);
+                            
+                            // Check if this notice belongs to the server
+                            const isServerAlert = alertData && alertData.server && 
+                                                 alertData.server.toLowerCase() === serverAddress.toLowerCase();
+                            const isServerDoc = docData && docData.server && 
+                                               docData.server.toLowerCase() === serverAddress.toLowerCase();
+                            
+                            if (isServerAlert || isServerDoc) {
                                 const noticeData = alertData || docData;
-                                console.log(`Found notice ${noticeId} from direct query:`, noticeData);
+                                console.log(`Found notice ${noticeId} from server ${serverAddress}`);
                                 
                                 events.push({
                                     result: {
@@ -11520,10 +11549,17 @@ async function checkUserRoles() {
                 
                 // Convert events to notice data and get additional details
                 const notices = [];
-                for (const event of myEvents) {
+                // Process both event-based and direct query results
+                const allEvents = [...myEvents, ...events.filter(e => !myEvents.find(me => me.result.noticeId === e.result.noticeId))];
+                
+                for (const event of allEvents) {
                     try {
-                        const noticeId = event.result.noticeId;
-                        const recipientAddress = tronWeb.address.fromHex(event.result.recipient);
+                        const noticeId = event.result.noticeId || event.result.alertId || event.noticeId;
+                        const recipientAddress = event.result.recipient.startsWith('T') ? 
+                                               event.result.recipient : 
+                                               tronWeb.address.fromHex(event.result.recipient);
+                        
+                        console.log(`Processing notice ${noticeId} for recipient ${recipientAddress}`);
                         
                         // Get additional notice data from contract
                         let noticeType = 'Legal Notice';
@@ -11535,18 +11571,22 @@ async function checkUserRoles() {
                         // Try to get alert notice data
                         try {
                             const alertData = await legalContract.alertNotices(noticeId).call();
+                            console.log(`Alert data for notice ${noticeId}:`, alertData);
+                            
                             if (alertData && alertData.server) {
                                 noticeType = alertData.noticeType || 'Legal Notice';
                                 caseNumber = alertData.caseNumber || '';
                                 alertId = noticeId;
                             }
                         } catch (e) {
-                            console.log('No alert data for notice:', noticeId);
+                            console.log('No alert data for notice:', noticeId, e);
                         }
                         
                         // Try to get document notice data
                         try {
                             const docData = await legalContract.documentNotices(noticeId).call();
+                            console.log(`Document data for notice ${noticeId}:`, docData);
+                            
                             if (docData && docData.server) {
                                 hasDocument = true;
                                 documentId = noticeId;
@@ -11559,17 +11599,17 @@ async function checkUserRoles() {
                                 }
                             }
                         } catch (e) {
-                            console.log('No document data for notice:', noticeId);
+                            console.log('No document data for notice:', noticeId, e);
                         }
                         
                         const noticeInfo = {
-                            noticeId: noticeId,
+                            noticeId: noticeId.toString(),
                             recipient: recipientAddress,
                             noticeType: noticeType,
                             caseNumber: caseNumber,
-                            timestamp: parseInt(event.result.timestamp) * 1000, // Convert to milliseconds
-                            txHash: event.transaction || 'N/A',
-                            blockNumber: event.block || 0,
+                            timestamp: parseInt(event.result.timestamp) * 1000 || Date.now(),
+                            txHash: event.transaction || event.txHash || 'N/A',
+                            blockNumber: event.block || event.blockNumber || 0,
                             hasDocument: hasDocument,
                             documentId: documentId,
                             alertId: alertId
