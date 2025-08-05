@@ -29,10 +29,7 @@ CREATE TABLE IF NOT EXISTS notice_views (
     real_ip VARCHAR(45),
     user_agent TEXT,
     location_data JSONB,
-    viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_notice_views_notice_id (notice_id),
-    INDEX idx_notice_views_viewer (viewer_address),
-    INDEX idx_notice_views_timestamp (viewed_at)
+    viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Notice acceptances table
@@ -44,9 +41,7 @@ CREATE TABLE IF NOT EXISTS notice_acceptances (
     ip_address VARCHAR(45),
     real_ip VARCHAR(45),
     location_data JSONB,
-    accepted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_notice_acceptances_notice_id (notice_id),
-    INDEX idx_notice_acceptances_acceptor (acceptor_address)
+    accepted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Served notices metadata
@@ -61,10 +56,7 @@ CREATE TABLE IF NOT EXISTS served_notices (
     document_hash VARCHAR(66),
     accepted BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_served_notices_server (server_address),
-    INDEX idx_served_notices_recipient (recipient_address),
-    INDEX idx_served_notices_created (created_at)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Process server ratings
@@ -87,15 +79,31 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     target_id VARCHAR(100),
     details JSONB,
     ip_address VARCHAR(45),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_audit_logs_actor (actor_address),
-    INDEX idx_audit_logs_action (action_type),
-    INDEX idx_audit_logs_timestamp (created_at)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create indexes for PostgreSQL (comment out for MySQL)
+-- Create indexes for PostgreSQL
 CREATE INDEX IF NOT EXISTS idx_process_servers_status ON process_servers(status);
 CREATE INDEX IF NOT EXISTS idx_process_servers_wallet ON process_servers(LOWER(wallet_address));
+
+-- Indexes for notice_views table
+CREATE INDEX IF NOT EXISTS idx_notice_views_notice_id ON notice_views(notice_id);
+CREATE INDEX IF NOT EXISTS idx_notice_views_viewer ON notice_views(viewer_address);
+CREATE INDEX IF NOT EXISTS idx_notice_views_timestamp ON notice_views(viewed_at);
+
+-- Indexes for notice_acceptances table
+CREATE INDEX IF NOT EXISTS idx_notice_acceptances_notice_id ON notice_acceptances(notice_id);
+CREATE INDEX IF NOT EXISTS idx_notice_acceptances_acceptor ON notice_acceptances(acceptor_address);
+
+-- Indexes for served_notices table  
+CREATE INDEX IF NOT EXISTS idx_served_notices_server ON served_notices(server_address);
+CREATE INDEX IF NOT EXISTS idx_served_notices_recipient ON served_notices(recipient_address);
+CREATE INDEX IF NOT EXISTS idx_served_notices_created ON served_notices(created_at);
+
+-- Indexes for audit_logs table
+CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON audit_logs(actor_address);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action_type);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(created_at);
 
 -- Trigger to update the updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
