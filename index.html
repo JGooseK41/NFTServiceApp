@@ -12146,6 +12146,13 @@ async function checkUserRoles() {
                             // For now, include all NoticeServed events and filter later when we get contract data
                             console.log(`NoticeServed event found for documentId: ${event.result.documentId}`);
                             return true; // We'll filter these later based on contract data
+                        } else if (!event.name && event.result && event.result.server) {
+                            // Direct query results don't have a name property
+                            // They already have the correct server in the result
+                            const eventServerAddress = tronWeb.address.fromHex(event.result.server);
+                            const matches = ensureBase58Address(eventServerAddress).toLowerCase() === ensureBase58Address(serverAddress).toLowerCase();
+                            console.log(`Direct query event - server: ${eventServerAddress}, looking for: ${serverAddress}, matches: ${matches}`);
+                            return matches;
                         }
                         return false;
                     } catch (e) {
