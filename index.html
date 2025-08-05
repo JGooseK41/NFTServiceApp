@@ -4597,6 +4597,11 @@
         // Configuration - Set your API keys here for production
         // Better approach: Use environment variables or server-side proxy
         
+        // Backend API Configuration
+        window.BACKEND_API_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3001' 
+            : 'https://your-backend-url.onrender.com'; // Replace with your Render backend URL
+        
         // GitHub Storage Configuration
         window.GITHUB_STORAGE_CONFIG = {
             // Replace with your GitHub personal access token
@@ -12508,8 +12513,8 @@ async function checkUserRoles() {
                                         ` : ''}
                                     </div>
                                     <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                                        <button class="btn btn-small btn-secondary" onclick="viewNoticeAudit(${noticeData.noticeId})">
-                                            <i class="fas fa-search"></i> Audit
+                                        <button class="btn btn-small btn-secondary" onclick="viewNoticeAuditTrail('${noticeData.noticeId}')">
+                                            <i class="fas fa-history"></i> Audit Trail
                                         </button>
                                         ${isAccepted ? `
                                             <button class="btn btn-small btn-success" onclick="showAcceptanceReceipt(${noticeData.noticeId})">
@@ -12989,6 +12994,211 @@ async function checkUserRoles() {
             const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             return re.test(email);
         }
+        
+        // ======================
+        // AUDIT TRAIL FUNCTIONALITY
+        // ======================
+        
+        async function viewNoticeAuditTrail(noticeId) {
+            if (!window.BACKEND_API_URL) {
+                uiManager.showNotification('info', 'Audit trail requires backend connection');
+                return;
+            }
+            
+            try {
+                showProcessing('Loading audit trail...');
+                
+                const serverAddress = tronWeb && tronWeb.defaultAddress ? tronWeb.defaultAddress.base58 : '';
+                const response = await fetch(`${window.BACKEND_API_URL}/api/notices/${noticeId}/audit?serverAddress=${serverAddress}`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch audit trail');
+                }
+                
+                const auditData = await response.json();
+                hideProcessing();
+                
+                // Create modal to display audit trail
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 800px;">
+                        <div class="modal-header">
+                            <h2><i class="fas fa-history"></i> Audit Trail - Notice #${noticeId}</h2>
+                            <button class="close-btn" onclick="this.closest('.modal').remove()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="audit-summary" style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                                <h3 style="margin-bottom: 1rem;">Summary</h3>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                                    <div>
+                                        <div style="color: var(--text-secondary); font-size: 0.875rem;">Total Views</div>
+                                        <div style="font-size: 1.5rem; font-weight: bold;">${auditData.summary.totalViews}</div>
+                                    </div>
+                                    <div>
+                                        <div style="color: var(--text-secondary); font-size: 0.875rem;">Unique Viewers</div>
+                                        <div style="font-size: 1.5rem; font-weight: bold;">${auditData.summary.uniqueViewers}</div>
+                                    </div>
+                                    <div>
+                                        <div style="color: var(--text-secondary); font-size: 0.875rem;">Status</div>
+                                        <div style="font-size: 1.5rem; font-weight: bold; color: ${auditData.summary.accepted ? 'var(--success-green)' : 'var(--warning-yellow)'};">
+                                            ${auditData.summary.accepted ? 'Accepted' : 'Pending'}
+                                        </div>
+                                    </div>
+                                </div>
+                                ${auditData.summary.firstViewedAt ? `
+                                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                            <span style="color: var(--text-secondary);">First Viewed:</span>
+                                            <span>${new Date(auditData.summary.firstViewedAt).toLocaleString()}</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between;">
+                                            <span style="color: var(--text-secondary);">Last Viewed:</span>
+                                            <span>${new Date(auditData.summary.lastViewedAt).toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                ${auditData.summary.acceptedAt ? `
+                                    <div style="display: flex; justify-content: space-between; margin-top: 0.5rem;">
+                                        <span style="color: var(--text-secondary);">Accepted At:</span>
+                                        <span style="color: var(--success-green); font-weight: bold;">
+                                            ${new Date(auditData.summary.acceptedAt).toLocaleString()}
+                                        </span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            
+                            ${auditData.acceptances.length > 0 ? `
+                                <div class="acceptance-details" style="background: #d1fae5; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #10b981;">
+                                    <h3 style="color: #059669; margin-bottom: 1rem;"><i class="fas fa-check-circle"></i> Acceptance Details</h3>
+                                    ${auditData.acceptances.map(acc => `
+                                        <div style="background: white; padding: 1rem; border-radius: 6px;">
+                                            <div style="display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem;">
+                                                <strong>Wallet:</strong> <code>${acc.acceptor_address}</code>
+                                                <strong>TX Hash:</strong> <code>${acc.transaction_hash}</code>
+                                                <strong>IP Address:</strong> <span>${acc.ip_address || acc.real_ip}</span>
+                                                <strong>Time:</strong> <span>${new Date(acc.accepted_at).toLocaleString()}</span>
+                                                ${acc.location_data ? `
+                                                    <strong>Location:</strong> 
+                                                    <span>${acc.location_data.city}, ${acc.location_data.region}, ${acc.location_data.country}</span>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                            
+                            <div class="view-logs">
+                                <h3 style="margin-bottom: 1rem;">View History</h3>
+                                ${auditData.views.length > 0 ? `
+                                    <div style="overflow-x: auto;">
+                                        <table style="width: 100%; border-collapse: collapse;">
+                                            <thead>
+                                                <tr style="background: var(--bg-secondary);">
+                                                    <th style="padding: 0.75rem; text-align: left;">Time</th>
+                                                    <th style="padding: 0.75rem; text-align: left;">Viewer</th>
+                                                    <th style="padding: 0.75rem; text-align: left;">IP Address</th>
+                                                    <th style="padding: 0.75rem; text-align: left;">Location</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${auditData.views.map((view, i) => `
+                                                    <tr style="border-bottom: 1px solid var(--border-color);">
+                                                        <td style="padding: 0.75rem;">${new Date(view.viewed_at).toLocaleString()}</td>
+                                                        <td style="padding: 0.75rem;">
+                                                            ${view.viewer_address && view.viewer_address !== 'anonymous' 
+                                                                ? `<code style="font-size: 0.875rem;">${formatAddress(view.viewer_address)}</code>` 
+                                                                : '<span style="color: var(--text-secondary);">Anonymous</span>'
+                                                            }
+                                                        </td>
+                                                        <td style="padding: 0.75rem;">${view.ip_address || view.real_ip || 'N/A'}</td>
+                                                        <td style="padding: 0.75rem;">
+                                                            ${view.location_data 
+                                                                ? `${view.location_data.city || 'Unknown'}, ${view.location_data.country || 'Unknown'}`
+                                                                : 'N/A'
+                                                            }
+                                                        </td>
+                                                    </tr>
+                                                `).join('')}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ` : '<p style="color: var(--text-secondary);">No views recorded yet</p>'}
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">
+                                <i class="fas fa-times"></i> Close
+                            </button>
+                            <button class="btn btn-primary" onclick="exportAuditTrail('${noticeId}', ${JSON.stringify(auditData).replace(/"/g, '&quot;')})">
+                                <i class="fas fa-file-export"></i> Export Report
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                
+            } catch (error) {
+                hideProcessing();
+                console.error('Error fetching audit trail:', error);
+                uiManager.showNotification('error', 'Failed to load audit trail. Backend may be offline.');
+            }
+        }
+        
+        window.viewNoticeAuditTrail = viewNoticeAuditTrail;
+        
+        function exportAuditTrail(noticeId, auditData) {
+            const report = `
+AUDIT TRAIL REPORT
+Notice ID: ${noticeId}
+Generated: ${new Date().toLocaleString()}
+
+SUMMARY
+=======
+Total Views: ${auditData.summary.totalViews}
+Unique Viewers: ${auditData.summary.uniqueViewers}
+Status: ${auditData.summary.accepted ? 'ACCEPTED' : 'PENDING'}
+First Viewed: ${auditData.summary.firstViewedAt ? new Date(auditData.summary.firstViewedAt).toLocaleString() : 'Never'}
+Last Viewed: ${auditData.summary.lastViewedAt ? new Date(auditData.summary.lastViewedAt).toLocaleString() : 'Never'}
+${auditData.summary.acceptedAt ? `Accepted At: ${new Date(auditData.summary.acceptedAt).toLocaleString()}` : ''}
+
+${auditData.acceptances.length > 0 ? `
+ACCEPTANCE DETAILS
+==================
+${auditData.acceptances.map(acc => `
+Wallet: ${acc.acceptor_address}
+Transaction: ${acc.transaction_hash}
+IP Address: ${acc.ip_address || acc.real_ip}
+Time: ${new Date(acc.accepted_at).toLocaleString()}
+${acc.location_data ? `Location: ${acc.location_data.city}, ${acc.location_data.region}, ${acc.location_data.country}` : ''}
+`).join('\n')}
+` : ''}
+
+VIEW HISTORY
+============
+${auditData.views.map(view => `
+Time: ${new Date(view.viewed_at).toLocaleString()}
+Viewer: ${view.viewer_address && view.viewer_address !== 'anonymous' ? view.viewer_address : 'Anonymous'}
+IP: ${view.ip_address || view.real_ip || 'N/A'}
+Location: ${view.location_data ? `${view.location_data.city || 'Unknown'}, ${view.location_data.country || 'Unknown'}` : 'N/A'}
+`).join('\n---\n')}
+`;
+            
+            const blob = new Blob([report], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `audit_trail_notice_${noticeId}_${Date.now()}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            uiManager.showNotification('success', 'Audit trail exported successfully');
+        }
+        
+        window.exportAuditTrail = exportAuditTrail;
 
         function formatFileSize(bytes) {
             if (bytes === 0) return '0 Bytes';
@@ -14848,13 +15058,37 @@ async function checkUserRoles() {
                     language: navigator.language
                 };
                 
-                // Store visit log (you could enhance this to store on IPFS or contract)
+                // Store visit log locally first
                 const visitLogs = JSON.parse(localStorage.getItem('noticeVisitLogs') || '{}');
                 if (!visitLogs[noticeId]) {
                     visitLogs[noticeId] = [];
                 }
                 visitLogs[noticeId].push(visitLog);
                 localStorage.setItem('noticeVisitLogs', JSON.stringify(visitLogs));
+                
+                // Send to backend if available
+                if (window.BACKEND_API_URL) {
+                    try {
+                        const viewerAddress = tronWeb && tronWeb.defaultAddress ? tronWeb.defaultAddress.base58 : 'anonymous';
+                        await fetch(`${window.BACKEND_API_URL}/api/notices/${noticeId}/views`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                viewerAddress: viewerAddress,
+                                ipAddress: ip,
+                                userAgent: navigator.userAgent,
+                                location: visitLog.location,
+                                timestamp: visitLog.timestamp
+                            })
+                        });
+                        console.log('Visit logged to backend');
+                    } catch (backendError) {
+                        console.error('Failed to log to backend:', backendError);
+                        // Continue silently - local storage is the fallback
+                    }
+                }
                 
                 console.log('Visit logged:', visitLog);
                 return visitLog;
@@ -20082,6 +20316,29 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 
                 // Store for law enforcement access
                 await storeAcceptanceDataForLawEnforcement(noticeId, acceptanceData);
+                
+                // Send to backend if available
+                if (window.BACKEND_API_URL) {
+                    try {
+                        await fetch(`${window.BACKEND_API_URL}/api/notices/${noticeId}/acceptances`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                acceptorAddress: acceptanceData.walletAddress,
+                                transactionHash: acceptanceData.transactionHash,
+                                ipAddress: acceptanceData.ipAddress,
+                                location: acceptanceData.location,
+                                timestamp: acceptanceData.acceptanceTime
+                            })
+                        });
+                        console.log('Acceptance logged to backend');
+                    } catch (backendError) {
+                        console.error('Failed to log acceptance to backend:', backendError);
+                        // Continue silently - local storage is the fallback
+                    }
+                }
                 
                 hideProcessing();
                 

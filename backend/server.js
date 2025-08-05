@@ -1,324 +1,348 @@
 const express = require('express');
 const cors = require('cors');
-const { ethers } = require('ethers');
-const { create } = require('ipfs-http-client');
-const LitJsSdk = require('@lit-protocol/lit-node-client');
-const crypto = require('crypto');
+const morgan = require('morgan');
+const { Pool } = require('pg');
+require('dotenv').config();
 
 const app = express();
-app.use(cors());
+const PORT = process.env.PORT || 3001;
+
+// Database connection
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+// Middleware
+app.use(cors({
+  origin: process.env.FRONTEND_URL || '*',
+  credentials: true
+}));
 app.use(express.json());
+app.use(morgan('combined'));
 
-// Initialize services
-const ipfs = create({ url: 'https://ipfs.infura.io:5001/api/v0' });
-const litNodeClient = new LitJsSdk.LitNodeClient({ alertWhenUnauthorized: false });
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
-// Contract configuration
-const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || '';
-const CONTRACT_ABI = [
-  "event NoticeServed(uint256 indexed noticeId, address indexed recipient, address indexed server, string metadataURI, uint256 timestamp, uint256 serviceFee, bool feesSponsored)",
-  "event NoticeAccepted(uint256 indexed noticeId, address indexed recipient, uint256 timestamp, bytes signature)",
-  "function serveNotice(address recipient, string calldata metadataURI, bool sponsorFees) external payable returns (uint256)",
-  "function acceptNotice(uint256 noticeId, bytes calldata signature) external",
-  "function notices(uint256) external view returns (address server, address recipient, string metadataURI, uint256 servedTime, uint256 acceptedTime, bool feesSponsored)"
-];
+// ======================
+// VIEW TRACKING ENDPOINTS
+// ======================
 
-// Initialize provider and contract
-const provider = new ethers.providers.JsonRpcProvider(process.env.TRON_RPC_URL);
-const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
-
-// In-memory database (use PostgreSQL/MongoDB in production)
-const noticesDB = new Map();
-const viewsDB = new Map();
-
-/**
- * Upload document to IPFS with encryption
- */
-app.post('/api/upload-document', async (req, res) => {
+// Log when a notice is viewed
+app.post('/api/notices/:noticeId/views', async (req, res) => {
   try {
+    const { noticeId } = req.params;
     const { 
-      document, 
-      recipient,
-      issuingAgency,
-      noticeType,
-      caseNumber,
-      caseDetails,
-      legalRights,
-      documentType 
+      viewerAddress, 
+      ipAddress,
+      userAgent,
+      location,
+      timestamp 
     } = req.body;
 
-    // Create metadata object
-    const metadata = {
-      issuingAgency,
-      noticeType,
-      caseNumber,
-      caseDetails,
-      legalRights,
-      documentType,
-      timestamp: Date.now()
-    };
-
-    // Encrypt document with Lit Protocol
-    await litNodeClient.connect();
+    // Get actual IP if behind proxy
+    const realIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
     
-    const authSig = await LitJsSdk.checkAndSignAuthMessage({ chain: 'tron' });
+    const query = `
+      INSERT INTO notice_views 
+      (notice_id, viewer_address, ip_address, user_agent, location_data, viewed_at, real_ip)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `;
     
-    // Define access control conditions - recipient must sign to decrypt
-    const accessControlConditions = [
-      {
-        contractAddress: '',
-        standardContractType: '',
-        chain: 'tron',
-        method: '',
-        parameters: [':userAddress'],
-        returnValueTest: {
-          comparator: '=',
-          value: recipient.toLowerCase()
-        }
-      }
-    ];
-
-    // Encrypt the document
-    const { encryptedString, symmetricKey } = await LitJsSdk.encryptString(document);
-
-    // Save encryption key to Lit Protocol
-    const encryptedSymmetricKey = await litNodeClient.saveEncryptionKey({
-      accessControlConditions,
-      symmetricKey,
-      authSig,
-      chain: 'tron'
-    });
-
-    // Create combined object for IPFS
-    const ipfsData = {
-      metadata,
-      encryptedDocument: await blobToBase64(encryptedString),
-      encryptedSymmetricKey: LitJsSdk.uint8arrayToString(encryptedSymmetricKey, 'base16'),
-      accessControlConditions
-    };
-
-    // Upload to IPFS
-    const added = await ipfs.add(JSON.stringify(ipfsData));
-    const ipfsHash = added.path;
-
-    res.json({ 
-      success: true, 
-      ipfsHash,
-      metadataURI: `ipfs://${ipfsHash}`
-    });
-
-  } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-/**
- * Serve a notice (calls smart contract)
- */
-app.post('/api/serve-notice', async (req, res) => {
-  try {
-    const { recipient, ipfsHash, sponsorFees, privateKey } = req.body;
-    
-    const wallet = new ethers.Wallet(privateKey, provider);
-    const contractWithSigner = contract.connect(wallet);
-    
-    const tx = await contractWithSigner.serveNotice(
-      recipient,
-      `ipfs://${ipfsHash}`,
-      sponsorFees,
-      {
-        value: ethers.utils.parseEther(sponsorFees ? "22" : "20") // TRX
-      }
-    );
-    
-    const receipt = await tx.wait();
-    const noticeId = receipt.events[0].args.noticeId.toString();
-    
-    // Store in local database
-    noticesDB.set(noticeId, {
-      recipient,
-      server: wallet.address,
-      ipfsHash,
-      servedTime: Date.now(),
-      sponsorFees
-    });
-    
-    res.json({ 
-      success: true, 
+    const values = [
       noticeId,
-      txHash: receipt.transactionHash
+      viewerAddress,
+      ipAddress || realIp,
+      userAgent || req.headers['user-agent'],
+      JSON.stringify(location),
+      timestamp || new Date(),
+      realIp
+    ];
+    
+    const result = await pool.query(query, values);
+    res.json({ success: true, viewLog: result.rows[0] });
+  } catch (error) {
+    console.error('Error logging view:', error);
+    res.status(500).json({ error: 'Failed to log view' });
+  }
+});
+
+// Log when a notice is accepted
+app.post('/api/notices/:noticeId/acceptances', async (req, res) => {
+  try {
+    const { noticeId } = req.params;
+    const { 
+      acceptorAddress,
+      transactionHash,
+      ipAddress,
+      location,
+      timestamp 
+    } = req.body;
+
+    const realIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    
+    const query = `
+      INSERT INTO notice_acceptances 
+      (notice_id, acceptor_address, transaction_hash, ip_address, location_data, accepted_at, real_ip)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `;
+    
+    const values = [
+      noticeId,
+      acceptorAddress,
+      transactionHash,
+      ipAddress || realIp,
+      JSON.stringify(location),
+      timestamp || new Date(),
+      realIp
+    ];
+    
+    const result = await pool.query(query, values);
+    res.json({ success: true, acceptanceLog: result.rows[0] });
+  } catch (error) {
+    console.error('Error logging acceptance:', error);
+    res.status(500).json({ error: 'Failed to log acceptance' });
+  }
+});
+
+// Get audit trail for a notice
+app.get('/api/notices/:noticeId/audit', async (req, res) => {
+  try {
+    const { noticeId } = req.params;
+    const { serverAddress } = req.query;
+    
+    // Verify the requester is the process server who created the notice
+    // In production, add proper authentication here
+    
+    // Get view logs
+    const viewsQuery = `
+      SELECT * FROM notice_views 
+      WHERE notice_id = $1 
+      ORDER BY viewed_at DESC
+    `;
+    const viewsResult = await pool.query(viewsQuery, [noticeId]);
+    
+    // Get acceptance logs
+    const acceptancesQuery = `
+      SELECT * FROM notice_acceptances 
+      WHERE notice_id = $1 
+      ORDER BY accepted_at DESC
+    `;
+    const acceptancesResult = await pool.query(acceptancesQuery, [noticeId]);
+    
+    res.json({
+      noticeId,
+      views: viewsResult.rows,
+      acceptances: acceptancesResult.rows,
+      summary: {
+        totalViews: viewsResult.rows.length,
+        uniqueViewers: new Set(viewsResult.rows.map(v => v.viewer_address)).size,
+        accepted: acceptancesResult.rows.length > 0,
+        firstViewedAt: viewsResult.rows[viewsResult.rows.length - 1]?.viewed_at,
+        lastViewedAt: viewsResult.rows[0]?.viewed_at,
+        acceptedAt: acceptancesResult.rows[0]?.accepted_at
+      }
     });
-    
   } catch (error) {
-    console.error('Serve notice error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching audit trail:', error);
+    res.status(500).json({ error: 'Failed to fetch audit trail' });
   }
 });
 
-/**
- * View a notice (with Lit Protocol decryption)
- */
-app.post('/api/view-notice', async (req, res) => {
+// ======================
+// PROCESS SERVER REGISTRY
+// ======================
+
+// Register a new process server
+app.post('/api/process-servers', async (req, res) => {
   try {
-    const { noticeId, authSig } = req.body;
+    const { 
+      walletAddress,
+      agencyName,
+      contactEmail,
+      phoneNumber,
+      website,
+      licenseNumber,
+      jurisdictions,
+      verificationDocuments 
+    } = req.body;
     
-    // Get notice from contract
-    const notice = await contract.notices(noticeId);
-    const ipfsHash = notice.metadataURI.replace('ipfs://', '');
+    const query = `
+      INSERT INTO process_servers 
+      (wallet_address, agency_name, contact_email, phone_number, website, 
+       license_number, jurisdictions, verification_documents, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending')
+      ON CONFLICT (wallet_address) 
+      DO UPDATE SET 
+        agency_name = EXCLUDED.agency_name,
+        contact_email = EXCLUDED.contact_email,
+        phone_number = EXCLUDED.phone_number,
+        website = EXCLUDED.website,
+        license_number = EXCLUDED.license_number,
+        jurisdictions = EXCLUDED.jurisdictions,
+        verification_documents = EXCLUDED.verification_documents,
+        updated_at = CURRENT_TIMESTAMP
+      RETURNING *
+    `;
     
-    // Fetch from IPFS
-    const chunks = [];
-    for await (const chunk of ipfs.cat(ipfsHash)) {
-      chunks.push(chunk);
-    }
-    const data = JSON.parse(Buffer.concat(chunks).toString());
+    const values = [
+      walletAddress.toLowerCase(),
+      agencyName,
+      contactEmail,
+      phoneNumber,
+      website,
+      licenseNumber,
+      JSON.stringify(jurisdictions),
+      JSON.stringify(verificationDocuments)
+    ];
     
-    // Try to decrypt with Lit Protocol
-    await litNodeClient.connect();
-    
-    try {
-      const symmetricKey = await litNodeClient.getEncryptionKey({
-        accessControlConditions: data.accessControlConditions,
-        toDecrypt: data.encryptedSymmetricKey,
-        chain: 'tron',
-        authSig
-      });
-      
-      const decryptedString = await LitJsSdk.decryptString(
-        base64ToBlob(data.encryptedDocument),
-        symmetricKey
-      );
-      
-      // Log view
-      viewsDB.set(`${noticeId}-${authSig.address}`, Date.now());
-      
-      res.json({
-        success: true,
-        metadata: data.metadata,
-        document: decryptedString,
-        decrypted: true
-      });
-      
-    } catch (decryptError) {
-      // User doesn't have access - return only metadata
-      res.json({
-        success: true,
-        metadata: data.metadata,
-        document: null,
-        decrypted: false,
-        error: 'Access denied - you must be the recipient to view this document'
-      });
-    }
-    
+    const result = await pool.query(query, values);
+    res.json({ success: true, processServer: result.rows[0] });
   } catch (error) {
-    console.error('View notice error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error registering process server:', error);
+    res.status(500).json({ error: 'Failed to register process server' });
   }
 });
 
-/**
- * Accept a notice
- */
-app.post('/api/accept-notice', async (req, res) => {
+// Get approved process servers
+app.get('/api/process-servers', async (req, res) => {
   try {
-    const { noticeId, privateKey } = req.body;
+    const { status = 'approved' } = req.query;
     
-    const wallet = new ethers.Wallet(privateKey, provider);
-    const contractWithSigner = contract.connect(wallet);
+    const query = `
+      SELECT 
+        wallet_address,
+        agency_name,
+        contact_email,
+        phone_number,
+        website,
+        jurisdictions,
+        created_at,
+        total_notices_served,
+        average_rating
+      FROM process_servers 
+      WHERE status = $1
+      ORDER BY average_rating DESC, total_notices_served DESC
+    `;
     
-    // Create signature
-    const message = `I acknowledge receipt of legal notice ${noticeId}`;
-    const signature = await wallet.signMessage(message);
+    const result = await pool.query(query, [status]);
+    res.json({ processServers: result.rows });
+  } catch (error) {
+    console.error('Error fetching process servers:', error);
+    res.status(500).json({ error: 'Failed to fetch process servers' });
+  }
+});
+
+// Get process server details
+app.get('/api/process-servers/:walletAddress', async (req, res) => {
+  try {
+    const { walletAddress } = req.params;
     
-    const tx = await contractWithSigner.acceptNotice(noticeId, signature);
-    const receipt = await tx.wait();
+    const query = `
+      SELECT * FROM process_servers 
+      WHERE LOWER(wallet_address) = LOWER($1)
+    `;
+    
+    const result = await pool.query(query, [walletAddress]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Process server not found' });
+    }
+    
+    // Get recent notices served by this server
+    const noticesQuery = `
+      SELECT 
+        notice_id,
+        created_at,
+        recipient_jurisdiction,
+        notice_type,
+        accepted
+      FROM served_notices 
+      WHERE LOWER(server_address) = LOWER($1)
+      ORDER BY created_at DESC
+      LIMIT 10
+    `;
+    
+    const noticesResult = await pool.query(noticesQuery, [walletAddress]);
     
     res.json({ 
-      success: true,
-      txHash: receipt.transactionHash,
-      signature
+      processServer: result.rows[0],
+      recentNotices: noticesResult.rows
     });
-    
   } catch (error) {
-    console.error('Accept notice error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching process server details:', error);
+    res.status(500).json({ error: 'Failed to fetch process server details' });
   }
 });
 
-/**
- * Get notices for a recipient
- */
-app.get('/api/notices/:address', async (req, res) => {
+// ======================
+// NOTICE METADATA
+// ======================
+
+// Store additional notice metadata
+app.post('/api/notices/:noticeId/metadata', async (req, res) => {
   try {
-    const { address } = req.params;
+    const { noticeId } = req.params;
+    const { 
+      serverAddress,
+      recipientAddress,
+      noticeType,
+      jurisdiction,
+      caseNumber,
+      documentHash
+    } = req.body;
     
-    // Query events
-    const filter = contract.filters.NoticeServed(null, address);
-    const events = await contract.queryFilter(filter);
+    const query = `
+      INSERT INTO served_notices 
+      (notice_id, server_address, recipient_address, notice_type, 
+       recipient_jurisdiction, case_number, document_hash)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ON CONFLICT (notice_id) DO UPDATE SET
+        recipient_jurisdiction = EXCLUDED.recipient_jurisdiction,
+        updated_at = CURRENT_TIMESTAMP
+      RETURNING *
+    `;
     
-    const notices = await Promise.all(events.map(async (event) => {
-      const notice = await contract.notices(event.args.noticeId);
-      return {
-        noticeId: event.args.noticeId.toString(),
-        server: notice.server,
-        metadataURI: notice.metadataURI,
-        servedTime: notice.servedTime.toString(),
-        acceptedTime: notice.acceptedTime.toString(),
-        feesSponsored: notice.feesSponsored
-      };
-    }));
+    const values = [
+      noticeId,
+      serverAddress.toLowerCase(),
+      recipientAddress.toLowerCase(),
+      noticeType,
+      jurisdiction,
+      caseNumber,
+      documentHash
+    ];
     
-    res.json({ notices });
+    const result = await pool.query(query, values);
     
+    // Update process server stats
+    await pool.query(`
+      UPDATE process_servers 
+      SET total_notices_served = total_notices_served + 1
+      WHERE LOWER(wallet_address) = LOWER($1)
+    `, [serverAddress]);
+    
+    res.json({ success: true, metadata: result.rows[0] });
   } catch (error) {
-    console.error('Get notices error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('Error storing notice metadata:', error);
+    res.status(500).json({ error: 'Failed to store notice metadata' });
   }
 });
 
-// Helper functions
-function blobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
-
-function base64ToBlob(base64) {
-  const byteCharacters = atob(base64);
-  const byteNumbers = new Array(byteCharacters.length);
-  for (let i = 0; i < byteCharacters.length; i++) {
-    byteNumbers[i] = byteCharacters.charCodeAt(i);
-  }
-  const byteArray = new Uint8Array(byteNumbers);
-  return new Blob([byteArray]);
-}
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Something went wrong!' });
+});
 
 // Start server
-const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`Legal Notice Backend running on port ${PORT}`);
-  
-  // Start listening to contract events
-  contract.on('NoticeServed', (noticeId, recipient, server, metadataURI, timestamp, serviceFee, feesSponsored) => {
-    console.log('New notice served:', {
-      noticeId: noticeId.toString(),
-      recipient,
-      server,
-      metadataURI
-    });
-  });
-  
-  contract.on('NoticeAccepted', (noticeId, recipient, timestamp, signature) => {
-    console.log('Notice accepted:', {
-      noticeId: noticeId.toString(),
-      recipient,
-      timestamp: new Date(timestamp * 1000)
-    });
-  });
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
 module.exports = app;
