@@ -18643,6 +18643,54 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         // window.updateResourceSponsorship = updateResourceSponsorship; // Function removed in simplified contract
         window.connectContracts = connectContracts;
         
+        // Debug function to check notice acceptance status
+        window.checkNoticeAcceptance = async function(noticeId) {
+            if (!legalContract) {
+                console.error('Contract not connected');
+                return;
+            }
+            
+            console.log(`\n=== Checking acceptance status for notice #${noticeId} ===`);
+            
+            try {
+                // Check alert notice
+                const alertData = await legalContract.alertNotices(noticeId).call();
+                console.log('Alert data:', alertData);
+                
+                if (alertData && Array.isArray(alertData) && alertData.length > 11) {
+                    console.log('Acknowledged field (index 11):', alertData[11]);
+                    console.log('Type:', typeof alertData[11]);
+                    console.log('Value:', JSON.stringify(alertData[11]));
+                    console.log('Is acknowledged:', alertData[11] === true);
+                }
+                
+                // Check document notice if exists
+                try {
+                    const docData = await legalContract.documentNotices(noticeId).call();
+                    console.log('\nDocument data:', docData);
+                    
+                    if (docData && Array.isArray(docData) && docData.length > 4) {
+                        console.log('Accepted field (index 4):', docData[4]);
+                        console.log('Type:', typeof docData[4]);
+                        console.log('Value:', JSON.stringify(docData[4]));
+                    }
+                } catch (e) {
+                    console.log('No document notice for this ID');
+                }
+                
+                // Check NFT ownership
+                try {
+                    const owner = await legalContract.ownerOf(noticeId).call();
+                    console.log('\nNFT owner:', owner);
+                } catch (e) {
+                    console.log('No NFT minted for this notice ID');
+                }
+                
+            } catch (error) {
+                console.error('Error checking notice:', error);
+            }
+        };
+        
         // Manual NFT debugging function
         window.checkNFT = async function(tokenId) {
             if (!legalContract) {
