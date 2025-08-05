@@ -10959,9 +10959,14 @@ async function checkUserRoles() {
             try {
                 const userAddress = tronWeb.defaultAddress.base58;
                 
-                // Get notices served by this address from localStorage
-                const servedNotices = JSON.parse(localStorage.getItem('servedNotices') || '{}');
-                const myNotices = servedNotices[userAddress] || [];
+                // Show loading state in stats
+                document.getElementById('totalServedStat').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                document.getElementById('acceptedStat').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                document.getElementById('pendingStat').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                document.getElementById('successRateStat').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                
+                // Get all notices served by this address from blockchain
+                const myNotices = await getServedNoticesFromBlockchain(userAddress, 1000); // Get more for stats
                 
                 let totalServed = myNotices.length;
                 let accepted = 0;
@@ -11001,7 +11006,7 @@ async function checkUserRoles() {
                 document.getElementById('pendingStat').textContent = pending;
                 document.getElementById('successRateStat').textContent = successRate + '%';
                 
-                // Save stats to localStorage
+                // Cache stats to localStorage for offline viewing
                 const stats = {
                     totalServed,
                     accepted,
@@ -11013,6 +11018,25 @@ async function checkUserRoles() {
                 
             } catch (error) {
                 console.error('Error updating server stats:', error);
+                
+                // If blockchain query fails, try to show cached stats
+                try {
+                    const cachedStats = JSON.parse(localStorage.getItem(`serverStats_${tronWeb.defaultAddress.base58}`) || '{}');
+                    if (cachedStats.lastUpdated) {
+                        document.getElementById('totalServedStat').textContent = cachedStats.totalServed || 0;
+                        document.getElementById('acceptedStat').textContent = cachedStats.accepted || 0;
+                        document.getElementById('pendingStat').textContent = cachedStats.pending || 0;
+                        document.getElementById('successRateStat').textContent = (cachedStats.successRate || 0) + '%';
+                    } else {
+                        // Show error state
+                        document.getElementById('totalServedStat').textContent = '-';
+                        document.getElementById('acceptedStat').textContent = '-';
+                        document.getElementById('pendingStat').textContent = '-';
+                        document.getElementById('successRateStat').textContent = '-';
+                    }
+                } catch (e) {
+                    console.error('Error loading cached stats:', e);
+                }
             }
         }
 
@@ -11114,6 +11138,136 @@ async function checkUserRoles() {
             }
         }
 
+        // Query blockchain for notices served by a specific address
+        async function getServedNoticesFromBlockchain(serverAddress, limit = 10) {
+            try {
+                if (!tronWeb || !legalContract) {
+                    console.error('TronWeb or contract not initialized');
+                    return [];
+                }
+                
+                console.log('Querying blockchain for notices served by:', serverAddress);
+                
+                // Check cache first
+                const cacheKey = `blockchain_notices_${serverAddress}`;
+                const cached = localStorage.getItem(cacheKey);
+                if (cached) {
+                    const parsedCache = JSON.parse(cached);
+                    const cacheAge = Date.now() - parsedCache.timestamp;
+                    // Use cache if less than 5 minutes old
+                    if (cacheAge < 5 * 60 * 1000) {
+                        console.log('Using cached blockchain data');
+                        return parsedCache.notices.slice(0, limit);
+                    }
+                }
+                
+                // Get events from the blockchain
+                const events = await tronWeb.getEventResult(
+                    CONTRACT_ADDRESS,
+                    {
+                        eventName: 'LegalNoticeCreated',
+                        onlyConfirmed: true,
+                        orderBy: 'timestamp,desc',
+                        limit: 200 // Get more to filter
+                    }
+                );
+                
+                console.log('Total events found:', events.length);
+                
+                // Filter events by server address
+                const myEvents = events.filter(event => {
+                    const eventServerAddress = tronWeb.address.fromHex(event.result.server);
+                    return eventServerAddress === serverAddress;
+                });
+                
+                console.log('Events from this server:', myEvents.length);
+                
+                // Convert events to notice data and get additional details
+                const notices = [];
+                for (const event of myEvents) {
+                    try {
+                        const noticeId = event.result.noticeId;
+                        const recipientAddress = tronWeb.address.fromHex(event.result.recipient);
+                        
+                        // Get additional notice data from contract
+                        let noticeType = 'Legal Notice';
+                        let caseNumber = '';
+                        let hasDocument = false;
+                        let documentId = null;
+                        let alertId = null;
+                        
+                        // Try to get alert notice data
+                        try {
+                            const alertData = await legalContract.alertNotices(noticeId).call();
+                            if (alertData && alertData.server) {
+                                noticeType = alertData.noticeType || 'Legal Notice';
+                                caseNumber = alertData.caseNumber || '';
+                                alertId = noticeId;
+                            }
+                        } catch (e) {
+                            console.log('No alert data for notice:', noticeId);
+                        }
+                        
+                        // Try to get document notice data
+                        try {
+                            const docData = await legalContract.documentNotices(noticeId).call();
+                            if (docData && docData.server) {
+                                hasDocument = true;
+                                documentId = noticeId;
+                                // Document notices might override the type
+                                if (docData.noticeType) {
+                                    noticeType = docData.noticeType;
+                                }
+                                if (docData.caseNumber) {
+                                    caseNumber = docData.caseNumber;
+                                }
+                            }
+                        } catch (e) {
+                            console.log('No document data for notice:', noticeId);
+                        }
+                        
+                        notices.push({
+                            noticeId: noticeId,
+                            recipient: recipientAddress,
+                            noticeType: noticeType,
+                            caseNumber: caseNumber,
+                            timestamp: parseInt(event.result.timestamp) * 1000, // Convert to milliseconds
+                            txHash: event.transaction,
+                            blockNumber: event.block,
+                            hasDocument: hasDocument,
+                            documentId: documentId,
+                            alertId: alertId
+                        });
+                    } catch (err) {
+                        console.error('Error processing event:', err);
+                    }
+                }
+                
+                // Cache the results
+                localStorage.setItem(cacheKey, JSON.stringify({
+                    notices: notices,
+                    timestamp: Date.now()
+                }));
+                
+                return notices.slice(0, limit);
+                
+            } catch (error) {
+                console.error('Error querying blockchain:', error);
+                // Fallback to cached data if available
+                const cacheKey = `blockchain_notices_${serverAddress}`;
+                const cached = localStorage.getItem(cacheKey);
+                if (cached) {
+                    const parsedCache = JSON.parse(cached);
+                    console.log('Using stale cache due to blockchain error');
+                    return parsedCache.notices.slice(0, limit);
+                }
+                
+                // Last resort: use old localStorage format
+                const servedNotices = JSON.parse(localStorage.getItem('servedNotices') || '{}');
+                return (servedNotices[serverAddress] || []).slice(-limit).reverse();
+            }
+        }
+        
         // New function to refresh recent activities for process servers
         async function refreshRecentActivities() {
             const content = document.getElementById('recentActivitiesContent');
@@ -11133,9 +11287,11 @@ async function checkUserRoles() {
             try {
                 const userAddress = tronWeb.defaultAddress.base58;
                 
-                // Get served notices from localStorage
-                const servedNotices = JSON.parse(localStorage.getItem('servedNotices') || '{}');
-                const myNotices = (servedNotices[userAddress] || []).slice(-10).reverse(); // Last 10, newest first
+                // Show loading while querying blockchain
+                content.innerHTML = '<div style="text-align: center; padding: 2rem;"><i class="fas fa-spinner fa-spin"></i> Querying blockchain for recent notices...</div>';
+                
+                // Get served notices from blockchain
+                const myNotices = await getServedNoticesFromBlockchain(userAddress, 10);
                 
                 if (myNotices.length === 0) {
                     content.innerHTML = `
@@ -11147,9 +11303,6 @@ async function checkUserRoles() {
                     `;
                     return;
                 }
-                
-                // Show loading while checking status
-                content.innerHTML = '<div style="text-align: center; padding: 2rem;"><i class="fas fa-spinner fa-spin"></i> Loading recent notices...</div>';
                 
                 let html = '<div class="activity-list" style="max-height: 400px; overflow-y: auto;">';
                 
@@ -13187,48 +13340,45 @@ async function checkUserRoles() {
                             </tr>
                             <tr>
                                 <td style="padding: 0.5rem; border: 1px solid #e5e7eb;"><strong>Document Notice</strong></td>
-                                <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">152 TRX</td>
+                                <td style="padding: 0.5rem; border: 1px solid #e5e7eb; color: #dc2626; font-weight: bold;">$50-100 USD</td>
                                 <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">
-                                    • 150 TRX operational costs<br>
-                                    • 2 TRX recipient sponsorship
+                                    • Service: $25 (~75 TRX)<br>
+                                    • Energy: $50-100 (200-300 TRX)<br>
+                                    • Recipient: $2 (5.5 TRX)<br>
+                                    • <strong>Total: $77-127 USD</strong>
                                 </td>
                             </tr>
                             <tr>
                                 <td style="padding: 0.5rem; border: 1px solid #e5e7eb;"><strong>Text Notice</strong></td>
-                                <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">17 TRX</td>
+                                <td style="padding: 0.5rem; border: 1px solid #e5e7eb; color: #dc2626; font-weight: bold;">$50-100 USD</td>
                                 <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">
-                                    • 15 TRX operational costs<br>
-                                    • 2 TRX recipient sponsorship
+                                    • Service: $5 (~15 TRX)<br>
+                                    • Energy: $50-100 (200-300 TRX)<br>
+                                    • Recipient: $2 (5.5 TRX)<br>
+                                    • <strong>Total: $57-107 USD</strong>
                                 </td>
                             </tr>
                             <tr style="background: #fef3c7;">
                                 <td style="padding: 0.5rem; border: 1px solid #e5e7eb;"><strong>Law Enforcement</strong></td>
-                                <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">~35-95 TRX</td>
+                                <td style="padding: 0.5rem; border: 1px solid #e5e7eb; color: #dc2626; font-weight: bold;">$50-100 USD</td>
                                 <td style="padding: 0.5rem; border: 1px solid #e5e7eb;">
-                                    • Service fees waived (saves 150 TRX)<br>
-                                    • Must pay: Energy/gas (~30-90 TRX)<br>
-                                    • Must pay: Recipient funding (5.5 TRX)
+                                    • Service fees: WAIVED<br>
+                                    • Energy: $50-100 (200-300 TRX)<br>
+                                    • Recipient: $2 (5.5 TRX)<br>
+                                    • <strong>Total: $52-102 USD</strong>
                                 </td>
                             </tr>
                         </table>
                         
                         <div class="alert alert-danger" style="margin: 1rem 0;">
-                            <h4 style="margin-top: 0;">⚠️ True Cost Summary (at current energy prices)</h4>
-                            <p><strong>Regular Users:</strong></p>
+                            <h4 style="margin-top: 0;">⚠️ CRITICAL COST WARNING</h4>
+                            <p><strong>Each notice costs $50-100 USD due to TRON energy requirements!</strong></p>
                             <ul>
-                                <li>Service fees: 150-152 TRX</li>
-                                <li>Energy costs: ~90-200 TRX (without energy rental)</li>
-                                <li>Recipient funding: 5.5 TRX</li>
-                                <li><strong>Total: ~245-357 TRX ($20-30 USD)</strong></li>
+                                <li><strong>Regular Users:</strong> $50-100 per notice (mostly energy costs)</li>
+                                <li><strong>Law Enforcement:</strong> $50-100 per notice (energy + recipient funding)</li>
+                                <li><strong>High Volume Users:</strong> MUST stake TRX or costs become prohibitive</li>
                             </ul>
-                            <p><strong>Law Enforcement:</strong></p>
-                            <ul>
-                                <li>Service fees: WAIVED (saves 150 TRX)</li>
-                                <li>Energy costs: ~90-200 TRX (without energy rental)</li>
-                                <li>Recipient funding: 5.5 TRX</li>
-                                <li><strong>Total: ~95-205 TRX ($8-17 USD)</strong></li>
-                            </ul>
-                            <p style="margin-bottom: 0;"><strong>CRITICAL:</strong> Energy rental through JustLend can reduce energy costs by 70-80%, but implementation needs improvement.</p>
+                            <p style="margin-bottom: 0; font-size: 1.2rem;"><strong>🚨 Without energy management, this service is economically unviable. Energy rental implementation is CRITICAL but currently BROKEN.</strong></p>
                         </div>
                         
                         <h4>Recipient Funding (Total 5.5 TRX)</h4>
@@ -13251,19 +13401,19 @@ async function checkUserRoles() {
                         
                         <h4>Energy Costs for Servers</h4>
                         <div class="alert alert-warning">
-                            <p><strong>⚠️ CRITICAL: Energy costs are currently very high without proper energy management:</strong></p>
+                            <p><strong>⚠️ CRITICAL: Energy costs make service economically unviable without proper management:</strong></p>
                             <ul>
-                                <li><strong>Document Notice:</strong> ~1,500,000-2,000,000 energy (~150-200 TRX without rental)</li>
-                                <li><strong>Text Notice:</strong> ~500,000-800,000 energy (~50-80 TRX without rental)</li>
+                                <li><strong>Document Notice:</strong> ~2,000,000-2,500,000 energy (200-300 TRX = $50-100 USD)</li>
+                                <li><strong>Text Notice:</strong> ~2,000,000-2,500,000 energy (200-300 TRX = $50-100 USD)</li>
                             </ul>
-                            <p><strong>URGENT: To reduce costs, you MUST:</strong></p>
+                            <p><strong>MANDATORY COST REDUCTION STRATEGIES:</strong></p>
                             <ol>
-                                <li><strong>Stake TRX (Best):</strong> Stake 100,000+ TRX for permanent free energy</li>
-                                <li><strong>Use Energy Rental (Good):</strong> JustLend rental can reduce costs by 70-80% when working</li>
-                                <li><strong>Avoid Burning TRX (Worst):</strong> Current default - extremely expensive!</li>
+                                <li><strong>Stake TRX (Essential for high volume):</strong> Stake 100,000-200,000 TRX for permanent free energy</li>
+                                <li><strong>Energy Rental (When fixed):</strong> Could reduce costs by 70-80% to ~$10-20 per notice</li>
+                                <li><strong>NEVER Burn TRX:</strong> Current default - makes service cost $50-100 per notice!</li>
                             </ol>
-                            <div style="background: #fef3c7; padding: 1rem; border-radius: 8px; margin-top: 1rem;">
-                                <p style="margin: 0;"><strong>🚨 Energy rental implementation needs improvement to reliably reduce costs from ~200 TRX to ~30-40 TRX per notice.</strong></p>
+                            <div style="background: #dc2626; color: white; padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                                <p style="margin: 0;"><strong>🚨 URGENT: Energy rental implementation is BROKEN. Without staking or rental, each notice costs $50-100 making the service economically unviable!</strong></p>
                             </div>
                         </div>
                         
@@ -13434,8 +13584,8 @@ async function checkUserRoles() {
                             </tr>
                             <tr>
                                 <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;"><strong>Cost</strong></td>
-                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">💰 $50-500+ per attempt</td>
-                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">💰 ~$3-8 total costs</td>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">💰 $150-500+ per attempt</td>
+                                <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;">⚠️ $50-100 USD</td>
                             </tr>
                             <tr>
                                 <td style="padding: 0.75rem; border-top: 1px solid #e5e7eb;"><strong>Speed</strong></td>
@@ -13459,9 +13609,10 @@ async function checkUserRoles() {
                             </tr>
                         </table>
                         
-                        <div class="alert alert-success" style="margin-top: 1rem;">
+                        <div class="alert alert-warning" style="margin-top: 1rem;">
                             <h4>The Bottom Line</h4>
-                            <p>For cryptocurrency-related cases, blockchain service is not just an alternative - it's the SUPERIOR method that provides better due process, stronger evidence, and universal accessibility.</p>
+                            <p>For cryptocurrency-related cases, blockchain service provides better due process, stronger evidence, and universal accessibility.</p>
+                            <p><strong>⚠️ COST WARNING:</strong> At $50-100 per notice, costs are comparable to traditional service. Energy management (staking or rental) is CRITICAL to make this service cost-effective at scale.</p>
                         </div>
                     `
                 }
@@ -20181,7 +20332,11 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 transactions.push(txData);
                 localStorage.setItem('userTransactions', JSON.stringify(transactions));
                 
-                // Save served notice for process server tracking
+                // Clear blockchain cache to force refresh on next query
+                const cacheKey = `blockchain_notices_${tronWeb.defaultAddress.base58}`;
+                localStorage.removeItem(cacheKey);
+                
+                // Still save to localStorage as backup (but blockchain is primary source)
                 const servedNoticeData = {
                     noticeId: noticeId,
                     recipient: recipient,
@@ -20201,13 +20356,15 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 servedNotices[tronWeb.defaultAddress.base58].push(servedNoticeData);
                 localStorage.setItem('servedNotices', JSON.stringify(servedNotices));
                 
-                // Update server stats
-                updateServerStats();
-                
-                // Refresh recent activities if on home tab
-                if (document.getElementById('homeTab').style.display !== 'none') {
-                    setTimeout(() => refreshRecentActivities(), 500);
-                }
+                // Wait a bit for blockchain to confirm, then update stats
+                setTimeout(() => {
+                    updateServerStats();
+                    
+                    // Refresh recent activities if on home tab
+                    if (document.getElementById('homeTab').style.display !== 'none') {
+                        refreshRecentActivities();
+                    }
+                }, 2000); // 2 second delay for blockchain confirmation
 
                 
                 // Clear form
