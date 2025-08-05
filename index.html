@@ -11012,24 +11012,42 @@ async function checkUserRoles() {
                             const alertData = await legalContract.alertNotices(noticeData.noticeId).call();
                             console.log(`Alert data for ${noticeData.noticeId}:`, alertData);
                             
-                            // Check if acknowledged field exists and is true
-                            if (alertData && alertData.acknowledged === true) {
-                                console.log(`Notice ${noticeData.noticeId} is acknowledged in alertNotices`);
-                                isAccepted = true;
-                                accepted++;
-                            } else {
-                                // Check document notices
-                                const docData = await legalContract.documentNotices(noticeData.noticeId).call();
-                                console.log(`Document data for ${noticeData.noticeId}:`, docData);
+                            // Parse the alert data (it's returned as an array)
+                            // alertNotices structure: [alertId, server, recipient, noticeData, tokenURI, noticeType, caseNumber, timestamp, deadline, agencyName, claimable, acknowledged]
+                            if (alertData && Array.isArray(alertData)) {
+                                const acknowledged = alertData[11]; // Index 11 is acknowledged field
+                                console.log(`Notice ${noticeData.noticeId} acknowledged status:`, acknowledged);
                                 
-                                if (docData && docData.accepted === true) {
-                                    console.log(`Notice ${noticeData.noticeId} is accepted in documentNotices`);
+                                if (acknowledged === true) {
+                                    console.log(`Notice ${noticeData.noticeId} is acknowledged in alertNotices`);
                                     isAccepted = true;
                                     accepted++;
                                 } else {
-                                    console.log(`Notice ${noticeData.noticeId} is still pending`);
-                                    pending++;
+                                    // Check document notices
+                                    const docData = await legalContract.documentNotices(noticeData.noticeId).call();
+                                    console.log(`Document data for ${noticeData.noticeId}:`, docData);
+                                    
+                                    // documentNotices structure: [documentId, server, recipient, ipfsHash, accepted]
+                                    if (docData && Array.isArray(docData)) {
+                                        const accepted = docData[4]; // Index 4 is accepted field
+                                        console.log(`Notice ${noticeData.noticeId} accepted status in documents:`, accepted);
+                                        
+                                        if (accepted === true) {
+                                            console.log(`Notice ${noticeData.noticeId} is accepted in documentNotices`);
+                                            isAccepted = true;
+                                            accepted++;
+                                        } else {
+                                            console.log(`Notice ${noticeData.noticeId} is still pending`);
+                                            pending++;
+                                        }
+                                    } else {
+                                        console.log(`Notice ${noticeData.noticeId} is still pending`);
+                                        pending++;
+                                    }
                                 }
+                            } else {
+                                console.log(`No valid alert data for notice ${noticeData.noticeId}`);
+                                pending++;
                             }
                         } catch (contractErr) {
                             console.error(`Error checking contract state for notice ${noticeData.noticeId}:`, contractErr);
@@ -11505,21 +11523,41 @@ async function checkUserRoles() {
                         for (const {noticeId, alertData, docData} of noticeResults) {
                             console.log(`Checking notice ${noticeId} - alertData:`, alertData, 'docData:', docData);
                             
-                            // Check if this notice belongs to the server
-                            const isServerAlert = alertData && alertData.server && 
-                                                 alertData.server.toLowerCase() === serverAddress.toLowerCase();
-                            const isServerDoc = docData && docData.server && 
-                                               docData.server.toLowerCase() === serverAddress.toLowerCase();
+                            // Parse the data (returned as arrays)
+                            // alertNotices: [alertId, server, recipient, noticeData, tokenURI, noticeType, caseNumber, timestamp, deadline, agencyName, claimable, acknowledged]
+                            // documentNotices: [documentId, server, recipient, ipfsHash, accepted]
+                            
+                            let serverFromAlert = null;
+                            let serverFromDoc = null;
+                            let recipientAddress = null;
+                            
+                            if (alertData && Array.isArray(alertData) && alertData.length > 1) {
+                                serverFromAlert = alertData[1]; // Index 1 is server
+                                recipientAddress = alertData[2]; // Index 2 is recipient
+                            }
+                            
+                            if (docData && Array.isArray(docData) && docData.length > 1) {
+                                serverFromDoc = docData[1]; // Index 1 is server
+                                if (!recipientAddress) {
+                                    recipientAddress = docData[2]; // Index 2 is recipient
+                                }
+                            }
+                            
+                            console.log(`Notice ${noticeId} - serverFromAlert: ${serverFromAlert}, serverFromDoc: ${serverFromDoc}, looking for: ${serverAddress}`);
+                            
+                            const isServerAlert = serverFromAlert && 
+                                                 serverFromAlert.toLowerCase() === serverAddress.toLowerCase();
+                            const isServerDoc = serverFromDoc && 
+                                               serverFromDoc.toLowerCase() === serverAddress.toLowerCase();
                             
                             if (isServerAlert || isServerDoc) {
-                                const noticeData = alertData || docData;
                                 console.log(`Found notice ${noticeId} from server ${serverAddress}`);
                                 
                                 events.push({
                                     result: {
                                         noticeId: noticeId.toString(),
                                         server: tronWeb.address.toHex(serverAddress),
-                                        recipient: tronWeb.address.toHex(noticeData.recipient),
+                                        recipient: recipientAddress ? tronWeb.address.toHex(recipientAddress) : '0x0',
                                         timestamp: Date.now() / 1000 // Approximate
                                     },
                                     transaction: 'unknown',
@@ -11573,9 +11611,10 @@ async function checkUserRoles() {
                             const alertData = await legalContract.alertNotices(noticeId).call();
                             console.log(`Alert data for notice ${noticeId}:`, alertData);
                             
-                            if (alertData && alertData.server) {
-                                noticeType = alertData.noticeType || 'Legal Notice';
-                                caseNumber = alertData.caseNumber || '';
+                            // Parse array data: [alertId, server, recipient, noticeData, tokenURI, noticeType, caseNumber, timestamp, deadline, agencyName, claimable, acknowledged]
+                            if (alertData && Array.isArray(alertData) && alertData.length > 1 && alertData[1]) {
+                                noticeType = alertData[5] || 'Legal Notice'; // Index 5 is noticeType
+                                caseNumber = alertData[6] || ''; // Index 6 is caseNumber
                                 alertId = noticeId;
                             }
                         } catch (e) {
@@ -11587,16 +11626,10 @@ async function checkUserRoles() {
                             const docData = await legalContract.documentNotices(noticeId).call();
                             console.log(`Document data for notice ${noticeId}:`, docData);
                             
-                            if (docData && docData.server) {
+                            // Parse array data: [documentId, server, recipient, ipfsHash, accepted]
+                            if (docData && Array.isArray(docData) && docData.length > 1 && docData[1]) {
                                 hasDocument = true;
                                 documentId = noticeId;
-                                // Document notices might override the type
-                                if (docData.noticeType) {
-                                    noticeType = docData.noticeType;
-                                }
-                                if (docData.caseNumber) {
-                                    caseNumber = docData.caseNumber;
-                                }
                             }
                         } catch (e) {
                             console.log('No document data for notice:', noticeId, e);
@@ -11692,23 +11725,17 @@ async function checkUserRoles() {
                         let acceptanceData = null;
                         let ipData = null;
                         
-                        // Check if notice has been accepted by querying for NoticeAccepted event
+                        // Check if notice has been accepted - use direct contract check
                         try {
-                            const acceptanceEvents = await tronWeb.event.getEventsByContractAddress(
-                                CONTRACT_ADDRESS,
-                                {
-                                    eventName: 'NoticeAccepted',
-                                    onlyConfirmed: true,
-                                    filters: {
-                                        alertId: noticeData.noticeId
-                                    },
-                                    fingerprint: ''
-                                }
-                            );
+                            // Check alert notices first
+                            const alertData = await legalContract.alertNotices(noticeData.noticeId).call();
                             
-                            if (acceptanceEvents && acceptanceEvents.data && acceptanceEvents.data.length > 0) {
-                                console.log(`Notice ${noticeData.noticeId} has NoticeAccepted event:`, acceptanceEvents.data[0]);
-                                isAccepted = true;
+                            // Parse array data: [alertId, server, recipient, noticeData, tokenURI, noticeType, caseNumber, timestamp, deadline, agencyName, claimable, acknowledged]
+                            if (alertData && Array.isArray(alertData) && alertData.length > 11) {
+                                const acknowledged = alertData[11]; // Index 11 is acknowledged
+                                if (acknowledged === true) {
+                                    console.log(`Notice ${noticeData.noticeId} is accepted (acknowledged)`);
+                                    isAccepted = true;
                                 
                                 // Get acceptance data from localStorage
                                 const acceptances = JSON.parse(localStorage.getItem('noticeAcceptances') || '{}');
