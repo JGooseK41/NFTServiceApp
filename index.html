@@ -3849,6 +3849,33 @@
             </div>
         </div>
     </div>
+    
+    <!-- Acceptance Receipt Modal -->
+    <div id="acceptanceReceiptModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 class="modal-title">
+                    <i class="fas fa-file-certificate"></i>
+                    Acceptance Receipt
+                </h3>
+                <button class="modal-close" onclick="closeAcceptanceReceiptModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="acceptanceReceiptContent">
+                <!-- Receipt content will be dynamically generated -->
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 1rem; padding: 1rem; border-top: 1px solid var(--border-color);">
+                <button class="btn btn-secondary" onclick="printAcceptanceReceipt()">
+                    <i class="fas fa-print"></i> Print
+                </button>
+                <button class="btn btn-primary" onclick="exportAcceptanceReceipt()">
+                    <i class="fas fa-download"></i> Export HTML
+                </button>
+                <button class="btn btn-success" onclick="closeAcceptanceReceiptModal()">
+                    <i class="fas fa-check"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Mint Modal -->
     <div id="mintModal" class="modal">
@@ -11171,11 +11198,217 @@ async function checkUserRoles() {
                     }
                 );
                 
-                return acceptanceEvents && acceptanceEvents.data && acceptanceEvents.data.length > 0;
+                if (acceptanceEvents && acceptanceEvents.data && acceptanceEvents.data.length > 0) {
+                    return acceptanceEvents.data[0]; // Return the event data
+                }
+                return null;
             } catch (error) {
                 console.error(`Error checking acceptance for notice ${noticeId}:`, error);
-                return false;
+                return null;
             }
+        }
+        
+        // Generate acceptance receipt data
+        async function generateAcceptanceReceipt(noticeId, acceptanceEvent) {
+            try {
+                // Get notice details
+                const alertData = await legalContract.alertNotices(noticeId).call();
+                const docData = await legalContract.documentNotices(noticeId).call();
+                
+                // Get IP data from localStorage
+                const visitLogs = JSON.parse(localStorage.getItem('noticeVisitLogs') || '{}');
+                const ipData = visitLogs[noticeId] ? visitLogs[noticeId][0] : null;
+                
+                // Get acceptance data from localStorage
+                const acceptances = JSON.parse(localStorage.getItem('noticeAcceptances') || '{}');
+                const localAcceptanceData = acceptances[noticeId];
+                
+                // Format the receipt data
+                const receipt = {
+                    // Notice Information
+                    noticeId: noticeId,
+                    noticeType: alertData?.noticeType || docData?.noticeType || 'Legal Notice',
+                    caseNumber: alertData?.caseNumber || docData?.caseNumber || 'N/A',
+                    server: alertData?.server || docData?.server,
+                    recipient: acceptanceEvent.result.recipient,
+                    
+                    // Acceptance Information
+                    acceptanceTimestamp: new Date(parseInt(acceptanceEvent.result.timestamp) * 1000),
+                    acceptanceBlock: acceptanceEvent.block,
+                    acceptanceTxHash: acceptanceEvent.transaction,
+                    
+                    // IP and Location Data
+                    ipAddress: ipData?.ip || localAcceptanceData?.ipAddress || 'N/A',
+                    location: ipData?.location || localAcceptanceData?.location || {},
+                    
+                    // Browser Information
+                    userAgent: ipData?.userAgent || localAcceptanceData?.userAgent || 'N/A',
+                    language: ipData?.language || localAcceptanceData?.language || 'N/A',
+                    timezone: ipData?.location?.timezone || localAcceptanceData?.timezone || 'N/A',
+                    screenResolution: ipData?.screenResolution || 'N/A',
+                    
+                    // URLs
+                    tronScanUrl: `https://tronscan.org/#/transaction/${acceptanceEvent.transaction}`,
+                    contractAddress: CONTRACT_ADDRESS
+                };
+                
+                return receipt;
+            } catch (error) {
+                console.error('Error generating receipt:', error);
+                return null;
+            }
+        }
+        
+        // Show acceptance receipt modal
+        async function showAcceptanceReceipt(noticeId) {
+            try {
+                // Get acceptance event
+                const acceptanceEvent = await checkNoticeAcceptance(noticeId);
+                if (!acceptanceEvent) {
+                    uiManager.showNotification('error', 'No acceptance found for this notice');
+                    return;
+                }
+                
+                // Generate receipt data
+                const receipt = await generateAcceptanceReceipt(noticeId, acceptanceEvent);
+                if (!receipt) {
+                    uiManager.showNotification('error', 'Failed to generate receipt');
+                    return;
+                }
+                
+                // Format the receipt HTML
+                const receiptHTML = `
+                    <div class="receipt-container" style="padding: 2rem; font-family: monospace;">
+                        <div style="text-align: center; margin-bottom: 2rem;">
+                            <h2 style="margin: 0;">BLOCKCHAIN ACCEPTANCE RECEIPT</h2>
+                            <p style="color: var(--text-secondary); margin: 0.5rem 0;">Legal Notice Service Confirmation</p>
+                        </div>
+                        
+                        <div style="border: 2px solid #333; padding: 1.5rem; margin-bottom: 2rem;">
+                            <h3>Notice Information</h3>
+                            <table style="width: 100%; font-size: 0.9rem;">
+                                <tr><td><strong>Notice ID:</strong></td><td>${receipt.noticeId}</td></tr>
+                                <tr><td><strong>Type:</strong></td><td>${receipt.noticeType}</td></tr>
+                                <tr><td><strong>Case Number:</strong></td><td>${receipt.caseNumber}</td></tr>
+                                <tr><td><strong>Server Address:</strong></td><td style="word-break: break-all;">${receipt.server}</td></tr>
+                                <tr><td><strong>Recipient Address:</strong></td><td style="word-break: break-all;">${receipt.recipient}</td></tr>
+                            </table>
+                        </div>
+                        
+                        <div style="border: 2px solid #333; padding: 1.5rem; margin-bottom: 2rem;">
+                            <h3>Acceptance Details</h3>
+                            <table style="width: 100%; font-size: 0.9rem;">
+                                <tr><td><strong>Accepted At:</strong></td><td>${receipt.acceptanceTimestamp.toLocaleString()}</td></tr>
+                                <tr><td><strong>UTC Time:</strong></td><td>${receipt.acceptanceTimestamp.toUTCString()}</td></tr>
+                                <tr><td><strong>Block Number:</strong></td><td>${receipt.acceptanceBlock}</td></tr>
+                                <tr><td><strong>Transaction Hash:</strong></td><td style="word-break: break-all;">${receipt.acceptanceTxHash}</td></tr>
+                            </table>
+                        </div>
+                        
+                        <div style="border: 2px solid #333; padding: 1.5rem; margin-bottom: 2rem;">
+                            <h3>Recipient Information</h3>
+                            <table style="width: 100%; font-size: 0.9rem;">
+                                <tr><td><strong>IP Address:</strong></td><td>${receipt.ipAddress}</td></tr>
+                                <tr><td><strong>Location:</strong></td><td>${receipt.location.city || 'Unknown'}, ${receipt.location.region || ''} ${receipt.location.country || ''}</td></tr>
+                                <tr><td><strong>Timezone:</strong></td><td>${receipt.timezone}</td></tr>
+                                <tr><td><strong>Language:</strong></td><td>${receipt.language}</td></tr>
+                                <tr><td><strong>Screen Resolution:</strong></td><td>${receipt.screenResolution}</td></tr>
+                            </table>
+                        </div>
+                        
+                        <div style="border: 2px solid #333; padding: 1.5rem; margin-bottom: 2rem;">
+                            <h3>Browser Information</h3>
+                            <p style="word-break: break-all; font-size: 0.8rem; margin: 0;">${receipt.userAgent}</p>
+                        </div>
+                        
+                        <div style="border: 2px solid #333; padding: 1.5rem;">
+                            <h3>Blockchain Verification</h3>
+                            <p><strong>Contract Address:</strong> ${receipt.contractAddress}</p>
+                            <p><strong>Network:</strong> TRON ${tronWeb.fullNode.host.includes('nile') ? 'Nile Testnet' : 'Mainnet'}</p>
+                            <p><strong>Verify on TronScan:</strong> <a href="${receipt.tronScanUrl}" target="_blank" style="color: #0ea5e9;">${receipt.tronScanUrl}</a></p>
+                        </div>
+                        
+                        <div style="text-align: center; margin-top: 2rem; color: var(--text-secondary);">
+                            <p>Generated: ${new Date().toLocaleString()}</p>
+                            <p>This receipt confirms blockchain-verified acceptance of legal notice</p>
+                        </div>
+                    </div>
+                `;
+                
+                // Update modal content
+                document.getElementById('acceptanceReceiptContent').innerHTML = receiptHTML;
+                
+                // Store current receipt for export
+                window.currentAcceptanceReceipt = receipt;
+                window.currentReceiptHTML = receiptHTML;
+                
+                // Show modal
+                document.getElementById('acceptanceReceiptModal').style.display = 'flex';
+                
+            } catch (error) {
+                console.error('Error showing receipt:', error);
+                uiManager.showNotification('error', 'Failed to load acceptance receipt');
+            }
+        }
+        
+        // Close acceptance receipt modal
+        function closeAcceptanceReceiptModal() {
+            document.getElementById('acceptanceReceiptModal').style.display = 'none';
+        }
+        
+        // Print acceptance receipt
+        function printAcceptanceReceipt() {
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                <head>
+                    <title>Acceptance Receipt - Notice ${window.currentAcceptanceReceipt.noticeId}</title>
+                    <style>
+                        body { font-family: monospace; padding: 20px; }
+                        table { width: 100%; }
+                        td { padding: 4px; }
+                    </style>
+                </head>
+                <body>
+                    ${window.currentReceiptHTML}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.print();
+        }
+        
+        // Export acceptance receipt as HTML
+        function exportAcceptanceReceipt() {
+            const receipt = window.currentAcceptanceReceipt;
+            const html = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Acceptance Receipt - Notice ${receipt.noticeId}</title>
+                    <style>
+                        body { font-family: monospace; padding: 20px; background: white; color: black; }
+                        table { width: 100%; border-collapse: collapse; }
+                        td { padding: 4px; }
+                        h2, h3 { color: black; }
+                        a { color: #0066cc; }
+                        .receipt-container { max-width: 800px; margin: 0 auto; }
+                    </style>
+                </head>
+                <body>
+                    ${window.currentReceiptHTML}
+                </body>
+                </html>
+            `;
+            
+            const blob = new Blob([html], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `acceptance_receipt_${receipt.noticeId}_${Date.now()}.html`;
+            a.click();
+            URL.revokeObjectURL(url);
         }
         
         // Query blockchain for notices served by a specific address
@@ -11488,8 +11721,8 @@ async function checkUserRoles() {
                                             <i class="fas fa-search"></i> Audit
                                         </button>
                                         ${isAccepted ? `
-                                            <button class="btn btn-small btn-secondary" onclick="viewAcceptanceDetails(${noticeData.noticeId})">
-                                                <i class="fas fa-file-contract"></i> Receipt
+                                            <button class="btn btn-small btn-success" onclick="showAcceptanceReceipt(${noticeData.noticeId})">
+                                                <i class="fas fa-file-certificate"></i> Receipt
                                             </button>
                                         ` : ''}
                                     </div>
