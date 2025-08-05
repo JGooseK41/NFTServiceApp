@@ -11525,8 +11525,8 @@ async function checkUserRoles() {
                 let events = [];
                 let eventsByNoticeId = new Map(); // Map to store events by notice ID
                 try {
-                    // Use the contract instance to get events with retry
-                    const eventResult = await retryWithDelay(async () => {
+                    // Get LegalNoticeCreated events
+                    const legalNoticeEvents = await retryWithDelay(async () => {
                         return await tronWeb.event.getEventsByContractAddress(
                             CONTRACT_ADDRESS,
                             {
@@ -11539,13 +11539,42 @@ async function checkUserRoles() {
                         );
                     });
                     
-                    events = eventResult.data || [];
-                    console.log('Total events found:', events.length);
+                    // Also get NoticeServed events which track document notices
+                    const noticeServedEvents = await retryWithDelay(async () => {
+                        return await tronWeb.event.getEventsByContractAddress(
+                            CONTRACT_ADDRESS,
+                            {
+                                eventName: 'NoticeServed',
+                                onlyConfirmed: true,
+                                orderBy: 'block_timestamp,desc',
+                                limit: 200,
+                                fingerprint: '' // Required parameter
+                            }
+                        );
+                    });
+                    
+                    // Combine both event types
+                    const allEventData = [
+                        ...(legalNoticeEvents.data || []),
+                        ...(noticeServedEvents.data || [])
+                    ];
+                    
+                    events = allEventData;
+                    console.log('Total LegalNoticeCreated events:', (legalNoticeEvents.data || []).length);
+                    console.log('Total NoticeServed events:', (noticeServedEvents.data || []).length);
+                    console.log('Total combined events:', events.length);
                     
                     // Create a map of events by notice ID for cross-reference
                     events.forEach(event => {
-                        if (event.result && event.result.noticeId !== undefined) {
-                            eventsByNoticeId.set(event.result.noticeId.toString(), event);
+                        if (event.result) {
+                            // LegalNoticeCreated has noticeId
+                            if (event.result.noticeId !== undefined) {
+                                eventsByNoticeId.set(event.result.noticeId.toString(), event);
+                            }
+                            // NoticeServed has documentId (which is the notice ID for document notices)
+                            if (event.result.documentId !== undefined) {
+                                eventsByNoticeId.set(event.result.documentId.toString(), event);
+                            }
                         }
                     });
                 } catch (eventError) {
@@ -11604,6 +11633,15 @@ async function checkUserRoles() {
                             
                             console.log(`Checking notice ${noticeId} - alertData:`, alertData, 'docData:', docData);
                             
+                            // Log notice type for clarity
+                            if (alertData && !docData) {
+                                console.log(`Notice ${noticeId} is an ALERT notice`);
+                            } else if (!alertData && docData) {
+                                console.log(`Notice ${noticeId} is a DOCUMENT notice`);
+                            } else if (alertData && docData) {
+                                console.log(`Notice ${noticeId} has BOTH alert and document data`);
+                            }
+                            
                             // Parse the data (returned as arrays)
                             // alertNotices: [alertId, server, recipient, noticeData, tokenURI, noticeType, caseNumber, timestamp, deadline, agencyName, claimable, acknowledged]
                             // documentNotices: [documentId, server, recipient, ipfsHash, accepted]
@@ -11646,8 +11684,14 @@ async function checkUserRoles() {
                                     } catch (e) {
                                         serverFromDoc = serverHex;
                                     }
-                                } else {
+                                } else if (serverHex) {
+                                    // Non-hex server address
                                     serverFromDoc = serverHex;
+                                } else {
+                                    // Empty server field - this is common for document notices
+                                    // We'll rely on event data to determine the server
+                                    console.log(`Document notice ${noticeId} has empty server field, will check event data`);
+                                    serverFromDoc = null;
                                 }
                                 
                                 if (!recipientAddress) {
@@ -11677,14 +11721,51 @@ async function checkUserRoles() {
                             // Check if there's an event for this notice ID that has the correct server
                             const eventForNotice = eventsByNoticeId.get(noticeId.toString());
                             let eventServerMatches = false;
-                            if (eventForNotice && eventForNotice.result && eventForNotice.result.server) {
-                                try {
-                                    const eventServer = tronWeb.address.fromHex(eventForNotice.result.server);
-                                    eventServerMatches = eventServer.toLowerCase() === serverAddress.toLowerCase();
-                                    console.log(`Event data for notice ${noticeId} shows server: ${eventServer}, matches: ${eventServerMatches}`);
-                                } catch (e) {
-                                    console.log('Could not parse event server address');
+                            let txSenderAddress = null;
+                            
+                            if (eventForNotice) {
+                                // For LegalNoticeCreated events, check the server field
+                                if (eventForNotice.result && eventForNotice.result.server) {
+                                    try {
+                                        const eventServer = tronWeb.address.fromHex(eventForNotice.result.server);
+                                        eventServerMatches = eventServer.toLowerCase() === serverAddress.toLowerCase();
+                                        console.log(`Event data for notice ${noticeId} shows server: ${eventServer}, matches: ${eventServerMatches}`);
+                                        
+                                        // For document notices with empty server fields, use event server info
+                                        if (docData && !serverFromDoc && eventServerMatches) {
+                                            console.log(`Using event server data for document notice ${noticeId} since contract storage is empty`);
+                                        }
+                                    } catch (e) {
+                                        console.log('Could not parse event server address');
+                                    }
                                 }
+                                
+                                // For document notices with empty server field, get transaction sender
+                                if (docData && !serverFromDoc && eventForNotice.transaction) {
+                                    try {
+                                        console.log(`Document notice ${noticeId} has empty server, checking transaction sender...`);
+                                        // Get transaction info to find the actual sender
+                                        const txInfo = await retryWithDelay(async () => {
+                                            return await tronWeb.trx.getTransaction(eventForNotice.transaction);
+                                        });
+                                        
+                                        if (txInfo && txInfo.raw_data && txInfo.raw_data.contract && txInfo.raw_data.contract[0]) {
+                                            const ownerAddress = txInfo.raw_data.contract[0].parameter.value.owner_address;
+                                            if (ownerAddress) {
+                                                txSenderAddress = tronWeb.address.fromHex('41' + ownerAddress);
+                                                const senderMatches = txSenderAddress.toLowerCase() === serverAddress.toLowerCase();
+                                                console.log(`Transaction sender for document notice ${noticeId}: ${txSenderAddress}, matches: ${senderMatches}`);
+                                                if (senderMatches) {
+                                                    eventServerMatches = true;
+                                                }
+                                            }
+                                        }
+                                    } catch (txError) {
+                                        console.log('Could not get transaction sender:', txError);
+                                    }
+                                }
+                            } else if (docData && !serverFromDoc) {
+                                console.log(`Document notice ${noticeId} has empty server field and no corresponding event found`);
                             }
                             
                             const isServerAlert = serverFromAlert && 
@@ -11696,7 +11777,12 @@ async function checkUserRoles() {
                             // Accept notice if EITHER the contract storage OR the event shows this server
                             // This handles the case where contract stores black hole but event has correct server
                             if (isServerAlert || isServerDoc || eventServerMatches) {
-                                console.log(`Found notice ${noticeId} from server ${serverAddress}`);
+                                const noticeType = alertData ? 'alert' : 'document';
+                                const matchReason = isServerAlert ? 'alert contract data' : 
+                                                  isServerDoc ? 'document contract data' : 
+                                                  'event data (fallback for empty contract storage)';
+                                
+                                console.log(`Found ${noticeType} notice ${noticeId} from server ${serverAddress} via ${matchReason}`);
                                 
                                 events.push({
                                     result: {
@@ -11723,18 +11809,79 @@ async function checkUserRoles() {
                     }
                 }
                 
-                // Filter events by server address - the event correctly shows msg.sender
+                // Additional fallback: Query all NoticeServed events by this server
+                // This is needed when document notices don't store server addresses properly
+                try {
+                    console.log('Attempting fallback: Querying transaction history for notices served by', serverAddress);
+                    
+                    // Get recent transactions from this address
+                    const txList = await retryWithDelay(async () => {
+                        const response = await fetch(`https://api.trongrid.io/v1/accounts/${serverAddress}/transactions?limit=200&only_to=true&only_confirmed=true`);
+                        if (!response.ok) throw new Error('Failed to fetch transactions');
+                        return await response.json();
+                    });
+                    
+                    if (txList && txList.data) {
+                        console.log(`Found ${txList.data.length} transactions to analyze`);
+                        
+                        // Filter for transactions to our contract
+                        const contractTxs = txList.data.filter(tx => {
+                            try {
+                                if (tx.to === CONTRACT_ADDRESS || 
+                                    (tx.raw_data && tx.raw_data.contract && tx.raw_data.contract[0] && 
+                                     tx.raw_data.contract[0].parameter && tx.raw_data.contract[0].parameter.value &&
+                                     tx.raw_data.contract[0].parameter.value.contract_address === tronWeb.address.toHex(CONTRACT_ADDRESS))) {
+                                    return true;
+                                }
+                                return false;
+                            } catch (e) {
+                                return false;
+                            }
+                        });
+                        
+                        console.log(`Found ${contractTxs.length} transactions to the contract`);
+                        
+                        // For each transaction, check if it's a serveNotice call
+                        for (const tx of contractTxs) {
+                            try {
+                                if (tx.raw_data && tx.raw_data.contract && tx.raw_data.contract[0] && 
+                                    tx.raw_data.contract[0].parameter && tx.raw_data.contract[0].parameter.value &&
+                                    tx.raw_data.contract[0].parameter.value.data) {
+                                    
+                                    // Check if this is a serveNotice function call (function selector)
+                                    const data = tx.raw_data.contract[0].parameter.value.data;
+                                    // serveNotice function selector would be in the first 8 characters
+                                    if (data && data.length > 8) {
+                                        console.log(`Transaction ${tx.txID} might be a notice creation`);
+                                        // We already have events for these, so this is just additional validation
+                                    }
+                                }
+                            } catch (e) {
+                                console.error('Error analyzing transaction:', e);
+                            }
+                        }
+                    }
+                } catch (fallbackError) {
+                    console.error('Transaction history fallback also failed:', fallbackError);
+                }
+                
+                // Filter events by server address
                 const myEvents = events.filter(event => {
                     try {
-                        // The LegalNoticeCreated event emits msg.sender as the server
-                        const eventServerAddress = tronWeb.address.fromHex(event.result.server);
-                        const matches = eventServerAddress === serverAddress;
-                        
-                        if (event.result) {
-                            console.log(`Event server: ${eventServerAddress}, looking for: ${serverAddress}, matches: ${matches}`);
+                        // Different event types have different structures
+                        if (event.name === 'LegalNoticeCreated' && event.result.server) {
+                            // LegalNoticeCreated event has server field
+                            const eventServerAddress = tronWeb.address.fromHex(event.result.server);
+                            const matches = eventServerAddress === serverAddress;
+                            console.log(`LegalNoticeCreated event - server: ${eventServerAddress}, looking for: ${serverAddress}, matches: ${matches}`);
+                            return matches;
+                        } else if (event.name === 'NoticeServed') {
+                            // NoticeServed events don't have server field, we need to check transaction sender
+                            // For now, include all NoticeServed events and filter later when we get contract data
+                            console.log(`NoticeServed event found for documentId: ${event.result.documentId}`);
+                            return true; // We'll filter these later based on contract data
                         }
-                        
-                        return matches;
+                        return false;
                     } catch (e) {
                         console.error('Error processing event:', e);
                         return false;
@@ -11771,7 +11918,16 @@ async function checkUserRoles() {
                 
                 for (const event of allEvents) {
                     try {
-                        const noticeId = event.result.noticeId || event.result.alertId || event.noticeId;
+                        // Handle different event types
+                        let noticeId;
+                        if (event.name === 'NoticeServed') {
+                            // For NoticeServed events, use documentId as the notice ID
+                            noticeId = event.result.documentId;
+                        } else {
+                            // For LegalNoticeCreated and direct queries
+                            noticeId = event.result.noticeId || event.result.alertId || event.noticeId;
+                        }
+                        
                         const recipientAddress = event.result.recipient.startsWith('T') ? 
                                                event.result.recipient : 
                                                tronWeb.address.fromHex(event.result.recipient);
@@ -11806,7 +11962,28 @@ async function checkUserRoles() {
                             console.log(`Document data for notice ${noticeId}:`, docData);
                             
                             // Parse array data: [documentId, server, recipient, ipfsHash, accepted]
-                            if (docData && Array.isArray(docData) && docData.length > 1 && docData[1]) {
+                            if (docData && Array.isArray(docData) && docData.length > 1) {
+                                // Check if this document belongs to the current server
+                                let docServer = null;
+                                if (docData[1] && docData[1].startsWith('41')) {
+                                    try {
+                                        docServer = tronWeb.address.fromHex(docData[1]);
+                                    } catch (e) {
+                                        docServer = docData[1];
+                                    }
+                                } else if (docData[1]) {
+                                    docServer = docData[1];
+                                }
+                                
+                                // For NoticeServed events without server info, check contract data
+                                if (event.name === 'NoticeServed' && docServer) {
+                                    // Skip if this document doesn't belong to current server
+                                    if (docServer.toLowerCase() !== serverAddress.toLowerCase()) {
+                                        console.log(`Skipping document notice ${noticeId} - belongs to ${docServer}, not ${serverAddress}`);
+                                        continue;
+                                    }
+                                }
+                                
                                 hasDocument = true;
                                 documentId = noticeId;
                             }
