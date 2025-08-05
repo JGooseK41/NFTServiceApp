@@ -11012,6 +11012,14 @@ async function checkUserRoles() {
                 console.log('Current connected address:', userAddress);
                 console.log('TronWeb default address object:', tronWeb.defaultAddress);
                 
+                // Try to get server ID
+                try {
+                    const serverId = await legalContract.getServerId(userAddress).call();
+                    console.log('Server ID:', serverId.toString());
+                } catch (e) {
+                    console.log('Could not get server ID:', e);
+                }
+                
                 // Show loading state in stats
                 document.getElementById('totalServedStat').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
                 document.getElementById('acceptedStat').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
