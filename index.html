@@ -10977,6 +10977,28 @@ async function checkUserRoles() {
             // This function is deprecated but kept for compatibility
             // The home page now shows server stats instead of recent activity
         }
+        
+        // Utility function to add delay
+        async function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+        
+        // Retry function for rate-limited API calls
+        async function retryWithDelay(fn, maxRetries = 3, delayMs = 1000) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    return await fn();
+                } catch (error) {
+                    if (error.toString().includes('429') || (error.message && error.message.includes('429'))) {
+                        console.log(`Rate limited, waiting ${delayMs}ms before retry ${i + 1}/${maxRetries}`);
+                        await delay(delayMs * (i + 1)); // Exponential backoff
+                    } else {
+                        throw error;
+                    }
+                }
+            }
+            throw new Error('Max retries exceeded');
+        }
 
         async function updateServerStats() {
             if (!legalContract || !tronWeb || !tronWeb.defaultAddress) {
@@ -11008,8 +11030,10 @@ async function checkUserRoles() {
                         try {
                             console.log(`Checking acceptance for notice ${noticeData.noticeId}...`);
                             
-                            // Check alert notices
-                            const alertData = await legalContract.alertNotices(noticeData.noticeId).call();
+                            // Check alert notices with retry for rate limiting
+                            const alertData = await retryWithDelay(async () => {
+                                return await legalContract.alertNotices(noticeData.noticeId).call();
+                            });
                             console.log(`Alert data for ${noticeData.noticeId}:`, alertData);
                             
                             // Parse the alert data (it's returned as an array)
@@ -11023,8 +11047,10 @@ async function checkUserRoles() {
                                     isAccepted = true;
                                     accepted++;
                                 } else {
-                                    // Check document notices
-                                    const docData = await legalContract.documentNotices(noticeData.noticeId).call();
+                                    // Check document notices with retry
+                                    const docData = await retryWithDelay(async () => {
+                                        return await legalContract.documentNotices(noticeData.noticeId).call();
+                                    });
                                     console.log(`Document data for ${noticeData.noticeId}:`, docData);
                                     
                                     // documentNotices structure: [documentId, server, recipient, ipfsHash, accepted]
@@ -11050,7 +11076,7 @@ async function checkUserRoles() {
                                 pending++;
                             }
                         } catch (contractErr) {
-                            console.error(`Error checking contract state for notice ${noticeData.noticeId}:`, contractErr);
+                            console.error(`Error checking contract state for notice ${noticeData.noticeId}:`, contractErr.toString());
                             
                             // Try event query as fallback
                             try {
@@ -11073,7 +11099,7 @@ async function checkUserRoles() {
                                     pending++;
                                 }
                             } catch (eventErr) {
-                                console.log(`Could not query events for notice ${noticeData.noticeId}:`, eventErr);
+                                console.log(`Could not query events for notice ${noticeData.noticeId}:`, eventErr.toString());
                                 pending++;
                             }
                         }
@@ -11478,17 +11504,19 @@ async function checkUserRoles() {
                 // Get events from the blockchain
                 let events = [];
                 try {
-                    // Use the contract instance to get events
-                    const eventResult = await tronWeb.event.getEventsByContractAddress(
-                        CONTRACT_ADDRESS,
-                        {
-                            eventName: 'LegalNoticeCreated',
-                            onlyConfirmed: true,
-                            orderBy: 'block_timestamp,desc',
-                            limit: 200,
-                            fingerprint: '' // Required parameter
-                        }
-                    );
+                    // Use the contract instance to get events with retry
+                    const eventResult = await retryWithDelay(async () => {
+                        return await tronWeb.event.getEventsByContractAddress(
+                            CONTRACT_ADDRESS,
+                            {
+                                eventName: 'LegalNoticeCreated',
+                                onlyConfirmed: true,
+                                orderBy: 'block_timestamp,desc',
+                                limit: 200,
+                                fingerprint: '' // Required parameter
+                            }
+                        );
+                    });
                     
                     events = eventResult.data || [];
                     console.log('Total events found:', events.length);
@@ -11497,24 +11525,37 @@ async function checkUserRoles() {
                     
                     // If events fail, try to query contract directly
                     try {
-                        const totalNotices = await legalContract.totalNotices().call();
+                        const totalNotices = await retryWithDelay(async () => {
+                            return await legalContract.totalNotices().call();
+                        });
                         console.log('Total notices in contract:', totalNotices.toString());
                         
                         // Try to get individual notices
                         const noticePromises = [];
                         const maxToCheck = Math.min(parseInt(totalNotices), 50); // Check last 50
                         
+                        // Process in smaller batches to avoid rate limiting
+                        const batchSize = 5;
                         for (let i = maxToCheck - 1; i >= 0; i--) {
                             noticePromises.push(
                                 Promise.all([
-                                    legalContract.alertNotices(i).call().catch(() => null),
-                                    legalContract.documentNotices(i).call().catch(() => null)
+                                    retryWithDelay(async () => {
+                                        return await legalContract.alertNotices(i).call();
+                                    }).catch(() => null),
+                                    retryWithDelay(async () => {
+                                        return await legalContract.documentNotices(i).call();
+                                    }).catch(() => null)
                                 ]).then(([alertData, docData]) => ({
                                     noticeId: i,
                                     alertData,
                                     docData
                                 }))
                             );
+                            
+                            // Add delay every batch to avoid rate limits
+                            if ((maxToCheck - i) % batchSize === 0 && i !== maxToCheck - 1) {
+                                await delay(500); // 500ms delay between batches
+                            }
                         }
                         
                         const noticeResults = await Promise.all(noticePromises);
@@ -11532,14 +11573,54 @@ async function checkUserRoles() {
                             let recipientAddress = null;
                             
                             if (alertData && Array.isArray(alertData) && alertData.length > 1) {
-                                serverFromAlert = alertData[1]; // Index 1 is server
-                                recipientAddress = alertData[2]; // Index 2 is recipient
+                                const serverHex = alertData[1]; // Index 1 is server
+                                // Convert hex address to base58 if needed
+                                if (serverHex && serverHex.startsWith('41')) {
+                                    try {
+                                        serverFromAlert = tronWeb.address.fromHex(serverHex);
+                                    } catch (e) {
+                                        console.error('Error converting server address:', e);
+                                        serverFromAlert = serverHex;
+                                    }
+                                } else {
+                                    serverFromAlert = serverHex;
+                                }
+                                
+                                const recipientHex = alertData[2]; // Index 2 is recipient
+                                if (recipientHex && recipientHex.startsWith('41')) {
+                                    try {
+                                        recipientAddress = tronWeb.address.fromHex(recipientHex);
+                                    } catch (e) {
+                                        recipientAddress = recipientHex;
+                                    }
+                                } else {
+                                    recipientAddress = recipientHex;
+                                }
                             }
                             
                             if (docData && Array.isArray(docData) && docData.length > 1) {
-                                serverFromDoc = docData[1]; // Index 1 is server
+                                const serverHex = docData[1]; // Index 1 is server
+                                if (serverHex && serverHex.startsWith('41')) {
+                                    try {
+                                        serverFromDoc = tronWeb.address.fromHex(serverHex);
+                                    } catch (e) {
+                                        serverFromDoc = serverHex;
+                                    }
+                                } else {
+                                    serverFromDoc = serverHex;
+                                }
+                                
                                 if (!recipientAddress) {
-                                    recipientAddress = docData[2]; // Index 2 is recipient
+                                    const recipientHex = docData[2]; // Index 2 is recipient
+                                    if (recipientHex && recipientHex.startsWith('41')) {
+                                        try {
+                                            recipientAddress = tronWeb.address.fromHex(recipientHex);
+                                        } catch (e) {
+                                            recipientAddress = recipientHex;
+                                        }
+                                    } else {
+                                        recipientAddress = recipientHex;
+                                    }
                                 }
                             }
                             
