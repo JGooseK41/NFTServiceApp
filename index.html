@@ -10977,7 +10977,10 @@ async function checkUserRoles() {
                     try {
                         // Check if notice has been accepted
                         const alertData = await legalContract.alertNotices(noticeData.noticeId).call();
-                        if (alertData && alertData.acknowledged) {
+                        console.log(`Notice ${noticeData.noticeId} alertData:`, alertData);
+                        
+                        // Check both acknowledged and accepted fields
+                        if (alertData && (alertData.acknowledged || alertData.accepted)) {
                             accepted++;
                         } else {
                             pending++;
@@ -11211,6 +11214,8 @@ async function checkUserRoles() {
                                 (docData && docData.server === serverAddress)) {
                                 
                                 const noticeData = alertData || docData;
+                                console.log(`Found notice ${noticeId} from direct query:`, noticeData);
+                                
                                 events.push({
                                     result: {
                                         noticeId: noticeId.toString(),
@@ -11287,18 +11292,21 @@ async function checkUserRoles() {
                             console.log('No document data for notice:', noticeId);
                         }
                         
-                        notices.push({
+                        const noticeInfo = {
                             noticeId: noticeId,
                             recipient: recipientAddress,
                             noticeType: noticeType,
                             caseNumber: caseNumber,
                             timestamp: parseInt(event.result.timestamp) * 1000, // Convert to milliseconds
-                            txHash: event.transaction,
-                            blockNumber: event.block,
+                            txHash: event.transaction || 'N/A',
+                            blockNumber: event.block || 0,
                             hasDocument: hasDocument,
                             documentId: documentId,
                             alertId: alertId
-                        });
+                        };
+                        
+                        console.log('Processed notice:', noticeInfo);
+                        notices.push(noticeInfo);
                     } catch (err) {
                         console.error('Error processing event:', err);
                     }
@@ -11377,7 +11385,10 @@ async function checkUserRoles() {
                         // Check if notice has been accepted
                         try {
                             const alertData = await legalContract.alertNotices(noticeData.noticeId).call();
-                            if (alertData && alertData.acknowledged) {
+                            console.log(`Checking acceptance for notice ${noticeData.noticeId}:`, alertData);
+                            
+                            // Check both acknowledged and accepted fields
+                            if (alertData && (alertData.acknowledged || alertData.accepted)) {
                                 isAccepted = true;
                                 
                                 // Get acceptance data from localStorage
