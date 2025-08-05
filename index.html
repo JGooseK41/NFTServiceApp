@@ -11816,6 +11816,8 @@ async function checkUserRoles() {
                 // Get served notices from blockchain
                 const myNotices = await getServedNoticesFromBlockchain(userAddress, 10);
                 
+                console.log('Recent activities - myNotices:', myNotices);
+                
                 if (myNotices.length === 0) {
                     content.innerHTML = `
                         <div class="empty-state">
@@ -11838,8 +11840,10 @@ async function checkUserRoles() {
                         
                         // Check if notice has been accepted - use direct contract check
                         try {
-                            // Check alert notices first
-                            const alertData = await legalContract.alertNotices(noticeData.noticeId).call();
+                            // Check alert notices first with retry for rate limiting
+                            const alertData = await retryWithDelay(async () => {
+                                return await legalContract.alertNotices(noticeData.noticeId).call();
+                            }, 3, 2000); // 3 retries with 2 second delay
                             
                             // Parse array data: [alertId, server, recipient, noticeData, tokenURI, noticeType, caseNumber, timestamp, deadline, agencyName, claimable, acknowledged]
                             if (alertData && Array.isArray(alertData) && alertData.length > 11) {
@@ -12021,7 +12025,13 @@ async function checkUserRoles() {
                 updateAuditSearch();
                 
                 // Set the notice ID and search
-                document.getElementById('auditNoticeIdInput').value = noticeId;
+                const noticeIdInput = document.getElementById('auditNoticeId');
+                if (noticeIdInput) {
+                    noticeIdInput.value = noticeId;
+                } else {
+                    console.error('Could not find auditNoticeId input element');
+                    return;
+                }
                 
                 // Trigger the search
                 await searchNotice();
