@@ -11556,7 +11556,8 @@ async function checkUserRoles() {
                         
                         // Process in smaller batches to avoid rate limiting
                         const batchSize = 5;
-                        for (let i = maxToCheck - 1; i >= 0; i--) {
+                        // Start from 0 and go up to include all notices
+                        for (let i = 0; i < maxToCheck; i++) {
                             noticePromises.push(
                                 Promise.all([
                                     retryWithDelay(async () => {
@@ -11659,10 +11660,9 @@ async function checkUserRoles() {
                             const isServerDoc = serverFromDoc && 
                                                serverFromDoc.toLowerCase() === serverAddress.toLowerCase();
                             
-                            // Since the contract stores black hole as server, we can't rely on this for tracking
-                            // We would need to check events or transaction data
-                            // For now, skip the direct contract query method for server tracking
-                            if (false && (isServerAlert || isServerDoc)) {
+                            // Check if this notice is from the server
+                            // For notice data, we need to check the actual stored server address
+                            if (isServerAlert || isServerDoc) {
                                 console.log(`Found notice ${noticeId} from server ${serverAddress}`);
                                 
                                 events.push({
@@ -19874,8 +19874,16 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                             continue;
                         }
                         
-                        // Get sender info
-                        const sender = alertData?.sender || notice.sender || notice.server || 'Unknown';
+                        // Get sender info and convert from hex if needed
+                        let sender = alertData?.sender || notice.sender || notice.server || 'Unknown';
+                        if (sender && sender.startsWith('41') && sender.length > 50) {
+                            try {
+                                sender = tronWeb.address.fromHex(sender);
+                            } catch (e) {
+                                console.log('Could not convert sender address from hex');
+                            }
+                        }
+                        
                         const noticeType = alertData?.noticeType || notice.noticeType || 'Legal Notice';
                         const caseNumber = alertData?.caseNumber || notice.caseNumber || '';
                         const issuingAgency = alertData?.issuingAgency || '';
