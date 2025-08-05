@@ -11162,22 +11162,83 @@ async function checkUserRoles() {
                 }
                 
                 // Get events from the blockchain
-                const events = await tronWeb.getEventResult(
-                    CONTRACT_ADDRESS,
-                    {
-                        eventName: 'LegalNoticeCreated',
-                        onlyConfirmed: true,
-                        orderBy: 'timestamp,desc',
-                        limit: 200 // Get more to filter
+                let events = [];
+                try {
+                    // Use the contract instance to get events
+                    const eventResult = await tronWeb.event.getEventsByContractAddress(
+                        CONTRACT_ADDRESS,
+                        {
+                            eventName: 'LegalNoticeCreated',
+                            onlyConfirmed: true,
+                            orderBy: 'block_timestamp,desc',
+                            limit: 200,
+                            fingerprint: '' // Required parameter
+                        }
+                    );
+                    
+                    events = eventResult.data || [];
+                    console.log('Total events found:', events.length);
+                } catch (eventError) {
+                    console.error('Error fetching events:', eventError);
+                    
+                    // If events fail, try to query contract directly
+                    try {
+                        const totalNotices = await legalContract.totalNotices().call();
+                        console.log('Total notices in contract:', totalNotices.toString());
+                        
+                        // Try to get individual notices
+                        const noticePromises = [];
+                        const maxToCheck = Math.min(parseInt(totalNotices), 50); // Check last 50
+                        
+                        for (let i = maxToCheck - 1; i >= 0; i--) {
+                            noticePromises.push(
+                                Promise.all([
+                                    legalContract.alertNotices(i).call().catch(() => null),
+                                    legalContract.documentNotices(i).call().catch(() => null)
+                                ]).then(([alertData, docData]) => ({
+                                    noticeId: i,
+                                    alertData,
+                                    docData
+                                }))
+                            );
+                        }
+                        
+                        const noticeResults = await Promise.all(noticePromises);
+                        
+                        // Filter for notices from this server
+                        for (const {noticeId, alertData, docData} of noticeResults) {
+                            if ((alertData && alertData.server === serverAddress) || 
+                                (docData && docData.server === serverAddress)) {
+                                
+                                const noticeData = alertData || docData;
+                                events.push({
+                                    result: {
+                                        noticeId: noticeId.toString(),
+                                        server: tronWeb.address.toHex(serverAddress),
+                                        recipient: tronWeb.address.toHex(noticeData.recipient),
+                                        timestamp: Date.now() / 1000 // Approximate
+                                    },
+                                    transaction: 'unknown',
+                                    block: 0
+                                });
+                            }
+                        }
+                        
+                        console.log('Found notices via direct query:', events.length);
+                    } catch (contractError) {
+                        console.error('Direct contract query also failed:', contractError);
                     }
-                );
-                
-                console.log('Total events found:', events.length);
+                }
                 
                 // Filter events by server address
                 const myEvents = events.filter(event => {
-                    const eventServerAddress = tronWeb.address.fromHex(event.result.server);
-                    return eventServerAddress === serverAddress;
+                    try {
+                        const eventServerAddress = tronWeb.address.fromHex(event.result.server);
+                        return eventServerAddress === serverAddress;
+                    } catch (e) {
+                        console.error('Error processing event:', e);
+                        return false;
+                    }
                 });
                 
                 console.log('Events from this server:', myEvents.length);
