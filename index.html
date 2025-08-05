@@ -11626,6 +11626,14 @@ async function checkUserRoles() {
                             
                             console.log(`Notice ${noticeId} - serverFromAlert: ${serverFromAlert}, serverFromDoc: ${serverFromDoc}, looking for: ${serverAddress}`);
                             
+                            // Also log the raw data for debugging
+                            if (alertData && Array.isArray(alertData)) {
+                                console.log(`Raw alert data - server (index 1): ${alertData[1]}`);
+                            }
+                            if (docData && Array.isArray(docData)) {
+                                console.log(`Raw doc data - server (index 1): ${docData[1]}`);
+                            }
+                            
                             const isServerAlert = serverFromAlert && 
                                                  serverFromAlert.toLowerCase() === serverAddress.toLowerCase();
                             const isServerDoc = serverFromDoc && 
