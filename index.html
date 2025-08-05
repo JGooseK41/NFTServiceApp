@@ -4600,7 +4600,7 @@
         // Backend API Configuration
         window.BACKEND_API_URL = window.location.hostname === 'localhost' 
             ? 'http://localhost:3001' 
-            : 'https://your-backend-url.onrender.com'; // Replace with your Render backend URL
+            : 'https://nftserviceapp.onrender.com'; // Your Render backend URL
         
         // GitHub Storage Configuration
         window.GITHUB_STORAGE_CONFIG = {
@@ -7372,8 +7372,8 @@ function parsePackedData(packedData) {
                 if (docData && Array.isArray(docData) && docData.length > 0) {
                     console.log('Document notice fields:');
                     console.log('- documentId (0):', docData[0]);
-                    console.log('- server (1):', docData[1]);
-                    console.log('- recipient (2):', docData[2]);
+                    console.log('- server (1):', docData[1], docData[1] && docData[1].startsWith('41') ? `(${tronWeb.address.fromHex(docData[1])})` : '');
+                    console.log('- recipient (2):', docData[2], docData[2] && docData[2].startsWith('41') ? `(${tronWeb.address.fromHex(docData[2])})` : '');
                     console.log('- ipfsHash (3):', docData[3]);
                     console.log('- accepted (4):', docData[4]);
                 }
