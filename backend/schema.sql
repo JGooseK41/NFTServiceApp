@@ -48,13 +48,19 @@ CREATE TABLE IF NOT EXISTS notice_acceptances (
 CREATE TABLE IF NOT EXISTS served_notices (
     id SERIAL PRIMARY KEY,
     notice_id VARCHAR(20) UNIQUE NOT NULL,
+    alert_id VARCHAR(20),
+    document_id VARCHAR(20),
     server_address VARCHAR(42) NOT NULL,
     recipient_address VARCHAR(42) NOT NULL,
     notice_type VARCHAR(100),
-    recipient_jurisdiction VARCHAR(100),
+    issuing_agency VARCHAR(255),
     case_number VARCHAR(100),
     document_hash VARCHAR(66),
+    ipfs_hash VARCHAR(100),
+    has_document BOOLEAN DEFAULT FALSE,
     accepted BOOLEAN DEFAULT FALSE,
+    served_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    accepted_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

@@ -84,14 +84,21 @@ app.post('/api/notices/:noticeId/acceptances', async (req, res) => {
 
     const realIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
     
-    const query = `
+    // First, log the acceptance
+    const acceptanceQuery = `
       INSERT INTO notice_acceptances 
       (notice_id, acceptor_address, transaction_hash, ip_address, location_data, accepted_at, real_ip)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ON CONFLICT (notice_id) DO UPDATE SET
+        transaction_hash = EXCLUDED.transaction_hash,
+        ip_address = EXCLUDED.ip_address,
+        location_data = EXCLUDED.location_data,
+        accepted_at = EXCLUDED.accepted_at,
+        real_ip = EXCLUDED.real_ip
       RETURNING *
     `;
     
-    const values = [
+    const acceptanceValues = [
       noticeId,
       acceptorAddress,
       transactionHash,
@@ -101,8 +108,26 @@ app.post('/api/notices/:noticeId/acceptances', async (req, res) => {
       realIp
     ];
     
-    const result = await pool.query(query, values);
-    res.json({ success: true, acceptanceLog: result.rows[0] });
+    const acceptanceResult = await pool.query(acceptanceQuery, acceptanceValues);
+    
+    // Update the served_notices table to mark as accepted
+    await pool.query(
+      `UPDATE served_notices 
+       SET accepted = true, 
+           accepted_at = $2,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE notice_id = $1`,
+      [noticeId, timestamp || new Date()]
+    );
+    
+    // Log this as an audit event
+    await pool.query(
+      `INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address)
+       VALUES ('notice_accepted', $1, $2, $3, $4)`,
+      [acceptorAddress, noticeId, JSON.stringify({ transactionHash, location }), realIp]
+    );
+    
+    res.json({ success: true, acceptanceLog: acceptanceResult.rows[0] });
   } catch (error) {
     console.error('Error logging acceptance:', error);
     res.status(500).json({ error: 'Failed to log acceptance' });
@@ -283,7 +308,138 @@ app.get('/api/process-servers/:walletAddress', async (req, res) => {
 // NOTICE METADATA
 // ======================
 
-// Store additional notice metadata
+// Track a newly served notice
+app.post('/api/notices/served', async (req, res) => {
+  try {
+    const {
+      noticeId,
+      alertId,
+      documentId,
+      serverAddress,
+      recipientAddress,
+      noticeType,
+      issuingAgency,
+      caseNumber,
+      documentHash,
+      ipfsHash,
+      hasDocument
+    } = req.body;
+
+    const query = `
+      INSERT INTO served_notices 
+      (notice_id, alert_id, document_id, server_address, recipient_address, 
+       notice_type, issuing_agency, case_number, document_hash, ipfs_hash, has_document)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      ON CONFLICT (notice_id) 
+      DO UPDATE SET 
+        alert_id = EXCLUDED.alert_id,
+        document_id = EXCLUDED.document_id,
+        updated_at = CURRENT_TIMESTAMP
+      RETURNING *
+    `;
+
+    const values = [
+      noticeId,
+      alertId,
+      documentId,
+      serverAddress.toLowerCase(),
+      recipientAddress.toLowerCase(),
+      noticeType,
+      issuingAgency,
+      caseNumber,
+      documentHash,
+      ipfsHash,
+      hasDocument
+    ];
+
+    const result = await pool.query(query, values);
+    
+    // Update process server stats
+    await pool.query(`
+      UPDATE process_servers 
+      SET total_notices_served = total_notices_served + 1
+      WHERE LOWER(wallet_address) = LOWER($1)
+    `, [serverAddress]);
+    
+    // Log audit event
+    await pool.query(
+      `INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address)
+       VALUES ('notice_served', $1, $2, $3, $4)`,
+      [serverAddress, noticeId, JSON.stringify({ recipientAddress, noticeType }), 
+       req.headers['x-forwarded-for'] || req.connection.remoteAddress]
+    );
+
+    res.json({ success: true, servedNotice: result.rows[0] });
+  } catch (error) {
+    console.error('Error tracking served notice:', error);
+    res.status(500).json({ error: 'Failed to track served notice' });
+  }
+});
+
+// Get all notices for a process server with full status
+app.get('/api/servers/:serverAddress/notices', async (req, res) => {
+  try {
+    const { serverAddress } = req.params;
+    const { status, limit = 100 } = req.query;
+    
+    let query = `
+      SELECT 
+        sn.*,
+        COUNT(DISTINCT nv.id) as view_count,
+        MAX(nv.viewed_at) as last_viewed_at,
+        na.accepted_at as acceptance_timestamp,
+        na.transaction_hash as acceptance_tx_hash,
+        na.ip_address as acceptance_ip,
+        na.location_data as acceptance_location
+      FROM served_notices sn
+      LEFT JOIN notice_views nv ON nv.notice_id = sn.notice_id
+      LEFT JOIN notice_acceptances na ON na.notice_id = sn.notice_id
+      WHERE LOWER(sn.server_address) = LOWER($1)
+    `;
+    
+    const queryParams = [serverAddress];
+    
+    // Add status filter if provided
+    if (status === 'accepted') {
+      query += ' AND sn.accepted = true';
+    } else if (status === 'pending') {
+      query += ' AND sn.accepted = false';
+    }
+    
+    query += `
+      GROUP BY sn.id, na.accepted_at, na.transaction_hash, na.ip_address, na.location_data
+      ORDER BY sn.served_at DESC
+      LIMIT $2
+    `;
+    
+    queryParams.push(limit);
+    
+    const result = await pool.query(query, queryParams);
+    
+    // Calculate summary statistics
+    const stats = await pool.query(`
+      SELECT 
+        COUNT(*) as total_notices,
+        COUNT(CASE WHEN accepted = true THEN 1 END) as accepted_count,
+        COUNT(CASE WHEN accepted = false THEN 1 END) as pending_count,
+        AVG(CASE WHEN accepted = true 
+            THEN EXTRACT(EPOCH FROM (accepted_at - served_at))/3600 
+            END) as avg_acceptance_time_hours
+      FROM served_notices
+      WHERE LOWER(server_address) = LOWER($1)
+    `, [serverAddress]);
+    
+    res.json({ 
+      notices: result.rows,
+      stats: stats.rows[0]
+    });
+  } catch (error) {
+    console.error('Error fetching server notices:', error);
+    res.status(500).json({ error: 'Failed to fetch notices' });
+  }
+});
+
+// Store additional notice metadata (legacy endpoint, kept for compatibility)
 app.post('/api/notices/:noticeId/metadata', async (req, res) => {
   try {
     const { noticeId } = req.params;
