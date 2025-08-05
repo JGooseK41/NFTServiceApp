@@ -7323,6 +7323,167 @@ function parsePackedData(packedData) {
                 Notification.requestPermission();
             }
         }
+        
+        // Debug function to manually check specific notices
+        window.debugCheckNotice = async function(noticeId) {
+            if (!legalContract) {
+                console.error('Contract not initialized');
+                return;
+            }
+            
+            console.log(`=== Debugging Notice #${noticeId} ===`);
+            
+            try {
+                // Check alert notice
+                console.log('Checking alertNotices...');
+                const alertData = await legalContract.alertNotices(noticeId).call();
+                console.log('Alert data:', alertData);
+                
+                if (alertData && Array.isArray(alertData) && alertData.length > 0) {
+                    console.log('Alert notice fields:');
+                    console.log('- alertId (0):', alertData[0]);
+                    console.log('- server (1):', alertData[1]);
+                    console.log('- recipient (2):', alertData[2]);
+                    console.log('- noticeData (3):', alertData[3]);
+                    console.log('- tokenURI (4):', alertData[4]);
+                    console.log('- noticeType (5):', alertData[5]);
+                    console.log('- caseNumber (6):', alertData[6]);
+                    console.log('- timestamp (7):', alertData[7]);
+                    console.log('- deadline (8):', alertData[8]);
+                    console.log('- agencyName (9):', alertData[9]);
+                    console.log('- claimable (10):', alertData[10]);
+                    console.log('- acknowledged (11):', alertData[11]);
+                }
+            } catch (e) {
+                console.error('Error checking alert notice:', e);
+            }
+            
+            try {
+                // Check document notice
+                console.log('\nChecking documentNotices...');
+                const docData = await legalContract.documentNotices(noticeId).call();
+                console.log('Document data:', docData);
+                
+                if (docData && Array.isArray(docData) && docData.length > 0) {
+                    console.log('Document notice fields:');
+                    console.log('- documentId (0):', docData[0]);
+                    console.log('- server (1):', docData[1]);
+                    console.log('- recipient (2):', docData[2]);
+                    console.log('- ipfsHash (3):', docData[3]);
+                    console.log('- accepted (4):', docData[4]);
+                }
+            } catch (e) {
+                console.error('Error checking document notice:', e);
+            }
+            
+            // Also check who owns the NFT
+            try {
+                console.log('\nChecking NFT ownership...');
+                const owner = await legalContract.ownerOf(noticeId).call();
+                console.log('NFT owner:', owner);
+            } catch (e) {
+                console.error('Error checking NFT owner:', e);
+            }
+            
+            console.log('=== End Debug ===');
+        };
+        
+        // Manual function to find notices served by current user
+        window.findMyServedNotices = async function(maxToCheck = 20) {
+            if (!legalContract || !tronWeb || !tronWeb.defaultAddress) {
+                console.error('Contract not initialized or wallet not connected');
+                return;
+            }
+            
+            const myAddress = tronWeb.defaultAddress.base58;
+            console.log(`=== Finding notices served by ${myAddress} ===`);
+            console.log(`Checking notices 0-${maxToCheck-1}...`);
+            
+            const myNotices = [];
+            
+            for (let i = 0; i < maxToCheck; i++) {
+                try {
+                    // Check document notice first (main type for the system)
+                    const docData = await legalContract.documentNotices(i).call();
+                    if (docData && Array.isArray(docData) && docData.length > 1) {
+                        // Check if server field matches
+                        const serverField = docData[1];
+                        let isMyNotice = false;
+                        
+                        if (serverField) {
+                            // Convert server field to address
+                            let serverAddr;
+                            if (typeof serverField === 'string' && serverField.startsWith('41')) {
+                                serverAddr = tronWeb.address.fromHex(serverField);
+                            } else if (typeof serverField === 'string' && serverField.startsWith('T')) {
+                                serverAddr = serverField;
+                            }
+                            
+                            if (serverAddr && serverAddr.toLowerCase() === myAddress.toLowerCase()) {
+                                isMyNotice = true;
+                            }
+                        }
+                        
+                        // If server field is empty, check who owns the NFT
+                        if (!serverField || serverField === '') {
+                            try {
+                                // Check NFT minting events or transaction history
+                                console.log(`Notice ${i} has empty server field, checking other sources...`);
+                                
+                                // Try to get the NFT owner
+                                const owner = await legalContract.ownerOf(i).call();
+                                console.log(`Notice ${i} NFT owner: ${owner}`);
+                                
+                                // Note: This won't tell us who served it, just who owns it now
+                            } catch (e) {
+                                console.log(`Could not check owner of notice ${i}`);
+                            }
+                        }
+                        
+                        if (isMyNotice || !serverField) {
+                            console.log(`Found notice #${i} - server: ${serverField || 'EMPTY'}, recipient: ${docData[2]}`);
+                            myNotices.push({
+                                noticeId: i,
+                                server: serverField,
+                                recipient: docData[2],
+                                ipfsHash: docData[3],
+                                accepted: docData[4]
+                            });
+                        }
+                    }
+                } catch (e) {
+                    // Notice doesn't exist, continue
+                }
+                
+                // Also check alert notices
+                try {
+                    const alertData = await legalContract.alertNotices(i).call();
+                    if (alertData && Array.isArray(alertData) && alertData.length > 1) {
+                        const serverField = alertData[1];
+                        if (serverField) {
+                            let serverAddr;
+                            if (typeof serverField === 'string' && serverField.startsWith('41')) {
+                                serverAddr = tronWeb.address.fromHex(serverField);
+                            } else if (typeof serverField === 'string' && serverField.startsWith('T')) {
+                                serverAddr = serverField;
+                            }
+                            
+                            if (serverAddr && serverAddr.toLowerCase() === myAddress.toLowerCase()) {
+                                console.log(`Found alert notice #${i} served by me`);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    // Notice doesn't exist, continue
+                }
+            }
+            
+            console.log(`\n=== Summary ===`);
+            console.log(`Found ${myNotices.length} document notices that might be yours`);
+            console.log('Notices:', myNotices);
+            
+            return myNotices;
+        };
 
         // Initialize tooltips
         function initializeTooltips() {
@@ -10987,14 +11148,16 @@ async function checkUserRoles() {
         }
         
         // Retry function for rate-limited API calls
-        async function retryWithDelay(fn, maxRetries = 3, delayMs = 1000) {
+        async function retryWithDelay(fn, maxRetries = 3, delayMs = 2000) {
             for (let i = 0; i < maxRetries; i++) {
                 try {
                     return await fn();
                 } catch (error) {
                     if (error.toString().includes('429') || (error.message && error.message.includes('429'))) {
-                        console.log(`Rate limited, waiting ${delayMs}ms before retry ${i + 1}/${maxRetries}`);
-                        await delay(delayMs * (i + 1)); // Exponential backoff
+                        // Exponential backoff: 2s, 4s, 6s
+                        const waitTime = delayMs * (i + 1);
+                        console.log(`Rate limited, waiting ${waitTime}ms before retry ${i + 1}/${maxRetries}`);
+                        await delay(waitTime);
                     } else {
                         throw error;
                     }
@@ -11665,14 +11828,30 @@ async function checkUserRoles() {
                                 }
                                 
                                 const recipientHex = alertData[2]; // Index 2 is recipient
-                                if (recipientHex && recipientHex.startsWith('41')) {
-                                    try {
-                                        recipientAddress = tronWeb.address.fromHex(recipientHex);
-                                    } catch (e) {
-                                        recipientAddress = recipientHex;
+                                // Handle BigInt values from contract
+                                if (recipientHex) {
+                                    // Convert BigInt to hex string if needed
+                                    let recipientStr = recipientHex;
+                                    if (typeof recipientHex === 'bigint') {
+                                        recipientStr = '0x' + recipientHex.toString(16).padStart(40, '0');
                                     }
-                                } else {
-                                    recipientAddress = recipientHex;
+                                    
+                                    if (typeof recipientStr === 'string' && recipientStr.startsWith('41')) {
+                                        try {
+                                            recipientAddress = tronWeb.address.fromHex(recipientStr);
+                                        } catch (e) {
+                                            recipientAddress = recipientStr;
+                                        }
+                                    } else if (typeof recipientStr === 'string' && recipientStr.startsWith('0x')) {
+                                        // Handle ethereum-style hex
+                                        try {
+                                            recipientAddress = tronWeb.address.fromHex('41' + recipientStr.slice(2));
+                                        } catch (e) {
+                                            recipientAddress = recipientStr;
+                                        }
+                                    } else {
+                                        recipientAddress = recipientStr;
+                                    }
                                 }
                             }
                             
@@ -11696,14 +11875,30 @@ async function checkUserRoles() {
                                 
                                 if (!recipientAddress) {
                                     const recipientHex = docData[2]; // Index 2 is recipient
-                                    if (recipientHex && recipientHex.startsWith('41')) {
-                                        try {
-                                            recipientAddress = tronWeb.address.fromHex(recipientHex);
-                                        } catch (e) {
-                                            recipientAddress = recipientHex;
+                                    // Handle BigInt values from contract
+                                    if (recipientHex) {
+                                        // Convert BigInt to hex string if needed
+                                        let recipientStr = recipientHex;
+                                        if (typeof recipientHex === 'bigint') {
+                                            recipientStr = '0x' + recipientHex.toString(16).padStart(40, '0');
                                         }
-                                    } else {
-                                        recipientAddress = recipientHex;
+                                        
+                                        if (typeof recipientStr === 'string' && recipientStr.startsWith('41')) {
+                                            try {
+                                                recipientAddress = tronWeb.address.fromHex(recipientStr);
+                                            } catch (e) {
+                                                recipientAddress = recipientStr;
+                                            }
+                                        } else if (typeof recipientStr === 'string' && recipientStr.startsWith('0x')) {
+                                            // Handle ethereum-style hex
+                                            try {
+                                                recipientAddress = tronWeb.address.fromHex('41' + recipientStr.slice(2));
+                                            } catch (e) {
+                                                recipientAddress = recipientStr;
+                                            }
+                                        } else {
+                                            recipientAddress = recipientStr;
+                                        }
                                     }
                                 }
                             }
