@@ -12391,6 +12391,7 @@ async function checkUserRoles() {
                         let alertId = null;
                         
                         // Try to get alert notice data
+                        let blockchainTimestamp = null;
                         try {
                             const alertData = await legalContract.alertNotices(noticeId).call();
                             console.log(`Alert data for notice ${noticeId}:`, alertData);
@@ -12400,6 +12401,12 @@ async function checkUserRoles() {
                                 noticeType = alertData[6] || 'Legal Notice'; // Index 6 is noticeType
                                 caseNumber = alertData[7] || ''; // Index 7 is caseNumber
                                 alertId = noticeId;
+                                
+                                // Get timestamp from contract (index 3)
+                                if (alertData[3]) {
+                                    blockchainTimestamp = parseInt(alertData[3]) * 1000; // Convert to milliseconds
+                                    console.log(`Got blockchain timestamp for notice ${noticeId}: ${new Date(blockchainTimestamp).toISOString()}`);
+                                }
                             }
                         } catch (e) {
                             console.log('No alert data for notice:', noticeId, e);
@@ -12445,7 +12452,7 @@ async function checkUserRoles() {
                             recipient: recipientAddress,
                             noticeType: noticeType,
                             caseNumber: caseNumber,
-                            timestamp: parseInt(event.result.timestamp) * 1000 || Date.now(),
+                            timestamp: blockchainTimestamp || (parseInt(event.result.timestamp) * 1000) || Date.now(),
                             txHash: event.transaction || event.txHash || 'N/A',
                             blockNumber: event.block || event.blockNumber || 0,
                             hasDocument: hasDocument,
@@ -12469,12 +12476,23 @@ async function checkUserRoles() {
                             const noticeId = event.result.noticeId;
                             const recipientAddress = ensureBase58Address(event.result.recipient);
                             
+                            // Get timestamp from blockchain for this notice
+                            let blockchainTimestamp = null;
+                            try {
+                                const alertData = await legalContract.alertNotices(noticeId).call();
+                                if (alertData && Array.isArray(alertData) && alertData[3]) {
+                                    blockchainTimestamp = parseInt(alertData[3]) * 1000; // Convert to milliseconds
+                                }
+                            } catch (e) {
+                                console.log('Could not get alert data for timestamp:', e);
+                            }
+                            
                             const noticeInfo = {
                                 noticeId: noticeId.toString(),
                                 recipient: recipientAddress,
                                 noticeType: 'Legal Notice',
                                 caseNumber: '',
-                                timestamp: parseInt(event.result.timestamp) * 1000 || Date.now(),
+                                timestamp: blockchainTimestamp || (parseInt(event.result.timestamp) * 1000) || Date.now(),
                                 txHash: event.transaction || 'N/A',
                                 blockNumber: event.block || 0,
                                 hasDocument: true,
