@@ -11860,16 +11860,23 @@ async function checkUserRoles() {
                                 return await legalContract.alertNotices(noticeData.noticeId).call();
                             }, 3, 2000); // 3 retries with 2 second delay
                             
-                            // Parse array data: [alertId, server, recipient, noticeData, tokenURI, noticeType, caseNumber, timestamp, deadline, agencyName, claimable, acknowledged]
-                            if (alertData && Array.isArray(alertData) && alertData.length > 11) {
-                                const acknowledged = alertData[11]; // Index 11 is acknowledged
-                                console.log(`Notice ${noticeData.noticeId} acknowledged status:`, acknowledged, 'type:', typeof acknowledged, 'value:', JSON.stringify(acknowledged));
+                            // Parse array data - contract returns both array and named properties
+                            if (alertData) {
+                                // Try named property first (more reliable)
+                                let acknowledged = alertData.acknowledged;
                                 
-                                // Check for true or truthy values (contract might return string or boolean)
-                                if (acknowledged === true || acknowledged === 'true' || acknowledged === '1' || acknowledged === 1) {
+                                // Fallback to array index if named property doesn't exist
+                                if (acknowledged === undefined && Array.isArray(alertData) && alertData.length > 11) {
+                                    acknowledged = alertData[11];
+                                }
+                                
+                                console.log(`Notice ${noticeData.noticeId} acknowledged status:`, acknowledged, 'type:', typeof acknowledged);
+                                
+                                // Check for true or truthy values
+                                if (acknowledged === true) {
                                     console.log(`Notice ${noticeData.noticeId} is accepted (acknowledged)`);
                                     isAccepted = true;
-                                } else if (acknowledged === '' || acknowledged === null || acknowledged === undefined || acknowledged === false || acknowledged === 'false' || acknowledged === '0' || acknowledged === 0) {
+                                } else {
                                     console.log(`Notice ${noticeData.noticeId} is NOT acknowledged`);
                                     isAccepted = false;
                                     
