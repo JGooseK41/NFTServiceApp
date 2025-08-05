@@ -11667,17 +11667,57 @@ async function checkUserRoles() {
         // Show acceptance receipt modal
         async function showAcceptanceReceipt(noticeId) {
             try {
-                // Get acceptance event
-                const acceptanceEvent = await checkNoticeAcceptance(noticeId);
-                if (!acceptanceEvent) {
-                    uiManager.showNotification('error', 'No acceptance found for this notice');
-                    return;
+                // First check if notice is acknowledged in the contract
+                let isAcknowledged = false;
+                let alertData = null;
+                let docData = null;
+                let acceptanceEvent = null;
+                
+                try {
+                    // Check alert notice acknowledgment
+                    alertData = await legalContract.alertNotices(noticeId).call();
+                    if (alertData && Array.isArray(alertData) && alertData.length > 4) {
+                        isAcknowledged = alertData[4] === true;
+                    }
+                    
+                    // Check document notice if exists
+                    docData = await legalContract.documentNotices(noticeId).call();
+                } catch (e) {
+                    console.error('Error checking notice status:', e);
                 }
                 
-                // Generate receipt data
-                const receipt = await generateAcceptanceReceipt(noticeId, acceptanceEvent);
-                if (!receipt) {
-                    uiManager.showNotification('error', 'Failed to generate receipt');
+                // If not acknowledged in contract, check for acceptance event
+                if (!isAcknowledged) {
+                    acceptanceEvent = await checkNoticeAcceptance(noticeId);
+                    if (!acceptanceEvent) {
+                        uiManager.showNotification('error', 'No acceptance found for this notice');
+                        return;
+                    }
+                }
+                
+                // Generate receipt data based on contract data or event
+                let receipt;
+                if (isAcknowledged && alertData) {
+                    // Create receipt from contract data
+                    receipt = {
+                        noticeId: noticeId,
+                        noticeType: alertData[6] || 'Legal Notice', // Index 6 is noticeType
+                        caseNumber: alertData[7] || 'N/A', // Index 7 is caseNumber
+                        server: alertData[1] ? (alertData[1].startsWith('41') ? tronWeb.address.fromHex(alertData[1]) : alertData[1]) : 'Unknown',
+                        recipient: alertData[0] ? (alertData[0].startsWith('41') ? tronWeb.address.fromHex(alertData[0]) : alertData[0]) : 'Unknown',
+                        timestamp: alertData[3] ? new Date(parseInt(alertData[3]) * 1000).toISOString() : new Date().toISOString(),
+                        issuingAgency: alertData[5] || '', // Index 5 is issuingAgency
+                        transactionHash: 'On-chain acknowledgment',
+                        hasDocument: docData && docData[3] // Has IPFS hash
+                    };
+                } else if (acceptanceEvent) {
+                    receipt = await generateAcceptanceReceipt(noticeId, acceptanceEvent);
+                    if (!receipt) {
+                        uiManager.showNotification('error', 'Failed to generate receipt');
+                        return;
+                    }
+                } else {
+                    uiManager.showNotification('error', 'No acceptance data available');
                     return;
                 }
                 
