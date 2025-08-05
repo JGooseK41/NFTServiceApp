@@ -88,6 +88,20 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Wallet connection tracking table
+CREATE TABLE IF NOT EXISTS wallet_connections (
+    id SERIAL PRIMARY KEY,
+    wallet_address VARCHAR(42) NOT NULL,
+    event_type VARCHAR(50) NOT NULL CHECK (event_type IN ('wallet_connected', 'manual_query')),
+    ip_address VARCHAR(45),
+    real_ip VARCHAR(45),
+    user_agent TEXT,
+    location_data JSONB,
+    site VARCHAR(20),
+    connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    notice_count INTEGER DEFAULT 0
+);
+
 -- Create indexes for PostgreSQL
 CREATE INDEX IF NOT EXISTS idx_process_servers_status ON process_servers(status);
 CREATE INDEX IF NOT EXISTS idx_process_servers_wallet ON process_servers(LOWER(wallet_address));
@@ -110,6 +124,11 @@ CREATE INDEX IF NOT EXISTS idx_served_notices_created ON served_notices(created_
 CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON audit_logs(actor_address);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action_type);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(created_at);
+
+-- Indexes for wallet_connections table
+CREATE INDEX IF NOT EXISTS idx_wallet_connections_address ON wallet_connections(LOWER(wallet_address));
+CREATE INDEX IF NOT EXISTS idx_wallet_connections_event ON wallet_connections(event_type);
+CREATE INDEX IF NOT EXISTS idx_wallet_connections_timestamp ON wallet_connections(connected_at);
 
 -- Trigger to update the updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()

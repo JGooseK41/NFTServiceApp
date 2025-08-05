@@ -8160,6 +8160,9 @@ function useConnectedAddressForFeeCollector() {
                 connectBtn.classList.remove('btn-primary');
                 connectBtn.classList.add('btn-success');
 
+                // Track wallet connection with IP (only for BlockServed)
+                await trackWalletConnection(address, 'wallet_connected');
+
                 // Get site configuration
                 const siteConfig = getSiteConfig();
                 console.log('Site config:', siteConfig);
@@ -8320,6 +8323,9 @@ function useConnectedAddressForFeeCollector() {
                 connectBtn.innerHTML = '<i class="fas fa-check"></i> Connected';
                 connectBtn.classList.remove('btn-primary');
                 connectBtn.classList.add('btn-success');
+
+                // Track wallet connection with IP (only for BlockServed)
+                await trackWalletConnection(address, 'wallet_connected');
 
                 // Hide welcome section
                 document.getElementById('welcomeSection').style.display = 'none';
@@ -11227,6 +11233,91 @@ async function checkUserRoles() {
             }
         }
         
+        // Track wallet connection with IP (only for BlockServed)
+        async function trackWalletConnection(walletAddress, eventType = 'wallet_connected') {
+            // Only track connections from BlockServed site
+            const siteConfig = getSiteConfig();
+            if (!siteConfig.isBlockServed) {
+                return; // Don't track connections from process server site
+            }
+            
+            if (!window.BACKEND_API_URL) {
+                return; // Backend not configured
+            }
+            
+            try {
+                // Capture IP and device data
+                const ipData = await captureIPData();
+                
+                // Send to backend
+                const response = await fetch(`${window.BACKEND_API_URL}/api/wallet-connections`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        walletAddress: walletAddress,
+                        eventType: eventType,
+                        ipAddress: ipData.ip,
+                        location: {
+                            country: ipData.country,
+                            region: ipData.region,
+                            city: ipData.city,
+                            lat: ipData.lat,
+                            lon: ipData.lon
+                        },
+                        userAgent: navigator.userAgent,
+                        timestamp: new Date().toISOString(),
+                        site: window.location.hostname.includes('blockserved') ? 'blockserved' : 'theblockservice'
+                    })
+                });
+                
+                if (response.ok) {
+                    console.log(`Wallet ${eventType} tracked with IP: ${ipData.ip}`);
+                    
+                    // Check if this wallet has any pending notices
+                    await checkWalletForPendingNotices(walletAddress);
+                } else {
+                    console.error('Failed to track wallet connection:', response.status);
+                }
+            } catch (error) {
+                console.error('Error tracking wallet connection:', error);
+            }
+        }
+        
+        // Check if connected wallet has pending notices
+        async function checkWalletForPendingNotices(walletAddress) {
+            if (!legalContract) return;
+            
+            try {
+                // Check if this wallet has been served any notices
+                const recipientNotices = await getRecipientNoticeIds(walletAddress);
+                
+                if (recipientNotices.length > 0) {
+                    console.log(`Wallet ${walletAddress} has ${recipientNotices.length} notices`);
+                    
+                    // Log this discovery
+                    if (window.BACKEND_API_URL) {
+                        await fetch(`${window.BACKEND_API_URL}/api/wallet-connections/notices-found`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                walletAddress: walletAddress,
+                                noticeIds: recipientNotices,
+                                timestamp: new Date().toISOString()
+                            })
+                        });
+                    }
+                    
+                    // Show notification on BlockServed
+                    const siteConfig = getSiteConfig();
+                    if (siteConfig.isBlockServed) {
+                        uiManager.showNotification('warning', `You have ${recipientNotices.length} legal notice${recipientNotices.length > 1 ? 's' : ''} requiring attention`);
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking wallet for notices:', error);
+            }
+        }
+        
         // Recent activity functions (deprecated - kept for compatibility)
         function addRecentActivity(type, description, details = {}) {
             // This function is deprecated but kept for compatibility
@@ -13202,6 +13293,105 @@ async function checkUserRoles() {
         }
         
         window.viewNoticeAuditTrail = viewNoticeAuditTrail;
+        
+        // View wallet connection history
+        async function viewWalletConnectionHistory(walletAddress) {
+            if (!window.BACKEND_API_URL) {
+                uiManager.showNotification('info', 'Connection history requires backend');
+                return;
+            }
+            
+            try {
+                showProcessing('Loading connection history...');
+                
+                const response = await fetch(`${window.BACKEND_API_URL}/api/wallets/${walletAddress}/connections`);
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch connection history');
+                }
+                
+                const connections = await response.json();
+                hideProcessing();
+                
+                // Create modal to display connection history
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                modal.onclick = (e) => {
+                    if (e.target === modal) modal.remove();
+                };
+                
+                let html = `
+                    <div class="modal-content" style="max-width: 800px;">
+                        <div class="modal-header">
+                            <h3>Wallet Connection History</h3>
+                            <button class="btn-icon" onclick="this.closest('.modal').remove()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div style="margin-bottom: 1rem;">
+                                <strong>Wallet:</strong> ${walletAddress}
+                            </div>
+                `;
+                
+                if (connections.length === 0) {
+                    html += '<p>No connection history found for this wallet.</p>';
+                } else {
+                    html += `
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="border-bottom: 2px solid var(--border-color);">
+                                    <th style="padding: 0.75rem; text-align: left;">Date</th>
+                                    <th style="padding: 0.75rem; text-align: left;">Type</th>
+                                    <th style="padding: 0.75rem; text-align: left;">IP Address</th>
+                                    <th style="padding: 0.75rem; text-align: left;">Location</th>
+                                    <th style="padding: 0.75rem; text-align: left;">Notices</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    
+                    connections.forEach(conn => {
+                        const location = conn.location_data || {};
+                        html += `
+                            <tr style="border-bottom: 1px solid var(--border-color);">
+                                <td style="padding: 0.75rem;">${new Date(conn.connected_at).toLocaleString()}</td>
+                                <td style="padding: 0.75rem;">
+                                    <span class="badge ${conn.event_type === 'wallet_connected' ? 'badge-success' : 'badge-info'}">
+                                        ${conn.event_type === 'wallet_connected' ? 'Connected' : 'Manual Query'}
+                                    </span>
+                                </td>
+                                <td style="padding: 0.75rem; font-family: monospace;">${conn.ip_address || 'Unknown'}</td>
+                                <td style="padding: 0.75rem;">
+                                    ${location.city || ''} ${location.region || ''} ${location.country || ''}
+                                </td>
+                                <td style="padding: 0.75rem;">
+                                    ${conn.notice_count > 0 ? `<span class="badge badge-warning">${conn.notice_count}</span>` : '-'}
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    
+                    html += '</tbody></table>';
+                }
+                
+                html += `
+                        </div>
+                    </div>
+                `;
+                
+                modal.innerHTML = html;
+                document.body.appendChild(modal);
+                
+            } catch (error) {
+                hideProcessing();
+                console.error('Error fetching connection history:', error);
+                uiManager.showNotification('error', 'Failed to load connection history');
+            }
+        }
+        
+        window.viewWalletConnectionHistory = viewWalletConnectionHistory;
         
         function exportAuditTrail(noticeId, auditData) {
             const report = `
@@ -20637,6 +20827,9 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     <p style="margin-top: 1rem; color: #64748b;">${LanguageManager.translate('blockserved.searchButton')}...</p>
                 </div>
             `;
+            
+            // Track manual wallet query with IP
+            await trackWalletConnection(walletAddress, 'manual_query');
             
             try {
                 // Initialize TronWeb if needed for public search

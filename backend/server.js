@@ -489,6 +489,120 @@ app.post('/api/notices/:noticeId/metadata', async (req, res) => {
   }
 });
 
+// ======================
+// WALLET CONNECTION TRACKING
+// ======================
+
+// Track wallet connections and queries
+app.post('/api/wallet-connections', async (req, res) => {
+  try {
+    const {
+      walletAddress,
+      eventType,
+      ipAddress,
+      location,
+      userAgent,
+      site
+    } = req.body;
+
+    const realIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+
+    // Log the connection
+    const result = await pool.query(
+      `INSERT INTO wallet_connections 
+      (wallet_address, event_type, ip_address, real_ip, user_agent, location_data, site)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *`,
+      [
+        walletAddress.toLowerCase(),
+        eventType,
+        ipAddress || realIp,
+        realIp,
+        userAgent,
+        JSON.stringify(location),
+        site
+      ]
+    );
+
+    // Check how many notices this wallet has
+    const noticeCount = await pool.query(
+      `SELECT COUNT(*) as count 
+       FROM served_notices 
+       WHERE LOWER(recipient_address) = LOWER($1)`,
+      [walletAddress]
+    );
+
+    // Update notice count
+    await pool.query(
+      `UPDATE wallet_connections 
+       SET notice_count = $1 
+       WHERE id = $2`,
+      [noticeCount.rows[0].count, result.rows[0].id]
+    );
+
+    // Log to audit trail
+    await pool.query(
+      `INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [eventType, walletAddress, null, JSON.stringify({ site, location }), realIp]
+    );
+
+    res.json({ 
+      success: true, 
+      connectionId: result.rows[0].id,
+      noticeCount: noticeCount.rows[0].count 
+    });
+  } catch (error) {
+    console.error('Error tracking wallet connection:', error);
+    res.status(500).json({ error: 'Failed to track wallet connection' });
+  }
+});
+
+// Log when notices are found for a connected wallet
+app.post('/api/wallet-connections/notices-found', async (req, res) => {
+  try {
+    const { walletAddress, noticeIds } = req.body;
+
+    // Update the latest connection for this wallet
+    await pool.query(
+      `UPDATE wallet_connections 
+       SET notice_count = $1 
+       WHERE wallet_address = $2 
+       AND connected_at = (
+         SELECT MAX(connected_at) 
+         FROM wallet_connections 
+         WHERE wallet_address = $2
+       )`,
+      [noticeIds.length, walletAddress.toLowerCase()]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating wallet notices:', error);
+    res.status(500).json({ error: 'Failed to update wallet notices' });
+  }
+});
+
+// Get wallet connection history for a specific wallet
+app.get('/api/wallets/:walletAddress/connections', async (req, res) => {
+  try {
+    const { walletAddress } = req.params;
+    
+    const connections = await pool.query(
+      `SELECT * FROM wallet_connections 
+       WHERE LOWER(wallet_address) = LOWER($1) 
+       ORDER BY connected_at DESC 
+       LIMIT 100`,
+      [walletAddress]
+    );
+
+    res.json(connections.rows);
+  } catch (error) {
+    console.error('Error fetching wallet connections:', error);
+    res.status(500).json({ error: 'Failed to fetch connections' });
+  }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
