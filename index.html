@@ -7063,7 +7063,7 @@ function parsePackedData(packedData) {
                     <div class="activity-item">
                         <div class="activity-info">
                             <div class="activity-type">${tx.noticeType || 'Legal Notice'}</div>
-                            <div class="activity-details">To: ${tx.recipient.substring(0, 10)}...</div>
+                            <div class="activity-details">To: ${formatAddress(tx.recipient)}</div>
                         </div>
                         <div class="activity-time">${this.formatTime(tx.timestamp)}</div>
                     </div>
@@ -7456,7 +7456,7 @@ function parsePackedData(packedData) {
                                 serverAddr = serverField;
                             }
                             
-                            if (serverAddr && serverAddr.toLowerCase() === myAddress.toLowerCase()) {
+                            if (serverAddr && ensureBase58Address(serverAddr).toLowerCase() === ensureBase58Address(myAddress).toLowerCase()) {
                                 isMyNotice = true;
                             }
                         }
@@ -7505,7 +7505,7 @@ function parsePackedData(packedData) {
                                 serverAddr = serverField;
                             }
                             
-                            if (serverAddr && serverAddr.toLowerCase() === myAddress.toLowerCase()) {
+                            if (serverAddr && ensureBase58Address(serverAddr).toLowerCase() === ensureBase58Address(myAddress).toLowerCase()) {
                                 console.log(`Found alert notice #${i} served by me`);
                             }
                         }
@@ -9298,7 +9298,7 @@ function useConnectedAddressForFeeCollector() {
                 if (txData.recipient) {
                     content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
                     content += `<span>Recipient Wallet:</span>`;
-                    content += `<strong>${txData.recipient.substring(0, 10)}...${txData.recipient.substring(txData.recipient.length - 8)}</strong>`;
+                    content += `<strong>${formatAddress(txData.recipient)}</strong>`;
                     content += `</div>`;
                 }
                 
@@ -9536,7 +9536,7 @@ function useConnectedAddressForFeeCollector() {
                     if (txData.recipient) {
                         content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
                         content += `<span>Recipient:</span>`;
-                        content += `<strong>${txData.recipient.substring(0, 10)}...${txData.recipient.substring(txData.recipient.length - 8)}</strong>`;
+                        content += `<strong>${formatAddress(txData.recipient)}</strong>`;
                         content += `</div>`;
                     }
                     
@@ -11442,7 +11442,7 @@ async function checkUserRoles() {
                                     <div style="flex: 1;">
                                         <div style="font-weight: 500;">Notice #${noticeId} - ${notice.acknowledged ? 'Accepted' : 'Pending'}</div>
                                         <div style="font-size: 0.85rem; color: var(--text-secondary);">
-                                            To: ${notice.recipient.substring(0, 6)}...${notice.recipient.substring(notice.recipient.length - 4)}
+                                            To: ${formatAddress(notice.recipient)}
                                         </div>
                                         <div style="font-size: 0.75rem; color: var(--text-muted);">${timeAgo}</div>
                                     </div>
@@ -11967,7 +11967,7 @@ async function checkUserRoles() {
                                 if (eventForNotice.result && eventForNotice.result.server) {
                                     try {
                                         const eventServer = tronWeb.address.fromHex(eventForNotice.result.server);
-                                        eventServerMatches = eventServer.toLowerCase() === serverAddress.toLowerCase();
+                                        eventServerMatches = ensureBase58Address(eventServer).toLowerCase() === ensureBase58Address(serverAddress).toLowerCase();
                                         console.log(`Event data for notice ${noticeId} shows server: ${eventServer}, matches: ${eventServerMatches}`);
                                         
                                         // For document notices with empty server fields, use event server info
@@ -11992,7 +11992,7 @@ async function checkUserRoles() {
                                             const ownerAddress = txInfo.raw_data.contract[0].parameter.value.owner_address;
                                             if (ownerAddress) {
                                                 txSenderAddress = tronWeb.address.fromHex('41' + ownerAddress);
-                                                const senderMatches = txSenderAddress.toLowerCase() === serverAddress.toLowerCase();
+                                                const senderMatches = ensureBase58Address(txSenderAddress).toLowerCase() === ensureBase58Address(serverAddress).toLowerCase();
                                                 console.log(`Transaction sender for document notice ${noticeId}: ${txSenderAddress}, matches: ${senderMatches}`);
                                                 if (senderMatches) {
                                                     eventServerMatches = true;
@@ -12008,9 +12008,9 @@ async function checkUserRoles() {
                             }
                             
                             const isServerAlert = serverFromAlert && 
-                                                 serverFromAlert.toLowerCase() === serverAddress.toLowerCase();
+                                                 ensureBase58Address(serverFromAlert).toLowerCase() === ensureBase58Address(serverAddress).toLowerCase();
                             const isServerDoc = serverFromDoc && 
-                                               serverFromDoc.toLowerCase() === serverAddress.toLowerCase();
+                                               ensureBase58Address(serverFromDoc).toLowerCase() === ensureBase58Address(serverAddress).toLowerCase();
                             
                             // Check if this notice is from the server
                             // Accept notice if EITHER the contract storage OR the event shows this server
@@ -12041,7 +12041,16 @@ async function checkUserRoles() {
                         console.log(`Checked notices 0-${maxToCheck-1}`);
                         console.log(`Found ${events.length} notices belonging to ${serverAddress}`);
                         events.forEach(e => {
-                            console.log(`- Notice #${e.result.noticeId}: recipient ${e.result.recipient}`);
+                            // Convert hex recipient to base58 for display
+                            let displayRecipient = e.result.recipient;
+                            if (displayRecipient && displayRecipient.startsWith('41') && displayRecipient.length > 40) {
+                                try {
+                                    displayRecipient = tronWeb.address.fromHex(displayRecipient);
+                                } catch (conversionError) {
+                                    console.log('Could not convert recipient from hex:', conversionError);
+                                }
+                            }
+                            console.log(`- Notice #${e.result.noticeId}: recipient ${displayRecipient}`);
                         });
                     } catch (contractError) {
                         console.error('Direct contract query also failed:', contractError);
@@ -12111,7 +12120,7 @@ async function checkUserRoles() {
                         if (event.name === 'LegalNoticeCreated' && event.result.server) {
                             // LegalNoticeCreated event has server field
                             const eventServerAddress = tronWeb.address.fromHex(event.result.server);
-                            const matches = eventServerAddress === serverAddress;
+                            const matches = ensureBase58Address(eventServerAddress).toLowerCase() === ensureBase58Address(serverAddress).toLowerCase();
                             console.log(`LegalNoticeCreated event - server: ${eventServerAddress}, looking for: ${serverAddress}, matches: ${matches}`);
                             return matches;
                         } else if (event.name === 'NoticeServed') {
@@ -12167,9 +12176,25 @@ async function checkUserRoles() {
                             noticeId = event.result.noticeId || event.result.alertId || event.noticeId;
                         }
                         
-                        const recipientAddress = event.result.recipient.startsWith('T') ? 
-                                               event.result.recipient : 
-                                               tronWeb.address.fromHex(event.result.recipient);
+                        // Convert recipient address to base58 format for consistency
+                        let recipientAddress = event.result.recipient;
+                        if (recipientAddress) {
+                            if (recipientAddress.startsWith('T')) {
+                                // Already in base58 format
+                                recipientAddress = event.result.recipient;
+                            } else if (recipientAddress.startsWith('41') && recipientAddress.length > 40) {
+                                // Convert from hex to base58
+                                try {
+                                    recipientAddress = tronWeb.address.fromHex(recipientAddress);
+                                } catch (e) {
+                                    console.error('Error converting recipient address from hex:', e);
+                                    recipientAddress = event.result.recipient; // Keep original if conversion fails
+                                }
+                            } else {
+                                // Unknown format, log warning
+                                console.warn('Unknown recipient address format:', recipientAddress);
+                            }
+                        }
                         
                         console.log(`Processing notice ${noticeId} for recipient ${recipientAddress}`);
                         
@@ -12217,7 +12242,7 @@ async function checkUserRoles() {
                                 // For NoticeServed events without server info, check contract data
                                 if (event.name === 'NoticeServed' && docServer) {
                                     // Skip if this document doesn't belong to current server
-                                    if (docServer.toLowerCase() !== serverAddress.toLowerCase()) {
+                                    if (ensureBase58Address(docServer).toLowerCase() !== ensureBase58Address(serverAddress).toLowerCase()) {
                                         console.log(`Skipping document notice ${noticeId} - belongs to ${docServer}, not ${serverAddress}`);
                                         continue;
                                     }
@@ -12406,7 +12431,7 @@ async function checkUserRoles() {
                                             </span>
                                         </div>
                                         <div style="font-size: 0.875rem; color: var(--text-secondary);">
-                                            <div>To: ${noticeData.recipient.substring(0, 8)}...${noticeData.recipient.slice(-6)}</div>
+                                            <div>To: ${formatAddress(noticeData.recipient)}</div>
                                             <div>Type: ${noticeData.noticeType || 'Legal Notice'}</div>
                                             ${noticeData.caseNumber ? `<div>Case: ${noticeData.caseNumber}</div>` : ''}
                                             <div>Served: ${timeAgo}</div>
@@ -12585,7 +12610,43 @@ async function checkUserRoles() {
         // Helper functions
         function formatAddress(address) {
             if (!address) return 'N/A';
-            return address.substring(0, 8) + '...' + address.substring(address.length - 6);
+            // Ensure address is in base58 format before truncating
+            const base58Address = ensureBase58Address(address);
+            return base58Address.substring(0, 8) + '...' + base58Address.substring(base58Address.length - 6);
+        }
+        
+        // Convert any address format to base58 (T... format)
+        function ensureBase58Address(address) {
+            if (!address) return address;
+            
+            // Already in base58 format
+            if (address.startsWith('T')) {
+                return address;
+            }
+            
+            // Convert from hex to base58
+            if (address.startsWith('41') && address.length > 40) {
+                try {
+                    return tronWeb.address.fromHex(address);
+                } catch (e) {
+                    console.error('Error converting address from hex to base58:', e);
+                    return address; // Return original if conversion fails
+                }
+            }
+            
+            // Handle ethereum-style hex (0x...)
+            if (address.startsWith('0x') && address.length === 42) {
+                try {
+                    return tronWeb.address.fromHex('41' + address.slice(2));
+                } catch (e) {
+                    console.error('Error converting address from 0x format to base58:', e);
+                    return address;
+                }
+            }
+            
+            // Unknown format, return as-is with warning
+            console.warn('Unknown address format:', address);
+            return address;
         }
         
         // Server registration helper functions
@@ -21602,7 +21663,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     details += `
                         <div class="token-detail">
                             <span>Recipient:</span>
-                            <span>${result.recipient.substring(0, 10)}...${result.recipient.substring(result.recipient.length - 8)}</span>
+                            <span>${formatAddress(result.recipient)}</span>
                         </div>
                     `;
                 }
