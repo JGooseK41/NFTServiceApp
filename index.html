@@ -7388,6 +7388,43 @@ function parsePackedData(packedData) {
             console.log('=== End Debug ===');
         };
         
+        // Debug function to check all properties of contract data
+        window.debugContractData = async function(noticeId) {
+            if (!legalContract) {
+                console.error('Contract not initialized');
+                return;
+            }
+            
+            console.log(`=== Debugging Contract Data for Notice #${noticeId} ===`);
+            
+            try {
+                const alertData = await legalContract.alertNotices(noticeId).call();
+                console.log('Raw alert data:', alertData);
+                
+                if (alertData) {
+                    console.log('\nArray indices:');
+                    for (let i = 0; i < alertData.length; i++) {
+                        console.log(`[${i}]:`, alertData[i]);
+                    }
+                    
+                    console.log('\nNamed properties:');
+                    for (let key in alertData) {
+                        if (isNaN(key)) { // Skip numeric indices
+                            console.log(`${key}:`, alertData[key]);
+                        }
+                    }
+                    
+                    console.log('\nSpecific check for acknowledged:');
+                    console.log('alertData[11]:', alertData[11]);
+                    console.log('alertData.acknowledged:', alertData.acknowledged);
+                    console.log('typeof alertData[11]:', typeof alertData[11]);
+                    console.log('typeof alertData.acknowledged:', typeof alertData.acknowledged);
+                }
+            } catch (e) {
+                console.error('Error:', e);
+            }
+        };
+        
         // Manual function to find notices served by current user
         window.findMyServedNotices = async function(maxToCheck = 20) {
             if (!legalContract || !tronWeb || !tronWeb.defaultAddress) {
@@ -11217,7 +11254,14 @@ async function checkUserRoles() {
                             // Parse the alert data (it's returned as an array)
                             // alertNotices structure: [alertId, server, recipient, noticeData, tokenURI, noticeType, caseNumber, timestamp, deadline, agencyName, claimable, acknowledged]
                             if (alertData && Array.isArray(alertData)) {
-                                const acknowledged = alertData[11]; // Index 11 is acknowledged field
+                                // Prefer named property over array index
+                                let acknowledged = alertData.acknowledged;
+                                
+                                // Fallback to array index if named property is undefined
+                                if (acknowledged === undefined && alertData.length > 11) {
+                                    acknowledged = alertData[11];
+                                }
+                                
                                 console.log(`Notice ${noticeData.noticeId} acknowledged status:`, acknowledged);
                                 
                                 if (acknowledged === true) {
