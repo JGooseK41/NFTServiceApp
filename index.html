@@ -10972,31 +10972,46 @@ async function checkUserRoles() {
                 let accepted = 0;
                 let pending = 0;
                 
-                // Check acceptance status for each notice
+                // Check acceptance status for each notice by querying events
                 for (const noticeData of myNotices) {
                     try {
-                        // Check if notice has been accepted
-                        const alertData = await legalContract.alertNotices(noticeData.noticeId).call();
-                        console.log(`Notice ${noticeData.noticeId} alertData:`, alertData);
+                        let isAccepted = false;
                         
-                        // Check both acknowledged and accepted fields
-                        if (alertData && (alertData.acknowledged || alertData.accepted)) {
-                            accepted++;
-                        } else {
-                            pending++;
-                        }
-                    } catch (err) {
-                        // If can't get alert data, check document notices
+                        // Query for NoticeAccepted event for this specific notice ID
                         try {
-                            const docData = await legalContract.documentNotices(noticeData.noticeId).call();
-                            if (docData && docData.accepted) {
+                            const acceptanceEvents = await tronWeb.event.getEventsByContractAddress(
+                                CONTRACT_ADDRESS,
+                                {
+                                    eventName: 'NoticeAccepted',
+                                    onlyConfirmed: true,
+                                    filters: {
+                                        alertId: noticeData.noticeId
+                                    },
+                                    fingerprint: ''
+                                }
+                            );
+                            
+                            if (acceptanceEvents && acceptanceEvents.data && acceptanceEvents.data.length > 0) {
+                                console.log(`Notice ${noticeData.noticeId} has been accepted:`, acceptanceEvents.data[0]);
+                                isAccepted = true;
                                 accepted++;
                             } else {
                                 pending++;
                             }
-                        } catch (err2) {
-                            pending++;
+                        } catch (eventErr) {
+                            console.log(`Could not query acceptance events for notice ${noticeData.noticeId}:`, eventErr);
+                            
+                            // Fallback to checking contract state
+                            const alertData = await legalContract.alertNotices(noticeData.noticeId).call();
+                            if (alertData && (alertData.acknowledged || alertData.accepted)) {
+                                accepted++;
+                            } else {
+                                pending++;
+                            }
                         }
+                    } catch (err) {
+                        console.error('Error checking notice acceptance:', err);
+                        pending++;
                     }
                 }
                 
@@ -11141,6 +11156,28 @@ async function checkUserRoles() {
             }
         }
 
+        // Query blockchain for acceptance events
+        async function checkNoticeAcceptance(noticeId) {
+            try {
+                const acceptanceEvents = await tronWeb.event.getEventsByContractAddress(
+                    CONTRACT_ADDRESS,
+                    {
+                        eventName: 'NoticeAccepted',
+                        onlyConfirmed: true,
+                        filters: {
+                            alertId: noticeId
+                        },
+                        fingerprint: ''
+                    }
+                );
+                
+                return acceptanceEvents && acceptanceEvents.data && acceptanceEvents.data.length > 0;
+            } catch (error) {
+                console.error(`Error checking acceptance for notice ${noticeId}:`, error);
+                return false;
+            }
+        }
+        
         // Query blockchain for notices served by a specific address
         async function getServedNoticesFromBlockchain(serverAddress, limit = 10) {
             try {
@@ -11382,13 +11419,22 @@ async function checkUserRoles() {
                         let acceptanceData = null;
                         let ipData = null;
                         
-                        // Check if notice has been accepted
+                        // Check if notice has been accepted by querying for NoticeAccepted event
                         try {
-                            const alertData = await legalContract.alertNotices(noticeData.noticeId).call();
-                            console.log(`Checking acceptance for notice ${noticeData.noticeId}:`, alertData);
+                            const acceptanceEvents = await tronWeb.event.getEventsByContractAddress(
+                                CONTRACT_ADDRESS,
+                                {
+                                    eventName: 'NoticeAccepted',
+                                    onlyConfirmed: true,
+                                    filters: {
+                                        alertId: noticeData.noticeId
+                                    },
+                                    fingerprint: ''
+                                }
+                            );
                             
-                            // Check both acknowledged and accepted fields
-                            if (alertData && (alertData.acknowledged || alertData.accepted)) {
+                            if (acceptanceEvents && acceptanceEvents.data && acceptanceEvents.data.length > 0) {
+                                console.log(`Notice ${noticeData.noticeId} has NoticeAccepted event:`, acceptanceEvents.data[0]);
                                 isAccepted = true;
                                 
                                 // Get acceptance data from localStorage
