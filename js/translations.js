@@ -331,7 +331,7 @@ const translations = {
             // Accept notice
             acceptNotice: "接受通知",
             acceptanceRequired: "需要接受确认",
-            acceptanceInstructions: "点击"接受通知"，即表示您确认收到此法律文件。这相当于签收挂号邮件。",
+            acceptanceInstructions: "点击'接受通知'，即表示您确认收到此法律文件。这相当于签收挂号邮件。",
             acceptanceWarning: "您的签名仅确认收到，不代表同意内容。",
             transactionFee: "交易费用",
             feeSponsored: "费用已赞助 - 您无需支付",
@@ -358,7 +358,7 @@ const translations = {
             helpTitle: "使用说明",
             helpStep1: "连接您的TRON钱包或输入您的地址",
             helpStep2: "查看发送到您地址的所有法律通知",
-            helpStep3: "点击"接受通知"确认收到",
+            helpStep3: "点击'接受通知'确认收到",
             helpStep4: "访问并下载您的文档",
             helpNote: "注意：接受费用已赞助 - 您无需支付任何费用",
             
