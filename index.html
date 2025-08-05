@@ -11863,6 +11863,7 @@ async function checkUserRoles() {
                             // Parse array data: [alertId, server, recipient, noticeData, tokenURI, noticeType, caseNumber, timestamp, deadline, agencyName, claimable, acknowledged]
                             if (alertData && Array.isArray(alertData) && alertData.length > 11) {
                                 const acknowledged = alertData[11]; // Index 11 is acknowledged
+                                console.log(`Notice ${noticeData.noticeId} acknowledged status:`, acknowledged, 'type:', typeof acknowledged);
                                 if (acknowledged === true) {
                                     console.log(`Notice ${noticeData.noticeId} is accepted (acknowledged)`);
                                     isAccepted = true;
@@ -11874,6 +11875,29 @@ async function checkUserRoles() {
                                     // Get IP tracking data
                                     const visitLogs = JSON.parse(localStorage.getItem('noticeVisitLogs') || '{}');
                                     ipData = visitLogs[noticeData.noticeId] ? visitLogs[noticeData.noticeId][0] : null;
+                                }
+                            } else {
+                                console.log(`Notice ${noticeData.noticeId} alert data length:`, alertData ? alertData.length : 'null');
+                            }
+                            
+                            // If not acknowledged in alert, check document notices
+                            if (!isAccepted && noticeData.hasDocument) {
+                                try {
+                                    const docData = await retryWithDelay(async () => {
+                                        return await legalContract.documentNotices(noticeData.noticeId).call();
+                                    }, 3, 2000);
+                                    
+                                    // Parse array data: [documentId, server, recipient, ipfsHash, accepted]
+                                    if (docData && Array.isArray(docData) && docData.length > 4) {
+                                        const accepted = docData[4]; // Index 4 is accepted
+                                        console.log(`Notice ${noticeData.noticeId} document accepted status:`, accepted);
+                                        if (accepted === true) {
+                                            console.log(`Notice ${noticeData.noticeId} is accepted (document)`);
+                                            isAccepted = true;
+                                        }
+                                    }
+                                } catch (docErr) {
+                                    console.log('Error checking document notice:', docErr);
                                 }
                             }
                         } catch (err) {
@@ -12049,7 +12073,7 @@ async function checkUserRoles() {
                 }
                 
                 // Trigger the search
-                await searchNotice();
+                await performAudit();
                 
             } catch (error) {
                 console.error('Error opening audit view:', error);
