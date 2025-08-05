@@ -11863,10 +11863,15 @@ async function checkUserRoles() {
                             // Parse array data: [alertId, server, recipient, noticeData, tokenURI, noticeType, caseNumber, timestamp, deadline, agencyName, claimable, acknowledged]
                             if (alertData && Array.isArray(alertData) && alertData.length > 11) {
                                 const acknowledged = alertData[11]; // Index 11 is acknowledged
-                                console.log(`Notice ${noticeData.noticeId} acknowledged status:`, acknowledged, 'type:', typeof acknowledged);
-                                if (acknowledged === true) {
+                                console.log(`Notice ${noticeData.noticeId} acknowledged status:`, acknowledged, 'type:', typeof acknowledged, 'value:', JSON.stringify(acknowledged));
+                                
+                                // Check for true or truthy values (contract might return string or boolean)
+                                if (acknowledged === true || acknowledged === 'true' || acknowledged === '1' || acknowledged === 1) {
                                     console.log(`Notice ${noticeData.noticeId} is accepted (acknowledged)`);
                                     isAccepted = true;
+                                } else if (acknowledged === '' || acknowledged === null || acknowledged === undefined || acknowledged === false || acknowledged === 'false' || acknowledged === '0' || acknowledged === 0) {
+                                    console.log(`Notice ${noticeData.noticeId} is NOT acknowledged`);
+                                    isAccepted = false;
                                     
                                     // Get acceptance data from localStorage
                                     const acceptances = JSON.parse(localStorage.getItem('noticeAcceptances') || '{}');
@@ -16908,10 +16913,38 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         return;
                     }
                     
-                    // Get notice details
-                    const notice = await legalContract.notices(noticeId).call();
-                    // Extract acceptance status from packed data
-                    const accepted = ((BigInt(notice.packedData) >> 1n) & 1n) === 1n;
+                    // Get notice details - try different methods based on contract version
+                    let accepted = false;
+                    let notice = null;
+                    
+                    try {
+                        // Try v5 contract method first
+                        notice = await legalContract.notices(noticeId).call();
+                        if (notice && notice.packedData !== undefined) {
+                            // Extract acceptance status from packed data
+                            accepted = ((BigInt(notice.packedData) >> 1n) & 1n) === 1n;
+                        }
+                    } catch (e) {
+                        console.log('Could not get notice from notices mapping, trying alert/document notices');
+                    }
+                    
+                    // If that didn't work, try alert notices
+                    if (!notice) {
+                        try {
+                            const alertData = await legalContract.alertNotices(noticeId).call();
+                            if (alertData && Array.isArray(alertData) && alertData.length > 11) {
+                                accepted = alertData[11] === true || alertData[11] === 'true' || alertData[11] === 1;
+                                notice = {
+                                    server: alertData[1],
+                                    recipient: alertData[2],
+                                    noticeData: alertData[3],
+                                    timestamp: alertData[7]
+                                };
+                            }
+                        } catch (e) {
+                            console.log('Could not get alert notice data');
+                        }
+                    }
                     
                     // Display single notice
                     resultsDiv.innerHTML = await formatNoticeForAudit(notice, noticeId, accepted);
