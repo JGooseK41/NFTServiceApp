@@ -11008,6 +11008,10 @@ async function checkUserRoles() {
             try {
                 const userAddress = tronWeb.defaultAddress.base58;
                 
+                console.log('=== Server Stats Debug ===');
+                console.log('Current connected address:', userAddress);
+                console.log('TronWeb default address object:', tronWeb.defaultAddress);
+                
                 // Show loading state in stats
                 document.getElementById('totalServedStat').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
                 document.getElementById('acceptedStat').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
@@ -11639,7 +11643,10 @@ async function checkUserRoles() {
                             const isServerDoc = serverFromDoc && 
                                                serverFromDoc.toLowerCase() === serverAddress.toLowerCase();
                             
-                            if (isServerAlert || isServerDoc) {
+                            // Since the contract stores black hole as server, we can't rely on this for tracking
+                            // We would need to check events or transaction data
+                            // For now, skip the direct contract query method for server tracking
+                            if (false && (isServerAlert || isServerDoc)) {
                                 console.log(`Found notice ${noticeId} from server ${serverAddress}`);
                                 
                                 events.push({
@@ -11661,11 +11668,18 @@ async function checkUserRoles() {
                     }
                 }
                 
-                // Filter events by server address
+                // Filter events by server address - the event correctly shows msg.sender
                 const myEvents = events.filter(event => {
                     try {
+                        // The LegalNoticeCreated event emits msg.sender as the server
                         const eventServerAddress = tronWeb.address.fromHex(event.result.server);
-                        return eventServerAddress === serverAddress;
+                        const matches = eventServerAddress === serverAddress;
+                        
+                        if (event.result) {
+                            console.log(`Event server: ${eventServerAddress}, looking for: ${serverAddress}, matches: ${matches}`);
+                        }
+                        
+                        return matches;
                     } catch (e) {
                         console.error('Error processing event:', e);
                         return false;
