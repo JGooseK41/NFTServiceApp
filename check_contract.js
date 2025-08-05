@@ -1,39 +1,34 @@
-const { TronWeb } = require('tronweb');
+const TronWeb = require('tronweb');
 
 const tronWeb = new TronWeb({
-    fullHost: 'https://nile.trongrid.io'
+    fullHost: 'https://nile.trongrid.io',
+    headers: { "TRON-PRO-API-KEY": '9fc4cbb6-de76-486f-a8a3-bbf827c7d905' },
 });
 
 async function checkContract() {
-    const contractAddress = 'TFVXBcEobgRvRj9PWqQNWJTeqN5GkLyAuW';
-    
-    console.log('Checking contract at:', contractAddress);
+    const address = 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN';
     
     try {
-        // Get contract info
-        const contract = await tronWeb.trx.getContract(contractAddress);
-        
-        if (contract && contract.bytecode) {
-            console.log('✓ Contract exists on chain');
-            console.log('Contract name:', contract.name);
-            console.log('Origin address:', contract.origin_address);
-            console.log('Bytecode length:', contract.bytecode.length);
-            
-            // Check if it has an ABI
-            if (contract.abi && contract.abi.entrys) {
-                console.log('\nContract ABI functions:');
-                contract.abi.entrys.forEach(entry => {
-                    if (entry.type === 'Function') {
-                        console.log(`- ${entry.name}()`);
-                    }
-                });
+        // Check if contract exists
+        const contract = await tronWeb.trx.getContract(address);
+        console.log('Contract found:', contract.name);
+        console.log('Contract ABI methods:');
+        contract.abi.entrys.forEach(entry => {
+            if (entry.type === 'Function') {
+                console.log('-', entry.name);
             }
-        } else {
-            console.log('✗ No contract found at this address');
-        }
-        
+        });
     } catch (error) {
-        console.error('Error:', error.message);
+        console.error('Error checking contract:', error.message);
+        
+        // Try the other address you mentioned
+        console.log('\nTrying TNaps6xxSCuCvjxDyM2M5rhutuwq93xaLh...');
+        try {
+            const contract2 = await tronWeb.trx.getContract('TNaps6xxSCuCvjxDyM2M5rhutuwq93xaLh');
+            console.log('Contract found:', contract2.name);
+        } catch (e) {
+            console.error('Also failed:', e.message);
+        }
     }
 }
 

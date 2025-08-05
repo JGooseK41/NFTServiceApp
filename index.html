@@ -11768,13 +11768,20 @@ async function checkUserRoles() {
                     // Create a map of events by notice ID for cross-reference
                     events.forEach(event => {
                         if (event.result) {
-                            // LegalNoticeCreated has noticeId
-                            if (event.result.noticeId !== undefined) {
-                                eventsByNoticeId.set(event.result.noticeId.toString(), event);
+                            // For v5 contracts, NoticeServed has the correct IDs
+                            if (event.event_name === 'NoticeServed') {
+                                // Store by alertId for alert notices
+                                if (event.result.alertId !== undefined) {
+                                    eventsByNoticeId.set(event.result.alertId.toString(), event);
+                                }
+                                // Store by documentId for document notices
+                                if (event.result.documentId !== undefined) {
+                                    eventsByNoticeId.set(event.result.documentId.toString(), event);
+                                }
                             }
-                            // NoticeServed has documentId (which is the notice ID for document notices)
-                            if (event.result.documentId !== undefined) {
-                                eventsByNoticeId.set(event.result.documentId.toString(), event);
+                            // LegalNoticeCreated has noticeId (but it's totalNotices-1 in v5)
+                            else if (event.result.noticeId !== undefined) {
+                                eventsByNoticeId.set(event.result.noticeId.toString(), event);
                             }
                         }
                     });
@@ -12006,6 +12013,14 @@ async function checkUserRoles() {
                             const isServerDoc = serverFromDoc && 
                                                ensureBase58Address(serverFromDoc).toLowerCase() === ensureBase58Address(serverAddress).toLowerCase();
                             
+                            // Log the matching results for debugging
+                            console.log(`Notice ${noticeId} server check:
+                                - serverFromAlert: ${serverFromAlert} (matches: ${isServerAlert})
+                                - serverFromDoc: ${serverFromDoc} (matches: ${isServerDoc})
+                                - eventServerMatches: ${eventServerMatches}
+                                - Looking for server: ${serverAddress}
+                            `);
+                            
                             // Check if this notice is from the server
                             // Accept notice if EITHER the contract storage OR the event shows this server
                             // This handles the case where contract stores black hole but event has correct server
@@ -12169,9 +12184,11 @@ async function checkUserRoles() {
                     try {
                         // Handle different event types
                         let noticeId;
-                        if (event.name === 'NoticeServed') {
-                            // For NoticeServed events, use documentId as the notice ID
-                            noticeId = event.result.documentId;
+                        if (event.event_name === 'NoticeServed' || event.name === 'NoticeServed') {
+                            // For v5 NoticeServed events, we need to check the actual notice data
+                            // Use alertId as the primary notice ID
+                            noticeId = event.result.alertId;
+                            console.log(`Processing NoticeServed event - alertId: ${event.result.alertId}, documentId: ${event.result.documentId}`);
                         } else {
                             // For LegalNoticeCreated and direct queries
                             noticeId = event.result.noticeId || event.result.alertId || event.noticeId;
@@ -20512,7 +20529,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 
                 if (!legalContract) {
                     // Initialize contract if not already done
-                    const contractAddress = window.CONTRACT_ADDRESS || 'TNaps6xxSCuCvjxDyM2M5rhutuwq93xaLh';
+                    const contractAddress = window.CONTRACT_ADDRESS || 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN';
                     legalContract = await window.tronWeb.contract().at(contractAddress);
                 }
                 
