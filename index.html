@@ -3221,6 +3221,9 @@
                     <button class="btn btn-secondary btn-small" onclick="refreshRecentActivities()">
                         <i class="fas fa-sync"></i> Refresh
                     </button>
+                    <button class="btn btn-secondary btn-small" onclick="refreshRecentActivities(true)" title="Force refresh from blockchain">
+                        <i class="fas fa-sync-alt"></i> Force Refresh
+                    </button>
                 </div>
                 <div id="recentActivitiesContent">
                     <div class="empty-state">
@@ -11508,8 +11511,13 @@ async function checkUserRoles() {
                     const cacheAge = Date.now() - parsedCache.timestamp;
                     // Use cache if less than 5 minutes old
                     if (cacheAge < 5 * 60 * 1000) {
-                        console.log('Using cached blockchain data');
-                        return parsedCache.notices.slice(0, limit);
+                        console.log('Using cached blockchain data, notices:', parsedCache.notices.length);
+                        // Don't return empty cache
+                        if (parsedCache.notices.length > 0) {
+                            return parsedCache.notices.slice(0, limit);
+                        } else {
+                            console.log('Cache is empty, fetching fresh data');
+                        }
                     }
                 }
                 
@@ -11792,7 +11800,7 @@ async function checkUserRoles() {
         }
         
         // New function to refresh recent activities for process servers
-        async function refreshRecentActivities() {
+        async function refreshRecentActivities(forceRefresh = false) {
             const content = document.getElementById('recentActivitiesContent');
             if (!content) return;
             
@@ -11809,6 +11817,13 @@ async function checkUserRoles() {
             
             try {
                 const userAddress = tronWeb.defaultAddress.base58;
+                
+                // Clear cache if force refresh
+                if (forceRefresh) {
+                    const cacheKey = `blockchain_notices_${userAddress}`;
+                    localStorage.removeItem(cacheKey);
+                    console.log('Force refresh: cleared cache');
+                }
                 
                 // Show loading while querying blockchain
                 content.innerHTML = '<div style="text-align: center; padding: 2rem;"><i class="fas fa-spinner fa-spin"></i> Querying blockchain for recent notices...</div>';
