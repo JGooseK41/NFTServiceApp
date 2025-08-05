@@ -12419,22 +12419,8 @@ async function checkUserRoles() {
                             // Get IP tracking data
                             const visitLogs = JSON.parse(localStorage.getItem('noticeVisitLogs') || '{}');
                             ipData = visitLogs[noticeData.noticeId] ? visitLogs[noticeData.noticeId][0] : null;
-                                    
-                                    // Parse array data: [documentId, server, recipient, ipfsHash, accepted]
-                                    if (docData && Array.isArray(docData) && docData.length > 4) {
-                                        const accepted = docData[4]; // Index 4 is accepted
-                                        console.log(`Notice ${noticeData.noticeId} document accepted status:`, accepted);
-                                        if (accepted === true) {
-                                            console.log(`Notice ${noticeData.noticeId} is accepted (document)`);
-                                            isAccepted = true;
-                                        }
-                                    }
-                                } catch (docErr) {
-                                    console.log('Error checking document notice:', docErr);
-                                }
-                            }
                         } catch (err) {
-                            console.log('Error checking alert notice:', err);
+                            console.log('Error checking notice acceptance:', err);
                         }
                         
                         const timeAgo = getTimeAgo(new Date(noticeData.timestamp));
