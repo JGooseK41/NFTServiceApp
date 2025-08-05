@@ -11736,14 +11736,15 @@ async function checkUserRoles() {
                                 if (acknowledged === true) {
                                     console.log(`Notice ${noticeData.noticeId} is accepted (acknowledged)`);
                                     isAccepted = true;
-                                
-                                // Get acceptance data from localStorage
-                                const acceptances = JSON.parse(localStorage.getItem('noticeAcceptances') || '{}');
-                                acceptanceData = acceptances[noticeData.noticeId];
-                                
-                                // Get IP tracking data
-                                const visitLogs = JSON.parse(localStorage.getItem('noticeVisitLogs') || '{}');
-                                ipData = visitLogs[noticeData.noticeId] ? visitLogs[noticeData.noticeId][0] : null;
+                                    
+                                    // Get acceptance data from localStorage
+                                    const acceptances = JSON.parse(localStorage.getItem('noticeAcceptances') || '{}');
+                                    acceptanceData = acceptances[noticeData.noticeId];
+                                    
+                                    // Get IP tracking data
+                                    const visitLogs = JSON.parse(localStorage.getItem('noticeVisitLogs') || '{}');
+                                    ipData = visitLogs[noticeData.noticeId] ? visitLogs[noticeData.noticeId][0] : null;
+                                }
                             }
                         } catch (err) {
                             console.log('Error checking alert notice:', err);
