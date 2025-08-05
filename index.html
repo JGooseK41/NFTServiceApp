@@ -7346,18 +7346,18 @@ function parsePackedData(packedData) {
                 
                 if (alertData && Array.isArray(alertData) && alertData.length > 0) {
                     console.log('Alert notice fields:');
-                    console.log('- alertId (0):', alertData[0]);
+                    console.log('- recipient (0):', alertData[0]);
                     console.log('- server (1):', alertData[1]);
-                    console.log('- recipient (2):', alertData[2]);
-                    console.log('- noticeData (3):', alertData[3]);
-                    console.log('- tokenURI (4):', alertData[4]);
-                    console.log('- noticeType (5):', alertData[5]);
-                    console.log('- caseNumber (6):', alertData[6]);
-                    console.log('- timestamp (7):', alertData[7]);
-                    console.log('- deadline (8):', alertData[8]);
-                    console.log('- agencyName (9):', alertData[9]);
-                    console.log('- claimable (10):', alertData[10]);
-                    console.log('- acknowledged (11):', alertData[11]);
+                    console.log('- documentId (2):', alertData[2]);
+                    console.log('- timestamp (3):', alertData[3]);
+                    console.log('- acknowledged (4):', alertData[4]);
+                    console.log('- issuingAgency (5):', alertData[5]);
+                    console.log('- noticeType (6):', alertData[6]);
+                    console.log('- caseNumber (7):', alertData[7]);
+                    console.log('- noticeText (8):', alertData[8]);
+                    console.log('- legalRights (9):', alertData[9]);
+                    console.log('- deadline (10):', alertData[10]);
+                    console.log('- tokenURI (11):', alertData[11]);
                 }
             } catch (e) {
                 console.error('Error checking alert notice:', e);
@@ -11263,56 +11263,27 @@ async function checkUserRoles() {
                         try {
                             console.log(`Checking acceptance for notice ${noticeData.noticeId}...`);
                             
-                            // Check alert notices with retry for rate limiting
-                            const alertData = await retryWithDelay(async () => {
-                                return await legalContract.alertNotices(noticeData.noticeId).call();
+                            // Check document notices for acceptance status (this is what recipients accept)
+                            const docData = await retryWithDelay(async () => {
+                                return await legalContract.documentNotices(noticeData.noticeId).call();
                             });
-                            console.log(`Alert data for ${noticeData.noticeId}:`, alertData);
+                            console.log(`Document data for ${noticeData.noticeId}:`, docData);
                             
-                            // Parse the alert data (it's returned as an array)
-                            // alertNotices structure: [alertId, server, recipient, noticeData, tokenURI, noticeType, caseNumber, timestamp, deadline, agencyName, claimable, acknowledged]
-                            if (alertData && Array.isArray(alertData)) {
-                                // Prefer named property over array index
-                                let acknowledged = alertData.acknowledged;
+                            // documentNotices structure: [documentId, server, recipient, ipfsHash, accepted]
+                            if (docData && Array.isArray(docData) && docData.length > 4) {
+                                const acceptedStatus = docData[4]; // Index 4 is accepted field
+                                console.log(`Notice ${noticeData.noticeId} accepted status in documents:`, acceptedStatus);
                                 
-                                // Fallback to array index if named property is undefined
-                                if (acknowledged === undefined && alertData.length > 11) {
-                                    acknowledged = alertData[11];
-                                }
-                                
-                                console.log(`Notice ${noticeData.noticeId} acknowledged status:`, acknowledged);
-                                
-                                if (acknowledged === true) {
-                                    console.log(`Notice ${noticeData.noticeId} is acknowledged in alertNotices`);
+                                if (acceptedStatus === true || acceptedStatus === 'true' || acceptedStatus === 1) {
+                                    console.log(`Notice ${noticeData.noticeId} is accepted in documentNotices`);
                                     isAccepted = true;
                                     accepted++;
                                 } else {
-                                    // Check document notices with retry
-                                    const docData = await retryWithDelay(async () => {
-                                        return await legalContract.documentNotices(noticeData.noticeId).call();
-                                    });
-                                    console.log(`Document data for ${noticeData.noticeId}:`, docData);
-                                    
-                                    // documentNotices structure: [documentId, server, recipient, ipfsHash, accepted]
-                                    if (docData && Array.isArray(docData)) {
-                                        const accepted = docData[4]; // Index 4 is accepted field
-                                        console.log(`Notice ${noticeData.noticeId} accepted status in documents:`, accepted);
-                                        
-                                        if (accepted === true) {
-                                            console.log(`Notice ${noticeData.noticeId} is accepted in documentNotices`);
-                                            isAccepted = true;
-                                            accepted++;
-                                        } else {
-                                            console.log(`Notice ${noticeData.noticeId} is still pending`);
-                                            pending++;
-                                        }
-                                    } else {
-                                        console.log(`Notice ${noticeData.noticeId} is still pending`);
-                                        pending++;
-                                    }
+                                    console.log(`Notice ${noticeData.noticeId} is still pending`);
+                                    pending++;
                                 }
                             } else {
-                                console.log(`No valid alert data for notice ${noticeData.noticeId}`);
+                                console.log(`Notice ${noticeData.noticeId} has no document data or is pending`);
                                 pending++;
                             }
                         } catch (contractErr) {
@@ -11873,7 +11844,7 @@ async function checkUserRoles() {
                             }
                             
                             // Parse the data (returned as arrays)
-                            // alertNotices: [alertId, server, recipient, noticeData, tokenURI, noticeType, caseNumber, timestamp, deadline, agencyName, claimable, acknowledged]
+                            // alertNotices actual order: [recipient, server, documentId, timestamp, acknowledged, issuingAgency, noticeType, caseNumber, noticeText, legalRights, deadline, tokenURI]
                             // documentNotices: [documentId, server, recipient, ipfsHash, accepted]
                             
                             let serverFromAlert = null;
@@ -11881,7 +11852,7 @@ async function checkUserRoles() {
                             let recipientAddress = null;
                             
                             if (alertData && Array.isArray(alertData) && alertData.length > 1) {
-                                const serverHex = alertData[1]; // Index 1 is server
+                                const serverHex = alertData[1]; // Index 1 is server (sender)
                                 // Convert hex address to base58 if needed
                                 if (serverHex && serverHex.startsWith('41')) {
                                     try {
@@ -11894,7 +11865,7 @@ async function checkUserRoles() {
                                     serverFromAlert = serverHex;
                                 }
                                 
-                                const recipientHex = alertData[2]; // Index 2 is recipient
+                                const recipientHex = alertData[0]; // Index 0 is recipient
                                 // Handle BigInt values from contract
                                 if (recipientHex) {
                                     // Convert BigInt to hex string if needed
@@ -12240,10 +12211,10 @@ async function checkUserRoles() {
                             const alertData = await legalContract.alertNotices(noticeId).call();
                             console.log(`Alert data for notice ${noticeId}:`, alertData);
                             
-                            // Parse array data: [alertId, server, recipient, noticeData, tokenURI, noticeType, caseNumber, timestamp, deadline, agencyName, claimable, acknowledged]
+                            // Parse array data: [recipient, server, documentId, timestamp, acknowledged, issuingAgency, noticeType, caseNumber, noticeText, legalRights, deadline, tokenURI]
                             if (alertData && Array.isArray(alertData) && alertData.length > 1 && alertData[1]) {
-                                noticeType = alertData[5] || 'Legal Notice'; // Index 5 is noticeType
-                                caseNumber = alertData[6] || ''; // Index 6 is caseNumber
+                                noticeType = alertData[6] || 'Legal Notice'; // Index 6 is noticeType
+                                caseNumber = alertData[7] || ''; // Index 7 is caseNumber
                                 alertId = noticeId;
                             }
                         } catch (e) {
@@ -12415,51 +12386,39 @@ async function checkUserRoles() {
                         let acceptanceData = null;
                         let ipData = null;
                         
-                        // Check if notice has been accepted - use direct contract check
+                        // Check if notice has been accepted - check documentNotices first
                         try {
-                            // Check alert notices first with retry for rate limiting
-                            const alertData = await retryWithDelay(async () => {
-                                return await legalContract.alertNotices(noticeData.noticeId).call();
+                            // For process servers, we need to check documentNotices for acceptance
+                            const docData = await retryWithDelay(async () => {
+                                return await legalContract.documentNotices(noticeData.noticeId).call();
                             }, 3, 2000); // 3 retries with 2 second delay
                             
-                            // Parse array data - contract returns both array and named properties
-                            if (alertData) {
-                                // Try named property first (more reliable)
-                                let acknowledged = alertData.acknowledged;
+                            console.log(`Document data for ${noticeData.noticeId}:`, docData);
+                            
+                            // documentNotices structure: [documentId, server, recipient, ipfsHash, accepted]
+                            if (docData && Array.isArray(docData) && docData.length > 4) {
+                                const accepted = docData[4]; // Index 4 is accepted field
+                                console.log(`Notice ${noticeData.noticeId} accepted status in documents:`, accepted);
                                 
-                                // Fallback to array index if named property doesn't exist
-                                if (acknowledged === undefined && Array.isArray(alertData) && alertData.length > 11) {
-                                    acknowledged = alertData[11];
-                                }
-                                
-                                console.log(`Notice ${noticeData.noticeId} acknowledged status:`, acknowledged, 'type:', typeof acknowledged);
-                                
-                                // Check for true or truthy values
-                                if (acknowledged === true) {
-                                    console.log(`Notice ${noticeData.noticeId} is accepted (acknowledged)`);
+                                if (accepted === true || accepted === 'true' || accepted === 1) {
+                                    console.log(`Notice ${noticeData.noticeId} is accepted in documentNotices`);
                                     isAccepted = true;
                                 } else {
-                                    console.log(`Notice ${noticeData.noticeId} is NOT acknowledged`);
+                                    console.log(`Notice ${noticeData.noticeId} is NOT accepted in documentNotices`);
                                     isAccepted = false;
-                                    
-                                    // Get acceptance data from localStorage
-                                    const acceptances = JSON.parse(localStorage.getItem('noticeAcceptances') || '{}');
-                                    acceptanceData = acceptances[noticeData.noticeId];
-                                    
-                                    // Get IP tracking data
-                                    const visitLogs = JSON.parse(localStorage.getItem('noticeVisitLogs') || '{}');
-                                    ipData = visitLogs[noticeData.noticeId] ? visitLogs[noticeData.noticeId][0] : null;
                                 }
                             } else {
-                                console.log(`Notice ${noticeData.noticeId} alert data length:`, alertData ? alertData.length : 'null');
+                                console.log(`Notice ${noticeData.noticeId} has no document data or invalid structure`);
+                                isAccepted = false;
                             }
                             
-                            // If not acknowledged in alert, check document notices
-                            if (!isAccepted && noticeData.hasDocument) {
-                                try {
-                                    const docData = await retryWithDelay(async () => {
-                                        return await legalContract.documentNotices(noticeData.noticeId).call();
-                                    }, 3, 2000);
+                            // Get acceptance data from localStorage for additional info
+                            const acceptances = JSON.parse(localStorage.getItem('noticeAcceptances') || '{}');
+                            acceptanceData = acceptances[noticeData.noticeId];
+                            
+                            // Get IP tracking data
+                            const visitLogs = JSON.parse(localStorage.getItem('noticeVisitLogs') || '{}');
+                            ipData = visitLogs[noticeData.noticeId] ? visitLogs[noticeData.noticeId][0] : null;
                                     
                                     // Parse array data: [documentId, server, recipient, ipfsHash, accepted]
                                     if (docData && Array.isArray(docData) && docData.length > 4) {
@@ -17766,13 +17725,13 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     if (!notice) {
                         try {
                             const alertData = await legalContract.alertNotices(noticeId).call();
-                            if (alertData && Array.isArray(alertData) && alertData.length > 11) {
-                                accepted = alertData[11] === true || alertData[11] === 'true' || alertData[11] === 1;
+                            if (alertData && Array.isArray(alertData) && alertData.length > 4) {
+                                accepted = alertData[4] === true || alertData[4] === 'true' || alertData[4] === 1;
                                 notice = {
                                     server: alertData[1],
-                                    recipient: alertData[2],
-                                    noticeData: alertData[3],
-                                    timestamp: alertData[7]
+                                    recipient: alertData[0],
+                                    noticeData: alertData[2], // documentId
+                                    timestamp: alertData[3]
                                 };
                             }
                         } catch (e) {
@@ -18659,6 +18618,106 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             }
         };
         
+        // Debug function to check why notice #1 isn't showing
+        window.debugNotice1 = async function() {
+            console.log('=== DEBUGGING NOTICE #1 ===');
+            
+            if (!legalContract || !tronWeb) {
+                console.error('Contract or TronWeb not initialized');
+                return;
+            }
+            
+            const serverAddress = tronWeb.defaultAddress.base58;
+            console.log('Current wallet address:', serverAddress);
+            
+            try {
+                // Check documentNotices[1]
+                console.log('\n1. Checking documentNotices[1]:');
+                const docData = await legalContract.documentNotices(1).call();
+                console.log('Document data:', docData);
+                if (docData && Array.isArray(docData)) {
+                    console.log('- documentId:', docData[0]);
+                    console.log('- server:', docData[1]);
+                    console.log('- recipient:', docData[2]);
+                    console.log('- ipfsHash:', docData[3]);
+                    console.log('- accepted:', docData[4]);
+                    
+                    // Convert server address if hex
+                    if (docData[1] && docData[1].startsWith('41')) {
+                        try {
+                            const serverBase58 = tronWeb.address.fromHex(docData[1]);
+                            console.log('- server (base58):', serverBase58);
+                            console.log('- matches current wallet?', serverBase58.toLowerCase() === serverAddress.toLowerCase());
+                        } catch (e) {
+                            console.error('Could not convert server address');
+                        }
+                    }
+                }
+                
+                // Check alertNotices[1]
+                console.log('\n2. Checking alertNotices[1]:');
+                const alertData = await legalContract.alertNotices(1).call();
+                console.log('Alert data:', alertData);
+                if (alertData && Array.isArray(alertData)) {
+                    console.log('- recipient:', alertData[0]);
+                    console.log('- server:', alertData[1]);
+                    console.log('- documentId:', alertData[2]);
+                    console.log('- timestamp:', alertData[3]);
+                    console.log('- acknowledged:', alertData[4]);
+                    
+                    // Convert server address if hex
+                    if (alertData[1] && alertData[1].startsWith('41')) {
+                        try {
+                            const serverBase58 = tronWeb.address.fromHex(alertData[1]);
+                            console.log('- server (base58):', serverBase58);
+                            console.log('- matches current wallet?', serverBase58.toLowerCase() === serverAddress.toLowerCase());
+                        } catch (e) {
+                            console.error('Could not convert server address');
+                        }
+                    }
+                }
+                
+                // Check events
+                console.log('\n3. Checking events for notice #1:');
+                const events = await tronWeb.event.getEventsByContractAddress(
+                    CONTRACT_ADDRESS,
+                    {
+                        onlyConfirmed: true,
+                        orderBy: 'block_timestamp,desc',
+                        limit: 200,
+                        fingerprint: ''
+                    }
+                );
+                
+                const notice1Events = events.data?.filter(e => 
+                    (e.result?.noticeId === '1' || e.result?.documentId === '1' || e.result?.alertId === '1')
+                );
+                
+                console.log('Events for notice #1:', notice1Events);
+                
+                // Run getServedNoticesFromBlockchain
+                console.log('\n4. Running getServedNoticesFromBlockchain:');
+                const notices = await getServedNoticesFromBlockchain(serverAddress, 10);
+                console.log('Returned notices:', notices);
+                console.log('Notice IDs:', notices.map(n => n.noticeId));
+                
+                // Check if notice #1 is in the list
+                const hasNotice1 = notices.some(n => n.noticeId === '1' || n.noticeId === 1);
+                console.log('Notice #1 in list?', hasNotice1);
+                
+                if (!hasNotice1) {
+                    console.log('\n5. Possible reasons notice #1 is not showing:');
+                    console.log('- Server address mismatch');
+                    console.log('- Notice was created by different wallet');
+                    console.log('- Event filtering issue');
+                    console.log('- Cache issue (try force refresh)');
+                }
+                
+            } catch (error) {
+                console.error('Debug error:', error);
+            }
+        };
+        
         // Refresh delivery status
         async function refreshDeliveryStatus() {
             if (!legalContract || !tronWeb.defaultAddress) {
@@ -18672,25 +18731,36 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             }
             
             try {
-                // Get all notices sent by current user
-                const totalNotices = 0 // Complete contract doesn't have totalSupply;
+                // Get all notices sent by current user from blockchain
+                const userAddress = tronWeb.defaultAddress.base58;
+                const myNotices = await getServedNoticesFromBlockchain(userAddress, 100);
+                
+                console.log('Delivery tracking - found notices:', myNotices.length);
+                
                 const deliveryData = [];
                 
-                for (let i = 0; i < totalNotices; i++) {
+                // Check each notice for acceptance status
+                for (const noticeData of myNotices) {
                     try {
-                        const notice = await legalContract.getNotice(i).call();
-                        if (notice.sender.toLowerCase() === tronWeb.defaultAddress.base58.toLowerCase()) {
-                            // Extract acceptance status from packed data
-                            const accepted = ((BigInt(notice.packedData) >> 1n) & 1n) === 1n;
-                            deliveryData.push({
-                                id: i,
-                                notice: notice,
-                                accepted: accepted,
-                                status: accepted ? 'delivered' : 'pending'
-                            });
+                        // Check document notices for acceptance
+                        const docData = await retryWithDelay(async () => {
+                            return await legalContract.documentNotices(noticeData.noticeId).call();
+                        });
+                        
+                        // documentNotices structure: [documentId, server, recipient, ipfsHash, accepted]
+                        let accepted = false;
+                        if (docData && Array.isArray(docData) && docData.length > 4) {
+                            accepted = docData[4] === true || docData[4] === 'true' || docData[4] === 1;
                         }
+                        
+                        deliveryData.push({
+                            id: noticeData.noticeId,
+                            notice: noticeData,
+                            accepted: accepted,
+                            status: accepted ? 'delivered' : 'pending'
+                        });
                     } catch (e) {
-                        console.error(`Error fetching notice ${i}:`, e);
+                        console.error(`Error checking notice ${noticeData.noticeId}:`, e);
                     }
                 }
                 
@@ -18701,9 +18771,9 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 const deliveryRate = totalSent > 0 ? Math.round((delivered / totalSent) * 100) : 0;
                 
                 // Update stat displays
-                document.getElementById('totalNoticesSent').textContent = totalSent;
-                document.getElementById('deliveredCount').textContent = delivered;
-                document.getElementById('pendingCount').textContent = pending;
+                document.getElementById('totalSentNotices').textContent = totalSent;
+                document.getElementById('deliveredNotices').textContent = delivered;
+                document.getElementById('pendingDelivery').textContent = pending;
                 document.getElementById('deliveryRate').textContent = deliveryRate + '%';
                 
                 // Display results
@@ -18717,9 +18787,9 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                 <span class="status">${d.status === 'delivered' ? 'Delivered' : 'Pending'}</span>
                             </div>
                             <div class="delivery-details">
-                                <p><strong>Recipient:</strong> ${d.notice.recipient}</p>
-                                <p><strong>Type:</strong> ${d.notice.noticeType}</p>
-                                <p><strong>Sent:</strong> ${new Date(Number(d.notice.timestamp) * 1000).toLocaleString()}</p>
+                                <p><strong>Recipient:</strong> ${d.notice.recipient || 'Unknown'}</p>
+                                <p><strong>Type:</strong> ${d.notice.noticeType || 'Legal Notice'}</p>
+                                <p><strong>Sent:</strong> ${d.notice.timestamp ? new Date(Number(d.notice.timestamp) * 1000).toLocaleString() : 'Unknown'}</p>
                                 ${d.accepted ? `<p><strong>Accepted:</strong> ${new Date(Number(d.accepted) * 1000).toLocaleString()}</p>` : ''}
                             </div>
                         </div>
@@ -19491,11 +19561,11 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 const alertData = await legalContract.alertNotices(noticeId).call();
                 console.log('Alert data:', alertData);
                 
-                if (alertData && Array.isArray(alertData) && alertData.length > 11) {
-                    console.log('Acknowledged field (index 11):', alertData[11]);
-                    console.log('Type:', typeof alertData[11]);
-                    console.log('Value:', JSON.stringify(alertData[11]));
-                    console.log('Is acknowledged:', alertData[11] === true);
+                if (alertData && Array.isArray(alertData) && alertData.length > 4) {
+                    console.log('Acknowledged field (index 4):', alertData[4]);
+                    console.log('Type:', typeof alertData[4]);
+                    console.log('Value:', JSON.stringify(alertData[4]));
+                    console.log('Is acknowledged:', alertData[4] === true);
                 }
                 
                 // Check document notice if exists
@@ -20688,7 +20758,16 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                             continue;
                         }
                         
-                        // Try to get alert notice data if this is an alert ID
+                        // Try to get document notice data (this is what recipients accept)
+                        let docData = null;
+                        try {
+                            docData = await legalContract.documentNotices(noticeId).call();
+                            console.log(`Document data for ${noticeId}:`, docData);
+                        } catch (e) {
+                            console.log(`No document data for ${noticeId}`);
+                        }
+                        
+                        // Try to get alert notice data for additional details
                         let alertData = null;
                         try {
                             alertData = await legalContract.alertNotices(noticeId).call();
@@ -20697,35 +20776,47 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                             console.log(`No alert data for ${noticeId}`);
                         }
                         
-                        // Use alert data if available, otherwise try to parse notice data
+                        // Use document data for acceptance status, alert data for details
                         let timestamp, serverId, hasDocument, accepted;
                         
-                        if (alertData && alertData.timestamp) {
-                            // Use alert notice data directly
-                            timestamp = parseInt(alertData.timestamp);
+                        // Check acceptance from documentNotices (index 4)
+                        if (docData && Array.isArray(docData) && docData.length > 4) {
+                            accepted = docData[4] === true || docData[4] === 'true' || docData[4] === 1;
+                            console.log(`Document notice ${noticeId} accepted status:`, accepted);
+                        } else {
+                            accepted = false;
+                        }
+                        
+                        // Get timestamp and other details from alertData
+                        if (alertData && Array.isArray(alertData) && alertData.length > 3) {
+                            timestamp = parseInt(alertData[3]); // Index 3 is timestamp
                             serverId = 0; // Not in alert data
-                            hasDocument = false; // Check separately
-                            accepted = alertData.acknowledged || false;
+                            hasDocument = true; // If we have docData, we have a document
                         } else if (notice.timestamp) {
-                            // Direct fields available
+                            // Fallback to direct fields if available
                             timestamp = parseInt(notice.timestamp);
                             serverId = notice.serverId || 0;
                             hasDocument = notice.hasDocument || false;
-                            accepted = notice.accepted || notice.acknowledged || false;
                         } else if (notice.packedData) {
                             // Use packed data
                             const parsed = parsePackedData(notice.packedData);
                             timestamp = parsed.timestamp;
                             serverId = parsed.serverId;
                             hasDocument = parsed.hasDocument;
-                            accepted = parsed.accepted;
                         } else {
                             console.warn(`Notice ${noticeId} has no recognizable data structure`);
                             continue;
                         }
                         
-                        // Get sender info and convert from hex if needed
-                        let sender = alertData?.sender || notice.sender || notice.server || 'Unknown';
+                        // Get sender info from documentNotices (index 1) or alertNotices (index 1)
+                        let sender = 'Unknown';
+                        if (docData && Array.isArray(docData) && docData.length > 1 && docData[1]) {
+                            sender = docData[1]; // Index 1 in documentNotices is server
+                        } else if (alertData && Array.isArray(alertData) && alertData.length > 1 && alertData[1]) {
+                            sender = alertData[1]; // Index 1 in alertNotices is server
+                        }
+                        
+                        // Convert from hex if needed
                         if (sender && sender.startsWith('41') && sender.length > 50) {
                             try {
                                 sender = tronWeb.address.fromHex(sender);
@@ -20734,9 +20825,16 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                             }
                         }
                         
-                        const noticeType = alertData?.noticeType || notice.noticeType || 'Legal Notice';
-                        const caseNumber = alertData?.caseNumber || notice.caseNumber || '';
-                        const issuingAgency = alertData?.issuingAgency || '';
+                        // Get notice details from alertData
+                        let noticeType = 'Legal Notice';
+                        let caseNumber = '';
+                        let issuingAgency = '';
+                        
+                        if (alertData && Array.isArray(alertData)) {
+                            noticeType = alertData[6] || 'Legal Notice'; // Index 6 is noticeType
+                            caseNumber = alertData[7] || ''; // Index 7 is caseNumber
+                            issuingAgency = alertData[5] || ''; // Index 5 is issuingAgency
+                        }
                         
                         html += `
                             <div class="notice-item">
