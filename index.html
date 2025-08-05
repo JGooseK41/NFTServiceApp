@@ -11523,6 +11523,7 @@ async function checkUserRoles() {
                 
                 // Get events from the blockchain
                 let events = [];
+                let eventsByNoticeId = new Map(); // Map to store events by notice ID
                 try {
                     // Use the contract instance to get events with retry
                     const eventResult = await retryWithDelay(async () => {
@@ -11540,6 +11541,13 @@ async function checkUserRoles() {
                     
                     events = eventResult.data || [];
                     console.log('Total events found:', events.length);
+                    
+                    // Create a map of events by notice ID for cross-reference
+                    events.forEach(event => {
+                        if (event.result && event.result.noticeId !== undefined) {
+                            eventsByNoticeId.set(event.result.noticeId.toString(), event);
+                        }
+                    });
                 } catch (eventError) {
                     console.error('Error fetching events:', eventError);
                     
@@ -11552,7 +11560,12 @@ async function checkUserRoles() {
                         
                         // Try to get individual notices
                         const noticePromises = [];
-                        const maxToCheck = Math.min(parseInt(totalNotices), 50); // Check last 50
+                        // Check at least 10 notices even if totalNotices is lower
+                        // This handles the case where totalNotices() returns incorrect count
+                        const minToCheck = 10;
+                        const reportedTotal = parseInt(totalNotices);
+                        const maxToCheck = Math.max(minToCheck, Math.min(reportedTotal, 50)); // Check at least 10, max 50
+                        console.log(`Checking notices 0-${maxToCheck-1} (totalNotices reports ${reportedTotal}, but checking at least ${minToCheck})`)
                         
                         // Process in smaller batches to avoid rate limiting
                         const batchSize = 5;
@@ -11583,6 +11596,12 @@ async function checkUserRoles() {
                         
                         // Filter for notices from this server
                         for (const {noticeId, alertData, docData} of noticeResults) {
+                            // Skip if both are null (notice doesn't exist)
+                            if (!alertData && !docData) {
+                                console.log(`Notice ${noticeId} does not exist (both alert and doc data are null)`);
+                                continue;
+                            }
+                            
                             console.log(`Checking notice ${noticeId} - alertData:`, alertData, 'docData:', docData);
                             
                             // Parse the data (returned as arrays)
@@ -11655,14 +11674,28 @@ async function checkUserRoles() {
                                 console.log(`Raw doc data - server (index 1): ${docData[1]}`);
                             }
                             
+                            // Check if there's an event for this notice ID that has the correct server
+                            const eventForNotice = eventsByNoticeId.get(noticeId.toString());
+                            let eventServerMatches = false;
+                            if (eventForNotice && eventForNotice.result && eventForNotice.result.server) {
+                                try {
+                                    const eventServer = tronWeb.address.fromHex(eventForNotice.result.server);
+                                    eventServerMatches = eventServer.toLowerCase() === serverAddress.toLowerCase();
+                                    console.log(`Event data for notice ${noticeId} shows server: ${eventServer}, matches: ${eventServerMatches}`);
+                                } catch (e) {
+                                    console.log('Could not parse event server address');
+                                }
+                            }
+                            
                             const isServerAlert = serverFromAlert && 
                                                  serverFromAlert.toLowerCase() === serverAddress.toLowerCase();
                             const isServerDoc = serverFromDoc && 
                                                serverFromDoc.toLowerCase() === serverAddress.toLowerCase();
                             
                             // Check if this notice is from the server
-                            // For notice data, we need to check the actual stored server address
-                            if (isServerAlert || isServerDoc) {
+                            // Accept notice if EITHER the contract storage OR the event shows this server
+                            // This handles the case where contract stores black hole but event has correct server
+                            if (isServerAlert || isServerDoc || eventServerMatches) {
                                 console.log(`Found notice ${noticeId} from server ${serverAddress}`);
                                 
                                 events.push({
@@ -11679,6 +11712,12 @@ async function checkUserRoles() {
                         }
                         
                         console.log('Found notices via direct query:', events.length);
+                        console.log(`=== Notice Discovery Summary ===`);
+                        console.log(`Checked notices 0-${maxToCheck-1}`);
+                        console.log(`Found ${events.length} notices belonging to ${serverAddress}`);
+                        events.forEach(e => {
+                            console.log(`- Notice #${e.result.noticeId}: recipient ${e.result.recipient}`);
+                        });
                     } catch (contractError) {
                         console.error('Direct contract query also failed:', contractError);
                     }
@@ -11706,8 +11745,29 @@ async function checkUserRoles() {
                 
                 // Convert events to notice data and get additional details
                 const notices = [];
-                // Process both event-based and direct query results
-                const allEvents = [...myEvents, ...events.filter(e => !myEvents.find(me => me.result.noticeId === e.result.noticeId))];
+                // Combine event-based and direct query results, avoiding duplicates
+                const processedNoticeIds = new Set();
+                const allEvents = [];
+                
+                // Add events from API first (they have correct server info)
+                myEvents.forEach(event => {
+                    const noticeId = event.result.noticeId?.toString();
+                    if (noticeId && !processedNoticeIds.has(noticeId)) {
+                        processedNoticeIds.add(noticeId);
+                        allEvents.push(event);
+                    }
+                });
+                
+                // Add events from direct query that weren't in API results
+                events.forEach(event => {
+                    const noticeId = event.result.noticeId?.toString();
+                    if (noticeId && !processedNoticeIds.has(noticeId)) {
+                        processedNoticeIds.add(noticeId);
+                        allEvents.push(event);
+                    }
+                });
+                
+                console.log(`Processing ${allEvents.length} unique notices for server ${serverAddress}`);
                 
                 for (const event of allEvents) {
                     try {
