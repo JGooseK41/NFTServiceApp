@@ -7521,6 +7521,19 @@ function parsePackedData(packedData) {
             
             return myNotices;
         };
+        
+        // Clear notice cache for debugging
+        window.clearNoticeCache = function() {
+            const keys = Object.keys(localStorage);
+            let cleared = 0;
+            keys.forEach(key => {
+                if (key.startsWith('blockchain_notices_')) {
+                    localStorage.removeItem(key);
+                    cleared++;
+                }
+            });
+            console.log(`Cleared ${cleared} notice cache entries`);
+        };
 
         // Initialize tooltips
         function initializeTooltips() {
@@ -11713,14 +11726,19 @@ async function checkUserRoles() {
                 // Check cache first
                 const cacheKey = `blockchain_notices_${serverAddress}`;
                 const cached = localStorage.getItem(cacheKey);
+                let skipCache = false;
+                
                 if (cached) {
                     const parsedCache = JSON.parse(cached);
                     const cacheAge = Date.now() - parsedCache.timestamp;
                     // Use cache if less than 5 minutes old
                     if (cacheAge < 5 * 60 * 1000) {
                         console.log('Using cached blockchain data, notices:', parsedCache.notices.length);
-                        // Don't return empty cache
-                        if (parsedCache.notices.length > 0) {
+                        // Check if cache might be incomplete (only has notice 0 when we expect more)
+                        if (parsedCache.notices.length === 1 && parsedCache.notices[0].noticeId === '0') {
+                            console.log('Cache only has notice 0, checking for more notices...');
+                            skipCache = true;
+                        } else if (parsedCache.notices.length > 0) {
                             return parsedCache.notices.slice(0, limit);
                         } else {
                             console.log('Cache is empty, fetching fresh data');
@@ -12275,11 +12293,42 @@ async function checkUserRoles() {
                     }
                 }
                 
-                // Cache the results
-                localStorage.setItem(cacheKey, JSON.stringify({
-                    notices: notices,
-                    timestamp: Date.now()
-                }));
+                // If we found notices through direct query but events failed, 
+                // merge the direct query results with any processed notices
+                if (events.length > 0 && notices.length === 0) {
+                    console.log('Events found through direct query but not processed, processing them now...');
+                    for (const event of events) {
+                        try {
+                            const noticeId = event.result.noticeId;
+                            const recipientAddress = ensureBase58Address(event.result.recipient);
+                            
+                            const noticeInfo = {
+                                noticeId: noticeId.toString(),
+                                recipient: recipientAddress,
+                                noticeType: 'Legal Notice',
+                                caseNumber: '',
+                                timestamp: parseInt(event.result.timestamp) * 1000 || Date.now(),
+                                txHash: event.transaction || 'N/A',
+                                blockNumber: event.block || 0,
+                                hasDocument: true,
+                                documentId: noticeId,
+                                alertId: noticeId
+                            };
+                            
+                            notices.push(noticeInfo);
+                        } catch (err) {
+                            console.error('Error processing direct query event:', err);
+                        }
+                    }
+                }
+                
+                // Cache the results only if we have notices
+                if (notices.length > 0) {
+                    localStorage.setItem(cacheKey, JSON.stringify({
+                        notices: notices,
+                        timestamp: Date.now()
+                    }));
+                }
                 
                 return notices.slice(0, limit);
                 
