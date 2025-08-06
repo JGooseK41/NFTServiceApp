@@ -21294,7 +21294,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         }
                         
                         // Use document data for acceptance status, alert data for details
-                        let timestamp, serverId, hasDocument, accepted;
+                        let serverId, hasDocument, accepted;
                         
                         // For v5 contracts, acceptance is tracked in alertNotices
                         // The document notice is linked to the alert via alertId
@@ -21349,15 +21349,11 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                             }
                         }
                         
-                        // Get notice details from alertData
-                        let noticeType = 'Legal Notice';
-                        let caseNumber = '';
-                        let issuingAgency = '';
-                        
+                        // Update notice details from alertData if different
                         if (alertData && Array.isArray(alertData)) {
-                            noticeType = alertData[6] || 'Legal Notice'; // Index 6 is noticeType
-                            caseNumber = alertData[7] || ''; // Index 7 is caseNumber
-                            issuingAgency = alertData[5] || ''; // Index 5 is issuingAgency
+                            noticeType = alertData[6] || noticeType; // Index 6 is noticeType
+                            caseNumber = alertData[7] || caseNumber; // Index 7 is caseNumber
+                            issuingAgency = alertData[5] || issuingAgency; // Index 5 is issuingAgency
                         }
                         
                         html += `
