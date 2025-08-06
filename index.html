@@ -11871,7 +11871,11 @@ async function checkUserRoles() {
                         browserType: localAcceptanceData?.browserType || 'Unknown',
                         deviceType: localAcceptanceData?.deviceType || 'Unknown',
                         screenResolution: localAcceptanceData?.screenResolution || 'Unknown',
-                        userAgent: localAcceptanceData?.userAgent || navigator.userAgent
+                        userAgent: localAcceptanceData?.userAgent || navigator.userAgent,
+                        
+                        // Blockchain Info
+                        contractAddress: legalContract.address,
+                        tronScanUrl: `${getTronScanUrl()}/contract/${legalContract.address}#readContract`
                     };
                 } else if (acceptanceEvent) {
                     receipt = await generateAcceptanceReceipt(noticeId, acceptanceEvent);
@@ -11931,12 +11935,30 @@ async function checkUserRoles() {
                         
                         <div style="border: 2px solid #333; padding: 1.5rem;">
                             <h3 style="color: #1e293b;">Blockchain Verification</h3>
-                            <p style="color: #1e293b;"><strong>Contract Address:</strong> ${receipt.contractAddress}</p>
+                            <p style="color: #1e293b;"><strong>Contract Address:</strong> <code>${receipt.contractAddress}</code></p>
                             <p style="color: #1e293b;"><strong>Network:</strong> TRON ${tronWeb.fullNode.host.includes('nile') ? 'Nile Testnet' : 'Mainnet'}</p>
-                            <p><strong>Verify on TronScan:</strong> <a href="${receipt.tronScanUrl}" target="_blank" style="color: #0ea5e9;">${receipt.tronScanUrl}</a></p>
+                            ${receipt.acceptanceTxHash && receipt.acceptanceTxHash !== 'On-chain' && receipt.acceptanceTxHash !== 'N/A' ? `
+                                <p style="color: #1e293b;"><strong>Transaction Hash:</strong> <code>${receipt.acceptanceTxHash}</code></p>
+                                <p style="margin-top: 1rem;">
+                                    <a href="${getTronScanUrl()}/transaction/${receipt.acceptanceTxHash}" 
+                                       target="_blank" 
+                                       class="btn btn-primary" 
+                                       style="display: inline-block; padding: 0.5rem 1rem; background: #0891b2; color: white; text-decoration: none; border-radius: 4px;">
+                                        <i class="fas fa-external-link-alt"></i> View Transaction on TronScan
+                                    </a>
+                                </p>
+                            ` : ''}
+                            <p style="margin-top: ${receipt.acceptanceTxHash && receipt.acceptanceTxHash !== 'On-chain' ? '0.5rem' : '1rem'};">
+                                <a href="${receipt.tronScanUrl}" 
+                                   target="_blank" 
+                                   class="btn btn-secondary" 
+                                   style="display: inline-block; padding: 0.5rem 1rem; background: #64748b; color: white; text-decoration: none; border-radius: 4px;">
+                                    <i class="fas fa-search"></i> View Contract on TronScan
+                                </a>
+                            </p>
                         </div>
                         
-                        <div style="text-align: center; margin-top: 2rem; color: var(--text-secondary);">
+                        <div style="text-align: center; margin-top: 2rem; color: #64748b;">
                             <p>Generated: ${new Date().toLocaleString()}</p>
                             <p>This receipt confirms blockchain-verified acceptance of legal notice</p>
                         </div>
@@ -22201,6 +22223,21 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                     <i class="fas fa-info-circle"></i> 
                                     This receipt confirms that you have acknowledged receipt of the legal notice. 
                                     This acknowledgment is permanently recorded on the TRON blockchain.
+                                </div>
+                                
+                                <div style="margin-top: 1rem; padding: 1rem; background: white; border: 1px solid #e5e7eb; border-radius: 4px;">
+                                    <h5 style="color: #1e293b; margin-bottom: 0.5rem;">Blockchain Verification</h5>
+                                    <div style="color: #475569;">
+                                        <strong>Contract:</strong> ${legalContract.address}<br>
+                                        <strong>Alert ID:</strong> ${noticeId}<br>
+                                        <strong>Network:</strong> TRON ${tronWeb.fullNode.host.includes('nile') ? 'Nile Testnet' : 'Mainnet'}
+                                    </div>
+                                    <a href="${getTronScanUrl()}/contract/${legalContract.address}#readContract" 
+                                       target="_blank" 
+                                       class="btn btn-secondary" 
+                                       style="margin-top: 0.5rem; display: inline-block;">
+                                        <i class="fas fa-external-link-alt"></i> View on TronScan
+                                    </a>
                                 </div>
                             </div>
                             <div style="margin-top: 1rem; text-align: center;">
