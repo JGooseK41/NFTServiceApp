@@ -12006,7 +12006,7 @@ async function checkUserRoles() {
                         transactionHash: localAcceptanceData?.transactionHash || 'On-chain acknowledgment',
                         hasDocument: docData && docData[0] && docData[0] !== '', // Has encrypted IPFS
                         encryptedIPFS: docData ? docData[0] : null,
-                        decryptionKey: docData ? docData[1] : null
+                        decryptionKey: docData ? docData[1] : null,
                         
                         // Acceptance Information - use local data or defaults
                         acceptanceTimestamp: localAcceptanceData?.acceptanceTime ? new Date(localAcceptanceData.acceptanceTime) : new Date(),
