@@ -21342,7 +21342,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         
                         
                         html += `
-                            <div class="notice-item" style="background: #f8f9fa; border: 2px solid ${isAccepted ? '#22c55e' : '#f59e0b'}; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem;">
+                            <div class="notice-item" style="background: #f8f9fa; border: 2px solid ${isAccepted ? '#22c55e' : '#f59e0b'}; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; color: #1e293b;">
                                 <div class="notice-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                                     <h3 style="margin: 0; color: #1e293b;">
                                         <i class="fas fa-envelope-open-text"></i> Legal Notice (Alert #${alertId}, Document #${documentId})
@@ -21352,17 +21352,17 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                     </span>
                                 </div>
                                 
-                                <div class="notice-details">
-                                    <div style="display: grid; gap: 0.5rem; margin-bottom: 1rem;">
-                                        <div><strong>From:</strong> ${formatAddress(serverAddress)}</div>
-                                        ${issuingAgency ? `<div><strong>Agency:</strong> ${issuingAgency}</div>` : ''}
-                                        <div><strong>Date Served:</strong> ${formattedDate}</div>
-                                        <div><strong>Document Type:</strong> ${noticeType}</div>
-                                        ${caseNumber ? `<div><strong>Case Number:</strong> ${caseNumber}</div>` : ''}
+                                <div class="notice-details" style="color: #1e293b;">
+                                    <div style="display: grid; gap: 0.5rem; margin-bottom: 1rem; color: #1e293b;">
+                                        <div style="color: #1e293b;"><strong style="color: #1e293b;">From:</strong> ${formatAddress(serverAddress)}</div>
+                                        ${issuingAgency ? `<div style="color: #1e293b;"><strong style="color: #1e293b;">Agency:</strong> ${issuingAgency}</div>` : ''}
+                                        <div style="color: #1e293b;"><strong style="color: #1e293b;">Date Served:</strong> ${formattedDate}</div>
+                                        <div style="color: #1e293b;"><strong style="color: #1e293b;">Document Type:</strong> ${noticeType}</div>
+                                        ${caseNumber ? `<div style="color: #1e293b;"><strong style="color: #1e293b;">Case Number:</strong> ${caseNumber}</div>` : ''}
                                     </div>
                                     
                                     ${!isAccepted ? `
-                                        <div class="alert alert-warning" style="margin-bottom: 1rem;">
+                                        <div class="alert alert-warning" style="margin-bottom: 1rem; color: #856404;">
                                             <i class="fas fa-exclamation-triangle"></i> 
                                             <strong>Important:</strong> You must accept this notice to access the legal document. 
                                             Failure to respond may result in default judgment.
@@ -21372,7 +21372,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                             <i class="fas fa-signature"></i> Accept Notice & View Document
                                         </button>
                                     ` : `
-                                        <div class="alert alert-success" style="margin-bottom: 1rem;">
+                                        <div class="alert alert-success" style="margin-bottom: 1rem; color: #155724;">
                                             <i class="fas fa-check-circle"></i> 
                                             You have accepted this notice. The document is now available for viewing.
                                         </div>
@@ -21405,7 +21405,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
 
         // Accept a document notice
         async function acceptDocumentNotice(noticeId) {
-            if (!window.legalContract || !window.userAddress) {
+            if (!legalContract || !tronWeb || !tronWeb.defaultAddress) {
                 uiManager.showNotification('error', 'Please connect your wallet first');
                 return;
             }
@@ -21432,7 +21432,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
 
                         // Call acknowledgeAlert on contract
                         const result = await legalContract.acknowledgeAlert(noticeId).send({
-                            from: window.userAddress,
+                            from: tronWeb.defaultAddress.base58,
                             shouldPollResponse: true
                         });
 
@@ -21445,7 +21445,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
                                     noticeId,
-                                    acceptorAddress: window.userAddress,
+                                    acceptorAddress: tronWeb.defaultAddress.base58,
                                     transactionHash: result,
                                     timestamp: new Date().toISOString()
                                 })
@@ -21479,7 +21479,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
 
                 // Call acceptDocumentNotice on contract
                 const result = await legalContract.acceptDocumentNotice(noticeId).send({
-                    from: window.userAddress,
+                    from: tronWeb.defaultAddress.base58,
                     shouldPollResponse: true
                 });
 
@@ -21492,7 +21492,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             noticeId,
-                            acceptorAddress: window.userAddress,
+                            acceptorAddress: tronWeb.defaultAddress.base58,
                             transactionHash: result,
                             timestamp: new Date().toISOString()
                         })
@@ -21514,7 +21514,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
 
         // View an accepted document
         async function viewAcceptedDocument(documentId, encryptedIPFS) {
-            if (!window.legalContract || !window.userAddress) {
+            if (!legalContract || !tronWeb || !tronWeb.defaultAddress) {
                 uiManager.showNotification('error', 'Please connect your wallet first');
                 return;
             }
@@ -21578,7 +21578,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             noticeId: documentId,
-                            viewerAddress: window.userAddress,
+                            viewerAddress: tronWeb.defaultAddress.base58,
                             timestamp: new Date().toISOString()
                         })
                     });
@@ -21667,7 +21667,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                 <h4 style="text-align: center; margin-bottom: 1rem;">LEGAL NOTICE ACCEPTANCE RECEIPT</h4>
                                 <div style="margin-bottom: 1rem;">
                                     <strong>Notice ID:</strong> ${noticeId}<br>
-                                    <strong>Accepted By:</strong> ${window.userAddress}<br>
+                                    <strong>Accepted By:</strong> ${tronWeb.defaultAddress ? tronWeb.defaultAddress.base58 : 'Unknown'}<br>
                                     <strong>Acceptance Date:</strong> ${new Date().toLocaleString()}<br>
                                     <strong>Document Type:</strong> ${alertData[6] || 'Legal Notice'}<br>
                                     ${alertData[7] ? `<strong>Case Number:</strong> ${alertData[7]}<br>` : ''}
