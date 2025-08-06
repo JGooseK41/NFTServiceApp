@@ -15163,11 +15163,23 @@ async function checkUserRoles() {
                             <div class="step">
                                 <div class="step-number">4</div>
                                 <div class="step-content">
-                                    <strong>Download Document</strong>
-                                    <p>The document will decrypt automatically for you to save and review</p>
+                                    <strong>Download Document & Save Receipt</strong>
+                                    <p>The document will decrypt automatically. <strong>IMPORTANT: Save your acceptance receipt!</strong></p>
                                 </div>
                             </div>
                         </div>
+                        
+                        <div class="alert alert-success" style="margin-top: 1rem;">
+                            <h4>🔓 Document Access Options After Acceptance</h4>
+                            <p><strong>Your acceptance receipt contains everything needed to access your document forever:</strong></p>
+                            <ul>
+                                <li><strong>Option 1 - Through Our Website:</strong> Return anytime to view/download your document</li>
+                                <li><strong>Option 2 - Direct from IPFS:</strong> Use the IPFS hash in your receipt to download from any IPFS gateway</li>
+                                <li><strong>Option 3 - Independent Decryption:</strong> Use the decryption key in your receipt with any AES tool</li>
+                            </ul>
+                            <p style="margin-bottom: 0;"><em>You own permanent access to your document - no one can take it away or delete it.</em></p>
+                        </div>
+                        
                         <p><strong>FEES COVERED:</strong> The sender has provided 5.5 TRX total to your wallet:
                         <ul>
                             <li>2 TRX from the smart contract sponsorship</li>
@@ -15211,16 +15223,30 @@ async function checkUserRoles() {
                     answer: `
                         <p><strong>How to verify this is a real legal notice:</strong></p>
                         <ul>
-                            <li>✅ Sent via blockchain (permanent, verifiable record)</li>
-                            <li>✅ Contains case numbers and court information</li>
-                            <li>✅ From a verified process server with ID number</li>
-                            <li>✅ The sender paid fees to deliver this notice</li>
+                            <li>✅ <strong>Blockchain Verified:</strong> Check TronScan.org to see the permanent record</li>
+                            <li>✅ <strong>Document on IPFS:</strong> Document stored on decentralized network, not someone's server</li>
+                            <li>✅ <strong>Smart Contract:</strong> Delivered via auditable smart contract at ${CONTRACT_ADDRESS}</li>
+                            <li>✅ <strong>Costs Money to Send:</strong> Sender paid real fees (not free like spam)</li>
+                            <li>✅ <strong>Contains Legal Details:</strong> Real case numbers, court info, deadlines</li>
+                            <li>✅ <strong>Process Server ID:</strong> Verified server with registration number</li>
                         </ul>
+                        
+                        <div class="alert alert-success">
+                            <h4>✅ How to Independently Verify:</h4>
+                            <ol>
+                                <li>Go to TronScan.org</li>
+                                <li>Search for contract: ${CONTRACT_ADDRESS}</li>
+                                <li>Look at "Transactions" to see your notice</li>
+                                <li>Check the IPFS hash to verify document exists</li>
+                            </ol>
+                        </div>
+                        
                         <p><strong>Scammers typically:</strong></p>
                         <ul>
                             <li>❌ Ask you to send crypto or money</li>
                             <li>❌ Request your private keys or seed phrase</li>
                             <li>❌ Use email or social media, not blockchain</li>
+                            <li>❌ Have no verifiable blockchain record</li>
                         </ul>
                         <p><strong>This system NEVER asks for payment or private information. You're only signing to acknowledge receipt.</strong></p>
                     `
@@ -15232,35 +15258,110 @@ async function checkUserRoles() {
                             <div class="step">
                                 <div class="step-number">1</div>
                                 <div class="step-content">
+                                    <strong>SAVE YOUR ACCEPTANCE RECEIPT</strong>
+                                    <p>Download and save the receipt - it contains your IPFS hash, decryption key, and blockchain proof</p>
+                                </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">2</div>
+                                <div class="step-content">
                                     <strong>READ THE DOCUMENT CAREFULLY</strong>
                                     <p>Understand what legal action is being taken and any deadlines</p>
                                 </div>
                             </div>
                             <div class="step">
-                                <div class="step-number">2</div>
+                                <div class="step-number">3</div>
                                 <div class="step-content">
                                     <strong>NOTE ALL DEADLINES</strong>
                                     <p>Legal notices often have strict response deadlines - missing them forfeits your rights</p>
                                 </div>
                             </div>
                             <div class="step">
-                                <div class="step-number">3</div>
+                                <div class="step-number">4</div>
                                 <div class="step-content">
-                                    <strong>CONSULT AN ATTORNEY</strong>
-                                    <p>Get legal advice immediately - many attorneys offer free consultations</p>
+                                    <strong>VERIFY ON BLOCKCHAIN</strong>
+                                    <p>Use the TronScan link in your receipt to verify the transaction on the blockchain</p>
                                 </div>
                             </div>
                             <div class="step">
-                                <div class="step-number">4</div>
+                                <div class="step-number">5</div>
                                 <div class="step-content">
-                                    <strong>PRESERVE EVIDENCE</strong>
-                                    <p>Save the document and your acceptance receipt - you'll need these for court</p>
+                                    <strong>CONSULT AN ATTORNEY</strong>
+                                    <p>Get legal advice immediately - show them your receipt and document</p>
                                 </div>
                             </div>
                         </div>
+                        
+                        <div class="alert alert-info" style="margin-top: 1rem;">
+                            <h4>📋 What Your Receipt Contains:</h4>
+                            <ul>
+                                <li><strong>IPFS Hash:</strong> Permanent link to your encrypted document</li>
+                                <li><strong>Decryption Key:</strong> Key to decrypt your document independently</li>
+                                <li><strong>TronScan Links:</strong> Blockchain verification of service and acceptance</li>
+                                <li><strong>Timestamp:</strong> Exact date/time of acceptance (legally important)</li>
+                                <li><strong>IP & Location:</strong> Proof of where/when you accepted</li>
+                            </ul>
+                            <p style="margin-bottom: 0;"><strong>Keep this receipt forever - it's your proof of proper service and access key.</strong></p>
+                        </div>
+                        
                         <div class="alert alert-danger">
                             <p><strong>DO NOT IGNORE THE NOTICE - THE LEGAL PROCESS WILL CONTINUE WITH OR WITHOUT YOUR PARTICIPATION</strong></p>
                         </div>
+                    `
+                },
+                {
+                    question: "How is my document stored and can I always access it?",
+                    answer: `
+                        <div class="alert alert-success">
+                            <h4>🔒 Your Document is Permanently Stored</h4>
+                            <p><strong>You have PERMANENT access through multiple methods:</strong></p>
+                        </div>
+                        
+                        <h4>Where Your Document Lives:</h4>
+                        <ul>
+                            <li><strong>IPFS Network:</strong> Decentralized storage across thousands of computers worldwide</li>
+                            <li><strong>Encrypted:</strong> Only you (the recipient) can decrypt and read it</li>
+                            <li><strong>Blockchain Record:</strong> TRON blockchain stores the hash and decryption key forever</li>
+                            <li><strong>Cannot be Deleted:</strong> Once on IPFS and blockchain, it's permanent</li>
+                        </ul>
+                        
+                        <h4>Three Ways to Access Your Document:</h4>
+                        <div class="process-steps">
+                            <div class="step">
+                                <div class="step-number">1</div>
+                                <div class="step-content">
+                                    <strong>Through BlockServed.com</strong>
+                                    <p>Return anytime, connect wallet, view/download document</p>
+                                </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">2</div>
+                                <div class="step-content">
+                                    <strong>Direct IPFS Access</strong>
+                                    <p>Use any IPFS gateway with the hash from your receipt:<br>
+                                    Example: https://ipfs.io/ipfs/[your-hash]</p>
+                                </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">3</div>
+                                <div class="step-content">
+                                    <strong>Manual Decryption</strong>
+                                    <p>Download encrypted file from IPFS, use decryption key from receipt with any AES tool</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <p><strong>💡 Why This Matters:</strong></p>
+                            <ul>
+                                <li>Even if this website disappears, you can still access your document</li>
+                                <li>No one can delete or alter your document</li>
+                                <li>You have proof of exactly what was served to you</li>
+                                <li>Courts can verify the document hasn't been tampered with</li>
+                            </ul>
+                        </div>
+                        
+                        <p><strong>SAVE YOUR RECEIPT!</strong> It contains your IPFS hash and decryption key - everything you need for permanent access.</p>
                     `
                 },
                 {
@@ -15455,6 +15556,24 @@ async function checkUserRoles() {
                                     <p>Upon acceptance, document automatically decrypts for viewing/download</p>
                                 </div>
                             </div>
+                            <div class="step">
+                                <div class="step-number">11</div>
+                                <div class="step-content">
+                                    <strong>Receipt Generation</strong>
+                                    <p>Acceptance receipt includes IPFS hash, decryption key, and TronScan verification links</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-success" style="margin-top: 1rem;">
+                            <h4>🔓 Permanent Document Access</h4>
+                            <p><strong>Recipients receive THREE ways to access their documents forever:</strong></p>
+                            <ol>
+                                <li><strong>Through BlockServed.com:</strong> Return anytime with wallet connection</li>
+                                <li><strong>Direct IPFS Access:</strong> Use IPFS hash from receipt at any gateway (ipfs.io, Pinata, etc.)</li>
+                                <li><strong>Manual Decryption:</strong> Use decryption key from receipt with any AES tool</li>
+                            </ol>
+                            <p>This ensures recipients maintain permanent access even if websites go offline.</p>
                         </div>
                         
                         <div class="alert alert-info" style="margin-top: 1rem;">
@@ -15689,6 +15808,103 @@ async function checkUserRoles() {
                                 <li>This creates <strong>constructive notice</strong> - the owner cannot claim ignorance</li>
                                 <li>Document that notice has been "attached" to the assets for [time period]</li>
                             </ul>
+                        </div>
+                    `
+                },
+                {
+                    question: "🔐 Document Storage, Encryption & Permanent Access",
+                    answer: `
+                        <div class="alert alert-success">
+                            <h4>Three-Layer Security & Permanence System</h4>
+                            <p>Documents are stored with military-grade encryption and multiple redundancy layers:</p>
+                        </div>
+                        
+                        <h4>1️⃣ IPFS Storage (Decentralized)</h4>
+                        <ul>
+                            <li><strong>What:</strong> InterPlanetary File System - distributed storage across thousands of nodes</li>
+                            <li><strong>Why:</strong> Cannot be deleted, censored, or taken offline by any single entity</li>
+                            <li><strong>Access:</strong> Available via any IPFS gateway worldwide (ipfs.io, Pinata, Infura, etc.)</li>
+                            <li><strong>Permanence:</strong> Once uploaded, exists forever with content-addressed hash</li>
+                        </ul>
+                        
+                        <h4>2️⃣ AES-256 Encryption</h4>
+                        <ul>
+                            <li><strong>Standard:</strong> Military-grade AES-256-GCM encryption</li>
+                            <li><strong>Key Storage:</strong> Decryption key stored on TRON blockchain</li>
+                            <li><strong>Access Control:</strong> Only authorized recipient wallet can decrypt</li>
+                            <li><strong>Security:</strong> Even if IPFS file is public, content is unreadable without key</li>
+                        </ul>
+                        
+                        <h4>3️⃣ Blockchain Record (TRON)</h4>
+                        <ul>
+                            <li><strong>Smart Contract:</strong> Immutable record at ${CONTRACT_ADDRESS}</li>
+                            <li><strong>Contains:</strong> IPFS hash, decryption key, recipient address, timestamp</li>
+                            <li><strong>Verification:</strong> Anyone can verify document existence and service time</li>
+                            <li><strong>Cost:</strong> Once stored, no ongoing fees - permanent record</li>
+                        </ul>
+                        
+                        <div class="alert alert-info">
+                            <h4>📋 Recipient's Acceptance Receipt Contains:</h4>
+                            <table style="width: 100%; margin-top: 1rem;">
+                                <tr>
+                                    <td><strong>IPFS Hash:</strong></td>
+                                    <td>Direct link to encrypted document (e.g., QmX3n8...)</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Decryption Key:</strong></td>
+                                    <td>AES key to decrypt document independently</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Transaction Hash:</strong></td>
+                                    <td>TronScan link for blockchain verification</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Timestamp:</strong></td>
+                                    <td>Exact moment of acceptance (legally binding)</td>
+                                </tr>
+                            </table>
+                        </div>
+                        
+                        <h4>🔍 How Recipients Access Documents (3 Methods):</h4>
+                        <div class="process-steps">
+                            <div class="step">
+                                <div class="step-number">A</div>
+                                <div class="step-content">
+                                    <strong>Via BlockServed.com</strong>
+                                    <p>Easiest method - automatic decryption and display</p>
+                                </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">B</div>
+                                <div class="step-content">
+                                    <strong>Direct IPFS Download</strong>
+                                    <p>Go to: ipfs.io/ipfs/[hash-from-receipt]<br>
+                                    Download encrypted file, decrypt with key from receipt</p>
+                                </div>
+                            </div>
+                            <div class="step">
+                                <div class="step-number">C</div>
+                                <div class="step-content">
+                                    <strong>Blockchain Query</strong>
+                                    <p>Query smart contract directly for IPFS hash and key<br>
+                                    Technical users can build their own decryption tool</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-warning">
+                            <h4>⚖️ Legal Advantages:</h4>
+                            <ul>
+                                <li><strong>Chain of Custody:</strong> Cryptographic proof document hasn't been altered</li>
+                                <li><strong>Timestamp Proof:</strong> Blockchain timestamp is legally admissible</li>
+                                <li><strong>Multiple Access Points:</strong> Shows good faith effort to ensure accessibility</li>
+                                <li><strong>Permanent Availability:</strong> Document remains accessible for appeals/review</li>
+                                <li><strong>Independent Verification:</strong> Courts can verify directly without trusting any party</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="alert alert-success">
+                            <p><strong>Bottom Line:</strong> Recipients get TRUE ownership of their legal documents. Even if all websites go offline, they can still access their documents forever using the IPFS hash and decryption key from their receipt.</p>
                         </div>
                     `
                 },
