@@ -11877,15 +11877,15 @@ async function checkUserRoles() {
                 
                 // Format the receipt HTML
                 const receiptHTML = `
-                    <div class="receipt-container" style="padding: 2rem; font-family: monospace;">
+                    <div class="receipt-container" style="padding: 2rem; font-family: monospace; background: white; color: #1e293b;">
                         <div style="text-align: center; margin-bottom: 2rem;">
-                            <h2 style="margin: 0;">BLOCKCHAIN ACCEPTANCE RECEIPT</h2>
-                            <p style="color: var(--text-secondary); margin: 0.5rem 0;">Legal Notice Service Confirmation</p>
+                            <h2 style="margin: 0; color: #1e293b;">BLOCKCHAIN ACCEPTANCE RECEIPT</h2>
+                            <p style="color: #64748b; margin: 0.5rem 0;">Legal Notice Service Confirmation</p>
                         </div>
                         
                         <div style="border: 2px solid #333; padding: 1.5rem; margin-bottom: 2rem;">
-                            <h3>Notice Information</h3>
-                            <table style="width: 100%; font-size: 0.9rem;">
+                            <h3 style="color: #1e293b;">Notice Information</h3>
+                            <table style="width: 100%; font-size: 0.9rem; color: #1e293b;">
                                 <tr><td><strong>Notice ID:</strong></td><td>${receipt.noticeId}</td></tr>
                                 <tr><td><strong>Type:</strong></td><td>${receipt.noticeType}</td></tr>
                                 <tr><td><strong>Case Number:</strong></td><td>${receipt.caseNumber}</td></tr>
@@ -11895,8 +11895,8 @@ async function checkUserRoles() {
                         </div>
                         
                         <div style="border: 2px solid #333; padding: 1.5rem; margin-bottom: 2rem;">
-                            <h3>Acceptance Details</h3>
-                            <table style="width: 100%; font-size: 0.9rem;">
+                            <h3 style="color: #1e293b;">Acceptance Details</h3>
+                            <table style="width: 100%; font-size: 0.9rem; color: #1e293b;">
                                 <tr><td><strong>Accepted At:</strong></td><td>${receipt.acceptanceTimestamp.toLocaleString()}</td></tr>
                                 <tr><td><strong>UTC Time:</strong></td><td>${receipt.acceptanceTimestamp.toUTCString()}</td></tr>
                                 <tr><td><strong>Block Number:</strong></td><td>${receipt.acceptanceBlock}</td></tr>
@@ -11905,8 +11905,8 @@ async function checkUserRoles() {
                         </div>
                         
                         <div style="border: 2px solid #333; padding: 1.5rem; margin-bottom: 2rem;">
-                            <h3>Recipient Information</h3>
-                            <table style="width: 100%; font-size: 0.9rem;">
+                            <h3 style="color: #1e293b;">Recipient Information</h3>
+                            <table style="width: 100%; font-size: 0.9rem; color: #1e293b;">
                                 <tr><td><strong>IP Address:</strong></td><td>${receipt.ipAddress}</td></tr>
                                 <tr><td><strong>Location:</strong></td><td>${receipt.location.city || 'Unknown'}, ${receipt.location.region || ''} ${receipt.location.country || ''}</td></tr>
                                 <tr><td><strong>Timezone:</strong></td><td>${receipt.timezone}</td></tr>
@@ -11916,14 +11916,14 @@ async function checkUserRoles() {
                         </div>
                         
                         <div style="border: 2px solid #333; padding: 1.5rem; margin-bottom: 2rem;">
-                            <h3>Browser Information</h3>
-                            <p style="word-break: break-all; font-size: 0.8rem; margin: 0;">${receipt.userAgent}</p>
+                            <h3 style="color: #1e293b;">Browser Information</h3>
+                            <p style="word-break: break-all; font-size: 0.8rem; margin: 0; color: #1e293b;">${receipt.userAgent}</p>
                         </div>
                         
                         <div style="border: 2px solid #333; padding: 1.5rem;">
-                            <h3>Blockchain Verification</h3>
-                            <p><strong>Contract Address:</strong> ${receipt.contractAddress}</p>
-                            <p><strong>Network:</strong> TRON ${tronWeb.fullNode.host.includes('nile') ? 'Nile Testnet' : 'Mainnet'}</p>
+                            <h3 style="color: #1e293b;">Blockchain Verification</h3>
+                            <p style="color: #1e293b;"><strong>Contract Address:</strong> ${receipt.contractAddress}</p>
+                            <p style="color: #1e293b;"><strong>Network:</strong> TRON ${tronWeb.fullNode.host.includes('nile') ? 'Nile Testnet' : 'Mainnet'}</p>
                             <p><strong>Verify on TronScan:</strong> <a href="${receipt.tronScanUrl}" target="_blank" style="color: #0ea5e9;">${receipt.tronScanUrl}</a></p>
                         </div>
                         
@@ -13510,11 +13510,83 @@ async function checkUserRoles() {
             } catch (error) {
                 hideProcessing();
                 console.error('Error fetching audit trail:', error);
-                uiManager.showNotification('error', 'Failed to load audit trail. Backend may be offline.');
+                
+                // Show fallback audit trail with blockchain link
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 600px; background: white; color: #1e293b;">
+                        <div class="modal-header">
+                            <h2 style="color: #1e293b;"><i class="fas fa-history"></i> Notice Verification</h2>
+                            <button class="close-btn" onclick="this.closest('.modal').remove()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body" style="color: #1e293b;">
+                            <div class="alert alert-warning" style="background: #fef3c7; border: 1px solid #f59e0b; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; color: #92400e;">
+                                <i class="fas fa-exclamation-triangle"></i> 
+                                Backend audit service is currently offline. You can verify the notice directly on the blockchain.
+                            </div>
+                            
+                            <div style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px;">
+                                <h3 style="color: #1e293b; margin-bottom: 1rem;">Blockchain Verification</h3>
+                                <p style="margin-bottom: 1rem;">Verify this notice on TronScan:</p>
+                                
+                                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                    <a href="${getTronScanUrl()}/contract/${legalContract.address}" 
+                                       target="_blank" 
+                                       class="btn btn-primary" 
+                                       style="text-align: center;">
+                                        <i class="fas fa-external-link-alt"></i> View Contract on TronScan
+                                    </a>
+                                    
+                                    <button class="btn btn-secondary" onclick="copyToClipboard('${legalContract.address}')">
+                                        <i class="fas fa-copy"></i> Copy Contract Address
+                                    </button>
+                                    
+                                    <div style="margin-top: 1rem; padding: 1rem; background: white; border: 1px solid #e5e7eb; border-radius: 4px;">
+                                        <strong>Contract:</strong> ${legalContract.address}<br>
+                                        <strong>Notice ID:</strong> ${noticeId}<br>
+                                        <strong>Network:</strong> TRON ${tronWeb.fullNode.host.includes('nile') ? 'Nile Testnet' : 'Mainnet'}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
             }
         }
         
         window.viewNoticeAuditTrail = viewNoticeAuditTrail;
+        
+        // Get TronScan URL based on network
+        function getTronScanUrl() {
+            if (tronWeb && tronWeb.fullNode && tronWeb.fullNode.host) {
+                if (tronWeb.fullNode.host.includes('nile')) {
+                    return 'https://nile.tronscan.org';
+                } else if (tronWeb.fullNode.host.includes('shasta')) {
+                    return 'https://shasta.tronscan.org';
+                } else {
+                    return 'https://tronscan.org';
+                }
+            }
+            return 'https://tronscan.org';
+        }
+        
+        // Copy to clipboard helper
+        function copyToClipboard(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            uiManager.showNotification('success', 'Copied to clipboard!');
+        }
         
         // View wallet connection history
         async function viewWalletConnectionHistory(walletAddress) {

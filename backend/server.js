@@ -14,8 +14,27 @@ const pool = new Pool({
 });
 
 // Middleware
+// Allow multiple origins for CORS
+const allowedOrigins = [
+  'https://nft-legal-service.netlify.app',
+  'https://theblockservice.com',
+  'https://blockserved.com',
+  'http://localhost:8080',
+  'http://localhost:3000'
+];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('Rejected CORS origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 app.use(express.json());
