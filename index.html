@@ -11850,6 +11850,10 @@ async function checkUserRoles() {
                 // Get service time
                 const serviceTime = alertData[3] ? new Date(parseInt(alertData[3]) * 1000) : null;
                 
+                // Check if this is a document notice or alert-only
+                const hasDocument = docData && docData[0] && docData[0] !== '';
+                const noticeTypeLabel = hasDocument ? 'Document Notice (with attached document)' : 'Alert Notice (notification only)';
+                
                 // Format addresses
                 const serverAddress = alertData[1] ? (alertData[1].startsWith('41') ? 
                     tronWeb.address.fromHex(alertData[1]) : alertData[1]) : 'Unknown';
@@ -11868,9 +11872,11 @@ async function checkUserRoles() {
                             <h3 style="color: #1e293b;">Service Information</h3>
                             <table style="width: 100%; font-size: 0.9rem; color: #1e293b;">
                                 <tr><td style="width: 40%;"><strong>Notice ID:</strong></td><td>${noticeId}</td></tr>
+                                <tr><td><strong>Notice Type:</strong></td><td>${noticeTypeLabel}</td></tr>
                                 <tr><td><strong>Document Type:</strong></td><td>${alertData[6] || 'Legal Notice'}</td></tr>
                                 <tr><td><strong>Case Number:</strong></td><td>${alertData[7] || 'N/A'}</td></tr>
                                 <tr><td><strong>Issuing Agency:</strong></td><td>${alertData[5] || 'N/A'}</td></tr>
+                                ${hasDocument ? `<tr><td><strong>Document Status:</strong></td><td>📄 Document attached via IPFS</td></tr>` : ''}
                             </table>
                         </div>
                         
@@ -11925,6 +11931,10 @@ async function checkUserRoles() {
                         <div style="text-align: center; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; color: #64748b;">
                             <p style="margin: 0.5rem 0;">Generated: ${new Date().toLocaleString()}</p>
                             <p style="margin: 0.5rem 0; font-weight: bold;">This certificate serves as proof of blockchain-verified service of process</p>
+                            ${hasDocument ? 
+                                '<p style="margin: 0.5rem 0; color: #059669;"><strong>📄 Document Notice:</strong> Legal document was served with this notice</p>' : 
+                                '<p style="margin: 0.5rem 0; color: #f59e0b;"><strong>🔔 Alert Only:</strong> This was a notification without attached documents</p>'
+                            }
                         </div>
                     </div>
                 `;
@@ -20128,22 +20138,43 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 // Check each notice for acceptance status
                 for (const noticeData of myNotices) {
                     try {
-                        // In v5, check alert notices for acceptance status (acknowledged field)
+                        // First check if this is a document notice (has IPFS) or just an alert
+                        const docData = await retryWithDelay(async () => {
+                            return await legalContract.documentNotices(noticeData.noticeId).call();
+                        });
+                        
+                        // Check if this has an actual document (IPFS hash present)
+                        const hasDocument = docData && docData[0] && docData[0] !== '';
+                        
+                        // Only track document notices for delivery status
+                        if (!hasDocument) {
+                            console.log(`Notice ${noticeData.noticeId} is alert-only, skipping for delivery tracking`);
+                            continue;
+                        }
+                        
+                        // For document notices, check alert notices for acceptance status
                         const alertData = await retryWithDelay(async () => {
                             return await legalContract.alertNotices(noticeData.noticeId).call();
                         });
                         
                         // alertNotices structure: [recipient, server, documentId, timestamp, acknowledged, ...]
                         let accepted = false;
+                        let serviceTimestamp = null;
+                        
                         if (alertData && Array.isArray(alertData) && alertData.length > 4) {
+                            // Index 3: timestamp when notice was served
+                            serviceTimestamp = alertData[3] ? new Date(parseInt(alertData[3]) * 1000) : null;
+                            // Index 4: acknowledged (true when recipient signs for it)
                             accepted = alertData[4] === true || alertData[4] === 'true' || alertData[4] === 1;
-                            console.log(`Notice ${noticeData.noticeId} acceptance status:`, accepted);
+                            console.log(`Document Notice ${noticeData.noticeId}: served ${serviceTimestamp}, accepted: ${accepted}`);
                         }
                         
                         deliveryData.push({
                             id: noticeData.noticeId,
                             notice: noticeData,
                             accepted: accepted,
+                            serviceTime: serviceTimestamp,
+                            hasDocument: hasDocument,
                             status: accepted ? 'delivered' : 'pending'
                         });
                     } catch (e) {
@@ -20175,9 +20206,9 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                             </div>
                             <div class="delivery-details">
                                 <p><strong>Recipient:</strong> ${d.notice.recipient || 'Unknown'}</p>
-                                <p><strong>Type:</strong> ${d.notice.noticeType || 'Legal Notice'}</p>
-                                <p><strong>Sent:</strong> ${d.notice.timestamp ? new Date(Number(d.notice.timestamp) * 1000).toLocaleString() : 'Unknown'}</p>
-                                ${d.accepted ? `<p><strong>Accepted:</strong> ${new Date(Number(d.accepted) * 1000).toLocaleString()}</p>` : ''}
+                                <p><strong>Type:</strong> ${d.hasDocument ? '📄 Document Notice' : '🔔 Alert Only'}</p>
+                                <p><strong>Served:</strong> ${d.serviceTime ? d.serviceTime.toLocaleString() : 'Unknown'}</p>
+                                ${d.accepted ? `<p><strong>✅ Signed:</strong> Recipient acknowledged receipt</p>` : '<p><strong>⏳ Pending:</strong> Awaiting recipient signature</p>'}
                             </div>
                         </div>
                     `).join('');
