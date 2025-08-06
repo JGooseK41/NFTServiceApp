@@ -11875,7 +11875,7 @@ async function checkUserRoles() {
                         
                         // Blockchain Info
                         contractAddress: legalContract.address,
-                        tronScanUrl: `${getTronScanUrl()}/contract/${legalContract.address}#readContract`
+                        tronScanUrl: `${getTronScanUrl()}/#/contract/${legalContract.address}`
                     };
                 } else if (acceptanceEvent) {
                     receipt = await generateAcceptanceReceipt(noticeId, acceptanceEvent);
@@ -11940,7 +11940,7 @@ async function checkUserRoles() {
                             ${receipt.acceptanceTxHash && receipt.acceptanceTxHash !== 'On-chain' && receipt.acceptanceTxHash !== 'N/A' ? `
                                 <p style="color: #1e293b;"><strong>Transaction Hash:</strong> <code>${receipt.acceptanceTxHash}</code></p>
                                 <p style="margin-top: 1rem;">
-                                    <a href="${getTronScanUrl()}/transaction/${receipt.acceptanceTxHash}" 
+                                    <a href="${getTronScanUrl()}/#/transaction/${receipt.acceptanceTxHash}" 
                                        target="_blank" 
                                        class="btn btn-primary" 
                                        style="display: inline-block; padding: 0.5rem 1rem; background: #0891b2; color: white; text-decoration: none; border-radius: 4px;">
@@ -13583,7 +13583,7 @@ async function checkUserRoles() {
                                 <p style="margin-bottom: 1rem;">Verify this notice on TronScan:</p>
                                 
                                 <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                                    <a href="${getTronScanUrl()}/contract/${legalContract.address}" 
+                                    <a href="${getTronScanUrl()}/#/contract/${legalContract.address}" 
                                        target="_blank" 
                                        class="btn btn-primary" 
                                        style="text-align: center;">
@@ -22232,7 +22232,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                         <strong>Alert ID:</strong> ${noticeId}<br>
                                         <strong>Network:</strong> TRON ${tronWeb.fullNode.host.includes('nile') ? 'Nile Testnet' : 'Mainnet'}
                                     </div>
-                                    <a href="${getTronScanUrl()}/contract/${legalContract.address}#readContract" 
+                                    <a href="${getTronScanUrl()}/#/contract/${legalContract.address}" 
                                        target="_blank" 
                                        class="btn btn-secondary" 
                                        style="margin-top: 0.5rem; display: inline-block;">
