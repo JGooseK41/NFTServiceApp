@@ -6529,16 +6529,16 @@ async function getRecipientDocumentNotices(recipient) {
         
         const recipientNotices = [];
         
-        // Get total notices to iterate through
-        const totalNotices = await legalContract.totalNotices().call();
+        // Get total notices to iterate through (using cache)
+        const totalNotices = window.blockchainCache ? await window.blockchainCache.getTotalNotices() : await legalContract.totalNotices().call();
         console.log('Total notices in contract:', totalNotices.toString());
         
         // In v5 contract, notices array contains the mapping
         // Each notice has: alertId, documentId, server, recipient, timestamp, acknowledged, noticeType, caseNumber
         for (let i = 0; i < totalNotices; i++) {
             try {
-                // Get the notice data
-                const noticeData = await legalContract.notices(i).call();
+                // Get the notice data (using cache)
+                const noticeData = window.blockchainCache ? await window.blockchainCache.getNotice(i) : await legalContract.notices(i).call();
                 console.log(`Notice ${i} data:`, noticeData);
                 
                 if (noticeData) {
@@ -6573,7 +6573,7 @@ async function getRecipientDocumentNotices(recipient) {
                         // Check if there's actually a document attached
                         if (documentId) {
                             try {
-                                const docNotice = await legalContract.documentNotices(documentId).call();
+                                const docNotice = window.blockchainCache ? await window.blockchainCache.getDocumentNotice(documentId) : await legalContract.documentNotices(documentId).call();
                                 if (docNotice) {
                                     // v5 contract structure: encryptedIPFS, decryptionKey, authorizedViewer, alertId, isRestricted
                                     const hasIPFS = Array.isArray(docNotice) ? 
@@ -8165,6 +8165,12 @@ function useConnectedAddressForFeeCollector() {
                 const testAddress = tronWeb.defaultAddress.base58;
                 const balance = await legalContract.balanceOf(testAddress).call();
                 console.log('Contract test successful, balance:', balance.toString());
+                
+                // Initialize cache after contract is ready
+                if (window.blockchainCache) {
+                    console.log('Loading blockchain cache from backend...');
+                    await window.blockchainCache.loadFromBackend();
+                }
                 
                 return true;
             } catch (error) {
@@ -13387,10 +13393,12 @@ async function checkUserRoles() {
                 const auditData = await response.json();
                 hideProcessing();
                 
-                // Check blockchain status
+                // Check blockchain status (using cache)
                 let blockchainAccepted = false;
                 try {
-                    const alertData = await legalContract.alertNotices(noticeId).call();
+                    const alertData = window.blockchainCache ? 
+                        await window.blockchainCache.getAlertNotice(noticeId) : 
+                        await legalContract.alertNotices(noticeId).call();
                     if (alertData && Array.isArray(alertData) && alertData.length > 4) {
                         blockchainAccepted = alertData[4] === true;
                     }
@@ -15778,6 +15786,196 @@ async function checkUserRoles() {
             }
         }
 
+        // Blockchain Data Cache System
+        const blockchainCache = {
+            alertNotices: new Map(),
+            documentNotices: new Map(),
+            notices: new Map(),
+            totalNotices: null,
+            lastFetch: new Map(),
+            TTL: 5 * 60 * 1000, // 5 minutes cache TTL
+            
+            // Get cached data or fetch from blockchain
+            async getAlertNotice(noticeId) {
+                const cacheKey = `alert_${noticeId}`;
+                const cached = this.alertNotices.get(cacheKey);
+                const lastFetch = this.lastFetch.get(cacheKey) || 0;
+                
+                if (cached && (Date.now() - lastFetch < this.TTL)) {
+                    console.log(`Using cached alert notice ${noticeId}`);
+                    return cached;
+                }
+                
+                try {
+                    console.log(`Fetching alert notice ${noticeId} from blockchain`);
+                    const data = await legalContract.alertNotices(noticeId).call();
+                    this.alertNotices.set(cacheKey, data);
+                    this.lastFetch.set(cacheKey, Date.now());
+                    
+                    // Also save to backend if available
+                    this.saveToBackend('alert', noticeId, data);
+                    
+                    return data;
+                } catch (error) {
+                    console.error(`Error fetching alert notice ${noticeId}:`, error);
+                    return null;
+                }
+            },
+            
+            async getDocumentNotice(noticeId) {
+                const cacheKey = `doc_${noticeId}`;
+                const cached = this.documentNotices.get(cacheKey);
+                const lastFetch = this.lastFetch.get(cacheKey) || 0;
+                
+                if (cached && (Date.now() - lastFetch < this.TTL)) {
+                    console.log(`Using cached document notice ${noticeId}`);
+                    return cached;
+                }
+                
+                try {
+                    console.log(`Fetching document notice ${noticeId} from blockchain`);
+                    const data = await legalContract.documentNotices(noticeId).call();
+                    this.documentNotices.set(cacheKey, data);
+                    this.lastFetch.set(cacheKey, Date.now());
+                    
+                    // Also save to backend if available
+                    this.saveToBackend('document', noticeId, data);
+                    
+                    return data;
+                } catch (error) {
+                    console.error(`Error fetching document notice ${noticeId}:`, error);
+                    return null;
+                }
+            },
+            
+            async getNotice(index) {
+                const cacheKey = `notice_${index}`;
+                const cached = this.notices.get(cacheKey);
+                const lastFetch = this.lastFetch.get(cacheKey) || 0;
+                
+                if (cached && (Date.now() - lastFetch < this.TTL)) {
+                    console.log(`Using cached notice ${index}`);
+                    return cached;
+                }
+                
+                try {
+                    console.log(`Fetching notice ${index} from blockchain`);
+                    const data = await legalContract.notices(index).call();
+                    this.notices.set(cacheKey, data);
+                    this.lastFetch.set(cacheKey, Date.now());
+                    
+                    // Also save to backend if available
+                    this.saveToBackend('notice', index, data);
+                    
+                    return data;
+                } catch (error) {
+                    console.error(`Error fetching notice ${index}:`, error);
+                    return null;
+                }
+            },
+            
+            async getTotalNotices() {
+                if (this.totalNotices !== null) {
+                    const lastFetch = this.lastFetch.get('totalNotices') || 0;
+                    if (Date.now() - lastFetch < this.TTL) {
+                        console.log('Using cached total notices count');
+                        return this.totalNotices;
+                    }
+                }
+                
+                try {
+                    console.log('Fetching total notices from blockchain');
+                    const total = await legalContract.totalNotices().call();
+                    this.totalNotices = total;
+                    this.lastFetch.set('totalNotices', Date.now());
+                    return total;
+                } catch (error) {
+                    console.error('Error fetching total notices:', error);
+                    return 0;
+                }
+            },
+            
+            // Save to backend for persistence
+            async saveToBackend(type, id, data) {
+                if (!window.BACKEND_API_URL) return;
+                
+                try {
+                    await fetch(`${window.BACKEND_API_URL}/api/cache/blockchain`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            type,
+                            id,
+                            data: Array.isArray(data) ? data : data.toString(),
+                            network: tronWeb.fullNode.host.includes('nile') ? 'nile' : 'mainnet',
+                            contractAddress: legalContract.address,
+                            timestamp: Date.now()
+                        })
+                    });
+                } catch (error) {
+                    console.log('Could not save to backend cache:', error);
+                }
+            },
+            
+            // Load from backend on init
+            async loadFromBackend() {
+                if (!window.BACKEND_API_URL) return;
+                
+                try {
+                    const response = await fetch(`${window.BACKEND_API_URL}/api/cache/blockchain?contract=${legalContract.address}`);
+                    if (response.ok) {
+                        const cached = await response.json();
+                        console.log(`Loaded ${cached.length} cached entries from backend`);
+                        
+                        cached.forEach(entry => {
+                            if (Date.now() - entry.timestamp < this.TTL) {
+                                const cacheKey = `${entry.type}_${entry.id}`;
+                                
+                                if (entry.type === 'alert') {
+                                    this.alertNotices.set(cacheKey, entry.data);
+                                } else if (entry.type === 'document') {
+                                    this.documentNotices.set(cacheKey, entry.data);
+                                } else if (entry.type === 'notice') {
+                                    this.notices.set(cacheKey, entry.data);
+                                }
+                                
+                                this.lastFetch.set(cacheKey, entry.timestamp);
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.log('Could not load backend cache:', error);
+                }
+            },
+            
+            // Clear cache (useful for debugging or when data changes)
+            clear() {
+                this.alertNotices.clear();
+                this.documentNotices.clear();
+                this.notices.clear();
+                this.totalNotices = null;
+                this.lastFetch.clear();
+                console.log('Blockchain cache cleared');
+            },
+            
+            // Invalidate specific entries
+            invalidate(type, id) {
+                const cacheKey = `${type}_${id}`;
+                if (type === 'alert') {
+                    this.alertNotices.delete(cacheKey);
+                } else if (type === 'document') {
+                    this.documentNotices.delete(cacheKey);
+                } else if (type === 'notice') {
+                    this.notices.delete(cacheKey);
+                }
+                this.lastFetch.delete(cacheKey);
+                console.log(`Invalidated cache for ${type} ${id}`);
+            }
+        };
+        
+        // Make cache available globally
+        window.blockchainCache = blockchainCache;
+        
         document.addEventListener('DOMContentLoaded', async function() {
             // Initialize language support for recipient mode
             if (window.LanguageManager) {

@@ -198,6 +198,109 @@ app.get('/api/notices/:noticeId/audit', async (req, res) => {
 });
 
 // ======================
+// BLOCKCHAIN CACHE ENDPOINTS
+// ======================
+
+// Save blockchain data to cache
+app.post('/api/cache/blockchain', async (req, res) => {
+  try {
+    const { type, id, data, network, contractAddress, timestamp } = req.body;
+    
+    // Create cache table if it doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS blockchain_cache (
+        id SERIAL PRIMARY KEY,
+        cache_key VARCHAR(255) UNIQUE,
+        type VARCHAR(50),
+        notice_id VARCHAR(100),
+        data JSONB,
+        network VARCHAR(50),
+        contract_address VARCHAR(100),
+        timestamp BIGINT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    const cacheKey = `${contractAddress}_${type}_${id}`;
+    
+    const query = `
+      INSERT INTO blockchain_cache (cache_key, type, notice_id, data, network, contract_address, timestamp)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ON CONFLICT (cache_key) 
+      DO UPDATE SET 
+        data = EXCLUDED.data,
+        timestamp = EXCLUDED.timestamp,
+        updated_at = CURRENT_TIMESTAMP
+      RETURNING *
+    `;
+    
+    const values = [cacheKey, type, id.toString(), JSON.stringify(data), network, contractAddress, timestamp];
+    const result = await pool.query(query, values);
+    
+    res.json({ success: true, cached: result.rows[0] });
+  } catch (error) {
+    console.error('Error caching blockchain data:', error);
+    res.status(500).json({ error: 'Failed to cache data' });
+  }
+});
+
+// Get cached blockchain data
+app.get('/api/cache/blockchain', async (req, res) => {
+  try {
+    const { contract } = req.query;
+    
+    // Create table if doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS blockchain_cache (
+        id SERIAL PRIMARY KEY,
+        cache_key VARCHAR(255) UNIQUE,
+        type VARCHAR(50),
+        notice_id VARCHAR(100),
+        data JSONB,
+        network VARCHAR(50),
+        contract_address VARCHAR(100),
+        timestamp BIGINT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    const query = `
+      SELECT type, notice_id as id, data, timestamp 
+      FROM blockchain_cache 
+      WHERE contract_address = $1 
+      AND timestamp > $2
+      ORDER BY updated_at DESC
+    `;
+    
+    // Only return cache from last 30 minutes
+    const thirtyMinutesAgo = Date.now() - (30 * 60 * 1000);
+    const result = await pool.query(query, [contract, thirtyMinutesAgo]);
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching cached data:', error);
+    res.status(500).json({ error: 'Failed to fetch cache' });
+  }
+});
+
+// Clear cache for a specific contract
+app.delete('/api/cache/blockchain/:contract', async (req, res) => {
+  try {
+    const { contract } = req.params;
+    
+    const query = 'DELETE FROM blockchain_cache WHERE contract_address = $1';
+    const result = await pool.query(query, [contract]);
+    
+    res.json({ success: true, deleted: result.rowCount });
+  } catch (error) {
+    console.error('Error clearing cache:', error);
+    res.status(500).json({ error: 'Failed to clear cache' });
+  }
+});
+
+// ======================
 // PROCESS SERVER REGISTRY
 // ======================
 
