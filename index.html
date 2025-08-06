@@ -6514,9 +6514,68 @@
 ];
 
 
-async function getRecipientNoticeIds(recipient) {
+// Get document notices for a recipient (not alert notices)
+async function getRecipientDocumentNotices(recipient) {
     try {
-        console.log('Getting notices for recipient:', recipient);
+        console.log('Getting document notices for recipient:', recipient);
+        
+        if (!legalContract) {
+            console.error('Contract not initialized');
+            return [];
+        }
+        
+        const documentNotices = [];
+        
+        // Get total notices to iterate through
+        const totalNotices = await legalContract.totalNotices().call();
+        console.log('Total notices in contract:', totalNotices.toString());
+        
+        // Check each notice to see if it's a document notice for this recipient
+        for (let i = 0; i < totalNotices; i++) {
+            try {
+                // Check document notices array
+                const docData = await legalContract.documentNotices(i).call();
+                // documentNotices structure: [documentId, server, recipient, ipfsHash, accepted]
+                
+                if (docData && Array.isArray(docData) && docData.length >= 3) {
+                    // Get recipient address from index 2
+                    let docRecipient = docData[2];
+                    
+                    // Convert hex to base58 if needed
+                    if (docRecipient && docRecipient.startsWith('41')) {
+                        docRecipient = tronWeb.address.fromHex(docRecipient);
+                    }
+                    
+                    // Check if this document notice is for our recipient
+                    if (docRecipient && docRecipient.toLowerCase() === recipient.toLowerCase()) {
+                        console.log(`Found document notice ${i} for recipient`);
+                        documentNotices.push(i);
+                    }
+                }
+            } catch (e) {
+                // Notice might not have document data, skip it
+                continue;
+            }
+        }
+        
+        console.log('Document notices found:', documentNotices);
+        return documentNotices;
+        
+    } catch (error) {
+        console.error('Error in getRecipientDocumentNotices:', error);
+        return [];
+    }
+}
+
+// Legacy function for compatibility - now returns document notices instead of alerts
+async function getRecipientNoticeIds(recipient) {
+    return getRecipientDocumentNotices(recipient);
+}
+
+// Original alert notice function (keeping for reference but not using)
+async function getRecipientAlertNotices(recipient) {
+    try {
+        console.log('Getting alert notices for recipient:', recipient);
         
         if (!legalContract) {
             console.error('Contract not initialized');
@@ -21147,7 +21206,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             }
         }
         
-        // Refresh my alerts
+        // Refresh my alerts - now shows only document notices for recipients
         async function refreshMyAlerts() {
             console.log('refreshMyAlerts called');
             
@@ -21159,10 +21218,11 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             
             try {
                 const myAddress = tronWeb.defaultAddress.base58;
-                console.log('Refreshing alerts for address:', myAddress);
+                console.log('Refreshing document notices for address:', myAddress);
                 
-                const noticeIds = await getRecipientNoticeIds(myAddress);
-                console.log('Notice IDs found:', noticeIds);
+                // Get only document notices for this recipient
+                const noticeIds = await getRecipientDocumentNotices(myAddress);
+                console.log('Document notice IDs found:', noticeIds);
                 
                 const alertsContent = document.getElementById('myAlertsContent');
                 if (!alertsContent) {
@@ -21171,31 +21231,58 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 }
                 
                 if (!noticeIds || noticeIds.length === 0) {
-                    console.log('No notices found for this address');
-                    alertsContent.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><h3>No notices received</h3></div>';
+                    console.log('No document notices found for this address');
+                    alertsContent.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-envelope"></i>
+                            <h3>${LanguageManager ? LanguageManager.translate('blockserved.noDocuments') : 'No Legal Documents Found'}</h3>
+                            <p>${LanguageManager ? LanguageManager.translate('blockserved.noDocumentsDesc') : 'Legal documents sent to your wallet will appear here'}</p>
+                        </div>`;
                     return;
                 }
                 
                 let html = '<div class="notice-list">';
+                
                 for (const noticeId of noticeIds) {
                     try {
-                        const notice = await legalContract.notices(noticeId).call();
-                        console.log(`Notice ${noticeId} data:`, notice);
+                        // Get document notice data (already verified it exists in getRecipientDocumentNotices)
+                        const docData = await legalContract.documentNotices(noticeId).call();
+                        console.log(`Document notice ${noticeId} data:`, docData);
                         
-                        // Check if notice exists
-                        if (!notice) {
-                            console.warn(`Notice ${noticeId} returned undefined`);
-                            continue;
-                        }
+                        // documentNotices structure: [documentId, server, recipient, ipfsHash, accepted]
+                        const documentId = docData[0];
+                        const serverAddress = docData[1].startsWith('41') ? tronWeb.address.fromHex(docData[1]) : docData[1];
+                        const recipientAddress = docData[2].startsWith('41') ? tronWeb.address.fromHex(docData[2]) : docData[2];
+                        const ipfsHash = docData[3];
+                        const isAccepted = docData[4] === true;
                         
-                        // Try to get document notice data (this is what recipients accept)
-                        let docData = null;
+                        // Get notice type and details from alert data if available
+                        let noticeType = 'Legal Document';
+                        let caseNumber = '';
+                        let issuingAgency = '';
+                        let timestamp = Date.now() / 1000; // Default to now
+                        
                         try {
-                            docData = await legalContract.documentNotices(noticeId).call();
-                            console.log(`Document data for ${noticeId}:`, docData);
+                            const alertData = await legalContract.alertNotices(noticeId).call();
+                            if (alertData && Array.isArray(alertData) && alertData.length > 6) {
+                                noticeType = alertData[6] || 'Legal Document'; // Index 6 is noticeType
+                                caseNumber = alertData[7] || ''; // Index 7 is caseNumber
+                                issuingAgency = alertData[5] || ''; // Index 5 is issuingAgency
+                                timestamp = parseInt(alertData[3]) || timestamp; // Index 3 is timestamp
+                            }
                         } catch (e) {
-                            console.log(`No document data for ${noticeId}`);
+                            console.log(`No alert data for notice ${noticeId}, using defaults`);
                         }
+                        
+                        // Build the recipient-friendly notice display
+                        const formattedDate = new Date(timestamp * 1000).toLocaleString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true
+                        });
                         
                         // Try to get alert notice data for additional details
                         let alertData = null;
@@ -21274,32 +21361,50 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         }
                         
                         html += `
-                            <div class="notice-item">
-                                <div class="notice-header">
-                                    <h4>Notice #${noticeId}</h4>
-                                    <span class="badge ${accepted ? 'badge-success' : 'badge-warning'}">
-                                        ${accepted ? 'Accepted' : 'Pending'}
+                            <div class="notice-item" style="background: #f8f9fa; border: 2px solid ${isAccepted ? '#22c55e' : '#f59e0b'}; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem;">
+                                <div class="notice-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                    <h3 style="margin: 0; color: #1e293b;">
+                                        <i class="fas fa-envelope-open-text"></i> Document Notice #${noticeId}
+                                    </h3>
+                                    <span class="badge ${isAccepted ? 'badge-success' : 'badge-warning'}" style="font-size: 0.9rem;">
+                                        ${isAccepted ? '<i class="fas fa-check-circle"></i> Document Accessed' : '<i class="fas fa-exclamation-circle"></i> Action Required'}
                                     </span>
                                 </div>
+                                
                                 <div class="notice-details">
-                                    <p><strong>From:</strong> ${sender}</p>
-                                    ${issuingAgency ? `<p><strong>Agency:</strong> ${issuingAgency}</p>` : ''}
-                                    <p><strong>Date:</strong> ${new Date(timestamp * 1000).toLocaleString()}</p>
-                                    <p><strong>Type:</strong> ${noticeType}</p>
-                                    ${caseNumber ? `<p><strong>Case #:</strong> ${caseNumber}</p>` : ''}
-                                    ${docData ? '<p><i class="fas fa-file-pdf"></i> <strong>Contains Legal Document</strong></p>' : ''}
-                                    ${!accepted ? `
-                                        <button class="btn btn-primary btn-small" onclick="showAcceptModal(${noticeId})">
-                                            <i class="fas fa-signature"></i> Sign Receipt & Access Document
+                                    <div style="display: grid; gap: 0.5rem; margin-bottom: 1rem;">
+                                        <div><strong>From:</strong> ${formatAddress(serverAddress)}</div>
+                                        ${issuingAgency ? `<div><strong>Agency:</strong> ${issuingAgency}</div>` : ''}
+                                        <div><strong>Date Served:</strong> ${formattedDate}</div>
+                                        <div><strong>Document Type:</strong> ${noticeType}</div>
+                                        ${caseNumber ? `<div><strong>Case Number:</strong> ${caseNumber}</div>` : ''}
+                                    </div>
+                                    
+                                    ${!isAccepted ? `
+                                        <div class="alert alert-warning" style="margin-bottom: 1rem;">
+                                            <i class="fas fa-exclamation-triangle"></i> 
+                                            <strong>Important:</strong> You must accept this notice to access the legal document. 
+                                            Failure to respond may result in default judgment.
+                                        </div>
+                                        
+                                        <button class="btn btn-primary" style="font-size: 1.1rem; padding: 0.75rem 1.5rem;" onclick="acceptDocumentNotice(${noticeId})">
+                                            <i class="fas fa-signature"></i> Accept Notice & View Document
                                         </button>
                                     ` : `
-                                        <button class="btn btn-success btn-small" onclick="viewDocument(${noticeId})">
-                                            <i class="fas fa-file-download"></i> View Accepted Document
-                                        </button>
+                                        <div class="alert alert-success" style="margin-bottom: 1rem;">
+                                            <i class="fas fa-check-circle"></i> 
+                                            You have accepted this notice. The document is now available for viewing.
+                                        </div>
+                                        
+                                        <div style="display: flex; gap: 0.5rem;">
+                                            <button class="btn btn-success" onclick="viewAcceptedDocument(${noticeId}, '${ipfsHash}')">
+                                                <i class="fas fa-file-download"></i> View Document
+                                            </button>
+                                            <button class="btn btn-secondary" onclick="showAcceptanceReceipt(${noticeId})">
+                                                <i class="fas fa-receipt"></i> View Receipt
+                                            </button>
+                                        </div>
                                     `}
-                                    <button class="btn btn-secondary btn-small" onclick="viewNoticeDetails(${noticeId})" style="margin-left: 0.5rem;">
-                                        <i class="fas fa-info-circle"></i> Notice Info
-                                    </button>
                                 </div>
                             </div>
                         `;
@@ -21314,6 +21419,375 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             } catch (error) {
                 console.error('Error refreshing alerts:', error);
                 uiManager.showNotification('error', 'Failed to refresh alerts');
+            }
+        }
+
+        // Accept a document notice
+        async function acceptDocumentNotice(noticeId) {
+            if (!window.legalContract || !window.userAddress) {
+                showNotification('Please connect your wallet first', 'error');
+                return;
+            }
+
+            try {
+                showLoading();
+                const loadingEl = document.querySelector('.loading-spinner p');
+                if (loadingEl) {
+                    loadingEl.textContent = 'Accepting document notice...';
+                }
+
+                // First check if this is actually an alert notice we need to acknowledge
+                let alertData;
+                try {
+                    alertData = await legalContract.alertNotices(noticeId).call();
+                    if (alertData && Array.isArray(alertData) && alertData.length > 4) {
+                        // This is an alert notice - use acknowledgeAlert
+                        const acknowledged = alertData[4];
+                        if (acknowledged) {
+                            showNotification('You have already accepted this notice', 'info');
+                            hideLoading();
+                            return;
+                        }
+
+                        // Call acknowledgeAlert on contract
+                        const result = await legalContract.acknowledgeAlert(noticeId).send({
+                            from: window.userAddress,
+                            shouldPollResponse: true
+                        });
+
+                        showNotification('Notice accepted successfully!', 'success');
+
+                        // Log acceptance to backend
+                        try {
+                            await fetch(`${window.BACKEND_API_URL}/api/notices/${noticeId}/acceptances`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    noticeId,
+                                    acceptorAddress: window.userAddress,
+                                    transactionHash: result,
+                                    timestamp: new Date().toISOString()
+                                })
+                            });
+                        } catch (error) {
+                            console.warn('Failed to log acceptance to backend:', error);
+                        }
+
+                        // Refresh the notices list
+                        await refreshMyAlerts();
+                        hideLoading();
+                        return;
+                    }
+                } catch (e) {
+                    // Not an alert notice, check if it's a document notice
+                }
+
+                // If we get here, handle as document notice
+                const docData = await legalContract.documentNotices(noticeId).call();
+                if (!docData || !Array.isArray(docData) || docData.length < 5) {
+                    throw new Error('Invalid document notice data');
+                }
+
+                const [documentId, server, recipient, ipfsHash, accepted] = docData;
+
+                if (accepted) {
+                    showNotification('You have already accepted this document', 'info');
+                    hideLoading();
+                    return;
+                }
+
+                // Call acceptDocumentNotice on contract
+                const result = await legalContract.acceptDocumentNotice(noticeId).send({
+                    from: window.userAddress,
+                    shouldPollResponse: true
+                });
+
+                showNotification('Document notice accepted successfully!', 'success');
+
+                // Log acceptance to backend
+                try {
+                    await fetch(`${window.BACKEND_API_URL}/api/notices/${noticeId}/acceptances`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            noticeId,
+                            acceptorAddress: window.userAddress,
+                            transactionHash: result,
+                            timestamp: new Date().toISOString()
+                        })
+                    });
+                } catch (error) {
+                    console.warn('Failed to log acceptance to backend:', error);
+                }
+
+                // Refresh the notices list
+                await refreshMyAlerts();
+
+            } catch (error) {
+                console.error('Error accepting notice:', error);
+                showNotification(error.message || 'Failed to accept notice', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // View an accepted document
+        async function viewAcceptedDocument(noticeId, ipfsHash) {
+            if (!window.legalContract || !window.userAddress) {
+                showNotification('Please connect your wallet first', 'error');
+                return;
+            }
+
+            try {
+                showLoading();
+                const loadingEl = document.querySelector('.loading-spinner p');
+                if (loadingEl) {
+                    loadingEl.textContent = 'Retrieving document from IPFS...';
+                }
+
+                if (!ipfsHash || ipfsHash === '') {
+                    // Try to get it from the document notice
+                    const docData = await legalContract.documentNotices(noticeId).call();
+                    if (docData && Array.isArray(docData) && docData.length > 3) {
+                        ipfsHash = docData[3];
+                    }
+                }
+
+                if (!ipfsHash || ipfsHash === '') {
+                    showNotification('No document attached to this notice', 'error');
+                    hideLoading();
+                    return;
+                }
+
+                // Try multiple IPFS gateways
+                const gateways = [
+                    `https://gateway.pinata.cloud/ipfs/${ipfsHash}`,
+                    `https://ipfs.io/ipfs/${ipfsHash}`,
+                    `https://cloudflare-ipfs.com/ipfs/${ipfsHash}`
+                ];
+
+                let documentData = null;
+                for (const gateway of gateways) {
+                    try {
+                        if (loadingEl) {
+                            loadingEl.textContent = `Trying gateway: ${new URL(gateway).hostname}...`;
+                        }
+                        const response = await fetch(gateway);
+                        if (response.ok) {
+                            documentData = await response.json();
+                            break;
+                        }
+                    } catch (error) {
+                        console.warn(`Failed to fetch from ${gateway}:`, error);
+                    }
+                }
+
+                if (!documentData) {
+                    throw new Error('Failed to retrieve document from IPFS');
+                }
+
+                // Show document in modal
+                showDocumentModal(documentData, noticeId);
+
+                // Log view to backend
+                try {
+                    await fetch(`${window.BACKEND_API_URL}/api/notices/${noticeId}/views`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            noticeId,
+                            viewerAddress: window.userAddress,
+                            timestamp: new Date().toISOString()
+                        })
+                    });
+                } catch (error) {
+                    console.warn('Failed to log view to backend:', error);
+                }
+
+            } catch (error) {
+                console.error('Error viewing document:', error);
+                showNotification(error.message || 'Failed to retrieve document', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Show document in a modal
+        function showDocumentModal(documentData, noticeId) {
+            // Create modal for document viewing
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'block';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+                    <div class="modal-header">
+                        <h3>Legal Document - Notice #${noticeId}</h3>
+                        <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="document-viewer">
+                            ${documentData.content ? `
+                                <div class="document-content" style="white-space: pre-wrap; font-family: 'Courier New', monospace; background: #f5f5f5; padding: 1rem; border-radius: 4px;">
+                                    ${escapeHtml(documentData.content)}
+                                </div>
+                            ` : ''}
+                            ${documentData.html ? `
+                                <div class="document-html" style="background: white; padding: 1rem; border: 1px solid #ddd; border-radius: 4px;">
+                                    ${documentData.html}
+                                </div>
+                            ` : ''}
+                            ${documentData.pdf ? `
+                                <iframe src="data:application/pdf;base64,${documentData.pdf}" 
+                                        style="width: 100%; height: 600px; border: none;"
+                                        title="Legal Document PDF">
+                                </iframe>
+                            ` : ''}
+                        </div>
+                        <div style="margin-top: 1.5rem; display: flex; gap: 0.5rem; justify-content: center;">
+                            <button class="btn btn-primary" onclick="downloadDocument('${noticeId}', ${JSON.stringify(documentData).replace(/"/g, '&quot;')})">
+                                <i class="fas fa-download"></i> Download Document
+                            </button>
+                            <button class="btn btn-secondary" onclick="printDocument('${noticeId}', ${JSON.stringify(documentData).replace(/"/g, '&quot;')})">
+                                <i class="fas fa-print"></i> Print Document
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // Utility function to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Show acceptance receipt
+        async function showAcceptanceReceipt(noticeId) {
+            try {
+                // Get receipt data from contract
+                const alertData = await legalContract.alertNotices(noticeId).call();
+                
+                // Create receipt modal
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 600px;">
+                        <div class="modal-header">
+                            <h3>Acceptance Receipt - Notice #${noticeId}</h3>
+                            <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="receipt-content" style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px;">
+                                <h4 style="text-align: center; margin-bottom: 1rem;">LEGAL NOTICE ACCEPTANCE RECEIPT</h4>
+                                <div style="margin-bottom: 1rem;">
+                                    <strong>Notice ID:</strong> ${noticeId}<br>
+                                    <strong>Accepted By:</strong> ${window.userAddress}<br>
+                                    <strong>Acceptance Date:</strong> ${new Date().toLocaleString()}<br>
+                                    <strong>Document Type:</strong> ${alertData[6] || 'Legal Notice'}<br>
+                                    ${alertData[7] ? `<strong>Case Number:</strong> ${alertData[7]}<br>` : ''}
+                                    ${alertData[5] ? `<strong>Issuing Agency:</strong> ${alertData[5]}<br>` : ''}
+                                </div>
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle"></i> 
+                                    This receipt confirms that you have acknowledged receipt of the legal notice. 
+                                    This acknowledgment is permanently recorded on the TRON blockchain.
+                                </div>
+                            </div>
+                            <div style="margin-top: 1rem; text-align: center;">
+                                <button class="btn btn-primary" onclick="printReceipt(${noticeId})">
+                                    <i class="fas fa-print"></i> Print Receipt
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            } catch (error) {
+                console.error('Error showing receipt:', error);
+                showNotification('Failed to load receipt', 'error');
+            }
+        }
+
+        // Print receipt
+        function printReceipt(noticeId) {
+            window.print();
+        }
+
+        // Download document
+        function downloadDocument(noticeId, documentData) {
+            try {
+                const data = JSON.parse(documentData.replace(/&quot;/g, '"'));
+                let content = '';
+                let filename = `legal_document_notice_${noticeId}.txt`;
+                let mimeType = 'text/plain';
+
+                if (data.pdf) {
+                    // Download as PDF
+                    const byteCharacters = atob(data.pdf);
+                    const byteNumbers = new Array(byteCharacters.length);
+                    for (let i = 0; i < byteCharacters.length; i++) {
+                        byteNumbers[i] = byteCharacters.charCodeAt(i);
+                    }
+                    const byteArray = new Uint8Array(byteNumbers);
+                    const blob = new Blob([byteArray], { type: 'application/pdf' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `legal_document_notice_${noticeId}.pdf`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    return;
+                } else if (data.html) {
+                    content = data.html;
+                    filename = `legal_document_notice_${noticeId}.html`;
+                    mimeType = 'text/html';
+                } else if (data.content) {
+                    content = data.content;
+                }
+
+                // Download as text or HTML
+                const blob = new Blob([content], { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Error downloading document:', error);
+                showNotification('Failed to download document', 'error');
+            }
+        }
+
+        // Print document
+        function printDocument(noticeId, documentData) {
+            try {
+                const data = JSON.parse(documentData.replace(/&quot;/g, '"'));
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(`
+                    <html>
+                        <head>
+                            <title>Legal Document - Notice #${noticeId}</title>
+                            <style>
+                                body { font-family: Arial, sans-serif; margin: 2rem; }
+                                pre { white-space: pre-wrap; }
+                            </style>
+                        </head>
+                        <body>
+                            <h2>Legal Document - Notice #${noticeId}</h2>
+                            ${data.html || '<pre>' + (data.content || 'No content available') + '</pre>'}
+                        </body>
+                    </html>
+                `);
+                printWindow.document.close();
+                printWindow.print();
+            } catch (error) {
+                console.error('Error printing document:', error);
+                showNotification('Failed to print document', 'error');
             }
         }
         
