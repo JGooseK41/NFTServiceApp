@@ -11840,11 +11840,39 @@ async function checkUserRoles() {
                 // Get acceptance event if acknowledged
                 let acceptanceEvent = null;
                 let acceptanceTime = null;
+                let acceptedByAddress = null;
                 if (isAcknowledged) {
                     acceptanceEvent = await checkNoticeAcceptance(noticeId);
                     if (acceptanceEvent) {
                         acceptanceTime = new Date(parseInt(acceptanceEvent.result.timestamp) * 1000);
+                        // Get the actual recipient who accepted (not the server)
+                        acceptedByAddress = acceptanceEvent.result.recipient || alertData[0];
+                        if (acceptedByAddress && acceptedByAddress.startsWith('41')) {
+                            acceptedByAddress = tronWeb.address.fromHex(acceptedByAddress);
+                        }
                     }
+                }
+                
+                // Get service event for transaction hash
+                let serviceEvent = null;
+                let serviceTxHash = null;
+                try {
+                    const events = await tronWeb.event.getEventsByContractAddress(CONTRACT_ADDRESS, {
+                        eventName: 'NoticeServed',
+                        size: 200
+                    });
+                    
+                    // Find the service event for this notice
+                    serviceEvent = events.find(e => {
+                        return (e.result.alertId && e.result.alertId.toString() === noticeId.toString()) ||
+                               (e.result.noticeId && e.result.noticeId.toString() === noticeId.toString());
+                    });
+                    
+                    if (serviceEvent) {
+                        serviceTxHash = serviceEvent.transaction;
+                    }
+                } catch (e) {
+                    console.log('Could not find service event:', e);
                 }
                 
                 // Get service time
@@ -11896,10 +11924,11 @@ async function checkUserRoles() {
                             <h3 style="color: #166534;">✅ ACCEPTANCE CONFIRMED</h3>
                             <table style="width: 100%; font-size: 0.9rem; color: #1e293b;">
                                 <tr><td style="width: 40%;"><strong>Status:</strong></td><td style="color: #166534; font-weight: bold;">ACCEPTED BY RECIPIENT</td></tr>
+                                <tr><td><strong>Accepted By:</strong></td><td style="word-break: break-all;">${acceptedByAddress || recipientAddress}</td></tr>
                                 <tr><td><strong>Date/Time Accepted:</strong></td><td>${acceptanceTime ? acceptanceTime.toLocaleString() : 'N/A'}</td></tr>
                                 <tr><td><strong>UTC Time Accepted:</strong></td><td>${acceptanceTime ? acceptanceTime.toUTCString() : 'N/A'}</td></tr>
                                 ${acceptanceEvent ? `
-                                    <tr><td><strong>Acceptance TX:</strong></td><td style="word-break: break-all;">${acceptanceEvent.transaction}</td></tr>
+                                    <tr><td><strong>Acceptance TX Hash:</strong></td><td style="word-break: break-all; font-family: monospace; font-size: 0.8rem;">${acceptanceEvent.transaction}</td></tr>
                                     <tr><td><strong>Block Number:</strong></td><td>${acceptanceEvent.block}</td></tr>
                                 ` : ''}
                             </table>
@@ -11913,12 +11942,14 @@ async function checkUserRoles() {
                         
                         <div style="border: 2px solid #333; padding: 1.5rem;">
                             <h3 style="color: #1e293b;">Blockchain Verification</h3>
-                            <p style="color: #1e293b;"><strong>Smart Contract:</strong> <code>${CONTRACT_ADDRESS}</code></p>
+                            <p style="color: #1e293b;"><strong>Smart Contract:</strong> <code style="font-size: 0.8rem;">${CONTRACT_ADDRESS}</code></p>
                             <p style="color: #1e293b;"><strong>Network:</strong> TRON ${tronWeb.fullNode.host.includes('nile') ? 'Nile Testnet' : 'Mainnet'}</p>
                             <p style="color: #1e293b;"><strong>Alert NFT ID:</strong> ${noticeId}</p>
-                            ${docData && docData[0] ? `<p style="color: #1e293b;"><strong>Document IPFS:</strong> <code>${docData[0]}</code></p>` : ''}
+                            ${serviceTxHash ? `<p style="color: #1e293b;"><strong>Service TX Hash:</strong> <code style="font-size: 0.8rem; word-break: break-all;">${serviceTxHash}</code></p>` : ''}
+                            ${acceptanceEvent ? `<p style="color: #1e293b;"><strong>Acceptance TX Hash:</strong> <code style="font-size: 0.8rem; word-break: break-all;">${acceptanceEvent.transaction}</code></p>` : ''}
+                            ${docData && docData[0] ? `<p style="color: #1e293b;"><strong>Document IPFS:</strong> <code style="font-size: 0.8rem; word-break: break-all;">${docData[0]}</code></p>` : ''}
                             
-                            <div style="margin-top: 1rem;">
+                            <div style="margin-top: 1rem;" class="no-print">
                                 <a href="${getTronScanUrl()}/#/contract/${CONTRACT_ADDRESS}" 
                                    target="_blank" 
                                    class="btn btn-secondary" 
@@ -12180,14 +12211,62 @@ async function checkUserRoles() {
         // Print acceptance receipt
         function printAcceptanceReceipt() {
             const printWindow = window.open('', '_blank');
+            const receipt = window.currentAcceptanceReceipt;
+            const isServer = receipt.type === 'server';
+            
             printWindow.document.write(`
                 <html>
                 <head>
-                    <title>Acceptance Receipt - Notice ${window.currentAcceptanceReceipt.noticeId}</title>
+                    <title>${isServer ? 'Service Certificate' : 'Acceptance Receipt'} - Notice ${receipt.noticeId}</title>
                     <style>
-                        body { font-family: monospace; padding: 20px; }
-                        table { width: 100%; }
-                        td { padding: 4px; }
+                        @media print {
+                            body { 
+                                font-family: 'Courier New', monospace; 
+                                padding: 0;
+                                margin: 0;
+                                font-size: 10pt;
+                            }
+                            .no-print { display: none !important; }
+                            a { color: black !important; text-decoration: none !important; }
+                            .receipt-container { padding: 0.5in !important; }
+                            h2 { font-size: 14pt !important; }
+                            h3 { font-size: 12pt !important; page-break-after: avoid; }
+                            table { page-break-inside: avoid; }
+                            div { page-break-inside: avoid; }
+                            code { 
+                                font-family: 'Courier New', monospace !important; 
+                                font-size: 8pt !important;
+                                background: none !important;
+                            }
+                        }
+                        body { 
+                            font-family: 'Courier New', monospace; 
+                            padding: 20px;
+                            line-height: 1.4;
+                        }
+                        table { 
+                            width: 100%; 
+                            border-collapse: collapse;
+                        }
+                        td { 
+                            padding: 4px 8px; 
+                            vertical-align: top;
+                        }
+                        h2, h3 { 
+                            margin: 0.5em 0;
+                            color: black;
+                        }
+                        code {
+                            font-family: 'Courier New', monospace;
+                            background: #f0f0f0;
+                            padding: 2px 4px;
+                            font-size: 9pt;
+                        }
+                        .no-print { }
+                        @page { 
+                            margin: 0.5in;
+                            size: letter;
+                        }
                     </style>
                 </head>
                 <body>
@@ -12196,7 +12275,11 @@ async function checkUserRoles() {
                 </html>
             `);
             printWindow.document.close();
-            printWindow.print();
+            
+            // Wait for content to load then print
+            setTimeout(() => {
+                printWindow.print();
+            }, 250);
         }
         
         // Export acceptance receipt as HTML
