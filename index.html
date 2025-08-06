@@ -8194,6 +8194,10 @@ function useConnectedAddressForFeeCollector() {
                     // Refresh alerts to show their notices
                     setTimeout(async () => {
                         console.log('Attempting to refresh alerts...');
+                        
+                        // Make sure we're on the delivery tab for recipients
+                        switchTab('delivery');
+                        
                         await refreshMyAlerts();
                         
                         // Scroll to alerts section
@@ -8426,11 +8430,16 @@ function useConnectedAddressForFeeCollector() {
                 return;
             }
             
-            const tabs = ['user', 'delivery', 'admin', 'help'];
+            const tabs = ['user', 'delivery', 'admin', 'help', 'info'];
             
             tabs.forEach(tab => {
                 const tabButton = document.querySelector(`[onclick="switchTab('${tab}')"]`);
                 const tabContent = document.getElementById(`${tab}Tab`);
+                
+                // Skip if elements don't exist (e.g., on BlockServed some tabs are hidden)
+                if (!tabButton || !tabContent) {
+                    return;
+                }
                 
                 if (tab === tabName) {
                     tabButton.classList.add('active');
@@ -14449,6 +14458,9 @@ Location: ${view.location_data ? `${view.location_data.city || 'Unknown'}, ${vie
                 // Hide Quick Actions for recipients
                 const quickActions = document.getElementById('quickActions');
                 if (quickActions) quickActions.style.display = 'none';
+                
+                // Make delivery tab active for recipients
+                switchTab('delivery');
                 
                 // Hide the entire tab navigation for recipients
                 const tabNav = document.querySelector('.tab-nav');
