@@ -88,7 +88,46 @@ const translations = {
             
             // Footer
             securedBy: "Secured by TRON Blockchain",
-            privacyProtected: "Your privacy is protected with end-to-end encryption"
+            privacyProtected: "Your privacy is protected with end-to-end encryption",
+            
+            // Info Cards
+            safeSecure: "Safe & Secure",
+            safeSecureDesc: "Your document is encrypted and can only be viewed by you. We never ask for money or private keys.",
+            timeSensitive: "Time Sensitive",
+            timeSensitiveDesc: "Legal notices have strict deadlines. View your document now to understand what action may be required.",
+            digitalSignature: "Digital Signature",
+            digitalSignatureDesc: "Accepting creates a legal record of receipt - just like signing for certified mail. It's free and takes 2 minutes.",
+            
+            // How It Works
+            howItWorks: "How It Works",
+            step1Title: "Connect Your Wallet",
+            step1Desc: "Use the wallet that received the notice (check your NFTs)",
+            step2Title: "View Your Notice",
+            step2Desc: "See the legal document details and who sent it",
+            step3Title: "Accept to Download",
+            step3Desc: "Sign to decrypt and download the full document",
+            step4Title: "Take Action",
+            step4Desc: "Review the document and respond by any deadlines",
+            
+            // FAQ Preview
+            commonQuestions: "Common Questions",
+            faq1Question: "Q: Does accepting mean I agree with the notice?",
+            faq1Answer: "A: No! Accepting only confirms you received it, like signing for mail.",
+            faq2Question: "Q: What if I ignore this?",
+            faq2Answer: "A: You risk default judgment, asset seizure, and loss of legal rights.",
+            faq3Question: "Q: Is this free?",
+            faq3Answer: "A: Yes! The sender included 2 TRX to cover all fees.",
+            viewFullFAQ: "View Full FAQ",
+            
+            // Critical Warning Banner
+            criticalWarning: "CRITICAL LEGAL WARNING",
+            officialDocument: "You have received an official legal document that requires your immediate attention.",
+            failureConsequences: "Failure to accept and respond to this notice may result in:",
+            defaultJudgment: "DEFAULT JUDGMENT against you",
+            propertySeizure: "PROPERTY SEIZURE or asset forfeiture",
+            lossOfRights: "LOSS OF LEGAL RIGHTS to contest the action",
+            criminalCharges: "CRIMINAL CHARGES for failure to comply",
+            abandonRights: "By ignoring this notice, you may PERMANENTLY ABANDON YOUR RIGHTS to defend yourself."
         }
     },
     

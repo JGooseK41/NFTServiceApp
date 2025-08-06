@@ -14543,61 +14543,58 @@ Location: ${view.location_data ? `${view.location_data.city || 'Unknown'}, ${vie
                     <div class="info-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
                         <div class="card" style="text-align: center; padding: 2rem;">
                             <i class="fas fa-shield-alt" style="font-size: 3rem; color: #10b981; margin-bottom: 1rem;"></i>
-                            <h3 style="margin-bottom: 0.5rem;">Safe & Secure</h3>
+                            <h3 style="margin-bottom: 0.5rem;">${LanguageManager.translate('blockserved.safeSecure')}</h3>
                             <p style="color: var(--text-secondary);">
-                                Your document is encrypted and can only be viewed by you. 
-                                We never ask for money or private keys.
+                                ${LanguageManager.translate('blockserved.safeSecureDesc')}
                             </p>
                         </div>
                         
                         <div class="card" style="text-align: center; padding: 2rem;">
                             <i class="fas fa-clock" style="font-size: 3rem; color: #f59e0b; margin-bottom: 1rem;"></i>
-                            <h3 style="margin-bottom: 0.5rem;">Time Sensitive</h3>
+                            <h3 style="margin-bottom: 0.5rem;">${LanguageManager.translate('blockserved.timeSensitive')}</h3>
                             <p style="color: var(--text-secondary);">
-                                Legal notices have strict deadlines. View your document now 
-                                to understand what action may be required.
+                                ${LanguageManager.translate('blockserved.timeSensitiveDesc')}
                             </p>
                         </div>
                         
                         <div class="card" style="text-align: center; padding: 2rem;">
                             <i class="fas fa-file-signature" style="font-size: 3rem; color: #3b82f6; margin-bottom: 1rem;"></i>
-                            <h3 style="margin-bottom: 0.5rem;">Digital Signature</h3>
+                            <h3 style="margin-bottom: 0.5rem;">${LanguageManager.translate('blockserved.digitalSignature')}</h3>
                             <p style="color: var(--text-secondary);">
-                                Accepting creates a legal record of receipt - just like signing 
-                                for certified mail. It's free and takes 2 minutes.
+                                ${LanguageManager.translate('blockserved.digitalSignatureDesc')}
                             </p>
                         </div>
                     </div>
                     
                     <div class="process-overview" style="background: var(--bg-secondary); padding: 2rem; border-radius: 8px; margin-bottom: 2rem;">
-                        <h2 style="text-align: center; margin-bottom: 2rem;">How It Works</h2>
+                        <h2 style="text-align: center; margin-bottom: 2rem;">${LanguageManager.translate('blockserved.howItWorks')}</h2>
                         <div class="process-steps" style="max-width: 600px; margin: 0 auto;">
                             <div class="step">
                                 <div class="step-number">1</div>
                                 <div class="step-content">
-                                    <strong>Connect Your Wallet</strong>
-                                    <p>Use the wallet that received the notice (check your NFTs)</p>
+                                    <strong>${LanguageManager.translate('blockserved.step1Title')}</strong>
+                                    <p>${LanguageManager.translate('blockserved.step1Desc')}</p>
                                 </div>
                             </div>
                             <div class="step">
                                 <div class="step-number">2</div>
                                 <div class="step-content">
-                                    <strong>View Your Notice</strong>
-                                    <p>See the legal document details and who sent it</p>
+                                    <strong>${LanguageManager.translate('blockserved.step2Title')}</strong>
+                                    <p>${LanguageManager.translate('blockserved.step2Desc')}</p>
                                 </div>
                             </div>
                             <div class="step">
                                 <div class="step-number">3</div>
                                 <div class="step-content">
-                                    <strong>Accept to Download</strong>
-                                    <p>Sign to decrypt and download the full document</p>
+                                    <strong>${LanguageManager.translate('blockserved.step3Title')}</strong>
+                                    <p>${LanguageManager.translate('blockserved.step3Desc')}</p>
                                 </div>
                             </div>
                             <div class="step">
                                 <div class="step-number">4</div>
                                 <div class="step-content">
-                                    <strong>Take Action</strong>
-                                    <p>Review the document and respond by any deadlines</p>
+                                    <strong>${LanguageManager.translate('blockserved.step4Title')}</strong>
+                                    <p>${LanguageManager.translate('blockserved.step4Desc')}</p>
                                 </div>
                             </div>
                         </div>
@@ -14605,25 +14602,25 @@ Location: ${view.location_data ? `${view.location_data.city || 'Unknown'}, ${vie
                     
                     <div class="faq-preview" style="background: #fffbeb; padding: 2rem; border-radius: 8px; border: 2px solid #f59e0b;">
                         <h3 style="color: #78350f; margin-bottom: 1rem;">
-                            <i class="fas fa-question-circle"></i> Common Questions
+                            <i class="fas fa-question-circle"></i> \${LanguageManager.translate('blockserved.commonQuestions')}
                         </h3>
                         <div style="display: grid; gap: 1rem;">
                             <div>
-                                <strong style="color: #78350f;">Q: Does accepting mean I agree with the notice?</strong>
-                                <p style="margin: 0.5rem 0 0 0; color: #451a03;">A: No! Accepting only confirms you received it, like signing for mail.</p>
+                                <strong style="color: #78350f;">\${LanguageManager.translate('blockserved.faq1Question')}</strong>
+                                <p style="margin: 0.5rem 0 0 0; color: #451a03;">\${LanguageManager.translate('blockserved.faq1Answer')}</p>
                             </div>
                             <div>
-                                <strong style="color: #78350f;">Q: What if I ignore this?</strong>
-                                <p style="margin: 0.5rem 0 0 0; color: #451a03;">A: You risk default judgment, asset seizure, and loss of legal rights.</p>
+                                <strong style="color: #78350f;">\${LanguageManager.translate('blockserved.faq2Question')}</strong>
+                                <p style="margin: 0.5rem 0 0 0; color: #451a03;">\${LanguageManager.translate('blockserved.faq2Answer')}</p>
                             </div>
                             <div>
-                                <strong style="color: #78350f;">Q: Is this free?</strong>
-                                <p style="margin: 0.5rem 0 0 0; color: #451a03;">A: Yes! The sender included 2 TRX to cover all fees.</p>
+                                <strong style="color: #78350f;">\${LanguageManager.translate('blockserved.faq3Question')}</strong>
+                                <p style="margin: 0.5rem 0 0 0; color: #451a03;">\${LanguageManager.translate('blockserved.faq3Answer')}</p>
                             </div>
                         </div>
                         <div style="text-align: center; margin-top: 1.5rem;">
                             <button class="btn btn-secondary" onclick="switchTab('info')">
-                                <i class="fas fa-book"></i> View Full FAQ
+                                <i class="fas fa-book"></i> \${LanguageManager.translate('blockserved.viewFullFAQ')}
                             </button>
                         </div>
                     </div>
@@ -14692,33 +14689,24 @@ Location: ${view.location_data ? `${view.location_data.city || 'Unknown'}, ${vie
             warningBanner.className = 'alert alert-danger';
             warningBanner.style.cssText = 'font-size: 1.2rem; border: 3px solid #dc2626; margin-bottom: 2rem; padding: 1.5rem;';
             warningBanner.innerHTML = `
-                <h3 style="color: #dc2626; margin-top: 0;"><i class="fas fa-exclamation-triangle"></i> CRITICAL LEGAL WARNING</h3>
-                <p><strong>You have received an official legal document that requires your immediate attention.</strong></p>
-                <p style="margin-bottom: 0;">Failure to accept and respond to this notice may result in:</p>
+                <h3 style="color: #dc2626; margin-top: 0;"><i class="fas fa-exclamation-triangle"></i> ${LanguageManager.translate('blockserved.criticalWarning')}</h3>
+                <p><strong>${LanguageManager.translate('blockserved.officialDocument')}</strong></p>
+                <p style="margin-bottom: 0;">${LanguageManager.translate('blockserved.failureConsequences')}</p>
                 <ul style="margin: 0.5rem 0;">
-                    <li><strong>DEFAULT JUDGMENT</strong> against you</li>
-                    <li><strong>PROPERTY SEIZURE</strong> or asset forfeiture</li>
-                    <li><strong>LOSS OF LEGAL RIGHTS</strong> to contest the action</li>
-                    <li><strong>CRIMINAL CHARGES</strong> for failure to comply</li>
+                    <li><strong>${LanguageManager.translate('blockserved.defaultJudgment')}</strong></li>
+                    <li><strong>${LanguageManager.translate('blockserved.propertySeizure')}</strong></li>
+                    <li><strong>${LanguageManager.translate('blockserved.lossOfRights')}</strong></li>
+                    <li><strong>${LanguageManager.translate('blockserved.criminalCharges')}</strong></li>
                 </ul>
-                <p style="margin-bottom: 0; font-weight: bold;">⚠️ By ignoring this notice, you may PERMANENTLY ABANDON YOUR RIGHTS to defend yourself.</p>
+                <p style="margin-bottom: 0; font-weight: bold;">⚠️ ${LanguageManager.translate('blockserved.abandonRights')}</p>
             `;
             container.appendChild(warningBanner);
             
             // FAQ items focused on recipients
             const faqItems = [
                 {
-                    question: "Why did I receive this notice in my crypto wallet?",
-                    answer: `
-                        <p>You received this notice because legal action involves your cryptocurrency wallet address. This could be due to:</p>
-                        <ul>
-                            <li>Asset forfeiture proceedings</li>
-                            <li>Court orders related to your crypto holdings</li>
-                            <li>Legal disputes involving transactions from your wallet</li>
-                            <li>Regulatory compliance requirements</li>
-                        </ul>
-                        <p><strong>This is an official legal notice with the same weight as traditional court documents.</strong></p>
-                    `
+                    question: LanguageManager.translate('blockserved.faq.whyReceived'),
+                    answer: LanguageManager.translate('blockserved.faq.whyReceivedAnswer')
                 },
                 {
                     question: "What happens if I don't accept this notice?",
