@@ -21586,9 +21586,47 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         throw new Error('Decryption failed - invalid key or corrupted data');
                     }
 
-                    // Parse the decrypted JSON
-                    documentData = JSON.parse(decryptedString);
-                    console.log('Document decrypted successfully');
+                    console.log('Decrypted content preview:', decryptedString.substring(0, 50) + '...');
+
+                    // Check if it's a data URL (image/pdf)
+                    if (decryptedString.startsWith('data:')) {
+                        const [header, base64Data] = decryptedString.split(',');
+                        const mimeType = header.match(/data:([^;]+)/)[1];
+                        
+                        if (mimeType.startsWith('image/')) {
+                            // It's an image
+                            documentData = {
+                                type: 'image',
+                                content: decryptedString,
+                                mimeType: mimeType
+                            };
+                        } else if (mimeType === 'application/pdf') {
+                            // It's a PDF
+                            documentData = {
+                                type: 'pdf',
+                                pdf: base64Data
+                            };
+                        } else {
+                            // Unknown data URL type
+                            documentData = {
+                                type: 'dataurl',
+                                content: decryptedString
+                            };
+                        }
+                    } else {
+                        // Try to parse as JSON
+                        try {
+                            documentData = JSON.parse(decryptedString);
+                        } catch (e) {
+                            // If not JSON, treat as plain text
+                            documentData = {
+                                type: 'text',
+                                content: decryptedString
+                            };
+                        }
+                    }
+                    
+                    console.log('Document processed successfully, type:', documentData.type);
                 } catch (error) {
                     console.error('Decryption error:', error);
                     throw new Error('Failed to decrypt document: ' + error.message);
@@ -21634,9 +21672,16 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     </div>
                     <div class="modal-body">
                         <div class="document-viewer">
-                            ${documentData.content ? `
-                                <div class="document-content" style="white-space: pre-wrap; font-family: 'Courier New', monospace; background: #f5f5f5; padding: 1rem; border-radius: 4px;">
-                                    ${escapeHtml(documentData.content)}
+                            ${documentData.type === 'image' ? `
+                                <div class="document-image" style="text-align: center;">
+                                    <img src="${documentData.content}" 
+                                         style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 4px;"
+                                         alt="Legal Document">
+                                </div>
+                            ` : ''}
+                            ${documentData.type === 'text' || documentData.content ? `
+                                <div class="document-content" style="white-space: pre-wrap; font-family: 'Courier New', monospace; background: #f5f5f5; padding: 1rem; border-radius: 4px; color: #333;">
+                                    ${escapeHtml(documentData.content || '')}
                                 </div>
                             ` : ''}
                             ${documentData.html ? `
@@ -21644,11 +21689,19 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                     ${documentData.html}
                                 </div>
                             ` : ''}
-                            ${documentData.pdf ? `
+                            ${documentData.pdf || documentData.type === 'pdf' ? `
                                 <iframe src="data:application/pdf;base64,${documentData.pdf}" 
                                         style="width: 100%; height: 600px; border: none;"
                                         title="Legal Document PDF">
                                 </iframe>
+                            ` : ''}
+                            ${documentData.type === 'dataurl' ? `
+                                <div class="document-embed" style="text-align: center;">
+                                    <iframe src="${documentData.content}" 
+                                            style="width: 100%; height: 600px; border: 1px solid #ddd;"
+                                            title="Legal Document">
+                                    </iframe>
+                                </div>
                             ` : ''}
                         </div>
                         <div style="margin-top: 1.5rem; display: flex; gap: 0.5rem; justify-content: center;">
@@ -21729,11 +21782,15 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         function downloadDocument(documentId, documentData) {
             try {
                 const data = JSON.parse(documentData.replace(/&quot;/g, '"'));
-                let content = '';
-                let filename = `legal_document_${documentId}.txt`;
-                let mimeType = 'text/plain';
-
-                if (data.pdf) {
+                
+                if (data.type === 'image' && data.content) {
+                    // Download image directly using the data URL
+                    const a = document.createElement('a');
+                    a.href = data.content;
+                    a.download = `legal_document_${documentId}.${data.mimeType.split('/')[1] || 'png'}`;
+                    a.click();
+                    return;
+                } else if (data.pdf || data.type === 'pdf') {
                     // Download as PDF
                     const byteCharacters = atob(data.pdf);
                     const byteNumbers = new Array(byteCharacters.length);
@@ -21750,21 +21807,27 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     URL.revokeObjectURL(url);
                     return;
                 } else if (data.html) {
-                    content = data.html;
-                    filename = `legal_document_${documentId}.html`;
-                    mimeType = 'text/html';
-                } else if (data.content) {
-                    content = data.content;
+                    // Download as HTML
+                    const blob = new Blob([data.html], { type: 'text/html' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `legal_document_${documentId}.html`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                } else if (data.content || data.type === 'text') {
+                    // Download as text
+                    const content = data.content || '';
+                    const blob = new Blob([content], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `legal_document_${documentId}.txt`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                } else {
+                    throw new Error('Unknown document format');
                 }
-
-                // Download as text or HTML
-                const blob = new Blob([content], { type: mimeType });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                a.click();
-                URL.revokeObjectURL(url);
             } catch (error) {
                 console.error('Error downloading document:', error);
                 uiManager.showNotification('error', 'Failed to download document');
@@ -21776,6 +21839,20 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             try {
                 const data = JSON.parse(documentData.replace(/&quot;/g, '"'));
                 const printWindow = window.open('', '_blank');
+                
+                let printContent = '';
+                if (data.type === 'image' && data.content) {
+                    printContent = `<img src="${data.content}" style="max-width: 100%; height: auto;">`;
+                } else if (data.pdf || data.type === 'pdf') {
+                    printContent = '<p>PDF documents cannot be printed directly. Please download the document to print.</p>';
+                } else if (data.html) {
+                    printContent = data.html;
+                } else if (data.content || data.type === 'text') {
+                    printContent = '<pre>' + (data.content || 'No content available') + '</pre>';
+                } else {
+                    printContent = '<p>Document format not supported for printing.</p>';
+                }
+                
                 printWindow.document.write(`
                     <html>
                         <head>
@@ -21783,11 +21860,12 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                             <style>
                                 body { font-family: Arial, sans-serif; margin: 2rem; }
                                 pre { white-space: pre-wrap; }
+                                img { page-break-inside: avoid; }
                             </style>
                         </head>
                         <body>
                             <h2>Legal Document - Document #${documentId}</h2>
-                            ${data.html || '<pre>' + (data.content || 'No content available') + '</pre>'}
+                            ${printContent}
                         </body>
                     </html>
                 `);
