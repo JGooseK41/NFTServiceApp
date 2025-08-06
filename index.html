@@ -21518,17 +21518,26 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             try {
                 showProcessing('Retrieving document from IPFS...');
 
-                if (!encryptedIPFS || encryptedIPFS === '') {
-                    // Try to get it from the document notice using documentId
-                    const docData = await legalContract.documentNotices(documentId).call();
-                    if (docData && Array.isArray(docData) && docData.length > 0) {
-                        // v5 structure: [encryptedIPFS, decryptionKey, authorizedViewer, alertId, isRestricted]
-                        encryptedIPFS = docData[0];
-                    }
+                // Get the document notice data to retrieve decryption key
+                const docData = await legalContract.documentNotices(documentId).call();
+                if (!docData || !Array.isArray(docData) || docData.length < 2) {
+                    throw new Error('Invalid document notice data');
                 }
+
+                // v5 structure: [encryptedIPFS, decryptionKey, authorizedViewer, alertId, isRestricted]
+                if (!encryptedIPFS || encryptedIPFS === '') {
+                    encryptedIPFS = docData[0];
+                }
+                const decryptionKey = docData[1];
 
                 if (!encryptedIPFS || encryptedIPFS === '') {
                     uiManager.showNotification('error', 'No document attached to this notice');
+                    hideProcessing();
+                    return;
+                }
+
+                if (!decryptionKey || decryptionKey === '') {
+                    uiManager.showNotification('error', 'No decryption key available');
                     hideProcessing();
                     return;
                 }
@@ -21540,13 +21549,15 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     `https://cloudflare-ipfs.com/ipfs/${encryptedIPFS}`
                 ];
 
-                let documentData = null;
+                let encryptedContent = null;
                 for (const gateway of gateways) {
                     try {
                         showProcessing(`Trying gateway: ${new URL(gateway).hostname}...`);
                         const response = await fetch(gateway);
                         if (response.ok) {
-                            documentData = await response.json();
+                            // Get as text since it's encrypted
+                            encryptedContent = await response.text();
+                            console.log('Retrieved encrypted content from IPFS');
                             break;
                         }
                     } catch (error) {
@@ -21554,8 +21565,33 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     }
                 }
 
-                if (!documentData) {
+                if (!encryptedContent) {
                     throw new Error('Failed to retrieve document from IPFS');
+                }
+
+                // Decrypt the content
+                showProcessing('Decrypting document...');
+                let documentData;
+                try {
+                    // Check if CryptoJS is available
+                    if (typeof CryptoJS === 'undefined') {
+                        throw new Error('CryptoJS not loaded');
+                    }
+
+                    // Decrypt using the key
+                    const decrypted = CryptoJS.AES.decrypt(encryptedContent, decryptionKey);
+                    const decryptedString = decrypted.toString(CryptoJS.enc.Utf8);
+                    
+                    if (!decryptedString) {
+                        throw new Error('Decryption failed - invalid key or corrupted data');
+                    }
+
+                    // Parse the decrypted JSON
+                    documentData = JSON.parse(decryptedString);
+                    console.log('Document decrypted successfully');
+                } catch (error) {
+                    console.error('Decryption error:', error);
+                    throw new Error('Failed to decrypt document: ' + error.message);
                 }
 
                 // Show document in modal
