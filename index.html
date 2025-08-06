@@ -22181,15 +22181,15 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 modal.className = 'modal';
                 modal.style.display = 'block';
                 modal.innerHTML = `
-                    <div class="modal-content" style="max-width: 600px;">
+                    <div class="modal-content" style="max-width: 600px; background: white; color: #1e293b;">
                         <div class="modal-header">
-                            <h3>Acceptance Receipt - Notice #${noticeId}</h3>
+                            <h3 style="color: #1e293b;">Acceptance Receipt - Notice #${noticeId}</h3>
                             <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
                         </div>
-                        <div class="modal-body">
+                        <div class="modal-body" style="color: #1e293b;">
                             <div class="receipt-content" style="background: #f8f9fa; padding: 1.5rem; border-radius: 8px;">
-                                <h4 style="text-align: center; margin-bottom: 1rem;">LEGAL NOTICE ACCEPTANCE RECEIPT</h4>
-                                <div style="margin-bottom: 1rem;">
+                                <h4 style="text-align: center; margin-bottom: 1rem; color: #1e293b;">LEGAL NOTICE ACCEPTANCE RECEIPT</h4>
+                                <div style="margin-bottom: 1rem; color: #1e293b;">
                                     <strong>Notice ID:</strong> ${noticeId}<br>
                                     <strong>Accepted By:</strong> ${tronWeb.defaultAddress ? tronWeb.defaultAddress.base58 : 'Unknown'}<br>
                                     <strong>Acceptance Date:</strong> ${new Date().toLocaleString()}<br>
@@ -22197,7 +22197,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                     ${alertData[7] ? `<strong>Case Number:</strong> ${alertData[7]}<br>` : ''}
                                     ${alertData[5] ? `<strong>Issuing Agency:</strong> ${alertData[5]}<br>` : ''}
                                 </div>
-                                <div class="alert alert-info">
+                                <div class="alert alert-info" style="background: #dbeafe; border: 1px solid #3b82f6; padding: 1rem; border-radius: 4px; color: #1e40af;">
                                     <i class="fas fa-info-circle"></i> 
                                     This receipt confirms that you have acknowledged receipt of the legal notice. 
                                     This acknowledgment is permanently recorded on the TRON blockchain.
