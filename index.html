@@ -16,6 +16,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    
+    <!-- jsPDF for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="js/documentConverter.js"></script>
     <!-- Simplified Encryption (no registration needed) -->
     <script src="js/simple-encryption.js?v=2"></script>
@@ -13384,54 +13387,70 @@ async function checkUserRoles() {
                 const auditData = await response.json();
                 hideProcessing();
                 
+                // Check blockchain status
+                let blockchainAccepted = false;
+                try {
+                    const alertData = await legalContract.alertNotices(noticeId).call();
+                    if (alertData && Array.isArray(alertData) && alertData.length > 4) {
+                        blockchainAccepted = alertData[4] === true;
+                    }
+                } catch (e) {
+                    console.log('Could not fetch blockchain status:', e);
+                }
+                
+                // Use blockchain status if backend doesn't have it
+                if (blockchainAccepted && !auditData.summary.accepted) {
+                    auditData.summary.accepted = true;
+                }
+                
                 // Create modal to display audit trail
                 const modal = document.createElement('div');
                 modal.className = 'modal';
                 modal.style.display = 'block';
                 modal.innerHTML = `
-                    <div class="modal-content" style="max-width: 800px;">
+                    <div class="modal-content" style="max-width: 800px; background: white; color: #1e293b;">
                         <div class="modal-header">
-                            <h2><i class="fas fa-history"></i> Audit Trail - Notice #${noticeId}</h2>
+                            <h2 style="color: #1e293b;"><i class="fas fa-history"></i> Audit Trail - Notice #${noticeId}</h2>
                             <button class="close-btn" onclick="this.closest('.modal').remove()">
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
-                        <div class="modal-body">
-                            <div class="audit-summary" style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
-                                <h3 style="margin-bottom: 1rem;">Summary</h3>
+                        <div class="modal-body" style="color: #1e293b;">
+                            <div class="audit-summary" style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                                <h3 style="margin-bottom: 1rem; color: #1e293b;">Summary</h3>
                                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
                                     <div>
-                                        <div style="color: var(--text-secondary); font-size: 0.875rem;">Total Views</div>
-                                        <div style="font-size: 1.5rem; font-weight: bold;">${auditData.summary.totalViews}</div>
+                                        <div style="color: #64748b; font-size: 0.875rem;">Total Views</div>
+                                        <div style="font-size: 1.5rem; font-weight: bold; color: #1e293b;">${auditData.summary.totalViews || 0}</div>
                                     </div>
                                     <div>
-                                        <div style="color: var(--text-secondary); font-size: 0.875rem;">Unique Viewers</div>
-                                        <div style="font-size: 1.5rem; font-weight: bold;">${auditData.summary.uniqueViewers}</div>
+                                        <div style="color: #64748b; font-size: 0.875rem;">Unique Viewers</div>
+                                        <div style="font-size: 1.5rem; font-weight: bold; color: #1e293b;">${auditData.summary.uniqueViewers || 0}</div>
                                     </div>
                                     <div>
-                                        <div style="color: var(--text-secondary); font-size: 0.875rem;">Status</div>
-                                        <div style="font-size: 1.5rem; font-weight: bold; color: ${auditData.summary.accepted ? 'var(--success-green)' : 'var(--warning-yellow)'};">
-                                            ${auditData.summary.accepted ? 'Accepted' : 'Pending'}
+                                        <div style="color: #64748b; font-size: 0.875rem;">Status</div>
+                                        <div style="font-size: 1.5rem; font-weight: bold; color: ${blockchainAccepted ? '#22c55e' : '#f59e0b'};">
+                                            ${blockchainAccepted ? 'Accepted' : 'Pending'}
                                         </div>
                                     </div>
                                 </div>
                                 ${auditData.summary.firstViewedAt ? `
-                                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
                                         <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                                            <span style="color: var(--text-secondary);">First Viewed:</span>
-                                            <span>${new Date(auditData.summary.firstViewedAt).toLocaleString()}</span>
+                                            <span style="color: #64748b;">First Viewed:</span>
+                                            <span style="color: #1e293b;">${new Date(auditData.summary.firstViewedAt).toLocaleString()}</span>
                                         </div>
                                         <div style="display: flex; justify-content: space-between;">
-                                            <span style="color: var(--text-secondary);">Last Viewed:</span>
-                                            <span>${new Date(auditData.summary.lastViewedAt).toLocaleString()}</span>
+                                            <span style="color: #64748b;">Last Viewed:</span>
+                                            <span style="color: #1e293b;">${new Date(auditData.summary.lastViewedAt).toLocaleString()}</span>
                                         </div>
                                     </div>
                                 ` : ''}
-                                ${auditData.summary.acceptedAt ? `
+                                ${blockchainAccepted ? `
                                     <div style="display: flex; justify-content: space-between; margin-top: 0.5rem;">
-                                        <span style="color: var(--text-secondary);">Accepted At:</span>
-                                        <span style="color: var(--success-green); font-weight: bold;">
-                                            ${new Date(auditData.summary.acceptedAt).toLocaleString()}
+                                        <span style="color: #64748b;">Accepted At:</span>
+                                        <span style="color: #22c55e; font-weight: bold;">
+                                            ${auditData.summary.acceptedAt ? new Date(auditData.summary.acceptedAt).toLocaleString() : 'Verified on blockchain'}
                                         </span>
                                     </div>
                                 ` : ''}
@@ -13458,32 +13477,32 @@ async function checkUserRoles() {
                             ` : ''}
                             
                             <div class="view-logs">
-                                <h3 style="margin-bottom: 1rem;">View History</h3>
-                                ${auditData.views.length > 0 ? `
+                                <h3 style="margin-bottom: 1rem; color: #1e293b;">View History</h3>
+                                ${auditData.views && auditData.views.length > 0 ? `
                                     <div style="overflow-x: auto;">
                                         <table style="width: 100%; border-collapse: collapse;">
                                             <thead>
-                                                <tr style="background: var(--bg-secondary);">
-                                                    <th style="padding: 0.75rem; text-align: left;">Time</th>
-                                                    <th style="padding: 0.75rem; text-align: left;">Viewer</th>
-                                                    <th style="padding: 0.75rem; text-align: left;">IP Address</th>
-                                                    <th style="padding: 0.75rem; text-align: left;">Location</th>
+                                                <tr style="background: #f8f9fa;">
+                                                    <th style="padding: 0.75rem; text-align: left; color: #1e293b;">Time</th>
+                                                    <th style="padding: 0.75rem; text-align: left; color: #1e293b;">Viewer</th>
+                                                    <th style="padding: 0.75rem; text-align: left; color: #1e293b;">IP Address</th>
+                                                    <th style="padding: 0.75rem; text-align: left; color: #1e293b;">Location</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 ${auditData.views.map((view, i) => `
-                                                    <tr style="border-bottom: 1px solid var(--border-color);">
-                                                        <td style="padding: 0.75rem;">${new Date(view.viewed_at).toLocaleString()}</td>
-                                                        <td style="padding: 0.75rem;">
+                                                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                                                        <td style="padding: 0.75rem; color: #475569;">${new Date(view.viewed_at).toLocaleString()}</td>
+                                                        <td style="padding: 0.75rem; color: #475569;">
                                                             ${view.viewer_address && view.viewer_address !== 'anonymous' 
-                                                                ? `<code style="font-size: 0.875rem;">${formatAddress(view.viewer_address)}</code>` 
-                                                                : '<span style="color: var(--text-secondary);">Anonymous</span>'
+                                                                ? `<code style="font-size: 0.875rem; color: #0891b2;">${formatAddress(view.viewer_address)}</code>` 
+                                                                : '<span style="color: #94a3b8;">Anonymous</span>'
                                                             }
                                                         </td>
-                                                        <td style="padding: 0.75rem;">${view.ip_address || view.real_ip || 'N/A'}</td>
-                                                        <td style="padding: 0.75rem;">
+                                                        <td style="padding: 0.75rem; color: #475569;">${view.ip_address || view.real_ip || 'N/A'}</td>
+                                                        <td style="padding: 0.75rem; color: #475569;">
                                                             ${view.location_data 
-                                                                ? `${view.location_data.city || 'Unknown'}, ${view.location_data.country || 'Unknown'}`
+                                                                ? `${typeof view.location_data === 'string' ? JSON.parse(view.location_data).city || 'Unknown' : view.location_data.city || 'Unknown'}, ${typeof view.location_data === 'string' ? JSON.parse(view.location_data).country || 'Unknown' : view.location_data.country || 'Unknown'}`
                                                                 : 'N/A'
                                                             }
                                                         </td>
@@ -13492,7 +13511,7 @@ async function checkUserRoles() {
                                             </tbody>
                                         </table>
                                     </div>
-                                ` : '<p style="color: var(--text-secondary);">No views recorded yet</p>'}
+                                ` : '<p style="color: #64748b;">No views recorded yet. Views will appear here when recipients access the notice.</p>'}
                             </div>
                         </div>
                         <div class="modal-footer">
@@ -13688,51 +13707,183 @@ async function checkUserRoles() {
         window.viewWalletConnectionHistory = viewWalletConnectionHistory;
         
         function exportAuditTrail(noticeId, auditData) {
-            const report = `
-AUDIT TRAIL REPORT
-Notice ID: ${noticeId}
-Generated: ${new Date().toLocaleString()}
-
-SUMMARY
-=======
-Total Views: ${auditData.summary.totalViews}
-Unique Viewers: ${auditData.summary.uniqueViewers}
-Status: ${auditData.summary.accepted ? 'ACCEPTED' : 'PENDING'}
-First Viewed: ${auditData.summary.firstViewedAt ? new Date(auditData.summary.firstViewedAt).toLocaleString() : 'Never'}
-Last Viewed: ${auditData.summary.lastViewedAt ? new Date(auditData.summary.lastViewedAt).toLocaleString() : 'Never'}
-${auditData.summary.acceptedAt ? `Accepted At: ${new Date(auditData.summary.acceptedAt).toLocaleString()}` : ''}
-
-${auditData.acceptances.length > 0 ? `
-ACCEPTANCE DETAILS
-==================
-${auditData.acceptances.map(acc => `
-Wallet: ${acc.acceptor_address}
-Transaction: ${acc.transaction_hash}
-IP Address: ${acc.ip_address || acc.real_ip}
-Time: ${new Date(acc.accepted_at).toLocaleString()}
-${acc.location_data ? `Location: ${acc.location_data.city}, ${acc.location_data.region}, ${acc.location_data.country}` : ''}
-`).join('\n')}
-` : ''}
-
-VIEW HISTORY
-============
-${auditData.views.map(view => `
-Time: ${new Date(view.viewed_at).toLocaleString()}
-Viewer: ${view.viewer_address && view.viewer_address !== 'anonymous' ? view.viewer_address : 'Anonymous'}
-IP: ${view.ip_address || view.real_ip || 'N/A'}
-Location: ${view.location_data ? `${view.location_data.city || 'Unknown'}, ${view.location_data.country || 'Unknown'}` : 'N/A'}
-`).join('\n---\n')}
-`;
-            
-            const blob = new Blob([report], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `audit_trail_notice_${noticeId}_${Date.now()}.txt`;
-            a.click();
-            URL.revokeObjectURL(url);
-            
-            uiManager.showNotification('success', 'Audit trail exported successfully');
+            try {
+                // Parse the audit data if it's a string
+                if (typeof auditData === 'string') {
+                    auditData = JSON.parse(auditData.replace(/&quot;/g, '"'));
+                }
+                
+                // Create new PDF document
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // Colors
+                const primaryColor = [30, 41, 59]; // #1e293b
+                const accentColor = [34, 197, 94]; // #22c55e
+                const warningColor = [245, 158, 11]; // #f59e0b
+                
+                // Add header
+                doc.setFontSize(20);
+                doc.setTextColor(...primaryColor);
+                doc.text('AUDIT TRAIL REPORT', 105, 20, { align: 'center' });
+                
+                // Notice info
+                doc.setFontSize(10);
+                doc.setTextColor(100, 116, 139); // #64748b
+                doc.text(`Notice ID: ${noticeId}`, 20, 35);
+                doc.text(`Generated: ${new Date().toLocaleString()}`, 20, 40);
+                doc.text(`Network: TRON ${tronWeb.fullNode.host.includes('nile') ? 'Nile Testnet' : 'Mainnet'}`, 20, 45);
+                
+                // Draw line
+                doc.setDrawColor(226, 232, 240); // #e2e8f0
+                doc.line(20, 50, 190, 50);
+                
+                // Summary section
+                let yPos = 60;
+                doc.setFontSize(14);
+                doc.setTextColor(...primaryColor);
+                doc.text('SUMMARY', 20, yPos);
+                
+                yPos += 10;
+                doc.setFontSize(10);
+                doc.setTextColor(71, 85, 105); // #475569
+                doc.text(`Total Views: ${auditData.summary.totalViews || 0}`, 20, yPos);
+                yPos += 6;
+                doc.text(`Unique Viewers: ${auditData.summary.uniqueViewers || 0}`, 20, yPos);
+                yPos += 6;
+                
+                // Status with color
+                doc.text('Status: ', 20, yPos);
+                if (auditData.summary.accepted) {
+                    doc.setTextColor(...accentColor);
+                    doc.text('ACCEPTED', 38, yPos);
+                } else {
+                    doc.setTextColor(...warningColor);
+                    doc.text('PENDING', 38, yPos);
+                }
+                
+                yPos += 6;
+                doc.setTextColor(71, 85, 105);
+                if (auditData.summary.firstViewedAt) {
+                    doc.text(`First Viewed: ${new Date(auditData.summary.firstViewedAt).toLocaleString()}`, 20, yPos);
+                    yPos += 6;
+                    doc.text(`Last Viewed: ${new Date(auditData.summary.lastViewedAt).toLocaleString()}`, 20, yPos);
+                    yPos += 6;
+                }
+                if (auditData.summary.acceptedAt) {
+                    doc.setTextColor(...accentColor);
+                    doc.text(`Accepted At: ${new Date(auditData.summary.acceptedAt).toLocaleString()}`, 20, yPos);
+                    yPos += 6;
+                }
+                
+                // Acceptance Details
+                if (auditData.acceptances && auditData.acceptances.length > 0) {
+                    yPos += 10;
+                    doc.setFontSize(14);
+                    doc.setTextColor(...primaryColor);
+                    doc.text('ACCEPTANCE DETAILS', 20, yPos);
+                    
+                    yPos += 10;
+                    doc.setFontSize(9);
+                    auditData.acceptances.forEach(acc => {
+                        if (yPos > 270) {
+                            doc.addPage();
+                            yPos = 20;
+                        }
+                        
+                        doc.setTextColor(71, 85, 105);
+                        doc.text(`Wallet: ${acc.acceptor_address}`, 20, yPos);
+                        yPos += 5;
+                        doc.text(`TX Hash: ${acc.transaction_hash}`, 20, yPos);
+                        yPos += 5;
+                        doc.text(`IP Address: ${acc.ip_address || acc.real_ip || 'N/A'}`, 20, yPos);
+                        yPos += 5;
+                        doc.text(`Time: ${new Date(acc.accepted_at).toLocaleString()}`, 20, yPos);
+                        yPos += 5;
+                        if (acc.location_data) {
+                            const loc = typeof acc.location_data === 'string' ? JSON.parse(acc.location_data) : acc.location_data;
+                            doc.text(`Location: ${loc.city || 'Unknown'}, ${loc.region || ''}, ${loc.country || 'Unknown'}`, 20, yPos);
+                            yPos += 5;
+                        }
+                        yPos += 5;
+                    });
+                }
+                
+                // View History
+                if (auditData.views && auditData.views.length > 0) {
+                    yPos += 10;
+                    if (yPos > 250) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+                    
+                    doc.setFontSize(14);
+                    doc.setTextColor(...primaryColor);
+                    doc.text('VIEW HISTORY', 20, yPos);
+                    
+                    yPos += 10;
+                    doc.setFontSize(9);
+                    
+                    // Table headers
+                    doc.setFillColor(248, 250, 252); // #f8fafc
+                    doc.rect(20, yPos - 5, 170, 8, 'F');
+                    doc.setTextColor(...primaryColor);
+                    doc.text('Time', 22, yPos);
+                    doc.text('Viewer', 60, yPos);
+                    doc.text('IP Address', 110, yPos);
+                    doc.text('Location', 145, yPos);
+                    
+                    yPos += 8;
+                    doc.setTextColor(71, 85, 105);
+                    
+                    auditData.views.forEach((view, index) => {
+                        if (yPos > 270) {
+                            doc.addPage();
+                            yPos = 20;
+                        }
+                        
+                        // Alternate row colors
+                        if (index % 2 === 0) {
+                            doc.setFillColor(248, 250, 252);
+                            doc.rect(20, yPos - 4, 170, 6, 'F');
+                        }
+                        
+                        const viewTime = new Date(view.viewed_at).toLocaleString().split(',')[0];
+                        doc.text(viewTime, 22, yPos);
+                        
+                        const viewer = view.viewer_address && view.viewer_address !== 'anonymous' 
+                            ? view.viewer_address.substring(0, 8) + '...' 
+                            : 'Anonymous';
+                        doc.text(viewer, 60, yPos);
+                        
+                        doc.text(view.ip_address || view.real_ip || 'N/A', 110, yPos);
+                        
+                        if (view.location_data) {
+                            const loc = typeof view.location_data === 'string' ? JSON.parse(view.location_data) : view.location_data;
+                            const location = `${loc.city || 'Unknown'}, ${loc.country || 'Unknown'}`;
+                            doc.text(location.substring(0, 25), 145, yPos);
+                        } else {
+                            doc.text('N/A', 145, yPos);
+                        }
+                        
+                        yPos += 6;
+                    });
+                }
+                
+                // Footer
+                doc.setFontSize(8);
+                doc.setTextColor(148, 163, 184); // #94a3b8
+                doc.text('Generated by NFT Legal Service', 105, 285, { align: 'center' });
+                doc.text(`Contract: ${legalContract.address}`, 105, 290, { align: 'center' });
+                
+                // Save the PDF
+                doc.save(`audit_trail_notice_${noticeId}_${Date.now()}.pdf`);
+                
+                uiManager.showNotification('success', 'Audit trail exported as PDF successfully');
+            } catch (error) {
+                console.error('Error generating PDF:', error);
+                uiManager.showNotification('error', 'Failed to generate PDF report');
+            }
         }
         
         window.exportAuditTrail = exportAuditTrail;
