@@ -11802,8 +11802,158 @@ async function checkUserRoles() {
             }
         }
         
-        // Show acceptance receipt modal
-        async function showAcceptanceReceipt(noticeId) {
+        // Show acceptance receipt modal (determines if server or recipient)
+        async function showAcceptanceReceipt(noticeId, isServer = false) {
+            // Check if current user is the server who sent this notice
+            if (!isServer && legalContract && tronWeb.defaultAddress) {
+                try {
+                    const alertData = await legalContract.alertNotices(noticeId).call();
+                    if (alertData && alertData[1]) { // server address at index 1
+                        const serverAddress = alertData[1].startsWith('41') ? 
+                            tronWeb.address.fromHex(alertData[1]) : alertData[1];
+                        if (serverAddress.toLowerCase() === tronWeb.defaultAddress.base58.toLowerCase()) {
+                            isServer = true;
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error checking server status:', e);
+                }
+            }
+            
+            if (isServer) {
+                return showServerReceipt(noticeId);
+            } else {
+                return showRecipientReceipt(noticeId);
+            }
+        }
+        
+        // Show receipt for process servers (proof of service and acceptance)
+        async function showServerReceipt(noticeId) {
+            try {
+                // Get notice details
+                const alertData = await legalContract.alertNotices(noticeId).call();
+                const docData = await legalContract.documentNotices(noticeId).call();
+                
+                // Check if acknowledged
+                const isAcknowledged = alertData && alertData[4] === true;
+                
+                // Get acceptance event if acknowledged
+                let acceptanceEvent = null;
+                let acceptanceTime = null;
+                if (isAcknowledged) {
+                    acceptanceEvent = await checkNoticeAcceptance(noticeId);
+                    if (acceptanceEvent) {
+                        acceptanceTime = new Date(parseInt(acceptanceEvent.result.timestamp) * 1000);
+                    }
+                }
+                
+                // Get service time
+                const serviceTime = alertData[3] ? new Date(parseInt(alertData[3]) * 1000) : null;
+                
+                // Format addresses
+                const serverAddress = alertData[1] ? (alertData[1].startsWith('41') ? 
+                    tronWeb.address.fromHex(alertData[1]) : alertData[1]) : 'Unknown';
+                const recipientAddress = alertData[0] ? (alertData[0].startsWith('41') ? 
+                    tronWeb.address.fromHex(alertData[0]) : alertData[0]) : 'Unknown';
+                
+                // Create server-specific receipt
+                const receiptHTML = `
+                    <div class="receipt-container" style="padding: 2rem; font-family: monospace; background: white; color: #1e293b;">
+                        <div style="text-align: center; margin-bottom: 2rem;">
+                            <h2 style="margin: 0; color: #1e293b;">BLOCKCHAIN SERVICE OF PROCESS CERTIFICATE</h2>
+                            <p style="color: #64748b; margin: 0.5rem 0;">Proof of Service and Acceptance Record</p>
+                        </div>
+                        
+                        <div style="border: 2px solid #333; padding: 1.5rem; margin-bottom: 2rem;">
+                            <h3 style="color: #1e293b;">Service Information</h3>
+                            <table style="width: 100%; font-size: 0.9rem; color: #1e293b;">
+                                <tr><td style="width: 40%;"><strong>Notice ID:</strong></td><td>${noticeId}</td></tr>
+                                <tr><td><strong>Document Type:</strong></td><td>${alertData[6] || 'Legal Notice'}</td></tr>
+                                <tr><td><strong>Case Number:</strong></td><td>${alertData[7] || 'N/A'}</td></tr>
+                                <tr><td><strong>Issuing Agency:</strong></td><td>${alertData[5] || 'N/A'}</td></tr>
+                            </table>
+                        </div>
+                        
+                        <div style="border: 2px solid #333; padding: 1.5rem; margin-bottom: 2rem;">
+                            <h3 style="color: #1e293b;">Service Details</h3>
+                            <table style="width: 100%; font-size: 0.9rem; color: #1e293b;">
+                                <tr><td style="width: 40%;"><strong>Process Server:</strong></td><td style="word-break: break-all;">${serverAddress}</td></tr>
+                                <tr><td><strong>Recipient Wallet:</strong></td><td style="word-break: break-all;">${recipientAddress}</td></tr>
+                                <tr><td><strong>Date/Time Served:</strong></td><td>${serviceTime ? serviceTime.toLocaleString() : 'N/A'}</td></tr>
+                                <tr><td><strong>UTC Time Served:</strong></td><td>${serviceTime ? serviceTime.toUTCString() : 'N/A'}</td></tr>
+                                <tr><td><strong>Method:</strong></td><td>Direct NFT Service to Wallet</td></tr>
+                            </table>
+                        </div>
+                        
+                        ${isAcknowledged ? `
+                        <div style="border: 2px solid #10b981; padding: 1.5rem; margin-bottom: 2rem; background: #f0fdf4;">
+                            <h3 style="color: #166534;">✅ ACCEPTANCE CONFIRMED</h3>
+                            <table style="width: 100%; font-size: 0.9rem; color: #1e293b;">
+                                <tr><td style="width: 40%;"><strong>Status:</strong></td><td style="color: #166534; font-weight: bold;">ACCEPTED BY RECIPIENT</td></tr>
+                                <tr><td><strong>Date/Time Accepted:</strong></td><td>${acceptanceTime ? acceptanceTime.toLocaleString() : 'N/A'}</td></tr>
+                                <tr><td><strong>UTC Time Accepted:</strong></td><td>${acceptanceTime ? acceptanceTime.toUTCString() : 'N/A'}</td></tr>
+                                ${acceptanceEvent ? `
+                                    <tr><td><strong>Acceptance TX:</strong></td><td style="word-break: break-all;">${acceptanceEvent.transaction}</td></tr>
+                                    <tr><td><strong>Block Number:</strong></td><td>${acceptanceEvent.block}</td></tr>
+                                ` : ''}
+                            </table>
+                        </div>
+                        ` : `
+                        <div style="border: 2px solid #f59e0b; padding: 1.5rem; margin-bottom: 2rem; background: #fffbeb;">
+                            <h3 style="color: #92400e;">⏳ PENDING ACCEPTANCE</h3>
+                            <p style="color: #92400e; margin: 0;">Notice has been served but not yet accepted by recipient.</p>
+                        </div>
+                        `}
+                        
+                        <div style="border: 2px solid #333; padding: 1.5rem;">
+                            <h3 style="color: #1e293b;">Blockchain Verification</h3>
+                            <p style="color: #1e293b;"><strong>Smart Contract:</strong> <code>${CONTRACT_ADDRESS}</code></p>
+                            <p style="color: #1e293b;"><strong>Network:</strong> TRON ${tronWeb.fullNode.host.includes('nile') ? 'Nile Testnet' : 'Mainnet'}</p>
+                            <p style="color: #1e293b;"><strong>Alert NFT ID:</strong> ${noticeId}</p>
+                            ${docData && docData[0] ? `<p style="color: #1e293b;"><strong>Document IPFS:</strong> <code>${docData[0]}</code></p>` : ''}
+                            
+                            <div style="margin-top: 1rem;">
+                                <a href="${getTronScanUrl()}/#/contract/${CONTRACT_ADDRESS}" 
+                                   target="_blank" 
+                                   class="btn btn-secondary" 
+                                   style="display: inline-block; padding: 0.5rem 1rem; background: #64748b; color: white; text-decoration: none; border-radius: 4px;">
+                                    <i class="fas fa-search"></i> Verify on TronScan
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <div style="text-align: center; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; color: #64748b;">
+                            <p style="margin: 0.5rem 0;">Generated: ${new Date().toLocaleString()}</p>
+                            <p style="margin: 0.5rem 0; font-weight: bold;">This certificate serves as proof of blockchain-verified service of process</p>
+                        </div>
+                    </div>
+                `;
+                
+                // Show modal
+                const modal = document.getElementById('acceptanceReceiptModal');
+                document.getElementById('acceptanceReceiptContent').innerHTML = receiptHTML;
+                modal.style.display = 'flex';
+                
+                // Store for export
+                window.currentAcceptanceReceipt = {
+                    type: 'server',
+                    noticeId,
+                    serverAddress,
+                    recipientAddress,
+                    serviceTime,
+                    acceptanceTime,
+                    isAcknowledged
+                };
+                window.currentReceiptHTML = receiptHTML;
+                
+            } catch (error) {
+                console.error('Error generating server receipt:', error);
+                uiManager.showNotification('error', 'Failed to generate receipt');
+            }
+        }
+        
+        // Show receipt for recipients (acceptance confirmation)
+        async function showRecipientReceipt(noticeId) {
             try {
                 // First check if notice is acknowledged in the contract
                 let isAcknowledged = false;
@@ -22218,6 +22368,50 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             }
         }
 
+        // Log document view/download events
+        async function logDocumentView(documentId, action = 'view') {
+            try {
+                // Get notice ID from document ID (they're often the same in v5)
+                const noticeId = documentId;
+                
+                // Log locally
+                await logRecipientVisit(noticeId);
+                
+                // Send to backend
+                if (window.BACKEND_API_URL) {
+                    try {
+                        const ipResponse = await fetch('https://api.ipify.org?format=json');
+                        const { ip } = await ipResponse.json();
+                        
+                        const geoResponse = await fetch(`https://ipapi.co/${ip}/json/`);
+                        const geoData = await geoResponse.json();
+                        
+                        await fetch(`${window.BACKEND_API_URL}/api/notices/${noticeId}/views`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                viewerAddress: tronWeb.defaultAddress.base58,
+                                ipAddress: ip,
+                                userAgent: navigator.userAgent,
+                                location: {
+                                    city: geoData.city,
+                                    region: geoData.region,
+                                    country: geoData.country_name
+                                },
+                                action: action,
+                                timestamp: new Date().toISOString()
+                            })
+                        });
+                        console.log(`Document ${action} logged to backend`);
+                    } catch (e) {
+                        console.error('Failed to log to backend:', e);
+                    }
+                }
+            } catch (error) {
+                console.error('Error logging document view:', error);
+            }
+        }
+        
         // View an accepted document
         async function viewAcceptedDocument(documentId, encryptedIPFS) {
             if (!legalContract || !tronWeb || !tronWeb.defaultAddress) {
@@ -22226,6 +22420,9 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             }
 
             try {
+                // Log this view event
+                await logDocumentView(documentId, 'view');
+                
                 showProcessing('Retrieving document from IPFS...');
 
                 // Get the document notice data to retrieve decryption key
@@ -22508,8 +22705,10 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         }
 
         // Download document
-        function downloadDocument(documentId, documentData) {
+        async function downloadDocument(documentId, documentData) {
             try {
+                // Log download event
+                await logDocumentView(documentId, 'download');
                 // Handle both string and object inputs
                 let data;
                 if (typeof documentData === 'string') {
