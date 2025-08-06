@@ -530,7 +530,7 @@ app.get('/api/servers/:serverAddress/notices', async (req, res) => {
     
     query += `
       GROUP BY sn.id, na.accepted_at, na.transaction_hash, na.ip_address, na.location_data
-      ORDER BY sn.served_at DESC
+      ORDER BY sn.created_at DESC
       LIMIT $2
     `;
     
@@ -543,16 +543,19 @@ app.get('/api/servers/:serverAddress/notices', async (req, res) => {
       SELECT 
         COUNT(*) as total_notices,
         COUNT(CASE WHEN accepted = true THEN 1 END) as accepted_count,
-        COUNT(CASE WHEN accepted = false THEN 1 END) as pending_count,
-        AVG(CASE WHEN accepted = true 
-            THEN EXTRACT(EPOCH FROM (accepted_at - served_at))/3600 
-            END) as avg_acceptance_time_hours
+        COUNT(CASE WHEN accepted = false THEN 1 END) as pending_count
       FROM served_notices
       WHERE LOWER(server_address) = LOWER($1)
     `, [serverAddress]);
     
+    // Map created_at to served_at for frontend compatibility
+    const mappedNotices = result.rows.map(notice => ({
+      ...notice,
+      served_at: notice.created_at || notice.updated_at
+    }));
+    
     res.json({ 
-      notices: result.rows,
+      notices: mappedNotices,
       stats: stats.rows[0]
     });
   } catch (error) {
