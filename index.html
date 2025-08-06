@@ -15900,13 +15900,16 @@ async function checkUserRoles() {
                 if (!window.BACKEND_API_URL) return;
                 
                 try {
+                    // Convert BigInt values to strings for JSON serialization
+                    const serializableData = this.convertBigIntsToStrings(data);
+                    
                     await fetch(`${window.BACKEND_API_URL}/api/cache/blockchain`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             type,
-                            id,
-                            data: Array.isArray(data) ? data : data.toString(),
+                            id: id.toString(),
+                            data: serializableData,
                             network: tronWeb.fullNode.host.includes('nile') ? 'nile' : 'mainnet',
                             contractAddress: legalContract.address,
                             timestamp: Date.now()
@@ -15915,6 +15918,23 @@ async function checkUserRoles() {
                 } catch (error) {
                     console.log('Could not save to backend cache:', error);
                 }
+            },
+            
+            // Convert BigInt values to strings recursively
+            convertBigIntsToStrings(obj) {
+                if (obj === null || obj === undefined) return obj;
+                if (typeof obj === 'bigint') return obj.toString();
+                if (Array.isArray(obj)) {
+                    return obj.map(item => this.convertBigIntsToStrings(item));
+                }
+                if (typeof obj === 'object') {
+                    const result = {};
+                    for (const key in obj) {
+                        result[key] = this.convertBigIntsToStrings(obj[key]);
+                    }
+                    return result;
+                }
+                return obj;
             },
             
             // Load from backend on init
@@ -22081,6 +22101,10 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
 
         // Show document in a modal
         function showDocumentModal(documentData, documentId) {
+            // Store documentData globally for the buttons to access
+            window.currentDocumentData = documentData;
+            window.currentDocumentId = documentId;
+            
             // Create modal for document viewing
             const modal = document.createElement('div');
             modal.className = 'modal';
@@ -22126,10 +22150,10 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                             ` : ''}
                         </div>
                         <div style="margin-top: 1.5rem; display: flex; gap: 0.5rem; justify-content: center;">
-                            <button class="btn btn-primary" onclick="downloadDocument('${documentId}', ${JSON.stringify(documentData).replace(/"/g, '&quot;')})">
+                            <button class="btn btn-primary" onclick="downloadDocument(window.currentDocumentId, window.currentDocumentData)">
                                 <i class="fas fa-download"></i> Download Document
                             </button>
-                            <button class="btn btn-secondary" onclick="printDocument('${documentId}', ${JSON.stringify(documentData).replace(/"/g, '&quot;')})">
+                            <button class="btn btn-secondary" onclick="printDocument(window.currentDocumentId, window.currentDocumentData)">
                                 <i class="fas fa-print"></i> Print Document
                             </button>
                         </div>
@@ -22202,7 +22226,13 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         // Download document
         function downloadDocument(documentId, documentData) {
             try {
-                const data = JSON.parse(documentData.replace(/&quot;/g, '"'));
+                // Handle both string and object inputs
+                let data;
+                if (typeof documentData === 'string') {
+                    data = JSON.parse(documentData.replace(/&quot;/g, '"'));
+                } else {
+                    data = documentData;
+                }
                 
                 if (data.type === 'image' && data.content) {
                     // Download image directly using the data URL
@@ -22258,7 +22288,13 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         // Print document
         function printDocument(documentId, documentData) {
             try {
-                const data = JSON.parse(documentData.replace(/&quot;/g, '"'));
+                // Handle both string and object inputs
+                let data;
+                if (typeof documentData === 'string') {
+                    data = JSON.parse(documentData.replace(/&quot;/g, '"'));
+                } else {
+                    data = documentData;
+                }
                 const printWindow = window.open('', '_blank');
                 
                 let printContent = '';
