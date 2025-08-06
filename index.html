@@ -20128,15 +20128,16 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 // Check each notice for acceptance status
                 for (const noticeData of myNotices) {
                     try {
-                        // Check document notices for acceptance
-                        const docData = await retryWithDelay(async () => {
-                            return await legalContract.documentNotices(noticeData.noticeId).call();
+                        // In v5, check alert notices for acceptance status (acknowledged field)
+                        const alertData = await retryWithDelay(async () => {
+                            return await legalContract.alertNotices(noticeData.noticeId).call();
                         });
                         
-                        // documentNotices structure: [documentId, server, recipient, ipfsHash, accepted]
+                        // alertNotices structure: [recipient, server, documentId, timestamp, acknowledged, ...]
                         let accepted = false;
-                        if (docData && Array.isArray(docData) && docData.length > 4) {
-                            accepted = docData[4] === true || docData[4] === 'true' || docData[4] === 1;
+                        if (alertData && Array.isArray(alertData) && alertData.length > 4) {
+                            accepted = alertData[4] === true || alertData[4] === 'true' || alertData[4] === 1;
+                            console.log(`Notice ${noticeData.noticeId} acceptance status:`, accepted);
                         }
                         
                         deliveryData.push({
