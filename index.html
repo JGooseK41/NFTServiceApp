@@ -6517,49 +6517,89 @@
 // Get document notices for a recipient (not alert notices)
 async function getRecipientDocumentNotices(recipient) {
     try {
-        console.log('Getting document notices for recipient:', recipient);
+        console.log('Getting notices for recipient:', recipient);
         
         if (!legalContract) {
             console.error('Contract not initialized');
             return [];
         }
         
-        const documentNotices = [];
+        const recipientNotices = [];
         
         // Get total notices to iterate through
         const totalNotices = await legalContract.totalNotices().call();
         console.log('Total notices in contract:', totalNotices.toString());
         
-        // Check each notice to see if it's a document notice for this recipient
+        // In v5 contract, notices array contains the mapping
+        // Each notice has: alertId, documentId, server, recipient, timestamp, acknowledged, noticeType, caseNumber
         for (let i = 0; i < totalNotices; i++) {
             try {
-                // Check document notices array
-                const docData = await legalContract.documentNotices(i).call();
-                // documentNotices structure: [documentId, server, recipient, ipfsHash, accepted]
+                // Get the notice data
+                const noticeData = await legalContract.notices(i).call();
+                console.log(`Notice ${i} data:`, noticeData);
                 
-                if (docData && Array.isArray(docData) && docData.length >= 3) {
-                    // Get recipient address from index 2
-                    let docRecipient = docData[2];
+                if (noticeData) {
+                    let noticeRecipient;
                     
-                    // Convert hex to base58 if needed
-                    if (docRecipient && docRecipient.startsWith('41')) {
-                        docRecipient = tronWeb.address.fromHex(docRecipient);
+                    // The structure depends on how the data is returned
+                    if (Array.isArray(noticeData)) {
+                        // If it's an array, recipient is at index 3
+                        noticeRecipient = noticeData[3];
+                    } else if (noticeData.recipient) {
+                        // If it's an object with named properties
+                        noticeRecipient = noticeData.recipient;
                     }
                     
-                    // Check if this document notice is for our recipient
-                    if (docRecipient && docRecipient.toLowerCase() === recipient.toLowerCase()) {
-                        console.log(`Found document notice ${i} for recipient`);
-                        documentNotices.push(i);
+                    // Convert hex to base58 if needed
+                    if (noticeRecipient && noticeRecipient.startsWith('41')) {
+                        noticeRecipient = tronWeb.address.fromHex(noticeRecipient);
+                    }
+                    
+                    // Check if this notice is for our recipient
+                    if (noticeRecipient && noticeRecipient.toLowerCase() === recipient.toLowerCase()) {
+                        console.log(`Found notice ${i} for recipient`);
+                        
+                        // Get the document ID from the notice
+                        let documentId;
+                        if (Array.isArray(noticeData)) {
+                            documentId = noticeData[1]; // documentId is at index 1
+                        } else if (noticeData.documentId) {
+                            documentId = noticeData.documentId;
+                        }
+                        
+                        // Check if there's actually a document attached
+                        if (documentId) {
+                            try {
+                                const docNotice = await legalContract.documentNotices(documentId).call();
+                                if (docNotice) {
+                                    // v5 contract structure: encryptedIPFS, decryptionKey, authorizedViewer, alertId, isRestricted
+                                    const hasIPFS = Array.isArray(docNotice) ? 
+                                        (docNotice[0] && docNotice[0] !== '') : 
+                                        (docNotice.encryptedIPFS && docNotice.encryptedIPFS !== '');
+                                    
+                                    if (hasIPFS) {
+                                        console.log(`Notice ${i} has document with ID ${documentId}`);
+                                        recipientNotices.push({
+                                            noticeIndex: i,
+                                            documentId: documentId,
+                                            alertId: Array.isArray(noticeData) ? noticeData[0] : noticeData.alertId
+                                        });
+                                    }
+                                }
+                            } catch (e) {
+                                console.log(`No document data for documentId ${documentId}`);
+                            }
+                        }
                     }
                 }
             } catch (e) {
-                // Notice might not have document data, skip it
+                console.error(`Error checking notice ${i}:`, e);
                 continue;
             }
         }
         
-        console.log('Document notices found:', documentNotices);
-        return documentNotices;
+        console.log('Notices with documents found:', recipientNotices);
+        return recipientNotices;
         
     } catch (error) {
         console.error('Error in getRecipientDocumentNotices:', error);
@@ -8254,8 +8294,8 @@ function useConnectedAddressForFeeCollector() {
                     setTimeout(async () => {
                         console.log('Attempting to refresh alerts...');
                         
-                        // Make sure we're on the delivery tab for recipients
-                        switchTab('delivery');
+                        // Recipients stay on user tab where myAlertsContent is located
+                        // Don't switch tabs
                         
                         await refreshMyAlerts();
                         
@@ -14518,8 +14558,8 @@ Location: ${view.location_data ? `${view.location_data.city || 'Unknown'}, ${vie
                 const quickActions = document.getElementById('quickActions');
                 if (quickActions) quickActions.style.display = 'none';
                 
-                // Make delivery tab active for recipients
-                switchTab('delivery');
+                // Keep recipients on user tab to see their alerts
+                // Don't switch tabs - myAlertsContent is in the user tab
                 
                 // Hide the entire tab navigation for recipients
                 const tabNav = document.querySelector('.tab-nav');
@@ -21221,8 +21261,8 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 console.log('Refreshing document notices for address:', myAddress);
                 
                 // Get only document notices for this recipient
-                const noticeIds = await getRecipientDocumentNotices(myAddress);
-                console.log('Document notice IDs found:', noticeIds);
+                const noticeData = await getRecipientDocumentNotices(myAddress);
+                console.log('Notice data found:', noticeData);
                 
                 const alertsContent = document.getElementById('myAlertsContent');
                 if (!alertsContent) {
@@ -21230,7 +21270,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     return;
                 }
                 
-                if (!noticeIds || noticeIds.length === 0) {
+                if (!noticeData || noticeData.length === 0) {
                     console.log('No document notices found for this address');
                     alertsContent.innerHTML = `
                         <div class="empty-state">
@@ -21243,35 +21283,51 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 
                 let html = '<div class="notice-list">';
                 
-                for (const noticeId of noticeIds) {
+                for (const notice of noticeData) {
+                    const noticeId = notice.noticeIndex;
+                    const documentId = notice.documentId;
+                    const alertId = notice.alertId;
                     try {
-                        // Get document notice data (already verified it exists in getRecipientDocumentNotices)
-                        const docData = await legalContract.documentNotices(noticeId).call();
-                        console.log(`Document notice ${noticeId} data:`, docData);
+                        // Get document notice data using the documentId
+                        const docData = await legalContract.documentNotices(documentId).call();
+                        console.log(`Document notice ${documentId} data:`, docData);
                         
-                        // documentNotices structure: [documentId, server, recipient, ipfsHash, accepted]
-                        const documentId = docData[0];
-                        const serverAddress = docData[1].startsWith('41') ? tronWeb.address.fromHex(docData[1]) : docData[1];
-                        const recipientAddress = docData[2].startsWith('41') ? tronWeb.address.fromHex(docData[2]) : docData[2];
-                        const ipfsHash = docData[3];
-                        const isAccepted = docData[4] === true;
+                        // v5 documentNotices structure: [encryptedIPFS, decryptionKey, authorizedViewer, alertId, isRestricted]
+                        const encryptedIPFS = docData[0];
+                        const decryptionKey = docData[1];
+                        const authorizedViewer = docData[2];
+                        const linkedAlertId = docData[3];
+                        const isRestricted = docData[4];
                         
-                        // Get notice type and details from alert data if available
+                        // Get alert data for acknowledgment status and details
+                        let isAccepted = false;
                         let noticeType = 'Legal Document';
                         let caseNumber = '';
                         let issuingAgency = '';
                         let timestamp = Date.now() / 1000; // Default to now
+                        let serverAddress = '';
                         
                         try {
-                            const alertData = await legalContract.alertNotices(noticeId).call();
-                            if (alertData && Array.isArray(alertData) && alertData.length > 6) {
-                                noticeType = alertData[6] || 'Legal Document'; // Index 6 is noticeType
-                                caseNumber = alertData[7] || ''; // Index 7 is caseNumber
-                                issuingAgency = alertData[5] || ''; // Index 5 is issuingAgency
-                                timestamp = parseInt(alertData[3]) || timestamp; // Index 3 is timestamp
+                            const alertData = await legalContract.alertNotices(alertId).call();
+                            console.log(`Alert notice ${alertId} data:`, alertData);
+                            
+                            if (alertData && Array.isArray(alertData) && alertData.length > 10) {
+                                // v5 alertNotices structure: [recipient, sender, documentId, timestamp, acknowledged, 
+                                // issuingAgency, noticeType, caseNumber, caseDetails, legalRights, responseDeadline, previewImage]
+                                serverAddress = alertData[1]; // sender
+                                timestamp = parseInt(alertData[3]) || timestamp; // timestamp
+                                isAccepted = alertData[4] === true; // acknowledged
+                                issuingAgency = alertData[5] || ''; // issuingAgency
+                                noticeType = alertData[6] || 'Legal Document'; // noticeType
+                                caseNumber = alertData[7] || ''; // caseNumber
+                                
+                                // Convert server address from hex if needed
+                                if (serverAddress && serverAddress.startsWith('41')) {
+                                    serverAddress = tronWeb.address.fromHex(serverAddress);
+                                }
                             }
                         } catch (e) {
-                            console.log(`No alert data for notice ${noticeId}, using defaults`);
+                            console.log(`Error getting alert data for ${alertId}:`, e);
                         }
                         
                         // Build the recipient-friendly notice display
@@ -21284,77 +21340,6 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                             hour12: true
                         });
                         
-                        // Try to get alert notice data for additional details
-                        let alertData = null;
-                        try {
-                            alertData = await legalContract.alertNotices(noticeId).call();
-                            console.log(`Alert data for ${noticeId}:`, alertData);
-                        } catch (e) {
-                            console.log(`No alert data for ${noticeId}`);
-                        }
-                        
-                        // Use document data for acceptance status, alert data for details
-                        let serverId, hasDocument, accepted;
-                        
-                        // For v5 contracts, acceptance is tracked in alertNotices
-                        // The document notice is linked to the alert via alertId
-                        if (alertData && Array.isArray(alertData) && alertData.length > 4) {
-                            // Check acknowledged field in alertNotices (index 4)
-                            accepted = alertData[4] === true || alertData[4] === 'true' || alertData[4] === 1;
-                            console.log(`Alert notice ${noticeId} acknowledged status:`, accepted);
-                            
-                            // If there's a linked document, acceptance unlocks access to it
-                            if (docData && accepted) {
-                                console.log(`Document ${noticeId} is accessible after alert acknowledgment`);
-                            }
-                        } else {
-                            accepted = false;
-                        }
-                        
-                        // Get timestamp and other details from alertData
-                        if (alertData && Array.isArray(alertData) && alertData.length > 3) {
-                            timestamp = parseInt(alertData[3]); // Index 3 is timestamp
-                            serverId = 0; // Not in alert data
-                            hasDocument = true; // If we have docData, we have a document
-                        } else if (notice.timestamp) {
-                            // Fallback to direct fields if available
-                            timestamp = parseInt(notice.timestamp);
-                            serverId = notice.serverId || 0;
-                            hasDocument = notice.hasDocument || false;
-                        } else if (notice.packedData) {
-                            // Use packed data
-                            const parsed = parsePackedData(notice.packedData);
-                            timestamp = parsed.timestamp;
-                            serverId = parsed.serverId;
-                            hasDocument = parsed.hasDocument;
-                        } else {
-                            console.warn(`Notice ${noticeId} has no recognizable data structure`);
-                            continue;
-                        }
-                        
-                        // Get sender info from documentNotices (index 1) or alertNotices (index 1)
-                        let sender = 'Unknown';
-                        if (docData && Array.isArray(docData) && docData.length > 1 && docData[1]) {
-                            sender = docData[1]; // Index 1 in documentNotices is server
-                        } else if (alertData && Array.isArray(alertData) && alertData.length > 1 && alertData[1]) {
-                            sender = alertData[1]; // Index 1 in alertNotices is server
-                        }
-                        
-                        // Convert from hex if needed
-                        if (sender && sender.startsWith('41') && sender.length > 50) {
-                            try {
-                                sender = tronWeb.address.fromHex(sender);
-                            } catch (e) {
-                                console.log('Could not convert sender address from hex');
-                            }
-                        }
-                        
-                        // Update notice details from alertData if different
-                        if (alertData && Array.isArray(alertData)) {
-                            noticeType = alertData[6] || noticeType; // Index 6 is noticeType
-                            caseNumber = alertData[7] || caseNumber; // Index 7 is caseNumber
-                            issuingAgency = alertData[5] || issuingAgency; // Index 5 is issuingAgency
-                        }
                         
                         html += `
                             <div class="notice-item" style="background: #f8f9fa; border: 2px solid ${isAccepted ? '#22c55e' : '#f59e0b'}; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem;">
@@ -21383,7 +21368,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                             Failure to respond may result in default judgment.
                                         </div>
                                         
-                                        <button class="btn btn-primary" style="font-size: 1.1rem; padding: 0.75rem 1.5rem;" onclick="acceptDocumentNotice(${noticeId})">
+                                        <button class="btn btn-primary" style="font-size: 1.1rem; padding: 0.75rem 1.5rem;" onclick="acceptDocumentNotice(${alertId})">
                                             <i class="fas fa-signature"></i> Accept Notice & View Document
                                         </button>
                                     ` : `
@@ -21393,10 +21378,10 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                         </div>
                                         
                                         <div style="display: flex; gap: 0.5rem;">
-                                            <button class="btn btn-success" onclick="viewAcceptedDocument(${noticeId}, '${ipfsHash}')">
+                                            <button class="btn btn-success" onclick="viewAcceptedDocument(${documentId}, '${encryptedIPFS}')">
                                                 <i class="fas fa-file-download"></i> View Document
                                             </button>
-                                            <button class="btn btn-secondary" onclick="showAcceptanceReceipt(${noticeId})">
+                                            <button class="btn btn-secondary" onclick="showAcceptanceReceipt(${alertId})">
                                                 <i class="fas fa-receipt"></i> View Receipt
                                             </button>
                                         </div>

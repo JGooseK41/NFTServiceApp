@@ -15,7 +15,7 @@ async function debugContract() {
         console.log('1. Getting contract info...');
         const contractInfo = await tronWeb.trx.getContract(CONTRACT_ADDRESS);
         
-        if (\!contractInfo) {
+        if (!contractInfo) {
             console.log('Contract not found at address:', CONTRACT_ADDRESS);
             return;
         }
