@@ -21411,11 +21411,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             }
 
             try {
-                showLoading();
-                const loadingEl = document.querySelector('.loading-spinner p');
-                if (loadingEl) {
-                    loadingEl.textContent = 'Accepting document notice...';
-                }
+                showProcessing('Accepting document notice...');
 
                 // First check if this is actually an alert notice we need to acknowledge
                 let alertData;
@@ -21426,7 +21422,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         const acknowledged = alertData[4];
                         if (acknowledged) {
                             uiManager.showNotification('info', 'You have already accepted this notice');
-                            hideLoading();
+                            hideProcessing();
                             return;
                         }
 
@@ -21456,7 +21452,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
 
                         // Refresh the notices list
                         await refreshMyAlerts();
-                        hideLoading();
+                        hideProcessing();
                         return;
                     }
                 } catch (e) {
@@ -21473,7 +21469,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
 
                 if (accepted) {
                     uiManager.showNotification('info', 'You have already accepted this document');
-                    hideLoading();
+                    hideProcessing();
                     return;
                 }
 
@@ -21508,7 +21504,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 console.error('Error accepting notice:', error);
                 uiManager.showNotification('error', error.message || 'Failed to accept notice');
             } finally {
-                hideLoading();
+                hideProcessing();
             }
         }
 
@@ -21520,11 +21516,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             }
 
             try {
-                showLoading();
-                const loadingEl = document.querySelector('.loading-spinner p');
-                if (loadingEl) {
-                    loadingEl.textContent = 'Retrieving document from IPFS...';
-                }
+                showProcessing('Retrieving document from IPFS...');
 
                 if (!encryptedIPFS || encryptedIPFS === '') {
                     // Try to get it from the document notice using documentId
@@ -21537,7 +21529,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
 
                 if (!encryptedIPFS || encryptedIPFS === '') {
                     uiManager.showNotification('error', 'No document attached to this notice');
-                    hideLoading();
+                    hideProcessing();
                     return;
                 }
 
@@ -21551,9 +21543,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 let documentData = null;
                 for (const gateway of gateways) {
                     try {
-                        if (loadingEl) {
-                            loadingEl.textContent = `Trying gateway: ${new URL(gateway).hostname}...`;
-                        }
+                        showProcessing(`Trying gateway: ${new URL(gateway).hostname}...`);
                         const response = await fetch(gateway);
                         if (response.ok) {
                             documentData = await response.json();
@@ -21590,7 +21580,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 console.error('Error viewing document:', error);
                 uiManager.showNotification('error', error.message || 'Failed to retrieve document');
             } finally {
-                hideLoading();
+                hideProcessing();
             }
         }
 
