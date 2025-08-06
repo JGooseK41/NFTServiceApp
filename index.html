@@ -21345,7 +21345,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                             <div class="notice-item" style="background: #f8f9fa; border: 2px solid ${isAccepted ? '#22c55e' : '#f59e0b'}; border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem;">
                                 <div class="notice-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                                     <h3 style="margin: 0; color: #1e293b;">
-                                        <i class="fas fa-envelope-open-text"></i> Document Notice #${noticeId}
+                                        <i class="fas fa-envelope-open-text"></i> Legal Notice (Alert #${alertId}, Document #${documentId})
                                     </h3>
                                     <span class="badge ${isAccepted ? 'badge-success' : 'badge-warning'}" style="font-size: 0.9rem;">
                                         ${isAccepted ? '<i class="fas fa-check-circle"></i> Document Accessed' : '<i class="fas fa-exclamation-circle"></i> Action Required'}
@@ -21406,7 +21406,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         // Accept a document notice
         async function acceptDocumentNotice(noticeId) {
             if (!window.legalContract || !window.userAddress) {
-                showNotification('Please connect your wallet first', 'error');
+                uiManager.showNotification('error', 'Please connect your wallet first');
                 return;
             }
 
@@ -21425,7 +21425,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         // This is an alert notice - use acknowledgeAlert
                         const acknowledged = alertData[4];
                         if (acknowledged) {
-                            showNotification('You have already accepted this notice', 'info');
+                            uiManager.showNotification('info', 'You have already accepted this notice');
                             hideLoading();
                             return;
                         }
@@ -21436,7 +21436,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                             shouldPollResponse: true
                         });
 
-                        showNotification('Notice accepted successfully!', 'success');
+                        uiManager.showNotification('success', 'Notice accepted successfully!');
 
                         // Log acceptance to backend
                         try {
@@ -21472,7 +21472,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 const [documentId, server, recipient, ipfsHash, accepted] = docData;
 
                 if (accepted) {
-                    showNotification('You have already accepted this document', 'info');
+                    uiManager.showNotification('info', 'You have already accepted this document');
                     hideLoading();
                     return;
                 }
@@ -21483,7 +21483,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     shouldPollResponse: true
                 });
 
-                showNotification('Document notice accepted successfully!', 'success');
+                uiManager.showNotification('success', 'Document notice accepted successfully!');
 
                 // Log acceptance to backend
                 try {
@@ -21506,16 +21506,16 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
 
             } catch (error) {
                 console.error('Error accepting notice:', error);
-                showNotification(error.message || 'Failed to accept notice', 'error');
+                uiManager.showNotification('error', error.message || 'Failed to accept notice');
             } finally {
                 hideLoading();
             }
         }
 
         // View an accepted document
-        async function viewAcceptedDocument(noticeId, ipfsHash) {
+        async function viewAcceptedDocument(documentId, encryptedIPFS) {
             if (!window.legalContract || !window.userAddress) {
-                showNotification('Please connect your wallet first', 'error');
+                uiManager.showNotification('error', 'Please connect your wallet first');
                 return;
             }
 
@@ -21526,25 +21526,26 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     loadingEl.textContent = 'Retrieving document from IPFS...';
                 }
 
-                if (!ipfsHash || ipfsHash === '') {
-                    // Try to get it from the document notice
-                    const docData = await legalContract.documentNotices(noticeId).call();
-                    if (docData && Array.isArray(docData) && docData.length > 3) {
-                        ipfsHash = docData[3];
+                if (!encryptedIPFS || encryptedIPFS === '') {
+                    // Try to get it from the document notice using documentId
+                    const docData = await legalContract.documentNotices(documentId).call();
+                    if (docData && Array.isArray(docData) && docData.length > 0) {
+                        // v5 structure: [encryptedIPFS, decryptionKey, authorizedViewer, alertId, isRestricted]
+                        encryptedIPFS = docData[0];
                     }
                 }
 
-                if (!ipfsHash || ipfsHash === '') {
-                    showNotification('No document attached to this notice', 'error');
+                if (!encryptedIPFS || encryptedIPFS === '') {
+                    uiManager.showNotification('error', 'No document attached to this notice');
                     hideLoading();
                     return;
                 }
 
                 // Try multiple IPFS gateways
                 const gateways = [
-                    `https://gateway.pinata.cloud/ipfs/${ipfsHash}`,
-                    `https://ipfs.io/ipfs/${ipfsHash}`,
-                    `https://cloudflare-ipfs.com/ipfs/${ipfsHash}`
+                    `https://gateway.pinata.cloud/ipfs/${encryptedIPFS}`,
+                    `https://ipfs.io/ipfs/${encryptedIPFS}`,
+                    `https://cloudflare-ipfs.com/ipfs/${encryptedIPFS}`
                 ];
 
                 let documentData = null;
@@ -21568,15 +21569,15 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 }
 
                 // Show document in modal
-                showDocumentModal(documentData, noticeId);
+                showDocumentModal(documentData, documentId);
 
                 // Log view to backend
                 try {
-                    await fetch(`${window.BACKEND_API_URL}/api/notices/${noticeId}/views`, {
+                    await fetch(`${window.BACKEND_API_URL}/api/notices/${documentId}/views`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            noticeId,
+                            noticeId: documentId,
                             viewerAddress: window.userAddress,
                             timestamp: new Date().toISOString()
                         })
@@ -21587,14 +21588,14 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
 
             } catch (error) {
                 console.error('Error viewing document:', error);
-                showNotification(error.message || 'Failed to retrieve document', 'error');
+                uiManager.showNotification('error', error.message || 'Failed to retrieve document');
             } finally {
                 hideLoading();
             }
         }
 
         // Show document in a modal
-        function showDocumentModal(documentData, noticeId) {
+        function showDocumentModal(documentData, documentId) {
             // Create modal for document viewing
             const modal = document.createElement('div');
             modal.className = 'modal';
@@ -21602,7 +21603,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             modal.innerHTML = `
                 <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
                     <div class="modal-header">
-                        <h3>Legal Document - Notice #${noticeId}</h3>
+                        <h3>Legal Document - Document NFT #${documentId}</h3>
                         <button class="close-btn" onclick="this.closest('.modal').remove()">×</button>
                     </div>
                     <div class="modal-body">
@@ -21625,10 +21626,10 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                             ` : ''}
                         </div>
                         <div style="margin-top: 1.5rem; display: flex; gap: 0.5rem; justify-content: center;">
-                            <button class="btn btn-primary" onclick="downloadDocument('${noticeId}', ${JSON.stringify(documentData).replace(/"/g, '&quot;')})">
+                            <button class="btn btn-primary" onclick="downloadDocument('${documentId}', ${JSON.stringify(documentData).replace(/"/g, '&quot;')})">
                                 <i class="fas fa-download"></i> Download Document
                             </button>
-                            <button class="btn btn-secondary" onclick="printDocument('${noticeId}', ${JSON.stringify(documentData).replace(/"/g, '&quot;')})">
+                            <button class="btn btn-secondary" onclick="printDocument('${documentId}', ${JSON.stringify(documentData).replace(/"/g, '&quot;')})">
                                 <i class="fas fa-print"></i> Print Document
                             </button>
                         </div>
@@ -21689,7 +21690,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 document.body.appendChild(modal);
             } catch (error) {
                 console.error('Error showing receipt:', error);
-                showNotification('Failed to load receipt', 'error');
+                uiManager.showNotification('error', 'Failed to load receipt');
             }
         }
 
@@ -21699,11 +21700,11 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         }
 
         // Download document
-        function downloadDocument(noticeId, documentData) {
+        function downloadDocument(documentId, documentData) {
             try {
                 const data = JSON.parse(documentData.replace(/&quot;/g, '"'));
                 let content = '';
-                let filename = `legal_document_notice_${noticeId}.txt`;
+                let filename = `legal_document_${documentId}.txt`;
                 let mimeType = 'text/plain';
 
                 if (data.pdf) {
@@ -21718,13 +21719,13 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `legal_document_notice_${noticeId}.pdf`;
+                    a.download = `legal_document_${documentId}.pdf`;
                     a.click();
                     URL.revokeObjectURL(url);
                     return;
                 } else if (data.html) {
                     content = data.html;
-                    filename = `legal_document_notice_${noticeId}.html`;
+                    filename = `legal_document_${documentId}.html`;
                     mimeType = 'text/html';
                 } else if (data.content) {
                     content = data.content;
@@ -21740,26 +21741,26 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 URL.revokeObjectURL(url);
             } catch (error) {
                 console.error('Error downloading document:', error);
-                showNotification('Failed to download document', 'error');
+                uiManager.showNotification('error', 'Failed to download document');
             }
         }
 
         // Print document
-        function printDocument(noticeId, documentData) {
+        function printDocument(documentId, documentData) {
             try {
                 const data = JSON.parse(documentData.replace(/&quot;/g, '"'));
                 const printWindow = window.open('', '_blank');
                 printWindow.document.write(`
                     <html>
                         <head>
-                            <title>Legal Document - Notice #${noticeId}</title>
+                            <title>Legal Document - Document #${documentId}</title>
                             <style>
                                 body { font-family: Arial, sans-serif; margin: 2rem; }
                                 pre { white-space: pre-wrap; }
                             </style>
                         </head>
                         <body>
-                            <h2>Legal Document - Notice #${noticeId}</h2>
+                            <h2>Legal Document - Document #${documentId}</h2>
                             ${data.html || '<pre>' + (data.content || 'No content available') + '</pre>'}
                         </body>
                     </html>
@@ -21768,7 +21769,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 printWindow.print();
             } catch (error) {
                 console.error('Error printing document:', error);
-                showNotification('Failed to print document', 'error');
+                uiManager.showNotification('error', 'Failed to print document');
             }
         }
         
