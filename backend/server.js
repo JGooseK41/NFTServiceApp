@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const { Pool } = require('pg');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -39,6 +40,12 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(morgan('combined'));
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Make pool available to routes
+app.locals.pool = pool;
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -727,6 +734,10 @@ app.get('/api/wallets/:walletAddress/connections', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch connections' });
   }
 });
+
+// Document management routes
+const documentsRouter = require('./routes/documents');
+app.use('/api/documents', documentsRouter);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

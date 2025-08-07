@@ -45,6 +45,7 @@
         window.CONTRACT_ADDRESS = window.CONTRACT_ADDRESSES.mainnet;
     </script>
     <script src="v4/js/ipfs-integration.js"></script>
+    <script src="js/grouped-activities.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -3221,10 +3222,10 @@
             <div class="card server-only" id="recentActivitiesCard">
                 <div class="card-header">
                     <h2><i class="fas fa-history"></i> Recent Served Notices</h2>
-                    <button class="btn btn-secondary btn-small" onclick="refreshRecentActivities()">
+                    <button class="btn btn-secondary btn-small" onclick="refreshRecentActivitiesGrouped()">
                         <i class="fas fa-sync"></i> Refresh
                     </button>
-                    <button class="btn btn-secondary btn-small" onclick="refreshRecentActivities(true)" title="Force refresh from blockchain">
+                    <button class="btn btn-secondary btn-small" onclick="refreshRecentActivitiesGrouped(true)" title="Force refresh from blockchain">
                         <i class="fas fa-sync-alt"></i> Force Refresh
                     </button>
                 </div>
@@ -8332,7 +8333,7 @@ function useConnectedAddressForFeeCollector() {
                         updateServerStats();
                         
                         // Refresh recent activities
-                        refreshRecentActivities();
+                        refreshRecentActivitiesGrouped();
                     }
                     
                     // Check if contract is already in the address field
@@ -10688,7 +10689,7 @@ function useConnectedAddressForFeeCollector() {
                 const siteConfig = getSiteConfig();
                 if (siteConfig.showServerFeatures) {
                     updateServerStats();
-                    refreshRecentActivities();
+                    refreshRecentActivitiesGrouped();
                 }
                 
             } catch (error) {
@@ -24810,7 +24811,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     
                     // Refresh recent activities if on home tab
                     if (document.getElementById('homeTab').style.display !== 'none') {
-                        refreshRecentActivities();
+                        refreshRecentActivitiesGrouped();
                     }
                 }, 2000); // 2 second delay for blockchain confirmation
 
