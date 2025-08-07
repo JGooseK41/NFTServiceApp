@@ -1,3 +1,6 @@
+// Get contract address from window or use default
+const CONTRACT_ADDRESS = window.CONTRACT_ADDRESS || 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN';
+
 // Enhanced recent activities with case grouping
 async function refreshRecentActivitiesGrouped(forceRefresh = false) {
     const content = document.getElementById('recentActivitiesContent');
@@ -38,39 +41,159 @@ async function refreshRecentActivitiesGrouped(forceRefresh = false) {
         
         // If no backend data, fetch from blockchain and group manually
         if (groupedCases.length === 0) {
-            console.log('Backend failed or returned no data, trying blockchain...');
+            console.log('Backend failed or returned no data, fetching from blockchain...');
             
-            // From the console logs, we know Alert ID 1 exists and is acknowledged
-            // The alert belongs to the server TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY
             try {
-                // Fetch Alert 1 data directly
-                const alertData = await window.legalContract.alertNotices('1').call();
-                console.log('Alert 1 data:', alertData);
+                const notices = [];
                 
-                const acknowledged = alertData.acknowledged || alertData[4] || false;
-                const documentId = alertData.documentId || alertData[2];
-                const recipient = window.tronWeb.address.fromHex(alertData.recipient || alertData[0]);
-                const timestamp = Number(alertData.timestamp || alertData[3]) * 1000;
+                // Query blockchain events for notices served by this address
+                const events = await window.tronWeb.event.getEventsByContractAddress(
+                    CONTRACT_ADDRESS,
+                    {
+                        eventName: 'NoticeServed',
+                        onlyConfirmed: true,
+                        orderBy: 'block_timestamp,desc',
+                        limit: 50
+                    }
+                );
                 
-                // Create a notice object from the alert data
-                const notice = {
-                    noticeId: '1',  // Using alert ID as notice ID for now
-                    alertId: '1',
-                    documentId: documentId ? documentId.toString() : '2',
-                    recipient: recipient,
-                    timestamp: timestamp,
-                    alert_acknowledged: acknowledged,
-                    document_accepted: acknowledged, // If alert is acknowledged, document is signed
-                    caseNumber: alertData.caseNumber || alertData[7] || '123456',
-                    noticeType: alertData.noticeType || alertData[6] || 'Notice of Seizure',
-                    served_at: timestamp
-                };
+                console.log('NoticeServed events:', events);
                 
-                console.log('Created notice object from alert:', notice);
-                groupedCases = groupNoticesByCaseNumber([notice]);
-                console.log('Grouped cases:', groupedCases);
+                // Also check for LegalNoticeCreated events
+                const createdEvents = await window.tronWeb.event.getEventsByContractAddress(
+                    CONTRACT_ADDRESS,
+                    {
+                        eventName: 'LegalNoticeCreated',
+                        onlyConfirmed: true,
+                        orderBy: 'block_timestamp,desc',
+                        limit: 50
+                    }
+                );
+                
+                console.log('LegalNoticeCreated events:', createdEvents);
+                
+                // Process events to find notices from this server
+                const processedIds = new Set();
+                const allEvents = [];
+                
+                if (events && events.data) {
+                    allEvents.push(...events.data);
+                }
+                if (createdEvents && createdEvents.data) {
+                    allEvents.push(...createdEvents.data);
+                }
+                
+                for (const event of allEvents) {
+                    try {
+                        // Check if this event is from our server
+                        let serverAddress = null;
+                        if (event.result.server) {
+                            serverAddress = window.tronWeb.address.fromHex(event.result.server);
+                        }
+                        
+                        if (serverAddress !== userAddress) {
+                            continue; // Skip if not from this server
+                        }
+                        
+                        // Get the alert ID from the event
+                        const alertId = event.result.alertId || event.result.noticeId;
+                        if (!alertId || processedIds.has(alertId.toString())) {
+                            continue; // Skip if already processed
+                        }
+                        
+                        processedIds.add(alertId.toString());
+                        
+                        // Fetch alert data from contract
+                        const alertData = await window.legalContract.alertNotices(alertId).call();
+                        console.log(`Alert ${alertId} data:`, alertData);
+                        
+                        if (!alertData || !alertData[0]) {
+                            continue; // Skip if no data
+                        }
+                        
+                        // Parse alert data
+                        const acknowledged = alertData[4] || false;
+                        const documentId = alertData[2];
+                        const recipient = window.tronWeb.address.fromHex(alertData[0]);
+                        const timestamp = Number(alertData[3]) * 1000;
+                        const noticeType = alertData[6] || 'Legal Notice';
+                        const caseNumber = alertData[7] || 'Unknown';
+                        
+                        // Create notice object
+                        const notice = {
+                            noticeId: alertId.toString(),
+                            alertId: alertId.toString(),
+                            documentId: documentId ? documentId.toString() : '',
+                            recipient: recipient,
+                            timestamp: timestamp,
+                            alert_acknowledged: acknowledged,
+                            document_accepted: acknowledged,
+                            caseNumber: caseNumber,
+                            noticeType: noticeType,
+                            served_at: timestamp
+                        };
+                        
+                        notices.push(notice);
+                        console.log('Added notice:', notice);
+                        
+                    } catch (e) {
+                        console.error('Error processing event:', e);
+                    }
+                }
+                
+                // If no events found, try direct contract query for known alert IDs
+                if (notices.length === 0) {
+                    console.log('No events found, trying direct query for recent alert IDs...');
+                    
+                    // Check first 10 alert IDs (can adjust range as needed)
+                    for (let i = 1; i <= 10; i++) {
+                        try {
+                            const alertData = await window.legalContract.alertNotices(i).call();
+                            
+                            // Check if this alert exists and belongs to our server
+                            if (alertData && alertData[1]) {
+                                const alertServer = window.tronWeb.address.fromHex(alertData[1]);
+                                
+                                if (alertServer === userAddress) {
+                                    const acknowledged = alertData[4] || false;
+                                    const documentId = alertData[2];
+                                    const recipient = window.tronWeb.address.fromHex(alertData[0]);
+                                    const timestamp = Number(alertData[3]) * 1000;
+                                    const noticeType = alertData[6] || 'Legal Notice';
+                                    const caseNumber = alertData[7] || 'Unknown';
+                                    
+                                    const notice = {
+                                        noticeId: i.toString(),
+                                        alertId: i.toString(),
+                                        documentId: documentId ? documentId.toString() : '',
+                                        recipient: recipient,
+                                        timestamp: timestamp,
+                                        alert_acknowledged: acknowledged,
+                                        document_accepted: acknowledged,
+                                        caseNumber: caseNumber,
+                                        noticeType: noticeType,
+                                        served_at: timestamp
+                                    };
+                                    
+                                    notices.push(notice);
+                                    console.log(`Found alert ${i} from direct query:`, notice);
+                                }
+                            }
+                        } catch (e) {
+                            // Alert doesn't exist or error, continue
+                        }
+                    }
+                }
+                
+                if (notices.length > 0) {
+                    groupedCases = groupNoticesByCaseNumber(notices);
+                    console.log('Grouped cases:', groupedCases);
+                } else {
+                    console.log('No notices found for this server');
+                }
+                
             } catch (e) {
-                console.error('Error fetching alert directly:', e);
+                console.error('Error fetching notices from blockchain:', e);
             }
         }
         
