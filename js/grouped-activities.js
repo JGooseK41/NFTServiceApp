@@ -58,7 +58,8 @@ async function refreshRecentActivitiesGrouped(forceRefresh = false) {
         
         for (const caseGroup of groupedCases) {
             const caseId = `case-${caseGroup.case_number.replace(/\s/g, '-')}`;
-            const hasAcknowledged = caseGroup.notices.some(n => n.alert_acknowledged || n.document_accepted);
+            const hasSignedDocument = caseGroup.notices.some(n => n.document_accepted);
+            const allDelivered = true; // Alert NFTs are always delivered once created
             
             html += `
                 <div class="case-group" style="margin-bottom: 1rem; border: 1px solid var(--border-color); border-radius: 8px;">
@@ -68,9 +69,18 @@ async function refreshRecentActivitiesGrouped(forceRefresh = false) {
                             <div style="display: flex; align-items: center; gap: 0.5rem;">
                                 <i class="fas fa-folder" style="color: var(--accent-blue);"></i>
                                 <strong>Case #${caseGroup.case_number}</strong>
-                                <span class="badge ${hasAcknowledged ? 'badge-success' : 'badge-warning'}" style="font-size: 0.75rem;">
-                                    ${hasAcknowledged ? '<i class="fas fa-check"></i> Has Signatures' : '<i class="fas fa-clock"></i> Pending'}
+                                <span class="badge badge-info" style="font-size: 0.75rem;">
+                                    <i class="fas fa-paper-plane"></i> Delivered
                                 </span>
+                                ${hasSignedDocument ? `
+                                    <span class="badge badge-success" style="font-size: 0.75rem;">
+                                        <i class="fas fa-check"></i> Document Signed
+                                    </span>
+                                ` : `
+                                    <span class="badge badge-warning" style="font-size: 0.75rem;">
+                                        <i class="fas fa-clock"></i> Awaiting Signature
+                                    </span>
+                                `}
                             </div>
                             <div style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.25rem;">
                                 ${caseGroup.notice_count || caseGroup.notices.length} notice(s) • 
@@ -107,31 +117,75 @@ async function renderCaseNotices(notices, userAddress) {
     let html = '<div class="notices-list">';
     
     for (const notice of notices) {
-        const isAlert = notice.alert_id && !notice.document_id;
-        const isDocument = notice.document_id;
-        const acknowledged = notice.alert_acknowledged || notice.document_accepted;
+        // Properly identify Alert vs Document based on the notice structure
+        // Each notice can have BOTH an alert_id AND a document_id
+        // We need to show both as separate items
+        const alertId = notice.alert_id;
+        const documentId = notice.document_id;
         
-        html += `
-            <div class="notice-item" style="display: flex; gap: 1rem; padding: 0.75rem; border-bottom: 1px solid var(--border-color);">
-                ${notice.thumbnail_url ? `
-                    <div style="flex-shrink: 0;">
-                        <img src="${window.BACKEND_API_URL}${notice.thumbnail_url}" 
-                             alt="Notice thumbnail" 
-                             style="width: 50px; height: 65px; object-fit: cover; border: 1px solid var(--border-color); border-radius: 4px;">
-                    </div>
-                ` : ''}
-                
-                <div style="flex: 1;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
-                        <i class="fas ${isAlert ? 'fa-bell' : 'fa-file-alt'}" 
-                           style="color: ${isAlert ? 'var(--warning-orange)' : 'var(--accent-blue)'};"></i>
-                        <strong>${isAlert ? `Alert NFT #${notice.alert_id}` : `Document NFT #${notice.document_id}`}</strong>
-                        ${acknowledged ? `
-                            <span class="badge badge-success" style="font-size: 0.7rem;">
-                                <i class="fas fa-check"></i> Signed
+        // Show Alert NFT if it exists
+        if (alertId) {
+            html += `
+                <div class="notice-item" style="display: flex; gap: 1rem; padding: 0.75rem; border-bottom: 1px solid var(--border-color);">
+                    ${notice.thumbnail_url ? `
+                        <div style="flex-shrink: 0;">
+                            <img src="${window.BACKEND_API_URL}${notice.thumbnail_url}" 
+                                 alt="Notice thumbnail" 
+                                 style="width: 50px; height: 65px; object-fit: cover; border: 1px solid var(--border-color); border-radius: 4px;">
+                        </div>
+                    ` : ''}
+                    
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+                            <i class="fas fa-bell" style="color: var(--warning-orange);"></i>
+                            <strong>Alert NFT #${alertId}</strong>
+                            <span class="badge badge-info" style="font-size: 0.7rem;">
+                                <i class="fas fa-paper-plane"></i> Delivered
                             </span>
-                        ` : ''}
+                        </div>
+                        
+                        <div style="font-size: 0.875rem; color: var(--text-secondary);">
+                            <div>To: ${formatAddress(notice.recipient)}</div>
+                            <div>Type: ${notice.notice_type || 'Legal Notice'} Alert</div>
+                            <div>Purpose: Initial notification in recipient's wallet</div>
+                            <div>Status: Successfully delivered to wallet</div>
+                        </div>
                     </div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <button class="btn btn-small btn-secondary" 
+                                onclick="showAlertReceipt(${alertId}, '${userAddress}')">
+                            <i class="fas fa-receipt"></i> Alert Receipt
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Show Document NFT if it exists
+        if (documentId) {
+            const documentAccepted = notice.document_accepted || false;
+            
+            html += `
+                <div class="notice-item" style="display: flex; gap: 1rem; padding: 0.75rem; border-bottom: 1px solid var(--border-color);">
+                    <div style="flex-shrink: 0; width: 50px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-file-contract" style="font-size: 2rem; color: var(--accent-blue);"></i>
+                    </div>
+                    
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+                            <i class="fas fa-file-alt" style="color: var(--accent-blue);"></i>
+                            <strong>Document NFT #${documentId}</strong>
+                            ${documentAccepted ? `
+                                <span class="badge badge-success" style="font-size: 0.7rem;">
+                                    <i class="fas fa-check"></i> Signed
+                                </span>
+                            ` : `
+                                <span class="badge badge-warning" style="font-size: 0.7rem;">
+                                    <i class="fas fa-clock"></i> Awaiting Signature
+                                </span>
+                            `}
+                        </div>
                     
                     <div style="font-size: 0.875rem; color: var(--text-secondary);">
                         <div>To: ${formatAddress(notice.recipient)}</div>
@@ -337,6 +391,48 @@ async function showAlertReceipt(alertId, serverAddress) {
                             This Alert NFT serves as the initial notification to the recipient. 
                             It appears in their wallet with the thumbnail and description shown above.
                         </div>
+                        
+                        <!-- Process Server Certification Section -->
+                        <div style="margin-top: 2rem; border: 2px solid #333; padding: 1.5rem; background: white;">
+                            <h5 style="text-align: center; color: #1e293b; margin-bottom: 1rem;">PROCESS SERVER CERTIFICATION</h5>
+                            
+                            <div style="margin-bottom: 1.5rem;">
+                                <div style="margin-bottom: 0.5rem; font-weight: bold;">I hereby certify under penalty of perjury that:</div>
+                                <div style="font-size: 0.9rem; line-height: 1.5;">
+                                    I am over the age of 18, not a party to this action, and authorized to serve legal process.
+                                    The above-described legal notice was served as indicated.
+                                </div>
+                            </div>
+                            
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <tr>
+                                    <td style="padding: 1rem; border-bottom: 2px solid #333; width: 50%;">
+                                        <div style="font-weight: bold; margin-bottom: 0.5rem;">Process Server Name (Print):</div>
+                                        <div style="height: 40px; border-bottom: 1px solid #999;"></div>
+                                    </td>
+                                    <td style="padding: 1rem; border-bottom: 2px solid #333; width: 50%;">
+                                        <div style="font-weight: bold; margin-bottom: 0.5rem;">Server ID/License #:</div>
+                                        <div style="height: 40px; border-bottom: 1px solid #999;"></div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 1rem; width: 50%;">
+                                        <div style="font-weight: bold; margin-bottom: 0.5rem;">Process Server Signature:</div>
+                                        <div style="height: 60px; border-bottom: 1px solid #999;"></div>
+                                    </td>
+                                    <td style="padding: 1rem; width: 50%;">
+                                        <div style="font-weight: bold; margin-bottom: 0.5rem;">Date Signed:</div>
+                                        <div style="height: 60px; border-bottom: 1px solid #999;"></div>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <div style="margin-top: 1rem; padding: 0.75rem; background: #f8f9fa; font-size: 0.875rem;">
+                                <strong>Server Wallet Address:</strong> ${tronWeb.defaultAddress ? tronWeb.defaultAddress.base58 : serverAddress}<br>
+                                <strong>Blockchain Network:</strong> TRON Mainnet<br>
+                                <strong>Alert NFT ID:</strong> ${alertId}
+                            </div>
+                        </div>
                     </div>
                     
                     <div style="margin-top: 1rem; text-align: center;">
@@ -415,6 +511,50 @@ async function showDocumentReceipt(documentId, serverAddress) {
                             This Document NFT contains the full legal document. 
                             The recipient must acknowledge the Alert NFT to access this document.
                             The unencrypted version shown here is only accessible to the process server.
+                        </div>
+                        
+                        <!-- Process Server Certification Section -->
+                        <div style="margin-top: 2rem; border: 2px solid #333; padding: 1.5rem; background: white;">
+                            <h5 style="text-align: center; color: #1e293b; margin-bottom: 1rem;">PROCESS SERVER CERTIFICATION</h5>
+                            
+                            <div style="margin-bottom: 1.5rem;">
+                                <div style="margin-bottom: 0.5rem; font-weight: bold;">I hereby certify under penalty of perjury that:</div>
+                                <div style="font-size: 0.9rem; line-height: 1.5;">
+                                    I am over the age of 18, not a party to this action, and authorized to serve legal process.
+                                    The above legal document was served electronically via blockchain NFT as indicated.
+                                    The document shown above is a true and correct copy of the document served.
+                                </div>
+                            </div>
+                            
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <tr>
+                                    <td style="padding: 1rem; border-bottom: 2px solid #333; width: 50%;">
+                                        <div style="font-weight: bold; margin-bottom: 0.5rem;">Process Server Name (Print):</div>
+                                        <div style="height: 40px; border-bottom: 1px solid #999;"></div>
+                                    </td>
+                                    <td style="padding: 1rem; border-bottom: 2px solid #333; width: 50%;">
+                                        <div style="font-weight: bold; margin-bottom: 0.5rem;">Server ID/License #:</div>
+                                        <div style="height: 40px; border-bottom: 1px solid #999;"></div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 1rem; width: 50%;">
+                                        <div style="font-weight: bold; margin-bottom: 0.5rem;">Process Server Signature:</div>
+                                        <div style="height: 60px; border-bottom: 1px solid #999;"></div>
+                                    </td>
+                                    <td style="padding: 1rem; width: 50%;">
+                                        <div style="font-weight: bold; margin-bottom: 0.5rem;">Date Signed:</div>
+                                        <div style="height: 60px; border-bottom: 1px solid #999;"></div>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <div style="margin-top: 1rem; padding: 0.75rem; background: #f8f9fa; font-size: 0.875rem;">
+                                <strong>Server Wallet Address:</strong> ${tronWeb.defaultAddress ? tronWeb.defaultAddress.base58 : serverAddress}<br>
+                                <strong>Blockchain Network:</strong> TRON Mainnet<br>
+                                <strong>Document NFT ID:</strong> ${documentId}<br>
+                                <strong>IPFS Hash:</strong> ${docData[0] || 'Not available'}
+                            </div>
                         </div>
                     </div>
                     
