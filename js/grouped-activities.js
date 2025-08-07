@@ -46,150 +46,161 @@ async function refreshRecentActivitiesGrouped(forceRefresh = false) {
             try {
                 const notices = [];
                 
-                // Query blockchain events for notices served by this address
-                const events = await window.tronWeb.event.getEventsByContractAddress(
-                    CONTRACT_ADDRESS,
-                    {
-                        eventName: 'NoticeServed',
-                        onlyConfirmed: true,
-                        orderBy: 'block_timestamp,desc',
-                        limit: 50
-                    }
-                );
+                // First try to get notices directly from contract without events (avoids rate limiting)
+                console.log('Checking contract for recent notices...');
                 
-                console.log('NoticeServed events:', events);
-                
-                // Also check for LegalNoticeCreated events
-                const createdEvents = await window.tronWeb.event.getEventsByContractAddress(
-                    CONTRACT_ADDRESS,
-                    {
-                        eventName: 'LegalNoticeCreated',
-                        onlyConfirmed: true,
-                        orderBy: 'block_timestamp,desc',
-                        limit: 50
-                    }
-                );
-                
-                console.log('LegalNoticeCreated events:', createdEvents);
-                
-                // Process events to find notices from this server
-                const processedIds = new Set();
-                const allEvents = [];
-                
-                if (events && events.data) {
-                    allEvents.push(...events.data);
-                }
-                if (createdEvents && createdEvents.data) {
-                    allEvents.push(...createdEvents.data);
-                }
-                
-                for (const event of allEvents) {
+                // Check first 20 alert IDs directly from contract
+                for (let i = 1; i <= 20; i++) {
                     try {
-                        // Check if this event is from our server
-                        let serverAddress = null;
-                        if (event.result.server) {
-                            serverAddress = window.tronWeb.address.fromHex(event.result.server);
-                        }
+                        const alertData = await window.legalContract.alertNotices(i).call();
                         
-                        if (serverAddress !== userAddress) {
-                            continue; // Skip if not from this server
-                        }
-                        
-                        // Get the alert ID from the event
-                        const alertId = event.result.alertId || event.result.noticeId;
-                        if (!alertId || processedIds.has(alertId.toString())) {
-                            continue; // Skip if already processed
-                        }
-                        
-                        processedIds.add(alertId.toString());
-                        
-                        // Fetch alert data from contract
-                        const alertData = await window.legalContract.alertNotices(alertId).call();
-                        console.log(`Alert ${alertId} data:`, alertData);
-                        
-                        if (!alertData || !alertData[0]) {
-                            continue; // Skip if no data
-                        }
-                        
-                        // Parse alert data
-                        const acknowledged = alertData[4] || false;
-                        const documentId = alertData[2];
-                        const recipient = window.tronWeb.address.fromHex(alertData[0]);
-                        const timestamp = Number(alertData[3]) * 1000;
-                        const noticeType = alertData[6] || 'Legal Notice';
-                        const caseNumber = alertData[7] || 'Unknown';
-                        
-                        // Create notice object
-                        const notice = {
-                            noticeId: alertId.toString(),
-                            alertId: alertId.toString(),
-                            documentId: documentId ? documentId.toString() : '',
-                            recipient: recipient,
-                            timestamp: timestamp,
-                            alert_acknowledged: acknowledged,
-                            document_accepted: acknowledged,
-                            caseNumber: caseNumber,
-                            noticeType: noticeType,
-                            served_at: timestamp
-                        };
-                        
-                        notices.push(notice);
-                        console.log('Added notice:', notice);
-                        
-                    } catch (e) {
-                        console.error('Error processing event:', e);
-                    }
-                }
-                
-                // If no events found, try direct contract query for known alert IDs
-                if (notices.length === 0) {
-                    console.log('No events found, trying direct query for recent alert IDs...');
-                    
-                    // Check first 10 alert IDs (can adjust range as needed)
-                    for (let i = 1; i <= 10; i++) {
-                        try {
-                            const alertData = await window.legalContract.alertNotices(i).call();
+                        // Check if this alert exists and belongs to our server
+                        if (alertData && alertData[1]) {
+                            const alertServer = window.tronWeb.address.fromHex(alertData[1]);
                             
-                            // Check if this alert exists and belongs to our server
-                            if (alertData && alertData[1]) {
-                                const alertServer = window.tronWeb.address.fromHex(alertData[1]);
+                            if (alertServer === userAddress) {
+                                const acknowledged = alertData[4] || false;
+                                const documentId = alertData[2];
+                                const recipient = window.tronWeb.address.fromHex(alertData[0]);
+                                const timestamp = Number(alertData[3]) * 1000;
+                                const noticeType = alertData[6] || 'Legal Notice';
+                                const caseNumber = alertData[7] || 'Unknown';
                                 
-                                if (alertServer === userAddress) {
-                                    const acknowledged = alertData[4] || false;
-                                    const documentId = alertData[2];
-                                    const recipient = window.tronWeb.address.fromHex(alertData[0]);
-                                    const timestamp = Number(alertData[3]) * 1000;
-                                    const noticeType = alertData[6] || 'Legal Notice';
-                                    const caseNumber = alertData[7] || 'Unknown';
-                                    
-                                    const notice = {
-                                        noticeId: i.toString(),
-                                        alertId: i.toString(),
-                                        documentId: documentId ? documentId.toString() : '',
-                                        recipient: recipient,
-                                        timestamp: timestamp,
-                                        alert_acknowledged: acknowledged,
-                                        document_accepted: acknowledged,
-                                        caseNumber: caseNumber,
-                                        noticeType: noticeType,
-                                        served_at: timestamp
-                                    };
-                                    
-                                    notices.push(notice);
-                                    console.log(`Found alert ${i} from direct query:`, notice);
-                                }
+                                const notice = {
+                                    noticeId: i.toString(),
+                                    alertId: i.toString(),
+                                    documentId: documentId ? documentId.toString() : '',
+                                    recipient: recipient,
+                                    timestamp: timestamp,
+                                    alert_acknowledged: acknowledged,
+                                    document_accepted: acknowledged,
+                                    caseNumber: caseNumber,
+                                    noticeType: noticeType,
+                                    served_at: timestamp
+                                };
+                                
+                                notices.push(notice);
+                                console.log(`Found notice ${i} from direct query:`, notice);
                             }
-                        } catch (e) {
-                            // Alert doesn't exist or error, continue
                         }
+                    } catch (e) {
+                        // Alert doesn't exist or error, continue
+                        break; // If we hit a non-existent alert, stop checking
                     }
                 }
                 
+                // If we found notices via direct query, use those
                 if (notices.length > 0) {
                     groupedCases = groupNoticesByCaseNumber(notices);
-                    console.log('Grouped cases:', groupedCases);
+                    console.log('Grouped cases from direct query:', groupedCases);
                 } else {
-                    console.log('No notices found for this server');
+                    // Fall back to events if no notices found directly
+                    console.log('No notices found via direct query, trying events...');
+                    
+                    try {
+                        // Query blockchain events for notices served by this address
+                        const events = await window.tronWeb.event.getEventsByContractAddress(
+                            CONTRACT_ADDRESS,
+                            {
+                                eventName: 'NoticeServed',
+                                onlyConfirmed: true,
+                                orderBy: 'block_timestamp,desc',
+                                limit: 50
+                            }
+                        );
+                        
+                        console.log('NoticeServed events:', events);
+                        
+                        // Also check for LegalNoticeCreated events
+                        const createdEvents = await window.tronWeb.event.getEventsByContractAddress(
+                            CONTRACT_ADDRESS,
+                            {
+                                eventName: 'LegalNoticeCreated',
+                                onlyConfirmed: true,
+                                orderBy: 'block_timestamp,desc',
+                                limit: 50
+                            }
+                        );
+                        
+                                console.log('LegalNoticeCreated events:', createdEvents);
+                        
+                        // Process events to find notices from this server
+                        const processedIds = new Set();
+                        const allEvents = [];
+                        
+                        if (events && events.data) {
+                            allEvents.push(...events.data);
+                        }
+                        if (createdEvents && createdEvents.data) {
+                            allEvents.push(...createdEvents.data);
+                        }
+                        
+                        for (const event of allEvents) {
+                            try {
+                                // Check if this event is from our server
+                                let serverAddress = null;
+                                if (event.result.server) {
+                                    serverAddress = window.tronWeb.address.fromHex(event.result.server);
+                                }
+                                
+                                if (serverAddress !== userAddress) {
+                                    continue; // Skip if not from this server
+                                }
+                                
+                                // Get the alert ID from the event
+                                const alertId = event.result.alertId || event.result.noticeId;
+                                if (!alertId || processedIds.has(alertId.toString())) {
+                                    continue; // Skip if already processed
+                                }
+                                
+                                processedIds.add(alertId.toString());
+                                
+                                // Fetch alert data from contract
+                                const alertData = await window.legalContract.alertNotices(alertId).call();
+                                console.log(`Alert ${alertId} data:`, alertData);
+                                
+                                if (!alertData || !alertData[0]) {
+                                    continue; // Skip if no data
+                                }
+                                
+                                // Parse alert data
+                                const acknowledged = alertData[4] || false;
+                                const documentId = alertData[2];
+                                const recipient = window.tronWeb.address.fromHex(alertData[0]);
+                                const timestamp = Number(alertData[3]) * 1000;
+                                const noticeType = alertData[6] || 'Legal Notice';
+                                const caseNumber = alertData[7] || 'Unknown';
+                                
+                                // Create notice object
+                                const notice = {
+                                    noticeId: alertId.toString(),
+                                    alertId: alertId.toString(),
+                                    documentId: documentId ? documentId.toString() : '',
+                                    recipient: recipient,
+                                    timestamp: timestamp,
+                                    alert_acknowledged: acknowledged,
+                                    document_accepted: acknowledged,
+                                    caseNumber: caseNumber,
+                                    noticeType: noticeType,
+                                    served_at: timestamp
+                                };
+                                
+                                notices.push(notice);
+                                console.log('Added notice from event:', notice);
+                                
+                            } catch (e) {
+                                console.error('Error processing event:', e);
+                            }
+                        }
+                        
+                        if (notices.length > 0) {
+                            groupedCases = groupNoticesByCaseNumber(notices);
+                            console.log('Grouped cases from events:', groupedCases);
+                        }
+                        
+                    } catch (e) {
+                        console.error('Error fetching event data:', e);
+                    }
                 }
                 
             } catch (e) {

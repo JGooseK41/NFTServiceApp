@@ -45,7 +45,10 @@
         window.CONTRACT_ADDRESS = window.CONTRACT_ADDRESSES.mainnet;
     </script>
     <script src="v4/js/ipfs-integration.js"></script>
+    <script src="js/session-cache.js"></script>
+    <script src="js/hybrid-data-service.js"></script>
     <script src="js/grouped-activities.js"></script>
+    <script src="js/grouped-activities-hybrid.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -3222,10 +3225,10 @@
             <div class="card server-only" id="recentActivitiesCard">
                 <div class="card-header">
                     <h2><i class="fas fa-history"></i> Recent Served Notices</h2>
-                    <button class="btn btn-secondary btn-small" onclick="refreshRecentActivitiesGrouped()">
+                    <button class="btn btn-secondary btn-small" onclick="refreshRecentActivitiesHybrid()">
                         <i class="fas fa-sync"></i> Refresh
                     </button>
-                    <button class="btn btn-secondary btn-small" onclick="refreshRecentActivitiesGrouped(true)" title="Force refresh from blockchain">
+                    <button class="btn btn-secondary btn-small" onclick="refreshRecentActivitiesHybrid(true)" title="Force refresh from blockchain">
                         <i class="fas fa-sync-alt"></i> Force Refresh
                     </button>
                 </div>
@@ -8335,7 +8338,7 @@ function useConnectedAddressForFeeCollector() {
                         updateServerStats();
                         
                         // Refresh recent activities
-                        refreshRecentActivitiesGrouped();
+                        refreshRecentActivitiesHybrid();
                     }
                     
                     // Check if contract is already in the address field
@@ -11481,7 +11484,7 @@ async function checkUserRoles() {
             throw new Error('Max retries exceeded');
         }
 
-        async function updateServerStats() {
+        async function updateServerStats(forceBlockchain = false) {
             if (!legalContract || !tronWeb || !tronWeb.defaultAddress) {
                 return;
             }
@@ -11489,9 +11492,9 @@ async function checkUserRoles() {
             try {
                 const userAddress = tronWeb.defaultAddress.base58;
                 
-                console.log('=== Server Stats Debug ===');
+                console.log('=== Server Stats Update (Hybrid) ===');
                 console.log('Current connected address:', userAddress);
-                console.log('TronWeb default address object:', tronWeb.defaultAddress);
+                console.log('Force blockchain:', forceBlockchain);
                 
                 // Try to get server ID
                 try {
@@ -11507,17 +11510,40 @@ async function checkUserRoles() {
                 document.getElementById('pendingStat').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
                 document.getElementById('successRateStat').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
                 
-                // Get all notices served by this address from blockchain
-                const myNotices = await getServedNoticesFromBlockchain(userAddress, 1000); // Get more for stats
-                
-                let totalServed = myNotices.length;
+                // Use hybrid data service if available
+                let myNotices = [];
+                let totalServed = 0;
                 let accepted = 0;
                 let pending = 0;
                 
-                // Check acceptance status for each notice
-                for (const noticeData of myNotices) {
-                    try {
-                        let isAccepted = false;
+                if (window.hybridDataService) {
+                    // Use hybrid service for better performance
+                    const stats = await window.hybridDataService.getServerStats(userAddress, forceBlockchain);
+                    totalServed = stats.totalServed;
+                    accepted = stats.acknowledged;
+                    pending = stats.pending;
+                    
+                    // Update UI with source indicator
+                    const sourceIndicator = stats.verified 
+                        ? ' <span class="badge badge-success" style="font-size: 0.7rem;"><i class="fas fa-check-circle"></i> Verified</span>'
+                        : stats.source === 'backend'
+                        ? ' <span class="badge badge-info" style="font-size: 0.7rem;"><i class="fas fa-database"></i> Cached</span>'
+                        : ' <span class="badge badge-primary" style="font-size: 0.7rem;"><i class="fas fa-link"></i> Blockchain</span>';
+                    
+                    // Add source indicator to stats header
+                    const statsHeader = document.querySelector('.server-stats h3');
+                    if (statsHeader && !statsHeader.querySelector('.badge')) {
+                        statsHeader.innerHTML = 'Process Server Statistics' + sourceIndicator;
+                    }
+                } else {
+                    // Fallback to direct blockchain query
+                    myNotices = await getServedNoticesFromBlockchain(userAddress, 1000);
+                    totalServed = myNotices.length;
+                    
+                    // Check acceptance status for each notice
+                    for (const noticeData of myNotices) {
+                        try {
+                            let isAccepted = false;
                         
                         // First try direct contract state check (more reliable)
                         try {
@@ -11599,6 +11625,7 @@ async function checkUserRoles() {
                         console.error('Error checking notice acceptance:', err);
                         pending++;
                     }
+                }
                 }
                 
                 // Calculate success rate
@@ -24789,7 +24816,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     
                     // Refresh recent activities if on home tab
                     if (document.getElementById('homeTab').style.display !== 'none') {
-                        refreshRecentActivitiesGrouped();
+                        refreshRecentActivitiesHybrid();
                     }
                 }, 2000); // 2 second delay for blockchain confirmation
 
