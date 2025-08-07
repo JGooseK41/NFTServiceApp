@@ -55,18 +55,14 @@ class HybridDataService {
 
     // Fetch from backend API
     async fetchFromBackend(serverAddress) {
-        // Backend endpoint not implemented yet, return null to use blockchain
-        console.log('Backend endpoint not available, using blockchain data');
-        return null;
-        
-        /* Commented out until backend endpoint is available
         if (!this.backendUrl) {
             console.log('No backend URL configured');
             return null;
         }
 
         try {
-            const url = `${this.backendUrl}/api/documents/server/${serverAddress}/notices`;
+            // Use the correct endpoint that exists in the backend
+            const url = `${this.backendUrl}/api/servers/${serverAddress}/notices?limit=100`;
             console.log('Fetching from backend URL:', url);
             const response = await fetch(url);
             
@@ -79,22 +75,31 @@ class HybridDataService {
                 } catch (e) {}
                 return null;
             }
-        */
 
             const data = await response.json();
-            console.log('Backend data received:', data.length, 'notices');
+            console.log('Backend data received:', data);
+            
+            // Handle the response structure from /api/servers/{address}/notices
+            const notices = data.notices || data;
+            
+            if (!Array.isArray(notices)) {
+                console.log('Backend response is not an array, returning null');
+                return null;
+            }
+            
+            console.log('Processing', notices.length, 'notices from backend');
             
             // Transform backend data to match our format
-            return data.map(notice => ({
-                noticeId: notice.id || notice.alertId,
-                alertId: notice.alertId,
-                documentId: notice.documentId,
+            return notices.map(notice => ({
+                noticeId: notice.id || notice.alert_id || notice.alertId || notice.notice_id,
+                alertId: notice.alert_id || notice.alertId,
+                documentId: notice.document_id || notice.documentId,
                 recipient: notice.recipient,
-                timestamp: notice.timestamp || notice.served_at,
-                caseNumber: notice.caseNumber || notice.case_number,
-                noticeType: notice.noticeType || notice.notice_type,
+                timestamp: notice.timestamp || notice.served_at || notice.created_at,
+                caseNumber: notice.case_number || notice.caseNumber || 'Unknown',
+                noticeType: notice.notice_type || notice.noticeType || 'Legal Notice',
                 status: notice.status || 'pending',
-                acknowledged: notice.acknowledged || false,
+                acknowledged: notice.acknowledged || notice.alert_acknowledged || false,
                 isBackendData: true,
                 lastVerified: null
             }));
