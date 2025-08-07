@@ -338,7 +338,7 @@ async function renderCaseNotices(notices, userAddress) {
                             <strong>Document NFT #${documentId}</strong>
                             ${documentAccepted ? `
                                 <span class="badge badge-success" style="font-size: 0.7rem;">
-                                    <i class="fas fa-check"></i> Signed For
+                                    <i class="fas fa-check"></i> Document Signed For
                                 </span>
                             ` : `
                                 <span class="badge badge-warning" style="font-size: 0.7rem;">
