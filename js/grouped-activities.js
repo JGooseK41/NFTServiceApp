@@ -58,7 +58,8 @@ async function refreshRecentActivitiesGrouped(forceRefresh = false) {
         
         for (const caseGroup of groupedCases) {
             const caseId = `case-${caseGroup.case_number.replace(/\s/g, '-')}`;
-            const hasSignedDocument = caseGroup.notices.some(n => n.document_accepted);
+            // Document is signed if any notice has alert_acknowledged true
+            const hasSignedDocument = caseGroup.notices.some(n => n.alert_acknowledged || n.document_accepted);
             const allDelivered = true; // Alert NFTs are always delivered once created
             
             html += `
@@ -164,7 +165,8 @@ async function renderCaseNotices(notices, userAddress) {
         
         // Show Document NFT if it exists
         if (documentId) {
-            const documentAccepted = notice.document_accepted || false;
+            // Check if the Alert NFT has been acknowledged - that means the document was signed
+            const documentAccepted = notice.alert_acknowledged || notice.document_accepted || false;
             
             html += `
                 <div class="notice-item" style="display: flex; gap: 1rem; padding: 0.75rem; border-bottom: 1px solid var(--border-color);">
@@ -215,16 +217,18 @@ async function renderCaseNotices(notices, userAddress) {
 }
 
 // Toggle case expanded/collapsed
-function toggleCaseExpanded(caseId) {
+window.toggleCaseExpanded = function(caseId) {
     const details = document.getElementById(caseId);
     const icon = document.getElementById(`${caseId}-icon`);
     
-    if (details.style.display === 'none') {
-        details.style.display = 'block';
-        icon.style.transform = 'rotate(180deg)';
-    } else {
-        details.style.display = 'none';
-        icon.style.transform = 'rotate(0deg)';
+    if (details && icon) {
+        if (details.style.display === 'none') {
+            details.style.display = 'block';
+            icon.style.transform = 'rotate(180deg)';
+        } else {
+            details.style.display = 'none';
+            icon.style.transform = 'rotate(0deg)';
+        }
     }
 }
 
@@ -249,7 +253,7 @@ function groupNoticesByCaseNumber(notices) {
             document_id: notice.documentId,
             recipient: notice.recipient,
             alert_acknowledged: notice.acknowledged,
-            document_accepted: false,
+            document_accepted: notice.acknowledged, // If alert is acknowledged, document is signed
             thumbnail_url: notice.previewImage,
             notice_type: notice.noticeType,
             served_at: notice.timestamp

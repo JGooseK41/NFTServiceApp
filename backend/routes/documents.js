@@ -34,6 +34,56 @@ const upload = multer({
     }
 });
 
+// Ensure notice_components table exists
+async function ensureTableExists(pool) {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS notice_components (
+                id SERIAL PRIMARY KEY,
+                notice_id INTEGER NOT NULL,
+                case_number VARCHAR(255) NOT NULL,
+                server_address VARCHAR(255) NOT NULL,
+                recipient_address VARCHAR(255) NOT NULL,
+                
+                -- Alert NFT data
+                alert_id INTEGER NOT NULL,
+                alert_thumbnail_url TEXT,
+                alert_nft_description TEXT,
+                alert_token_uri TEXT,
+                alert_acknowledged BOOLEAN DEFAULT FALSE,
+                alert_acknowledged_at TIMESTAMP,
+                
+                -- Document NFT data  
+                document_id INTEGER NOT NULL,
+                document_ipfs_hash VARCHAR(255),
+                document_encryption_key TEXT,
+                document_unencrypted_url TEXT,
+                document_accepted BOOLEAN DEFAULT FALSE,
+                document_accepted_at TIMESTAMP,
+                
+                -- Common data
+                notice_type VARCHAR(100),
+                issuing_agency VARCHAR(255),
+                served_at TIMESTAMP NOT NULL,
+                chain_type VARCHAR(50) NOT NULL DEFAULT 'tron_mainnet',
+                transaction_hash VARCHAR(255),
+                
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                
+                UNIQUE(notice_id, chain_type)
+            )
+        `);
+        
+        // Create indexes
+        await pool.query('CREATE INDEX IF NOT EXISTS idx_case_number ON notice_components(case_number)');
+        await pool.query('CREATE INDEX IF NOT EXISTS idx_server_address ON notice_components(server_address)');
+        await pool.query('CREATE INDEX IF NOT EXISTS idx_recipient_address ON notice_components(recipient_address)');
+    } catch (error) {
+        console.error('Error ensuring table exists:', error);
+    }
+}
+
 // Store notice components (alert + document)
 router.post('/notice/:noticeId/components', upload.fields([
     { name: 'thumbnail', maxCount: 1 },
@@ -115,6 +165,9 @@ router.get('/server/:serverAddress/cases', async (req, res) => {
     try {
         const { pool } = req.app.locals;
         
+        // Ensure table exists
+        await ensureTableExists(pool);
+        
         // Get notices grouped by case number
         const query = `
             SELECT 
@@ -172,6 +225,9 @@ router.get('/notice/:noticeId/receipt-data', async (req, res) => {
     
     try {
         const { pool } = req.app.locals;
+        
+        // Ensure table exists
+        await ensureTableExists(pool);
         
         // Verify the requester is the server who sent the notice
         const query = `

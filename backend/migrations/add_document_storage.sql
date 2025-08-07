@@ -40,8 +40,10 @@ CREATE TABLE IF NOT EXISTS notice_components (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    UNIQUE(notice_id, chain_type),
-    INDEX idx_case_number (case_number),
-    INDEX idx_server_address (server_address),
-    INDEX idx_recipient_address (recipient_address)
+    UNIQUE(notice_id, chain_type)
 );
+
+-- Create indexes separately (PostgreSQL syntax)
+CREATE INDEX IF NOT EXISTS idx_case_number ON notice_components(case_number);
+CREATE INDEX IF NOT EXISTS idx_server_address ON notice_components(server_address);
+CREATE INDEX IF NOT EXISTS idx_recipient_address ON notice_components(recipient_address);
