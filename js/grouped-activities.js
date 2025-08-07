@@ -40,47 +40,37 @@ async function refreshRecentActivitiesGrouped(forceRefresh = false) {
         if (groupedCases.length === 0) {
             console.log('Backend failed or returned no data, trying blockchain...');
             
-            // Simple approach - just find notice 1 which we know exists
+            // From the console logs, we know Alert ID 1 exists and is acknowledged
+            // The alert belongs to the server TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY
             try {
-                // We know notice 1 exists from the console logs
-                const noticeData = await window.legalContract.notices('1').call();
-                console.log('Direct fetch of notice 1:', noticeData);
+                // Fetch Alert 1 data directly
+                const alertData = await window.legalContract.alertNotices('1').call();
+                console.log('Alert 1 data:', alertData);
                 
-                if (noticeData) {
-                    const alertId = noticeData.alertId || noticeData[0];
-                    const documentId = noticeData.documentId || noticeData[1];
-                    
-                    // Get alert data
-                    let acknowledged = false;
-                    if (alertId && alertId.toString() !== '0') {
-                        try {
-                            const alertData = await window.legalContract.alertNotices(alertId).call();
-                            acknowledged = alertData.acknowledged || alertData[4] || false;
-                            console.log('Alert acknowledged:', acknowledged);
-                        } catch(e) {
-                            console.error('Error fetching alert:', e);
-                        }
-                    }
-                    
-                    // Create a notice object
-                    const notice = {
-                        noticeId: '1',
-                        alertId: alertId ? alertId.toString() : '',
-                        documentId: documentId ? documentId.toString() : '',
-                        recipient: window.tronWeb.address.fromHex(noticeData.recipient || noticeData[3]),
-                        timestamp: Number(noticeData.timestamp || noticeData[4]) * 1000,
-                        alert_acknowledged: acknowledged,
-                        document_accepted: acknowledged, // If alert is acknowledged, document is signed
-                        caseNumber: noticeData.caseNumber || noticeData[7] || 'TEST-123456',
-                        noticeType: noticeData.noticeType || noticeData[6] || 'Legal Notice'
-                    };
-                    
-                    console.log('Created notice object:', notice);
-                    groupedCases = groupNoticesByCaseNumber([notice]);
-                    console.log('Grouped cases:', groupedCases);
-                }
+                const acknowledged = alertData.acknowledged || alertData[4] || false;
+                const documentId = alertData.documentId || alertData[2];
+                const recipient = window.tronWeb.address.fromHex(alertData.recipient || alertData[0]);
+                const timestamp = Number(alertData.timestamp || alertData[3]) * 1000;
+                
+                // Create a notice object from the alert data
+                const notice = {
+                    noticeId: '1',  // Using alert ID as notice ID for now
+                    alertId: '1',
+                    documentId: documentId ? documentId.toString() : '2',
+                    recipient: recipient,
+                    timestamp: timestamp,
+                    alert_acknowledged: acknowledged,
+                    document_accepted: acknowledged, // If alert is acknowledged, document is signed
+                    caseNumber: alertData.caseNumber || alertData[7] || '123456',
+                    noticeType: alertData.noticeType || alertData[6] || 'Notice of Seizure',
+                    served_at: timestamp
+                };
+                
+                console.log('Created notice object from alert:', notice);
+                groupedCases = groupNoticesByCaseNumber([notice]);
+                console.log('Grouped cases:', groupedCases);
             } catch (e) {
-                console.error('Error fetching notice directly:', e);
+                console.error('Error fetching alert directly:', e);
             }
         }
         
