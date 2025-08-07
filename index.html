@@ -13224,33 +13224,6 @@ async function checkUserRoles() {
                     // 3. Don't check alerts/documents separately as they're already included in notices
                     // This prevents duplicates from showing Alert 1 and Document 2 as separate items
                     const recentNoticeIds = [];
-                                
-                                // If server is null address, get from event
-                                if (server === '0x0000000000000000000000000000000000000000' || 
-                                    server === '410000000000000000000000000000000000000000' ||
-                                    server === 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb') {
-                                    console.log(`Notice ${i} has null server in contract, checking events...`);
-                                    const eventServer = await getServerFromEvent(i);
-                                    if (eventServer) {
-                                        server = eventServer;
-                                        console.log(`Found actual server from event: ${server}`);
-                                    }
-                                }
-                                
-                                if (server === userAddress || recipient === userAddress) {
-                                    recentNoticeIds.push({
-                                        noticeId: i,
-                                        recipient: recipient,
-                                        server: server,
-                                        timestamp: alertData[3] ? Number(alertData[3]) * 1000 : Date.now(),
-                                        role: server === userAddress ? 'server' : 'recipient'
-                                    });
-                                }
-                            }
-                        } catch (e) {
-                            // Notice doesn't exist, continue
-                        }
-                    }
                     console.log('Direct notice query found:', recentNoticeIds);
                     
                     // Combine results

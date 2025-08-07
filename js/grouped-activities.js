@@ -190,31 +190,24 @@ async function renderCaseNotices(notices, userAddress) {
                     <div style="font-size: 0.875rem; color: var(--text-secondary);">
                         <div>To: ${formatAddress(notice.recipient)}</div>
                         <div>Type: ${notice.notice_type || 'Legal Notice'}</div>
-                        ${isAlert ? '<div>Purpose: Initial notification to recipient</div>' : ''}
-                        ${isDocument ? '<div>Purpose: Full legal document for signature</div>' : ''}
+                        <div>Purpose: Full legal document for signature</div>
+                        <div>Status: ${documentAccepted ? 'Document has been signed' : 'Awaiting recipient signature'}</div>
                     </div>
                 </div>
                 
                 <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                    ${isAlert ? `
-                        <button class="btn btn-small btn-secondary" 
-                                onclick="showAlertReceipt(${notice.alert_id}, '${userAddress}')">
-                            <i class="fas fa-receipt"></i> Alert Receipt
-                        </button>
-                    ` : ''}
-                    ${isDocument ? `
-                        <button class="btn btn-small btn-primary" 
-                                onclick="showDocumentReceipt(${notice.document_id}, '${userAddress}')">
-                            <i class="fas fa-file-certificate"></i> Document Receipt
-                        </button>
-                    ` : ''}
+                    <button class="btn btn-small btn-primary" 
+                            onclick="showDocumentReceipt(${documentId}, '${userAddress}')">
+                        <i class="fas fa-file-certificate"></i> Document Receipt
+                    </button>
                     <button class="btn btn-small btn-outline" 
                             onclick="viewAuditTrail(${notice.notice_id})">
                         <i class="fas fa-history"></i> Audit Trail
                     </button>
                 </div>
             </div>
-        `;
+            `;
+        }
     }
     
     html += '</div>';
