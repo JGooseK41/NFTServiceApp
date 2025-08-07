@@ -76,11 +76,18 @@ async function refreshRecentActivitiesHybrid(forceBlockchain = false) {
         `;
         
         for (const caseGroup of groupedCases) {
-            const caseId = `case-${caseGroup.case_number.replace(/\s/g, '-')}`;
+            // Sanitize case number for use as ID
+            const sanitizedCaseNumber = (caseGroup.case_number || 'unknown')
+                .replace(/[^a-zA-Z0-9]/g, '-')
+                .replace(/-+/g, '-')
+                .toLowerCase();
+            const caseId = `case-${sanitizedCaseNumber}`;
+            console.log('Creating case with ID:', caseId, 'from case number:', caseGroup.case_number);
             const hasAcknowledged = caseGroup.notices.some(n => n.acknowledged);
             
             // Render the case notices content first (since it's async)
             const caseNoticesContent = await renderCaseNoticesHybrid(caseGroup.notices, userAddress);
+            console.log('Rendered notices content length:', caseNoticesContent?.length);
             
             html += `
                 <div class="case-group" style="margin-bottom: 1rem; border: 1px solid var(--border-color); border-radius: 8px;">
@@ -365,3 +372,31 @@ window.viewNoticeDetails = function(noticeId) {
     console.log('Viewing notice:', noticeId);
     // Implement notice details view
 };
+
+// Export receipt functions from grouped-activities.js if they exist
+// Otherwise define stub functions
+if (!window.showAlertReceipt) {
+    window.showAlertReceipt = function(alertId, serverAddress) {
+        console.log('showAlertReceipt called:', alertId, serverAddress);
+        alert('Alert receipt viewer not available. Please check grouped-activities.js is loaded.');
+    };
+}
+
+if (!window.showDocumentReceipt) {
+    window.showDocumentReceipt = function(documentId, serverAddress) {
+        console.log('showDocumentReceipt called:', documentId, serverAddress);
+        alert('Document receipt viewer not available. Please check grouped-activities.js is loaded.');
+    };
+}
+
+if (!window.viewAuditTrail) {
+    window.viewAuditTrail = function(noticeId) {
+        console.log('viewAuditTrail called:', noticeId);
+        // Could implement or call existing function
+        if (window.viewNoticeAuditTrail) {
+            window.viewNoticeAuditTrail(noticeId);
+        } else {
+            alert('Audit trail viewer not available.');
+        }
+    };
+}

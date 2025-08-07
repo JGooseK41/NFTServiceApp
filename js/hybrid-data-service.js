@@ -55,6 +55,11 @@ class HybridDataService {
 
     // Fetch from backend API
     async fetchFromBackend(serverAddress) {
+        // Backend endpoint not implemented yet, return null to use blockchain
+        console.log('Backend endpoint not available, using blockchain data');
+        return null;
+        
+        /* Commented out until backend endpoint is available
         if (!this.backendUrl) {
             console.log('No backend URL configured');
             return null;
@@ -74,6 +79,7 @@ class HybridDataService {
                 } catch (e) {}
                 return null;
             }
+        */
 
             const data = await response.json();
             console.log('Backend data received:', data.length, 'notices');
