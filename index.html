@@ -10696,7 +10696,13 @@ function useConnectedAddressForFeeCollector() {
                 const siteConfig = getSiteConfig();
                 if (siteConfig.showServerFeatures) {
                     updateServerStats();
-                    refreshRecentActivitiesGrouped();
+                    // Use hybrid refresh instead of grouped
+                    if (window.refreshRecentActivitiesHybrid) {
+                        refreshRecentActivitiesHybrid();
+                    } else {
+                        console.error('refreshRecentActivitiesHybrid not available');
+                        refreshRecentActivitiesGrouped();
+                    }
                 }
                 
             } catch (error) {

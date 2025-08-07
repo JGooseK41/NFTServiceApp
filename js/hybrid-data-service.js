@@ -3,9 +3,14 @@
 
 class HybridDataService {
     constructor() {
-        this.backendUrl = window.BACKEND_API_URL || '';
+        // Defer reading backend URL until needed since it's set later
         this.verificationQueue = [];
         this.isVerifying = false;
+    }
+    
+    // Getter for backend URL that reads it when needed
+    get backendUrl() {
+        return window.BACKEND_API_URL || '';
     }
 
     // Fetch notices with hybrid approach

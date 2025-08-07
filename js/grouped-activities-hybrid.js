@@ -79,6 +79,9 @@ async function refreshRecentActivitiesHybrid(forceBlockchain = false) {
             const caseId = `case-${caseGroup.case_number.replace(/\s/g, '-')}`;
             const hasAcknowledged = caseGroup.notices.some(n => n.acknowledged);
             
+            // Render the case notices content first (since it's async)
+            const caseNoticesContent = await renderCaseNoticesHybrid(caseGroup.notices, userAddress);
+            
             html += `
                 <div class="case-group" style="margin-bottom: 1rem; border: 1px solid var(--border-color); border-radius: 8px;">
                     <div class="case-header" style="padding: 1rem; background: var(--bg-secondary); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
@@ -99,7 +102,7 @@ async function refreshRecentActivitiesHybrid(forceBlockchain = false) {
                                         <i class="fas fa-clock"></i> Awaiting Signature
                                     </span>
                                 `}
-                                ${!result.verified && caseGroup.notices[0].isBackendData ? `
+                                ${!result.verified && caseGroup.notices[0] && caseGroup.notices[0].isBackendData ? `
                                     <span class="badge badge-secondary" style="font-size: 0.75rem;">
                                         <i class="fas fa-sync"></i> Pending Verification
                                     </span>
@@ -113,7 +116,7 @@ async function refreshRecentActivitiesHybrid(forceBlockchain = false) {
                         <i class="fas fa-chevron-down" id="${caseId}-icon" style="transition: transform 0.3s;"></i>
                     </div>
                     <div id="${caseId}" class="case-notices" style="display: none; padding: 1rem; border-top: 1px solid var(--border-color);">
-                        ${await renderCaseNoticesHybrid(caseGroup.notices, userAddress)}
+                        ${caseNoticesContent}
                     </div>
                 </div>
             `;
@@ -330,17 +333,30 @@ function groupNoticesByCaseNumber(notices) {
 
 // Toggle case expansion
 window.toggleCaseExpanded = function(caseId) {
+    console.log('toggleCaseExpanded called with:', caseId);
     const caseContent = document.getElementById(caseId);
     const icon = document.getElementById(caseId + '-icon');
     
+    console.log('Found elements:', {
+        caseContent: !!caseContent,
+        icon: !!icon,
+        currentDisplay: caseContent?.style.display
+    });
+    
     if (caseContent && icon) {
         if (caseContent.style.display === 'none') {
+            console.log('Expanding case...');
             caseContent.style.display = 'block';
             icon.style.transform = 'rotate(180deg)';
         } else {
+            console.log('Collapsing case...');
             caseContent.style.display = 'none';
             icon.style.transform = 'rotate(0deg)';
         }
+    } else {
+        console.error('Elements not found for caseId:', caseId);
+        console.log('Available elements with IDs:', 
+            Array.from(document.querySelectorAll('[id]')).map(el => el.id).filter(id => id.includes('case')));
     }
 };
 
