@@ -2,10 +2,21 @@
 // Uses backend for speed, blockchain for verification
 
 async function refreshRecentActivitiesHybrid(forceBlockchain = false) {
+    console.log('=== refreshRecentActivitiesHybrid CALLED ===');
     const content = document.getElementById('recentActivitiesContent');
-    if (!content) return;
+    if (!content) {
+        console.error('No recentActivitiesContent element found!');
+        return;
+    }
+    
+    console.log('Checking dependencies:');
+    console.log('- window.legalContract:', !!window.legalContract);
+    console.log('- window.tronWeb:', !!window.tronWeb);
+    console.log('- window.tronWeb.defaultAddress:', !!window.tronWeb?.defaultAddress);
+    console.log('- window.hybridDataService:', !!window.hybridDataService);
     
     if (!window.legalContract || !window.tronWeb || !window.tronWeb.defaultAddress) {
+        console.log('Missing dependencies, showing connect wallet message');
         content.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-clipboard"></i>
@@ -18,14 +29,18 @@ async function refreshRecentActivitiesHybrid(forceBlockchain = false) {
     
     try {
         const userAddress = window.tronWeb.defaultAddress.base58;
-        console.log('Fetching activities (hybrid) for:', userAddress);
+        console.log('User address:', userAddress);
+        console.log('Force blockchain:', forceBlockchain);
         
         // Show loading state
         content.innerHTML = '<div style="text-align: center; padding: 2rem;"><i class="fas fa-spinner fa-spin"></i> Loading recent activity...</div>';
         
         // Use hybrid data service
+        console.log('Calling hybridDataService.fetchNoticesHybrid...');
         const result = await window.hybridDataService.fetchNoticesHybrid(userAddress, forceBlockchain);
+        console.log('Hybrid service result:', result);
         const notices = result.notices;
+        console.log('Notices count:', notices ? notices.length : 0);
         
         // Show source indicator
         const sourceIndicator = result.verified 
@@ -160,44 +175,133 @@ async function refreshRecentActivitiesHybrid(forceBlockchain = false) {
     }
 }
 
+// Helper function to format address
+function formatAddress(address) {
+    if (!address) return 'Unknown';
+    return `${address.substring(0, 6)}...${address.slice(-4)}`;
+}
+
 // Render case notices with hybrid data
 async function renderCaseNoticesHybrid(notices, userAddress) {
-    let html = '';
+    let html = '<div class="notices-list">';
     
     for (const notice of notices) {
-        const statusBadge = notice.acknowledged 
-            ? '<span class="badge badge-success">Acknowledged</span>'
-            : '<span class="badge badge-warning">Pending</span>';
+        // Each notice can have BOTH an alertId AND a documentId
+        // We need to show both as separate items
+        const alertId = notice.alertId;
+        const documentId = notice.documentId;
         
-        const verifiedIcon = notice.verified === false 
-            ? '<i class="fas fa-exclamation-triangle" style="color: var(--warning);" title="Not verified on blockchain"></i>'
-            : notice.isBlockchainData 
-            ? '<i class="fas fa-link" style="color: var(--success);" title="Blockchain verified"></i>'
-            : '<i class="fas fa-database" style="color: var(--info);" title="Backend data"></i>';
-        
-        html += `
-            <div style="padding: 0.75rem; border-bottom: 1px solid var(--border-color);">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <strong>${notice.noticeType}</strong> ${verifiedIcon}
-                        <div style="font-size: 0.875rem; color: var(--text-secondary);">
-                            To: ${notice.recipient.substring(0, 6)}...${notice.recipient.slice(-4)}
+        // Show Alert NFT if it exists
+        if (alertId && alertId !== '0') {
+            html += `
+                <div class="notice-item" style="display: flex; gap: 1rem; padding: 0.75rem; border-bottom: 1px solid var(--border-color);">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+                            <i class="fas fa-bell" style="color: #ff9800;"></i>
+                            <strong>Alert NFT #${alertId}</strong>
+                            <span class="badge badge-info" style="font-size: 0.7rem;">
+                                <i class="fas fa-paper-plane"></i> Delivered
+                            </span>
                         </div>
+                        
                         <div style="font-size: 0.875rem; color: var(--text-secondary);">
-                            ${new Date(notice.timestamp).toLocaleString()}
+                            <div>To: ${formatAddress(notice.recipient)}</div>
+                            <div>Type: ${notice.noticeType || 'Legal Notice'} Alert</div>
+                            <div>Purpose: Initial notification in recipient's wallet</div>
+                            <div>Status: Successfully delivered to wallet</div>
+                            <div>Served: ${new Date(notice.timestamp).toLocaleString()}</div>
                         </div>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 0.5rem;">
-                        ${statusBadge}
-                        <button class="btn btn-sm btn-primary" onclick="viewNoticeDetails('${notice.noticeId}')">
-                            <i class="fas fa-eye"></i> View
+                    
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <button class="btn btn-small btn-secondary" 
+                                onclick="showAlertReceipt(${alertId}, '${userAddress}')">
+                            <i class="fas fa-receipt"></i> Alert Receipt
                         </button>
                     </div>
                 </div>
-            </div>
-        `;
+            `;
+        }
+        
+        // Show Document NFT if it exists
+        if (documentId && documentId !== '0') {
+            // Check if the Alert NFT has been acknowledged - that means the document was signed
+            const documentAccepted = notice.acknowledged || false;
+            
+            html += `
+                <div class="notice-item" style="display: flex; gap: 1rem; padding: 0.75rem; border-bottom: 1px solid var(--border-color);">
+                    <div style="flex-shrink: 0; width: 50px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-file-contract" style="font-size: 2rem; color: var(--accent-blue);"></i>
+                    </div>
+                    
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+                            <i class="fas fa-file-alt" style="color: var(--accent-blue);"></i>
+                            <strong>Document NFT #${documentId}</strong>
+                            ${documentAccepted ? `
+                                <span class="badge badge-success" style="font-size: 0.7rem;">
+                                    <i class="fas fa-check"></i> Document Signed For
+                                </span>
+                            ` : `
+                                <span class="badge badge-warning" style="font-size: 0.7rem;">
+                                    <i class="fas fa-clock"></i> Awaiting Signature
+                                </span>
+                            `}
+                        </div>
+                    
+                        <div style="font-size: 0.875rem; color: var(--text-secondary);">
+                            <div>To: ${formatAddress(notice.recipient)}</div>
+                            <div>Type: ${notice.noticeType || 'Legal Notice'}</div>
+                            <div>Purpose: Full legal document for signature</div>
+                            <div>Status: ${documentAccepted ? 'Document has been signed' : 'Awaiting recipient signature'}</div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <button class="btn btn-small btn-primary" 
+                                onclick="showDocumentReceipt(${documentId}, '${userAddress}')">
+                            <i class="fas fa-file-certificate"></i> Document Receipt
+                        </button>
+                        <button class="btn btn-small btn-outline" 
+                                onclick="viewAuditTrail(${notice.noticeId})">
+                            <i class="fas fa-history"></i> Audit Trail
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // If neither Alert nor Document ID exists, show generic notice
+        if ((!alertId || alertId === '0') && (!documentId || documentId === '0')) {
+            const statusBadge = notice.acknowledged 
+                ? '<span class="badge badge-success">Acknowledged</span>'
+                : '<span class="badge badge-warning">Pending</span>';
+            
+            html += `
+                <div style="padding: 0.75rem; border-bottom: 1px solid var(--border-color);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>${notice.noticeType}</strong>
+                            <div style="font-size: 0.875rem; color: var(--text-secondary);">
+                                To: ${formatAddress(notice.recipient)}
+                            </div>
+                            <div style="font-size: 0.875rem; color: var(--text-secondary);">
+                                ${new Date(notice.timestamp).toLocaleString()}
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            ${statusBadge}
+                            <button class="btn btn-sm btn-primary" onclick="viewNoticeDetails('${notice.noticeId}')">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
     }
     
+    html += '</div>';
     return html;
 }
 

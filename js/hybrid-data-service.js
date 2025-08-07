@@ -10,18 +10,24 @@ class HybridDataService {
 
     // Fetch notices with hybrid approach
     async fetchNoticesHybrid(serverAddress, forceBlockchain = false) {
-        console.log('Fetching notices hybrid for:', serverAddress);
+        console.log('=== HYBRID FETCH START ===');
+        console.log('Server address:', serverAddress);
+        console.log('Force blockchain:', forceBlockchain);
+        console.log('Backend URL configured:', this.backendUrl);
         
         // Check if we've already verified blockchain this session
         const hasVerified = window.sessionCache.hasVerifiedBlockchain(serverAddress);
+        console.log('Has verified this session:', hasVerified);
         
         // First, always try to get data from backend for speed
         let backendData = await this.fetchFromBackend(serverAddress);
+        console.log('Backend data result:', backendData ? `${backendData.length} notices` : 'null/empty');
         
         // If no backend data or force blockchain, get from blockchain
         if (!backendData || backendData.length === 0 || forceBlockchain) {
-            console.log('No backend data or force blockchain, fetching from chain...');
+            console.log('Falling back to blockchain fetch...');
             const blockchainData = await this.fetchFromBlockchain(serverAddress);
+            console.log('Blockchain data result:', blockchainData ? `${blockchainData.length} notices` : 'null/empty');
             return {
                 notices: blockchainData,
                 source: 'blockchain',
@@ -50,11 +56,17 @@ class HybridDataService {
         }
 
         try {
-            console.log('Fetching from backend...');
-            const response = await fetch(`${this.backendUrl}/api/documents/server/${serverAddress}/notices`);
+            const url = `${this.backendUrl}/api/documents/server/${serverAddress}/notices`;
+            console.log('Fetching from backend URL:', url);
+            const response = await fetch(url);
             
             if (!response.ok) {
-                console.log('Backend fetch failed:', response.status);
+                console.log('Backend fetch failed - Status:', response.status, 'StatusText:', response.statusText);
+                // Try to get error details
+                try {
+                    const errorText = await response.text();
+                    console.log('Backend error response:', errorText);
+                } catch (e) {}
                 return null;
             }
 
@@ -90,21 +102,29 @@ class HybridDataService {
             return cachedStats.notices;
         }
 
-        console.log('Fetching from blockchain...');
+        console.log('=== BLOCKCHAIN FETCH START ===');
+        console.log('Fetching from blockchain for:', serverAddress);
+        console.log('Contract available:', !!window.legalContract);
+        console.log('TronWeb available:', !!window.tronWeb);
         const notices = [];
         
         try {
             // Direct contract query approach (avoids rate limiting)
+            console.log('Checking first 20 alert IDs directly...');
             for (let i = 1; i <= 20; i++) {
                 try {
                     const alertData = await window.legalContract.alertNotices(i).call();
+                    console.log(`Alert ${i} raw data:`, alertData);
                     
                     if (alertData && alertData[1]) {
                         const alertServer = window.tronWeb.address.fromHex(alertData[1]);
+                        console.log(`Alert ${i} server:`, alertServer, 'Looking for:', serverAddress);
                         
                         if (alertServer === serverAddress) {
+                            console.log(`Alert ${i} belongs to this server!`);
                             const notice = this.parseAlertData(alertData, i);
                             notices.push(notice);
+                            console.log(`Added notice:`, notice);
                             
                             // Cache individual notice status
                             window.sessionCache.cacheNoticeStatus(i, {
