@@ -3,7 +3,7 @@ async function refreshRecentActivitiesGrouped(forceRefresh = false) {
     const content = document.getElementById('recentActivitiesContent');
     if (!content) return;
     
-    if (!legalContract || !tronWeb || !tronWeb.defaultAddress) {
+    if (!window.legalContract || !window.tronWeb || !window.tronWeb.defaultAddress) {
         content.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-clipboard"></i>
@@ -15,7 +15,7 @@ async function refreshRecentActivitiesGrouped(forceRefresh = false) {
     }
     
     try {
-        const userAddress = tronWeb.defaultAddress.base58;
+        const userAddress = window.tronWeb.defaultAddress.base58;
         console.log('Fetching grouped activities for:', userAddress);
         
         content.innerHTML = '<div style="text-align: center; padding: 2rem;"><i class="fas fa-spinner fa-spin"></i> Loading recent activity...</div>';
@@ -38,8 +38,11 @@ async function refreshRecentActivitiesGrouped(forceRefresh = false) {
         
         // If no backend data, fetch from blockchain and group manually
         if (groupedCases.length === 0) {
+            console.log('Fetching from blockchain as backend failed...');
             const notices = await fetchNoticesFromBlockchain(userAddress);
+            console.log('Notices from blockchain:', notices);
             groupedCases = groupNoticesByCaseNumber(notices);
+            console.log('Grouped cases:', groupedCases);
         }
         
         if (groupedCases.length === 0) {
@@ -75,7 +78,7 @@ async function refreshRecentActivitiesGrouped(forceRefresh = false) {
                                 </span>
                                 ${hasSignedDocument ? `
                                     <span class="badge badge-success" style="font-size: 0.75rem;">
-                                        <i class="fas fa-check"></i> Document Signed
+                                        <i class="fas fa-check"></i> Document Signed For
                                     </span>
                                 ` : `
                                     <span class="badge badge-warning" style="font-size: 0.75rem;">
@@ -180,7 +183,7 @@ async function renderCaseNotices(notices, userAddress) {
                             <strong>Document NFT #${documentId}</strong>
                             ${documentAccepted ? `
                                 <span class="badge badge-success" style="font-size: 0.7rem;">
-                                    <i class="fas fa-check"></i> Signed
+                                    <i class="fas fa-check"></i> Signed For
                                 </span>
                             ` : `
                                 <span class="badge badge-warning" style="font-size: 0.7rem;">
@@ -279,12 +282,17 @@ async function fetchNoticesFromBlockchain(userAddress) {
     let notices = [];
     
     try {
-        if (legalContract.getServerNotices) {
-            const noticeIds = await legalContract.getServerNotices(userAddress).call();
+        console.log('fetchNoticesFromBlockchain - checking contract:', window.legalContract);
+        if (window.legalContract && window.legalContract.getServerNotices) {
+            console.log('Calling getServerNotices for:', userAddress);
+            const noticeIds = await window.legalContract.getServerNotices(userAddress).call();
+            console.log('Notice IDs from contract:', noticeIds);
             
             for (const noticeId of noticeIds) {
                 const id = noticeId.toString();
-                const noticeData = await legalContract.notices(id).call();
+                console.log('Fetching notice data for ID:', id);
+                const noticeData = await window.legalContract.notices(id).call();
+                console.log('Notice data:', noticeData);
                 
                 if (noticeData) {
                     const alertId = noticeData.alertId || noticeData[0];
@@ -295,7 +303,7 @@ async function fetchNoticesFromBlockchain(userAddress) {
                     let acknowledged = false;
                     if (alertId && alertId.toString() !== '0') {
                         try {
-                            const alertData = await legalContract.alertNotices(alertId).call();
+                            const alertData = await window.legalContract.alertNotices(alertId).call();
                             previewImage = alertData.previewImage || alertData[11] || '';
                             acknowledged = alertData.acknowledged || alertData[4] || false;
                         } catch(e) {}
@@ -305,7 +313,7 @@ async function fetchNoticesFromBlockchain(userAddress) {
                         noticeId: id,
                         alertId: alertId ? alertId.toString() : '',
                         documentId: documentId ? documentId.toString() : '',
-                        recipient: tronWeb.address.fromHex(noticeData.recipient || noticeData[3]),
+                        recipient: window.tronWeb.address.fromHex(noticeData.recipient || noticeData[3]),
                         timestamp: Number(noticeData.timestamp || noticeData[4]) * 1000,
                         acknowledged: acknowledged,
                         noticeType: noticeData.noticeType || noticeData[6] || 'Legal Notice',
@@ -326,7 +334,7 @@ async function fetchNoticesFromBlockchain(userAddress) {
 async function showAlertReceipt(alertId, serverAddress) {
     try {
         // Get alert data from contract
-        const alertData = await legalContract.alertNotices(alertId).call();
+        const alertData = await window.legalContract.alertNotices(alertId).call();
         
         // Get additional data from backend if available
         let backendData = null;
@@ -375,8 +383,8 @@ async function showAlertReceipt(alertId, serverAddress) {
                             <h5 style="color: #1e293b;">Alert Details</h5>
                             <table style="width: 100%; font-size: 0.9rem;">
                                 <tr><td><strong>Alert ID:</strong></td><td>${alertId}</td></tr>
-                                <tr><td><strong>Recipient:</strong></td><td>${tronWeb.address.fromHex(alertData[0])}</td></tr>
-                                <tr><td><strong>Sender:</strong></td><td>${tronWeb.address.fromHex(alertData[1])}</td></tr>
+                                <tr><td><strong>Recipient:</strong></td><td>${window.tronWeb.address.fromHex(alertData[0])}</td></tr>
+                                <tr><td><strong>Sender:</strong></td><td>${window.tronWeb.address.fromHex(alertData[1])}</td></tr>
                                 <tr><td><strong>Document ID:</strong></td><td>${alertData[2]}</td></tr>
                                 <tr><td><strong>Timestamp:</strong></td><td>${new Date(Number(alertData[3]) * 1000).toLocaleString()}</td></tr>
                                 <tr><td><strong>Acknowledged:</strong></td><td>${alertData[4] ? '✅ Yes' : '❌ No'}</td></tr>
@@ -425,7 +433,7 @@ async function showAlertReceipt(alertId, serverAddress) {
                             </table>
                             
                             <div style="margin-top: 1rem; padding: 0.75rem; background: #f8f9fa; font-size: 0.875rem;">
-                                <strong>Server Wallet Address:</strong> ${tronWeb.defaultAddress ? tronWeb.defaultAddress.base58 : serverAddress}<br>
+                                <strong>Server Wallet Address:</strong> ${window.tronWeb && window.tronWeb.defaultAddress ? window.tronWeb.defaultAddress.base58 : serverAddress}<br>
                                 <strong>Blockchain Network:</strong> TRON Mainnet<br>
                                 <strong>Alert NFT ID:</strong> ${alertId}
                             </div>
@@ -452,7 +460,7 @@ async function showAlertReceipt(alertId, serverAddress) {
 async function showDocumentReceipt(documentId, serverAddress) {
     try {
         // Get document data from contract
-        const docData = await legalContract.documentNotices(documentId).call();
+        const docData = await window.legalContract.documentNotices(documentId).call();
         
         // Get unencrypted document from backend
         let backendData = null;
@@ -497,7 +505,7 @@ async function showDocumentReceipt(documentId, serverAddress) {
                             <table style="width: 100%; font-size: 0.9rem;">
                                 <tr><td><strong>Document ID:</strong></td><td>${documentId}</td></tr>
                                 <tr><td><strong>IPFS Hash:</strong></td><td style="word-break: break-all;">${docData[0] || 'Not available'}</td></tr>
-                                <tr><td><strong>Authorized Viewer:</strong></td><td>${tronWeb.address.fromHex(docData[2])}</td></tr>
+                                <tr><td><strong>Authorized Viewer:</strong></td><td>${window.tronWeb.address.fromHex(docData[2])}</td></tr>
                                 <tr><td><strong>Alert ID:</strong></td><td>${docData[3]}</td></tr>
                                 <tr><td><strong>Restricted:</strong></td><td>${docData[4] ? '🔒 Yes' : '🔓 No'}</td></tr>
                             </table>
@@ -547,7 +555,7 @@ async function showDocumentReceipt(documentId, serverAddress) {
                             </table>
                             
                             <div style="margin-top: 1rem; padding: 0.75rem; background: #f8f9fa; font-size: 0.875rem;">
-                                <strong>Server Wallet Address:</strong> ${tronWeb.defaultAddress ? tronWeb.defaultAddress.base58 : serverAddress}<br>
+                                <strong>Server Wallet Address:</strong> ${window.tronWeb && window.tronWeb.defaultAddress ? window.tronWeb.defaultAddress.base58 : serverAddress}<br>
                                 <strong>Blockchain Network:</strong> TRON Mainnet<br>
                                 <strong>Document NFT ID:</strong> ${documentId}<br>
                                 <strong>IPFS Hash:</strong> ${docData[0] || 'Not available'}

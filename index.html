@@ -4629,6 +4629,7 @@
         // Global variables
         let tronWeb = null;
         let legalContract = null;
+        window.legalContract = null; // Make globally accessible
         let currentUserServerId = null;
         let isAdmin = false;
         let isProcessServer = false;
@@ -8171,6 +8172,7 @@ function useConnectedAddressForFeeCollector() {
                 
                 // Create contract instance with ABI
                 legalContract = await tronWeb.contract(CONTRACT_ABI, contractAddress);
+                window.legalContract = legalContract; // Make globally accessible
                 console.log('Contract initialized successfully');
                 
                 // Test the contract by calling a view function
@@ -8522,6 +8524,7 @@ function useConnectedAddressForFeeCollector() {
             
             // Reset contract connection
             legalContract = null;
+            window.legalContract = null; // Clear global reference
             evmContract = null;
             web3Instance = null;
             tronWeb = null;
@@ -10647,6 +10650,7 @@ function useConnectedAddressForFeeCollector() {
                 
                 // Create contract instance with ABI
                 legalContract = await tronWeb.contract(CONTRACT_ABI, contractAddress);
+                window.legalContract = legalContract; // Make globally accessible
                 
                 // Test the contract by calling a view function
                 const balance = await legalContract.balanceOf(tronWeb.defaultAddress.base58).call();
@@ -18123,6 +18127,7 @@ document.addEventListener('keydown', function(event) {
                     const contractAddress = document.getElementById('contractAddress')?.value;
                     if (contractAddress) {
                         legalContract = await tronWeb.contract(CONTRACT_ABI, contractAddress);
+                window.legalContract = legalContract; // Make globally accessible
                     } else {
                         throw new Error('No contract address available');
                     }
