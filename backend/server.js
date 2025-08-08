@@ -460,6 +460,40 @@ app.post('/api/notices/served', async (req, res) => {
       hasDocument
     } = req.body;
 
+    console.log('Recording served notice:', {
+      noticeId,
+      alertId,
+      documentId,
+      serverAddress,
+      recipientAddress,
+      caseNumber,
+      noticeType,
+      issuingAgency
+    });
+
+    // Ensure table exists
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS served_notices (
+        id SERIAL PRIMARY KEY,
+        notice_id VARCHAR(100) UNIQUE,
+        alert_id VARCHAR(100),
+        document_id VARCHAR(100),
+        server_address VARCHAR(100),
+        recipient_address VARCHAR(100),
+        notice_type VARCHAR(100),
+        issuing_agency VARCHAR(200),
+        case_number VARCHAR(100),
+        document_hash TEXT,
+        ipfs_hash TEXT,
+        has_document BOOLEAN DEFAULT false,
+        accepted BOOLEAN DEFAULT false,
+        accepted_at TIMESTAMP,
+        recipient_jurisdiction VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     const query = `
       INSERT INTO served_notices 
       (notice_id, alert_id, document_id, server_address, recipient_address, 
@@ -467,24 +501,28 @@ app.post('/api/notices/served', async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       ON CONFLICT (notice_id) 
       DO UPDATE SET 
-        alert_id = EXCLUDED.alert_id,
-        document_id = EXCLUDED.document_id,
+        alert_id = COALESCE(EXCLUDED.alert_id, served_notices.alert_id),
+        document_id = COALESCE(EXCLUDED.document_id, served_notices.document_id),
+        server_address = COALESCE(EXCLUDED.server_address, served_notices.server_address),
+        recipient_address = COALESCE(EXCLUDED.recipient_address, served_notices.recipient_address),
+        case_number = COALESCE(EXCLUDED.case_number, served_notices.case_number),
+        issuing_agency = COALESCE(EXCLUDED.issuing_agency, served_notices.issuing_agency),
         updated_at = CURRENT_TIMESTAMP
       RETURNING *
     `;
 
     const values = [
       noticeId,
-      alertId,
-      documentId,
-      serverAddress.toLowerCase(),
-      recipientAddress.toLowerCase(),
-      noticeType,
-      issuingAgency,
-      caseNumber,
-      documentHash,
-      ipfsHash,
-      hasDocument
+      alertId || null,
+      documentId || null,
+      serverAddress ? serverAddress.toLowerCase() : null,
+      recipientAddress ? recipientAddress.toLowerCase() : null,
+      noticeType || 'Legal Notice',
+      issuingAgency || '',
+      caseNumber || '',
+      documentHash || '',
+      ipfsHash || '',
+      hasDocument || false
     ];
 
     const result = await pool.query(query, values);
@@ -511,11 +549,36 @@ app.post('/api/notices/served', async (req, res) => {
   }
 });
 
+// Debug endpoint to get ALL notices (regardless of server)
+app.get('/api/notices/all', async (req, res) => {
+  try {
+    const { limit = 100 } = req.query;
+    
+    const query = `
+      SELECT * FROM served_notices 
+      ORDER BY created_at DESC 
+      LIMIT $1
+    `;
+    
+    const result = await pool.query(query, [limit]);
+    
+    res.json({ 
+      notices: result.rows,
+      total: result.rows.length
+    });
+  } catch (error) {
+    console.error('Error fetching all notices:', error);
+    res.status(500).json({ error: 'Failed to fetch notices' });
+  }
+});
+
 // Get all notices for a process server with full status
 app.get('/api/servers/:serverAddress/notices', async (req, res) => {
   try {
     const { serverAddress } = req.params;
     const { status, limit = 100 } = req.query;
+    
+    console.log(`Fetching notices for server: ${serverAddress}`);
     
     let query = `
       SELECT 
@@ -551,6 +614,8 @@ app.get('/api/servers/:serverAddress/notices', async (req, res) => {
     
     const result = await pool.query(query, queryParams);
     
+    console.log(`Found ${result.rows.length} notices for server ${serverAddress}`);
+    
     // Calculate summary statistics
     const stats = await pool.query(`
       SELECT 
@@ -566,6 +631,16 @@ app.get('/api/servers/:serverAddress/notices', async (req, res) => {
       ...notice,
       served_at: notice.created_at || notice.updated_at
     }));
+    
+    // Log a sample of the notices for debugging
+    if (mappedNotices.length > 0) {
+      console.log('Sample notice:', {
+        notice_id: mappedNotices[0].notice_id,
+        case_number: mappedNotices[0].case_number,
+        server_address: mappedNotices[0].server_address,
+        recipient_address: mappedNotices[0].recipient_address
+      });
+    }
     
     res.json({ 
       notices: mappedNotices,
