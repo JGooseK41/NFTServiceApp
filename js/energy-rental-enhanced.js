@@ -43,18 +43,24 @@ const EnhancedEnergyRental = {
     init(config = {}) {
         Object.assign(this.config, config);
         
-        // Set API credentials if provided
+        // Enable Energy.Store if proxy URL is provided
+        if (config.proxyUrl) {
+            this.providers.energyStore.enabled = true;
+            console.log('Energy.Store enabled via proxy:', config.proxyUrl);
+        }
+        
+        // Set API credentials if provided (for direct API calls)
         if (config.energyStoreApiId && config.energyStoreApiKey) {
             this.providers.energyStore.apiId = config.energyStoreApiId;
             this.providers.energyStore.apiKey = config.energyStoreApiKey;
             this.providers.energyStore.enabled = true;
-            
-            // If Energy.Store is configured and preferred, update priorities
-            if (config.preferredProvider === 'energyStore') {
-                this.providers.energyStore.priority = 1;
-                this.providers.justlend.priority = 2;
-                this.providers.tronenergy.priority = 3;
-            }
+        }
+        
+        // Update priorities based on preferred provider
+        if (config.preferredProvider === 'energyStore' && this.providers.energyStore.enabled) {
+            this.providers.energyStore.priority = 1;
+            this.providers.justlend.priority = 2;
+            this.providers.tronenergy.priority = 3;
         }
         
         console.log('Enhanced Energy Rental initialized:', {

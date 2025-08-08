@@ -16915,17 +16915,17 @@ async function checkUserRoles() {
                 LanguageManager.init();
             }
             
-            // Initialize Enhanced Energy Rental
-            // Note: Energy.Store API requires server-side proxy due to CORS restrictions
+            // Initialize Enhanced Energy Rental with Energy.Store via Render backend
             if (window.EnhancedEnergyRental) {
                 EnhancedEnergyRental.init({
-                    // Energy.Store credentials (disabled due to CORS - needs backend proxy)
-                    // energyStoreApiId: '17933',
-                    // energyStoreApiKey: '2b14f71f7068f600a36323032ce7f8cf3079c89a7345521f2aeada792a6c83a1',
+                    // Using your existing Render backend
+                    proxyUrl: 'https://your-backend.onrender.com', // <-- REPLACE WITH YOUR RENDER URL
+                    // Example: 'https://nft-service-backend.onrender.com'
+                    
                     autoRentEnabled: true,
-                    preferredProvider: 'justlend' // Use JustLend as primary since Energy.Store needs backend
+                    preferredProvider: 'energyStore' // Use Energy.Store as primary via backend
                 });
-                console.log('Enhanced Energy Rental initialized with JustLend as primary provider');
+                console.log('Enhanced Energy Rental initialized with Energy.Store via Render backend');
             }
             
             // Apply site configuration
