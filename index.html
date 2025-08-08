@@ -24433,7 +24433,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 
                 // Estimate energy needed
                 showProcessing('Preparing transaction...');
-                const hasDocument = deliveryMethod === 'document' && uploadedImage;
+                const hasDocument = transactionData.deliveryMethod === 'document' && uploadedImage;
                 
                 // Use enhanced energy rental if available, fallback to original
                 let estimatedEnergy;
@@ -24548,13 +24548,13 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 
                 // If document delivery, encrypt the document first
                 let encryptedData = null;
-                if (deliveryMethod === 'document' && uploadedImage) {
+                if (transactionData.deliveryMethod === 'document' && uploadedImage) {
                     showProcessing('Encrypting document with recipient\'s address...');
                     
                     // Generate encryption key using sender and recipient addresses
                     const encryptionKey = SimpleEncryption.generateEncryptionKey(
                         tronWeb.defaultAddress.base58,
-                        recipient,
+                        transactionData.recipient,
                         Date.now()
                     );
                     
@@ -24617,9 +24617,9 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                         nftAssets = await ThumbnailGenerator.processDocumentForNFT(
                             documentDataForNFT,
                             {
-                                noticeType: noticeType === 'Custom' ? customType : noticeType,
-                                caseNumber: caseNumber || 'Confidential',
-                                issuingAgency: issuingAgency || getCurrentUserAgency() || 'Process Server'
+                                noticeType: transactionData.noticeType === 'Custom' ? transactionData.customType : transactionData.noticeType,
+                                caseNumber: transactionData.caseNumber || 'Confidential',
+                                issuingAgency: transactionData.issuingAgency || getCurrentUserAgency() || 'Process Server'
                             },
                             'pending' // Use placeholder ID for now
                         );
@@ -24652,22 +24652,22 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 
                 // For text-only notices, generate simple metadata
                 let metadataURI = '';
-                if (deliveryMethod === 'text' || !encryptedData || !encryptedData.metadataURI) {
+                if (transactionData.deliveryMethod === 'text' || !encryptedData || !encryptedData.metadataURI) {
                     // Generate simple metadata for text notices
                     const textMetadata = {
-                        name: `Legal Notice - ${noticeType === 'Custom' ? customType : noticeType}`,
-                        description: (publicText || 'Legal notice requiring your attention') + '\n\nMore information and full document available at www.blockserved.com',
+                        name: `Legal Notice - ${transactionData.noticeType === 'Custom' ? transactionData.customType : transactionData.noticeType}`,
+                        description: (transactionData.publicText || 'Legal notice requiring your attention') + '\n\nMore information and full document available at www.blockserved.com',
                         image: 'data:image/svg+xml;base64,' + btoa(`
                             <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
                                 <rect width="400" height="400" fill="#1a1a1a"/>
                                 <text x="200" y="180" text-anchor="middle" fill="#fff" font-size="24" font-family="Arial">LEGAL NOTICE</text>
-                                <text x="200" y="220" text-anchor="middle" fill="#888" font-size="16" font-family="Arial">${noticeType === 'Custom' ? customType : noticeType}</text>
+                                <text x="200" y="220" text-anchor="middle" fill="#888" font-size="16" font-family="Arial">${transactionData.noticeType === 'Custom' ? transactionData.customType : transactionData.noticeType}</text>
                             </svg>
                         `),
                         external_url: 'https://blockserved.com',
                         attributes: [
-                            { trait_type: "Type", value: noticeType === 'Custom' ? customType : noticeType },
-                            { trait_type: "Agency", value: issuingAgency || 'Process Server' }
+                            { trait_type: "Type", value: transactionData.noticeType === 'Custom' ? transactionData.customType : transactionData.noticeType },
+                            { trait_type: "Agency", value: transactionData.issuingAgency || 'Process Server' }
                         ]
                     };
                     metadataURI = 'data:application/json;base64,' + btoa(JSON.stringify(textMetadata));
@@ -24687,13 +24687,13 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 
                 // Build notice request
                 const noticeRequest = {
-                    recipient: recipient,
-                    publicText: publicText || '',
-                    noticeType: noticeType === 'Custom' ? customType : noticeType,
-                    caseNumber: caseNumber || '',
-                    issuingAgency: issuingAgency || '',
-                    baseTokenName: tokenName || 'Legal Notice',
-                    hasDocument: deliveryMethod === 'document',
+                    recipient: transactionData.recipient,
+                    publicText: transactionData.publicText || '',
+                    noticeType: transactionData.noticeType === 'Custom' ? transactionData.customType : transactionData.noticeType,
+                    caseNumber: transactionData.caseNumber || '',
+                    issuingAgency: transactionData.issuingAgency || '',
+                    baseTokenName: transactionData.tokenName || 'Legal Notice',
+                    hasDocument: transactionData.deliveryMethod === 'document',
                     encryptedIPFS: encryptedData ? encryptedData.ipfsHash : '',
                     encryptionKey: encryptedData ? encryptedData.encryptionKey : '',  // Fixed: was encryptedKey
                     metadataURI: metadataURI,  // Always provide metadata URI for NFT visibility
@@ -24935,9 +24935,9 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                         const nftAssets = await ThumbnailGenerator.processDocumentForNFT(
                             documentDataForNFT,
                             {
-                                noticeType: noticeType === 'Custom' ? customType : noticeType,
-                                caseNumber: caseNumber || 'Confidential',
-                                issuingAgency: issuingAgency || getCurrentUserAgency() || 'Process Server'
+                                noticeType: transactionData.noticeType === 'Custom' ? transactionData.customType : transactionData.noticeType,
+                                caseNumber: transactionData.caseNumber || 'Confidential',
+                                issuingAgency: transactionData.issuingAgency || getCurrentUserAgency() || 'Process Server'
                             },
                             noticeId // Now we have the actual notice ID
                         );
@@ -24968,7 +24968,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     try {
                         console.log('1. Sending TRX with memo...');
                         const notificationTx = await tronWeb.trx.sendTransaction(
-                            recipient,
+                            transactionData.recipient,
                             3500000, // 3.5 TRX (~$1 USD at ~$0.30/TRX, well above TronScan's $0.50 filter)
                             {
                                 memo: `LEGAL NOTICE #${noticeId} - View at www.blockserved.com`
@@ -25097,8 +25097,8 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 showTransactionResult(false, {
                     error: error,
                     errorMessage: getErrorMessage(error),
-                    recipient: recipient,
-                    noticeType: noticeType === 'Custom' ? customType : noticeType,
+                    recipient: transactionData.recipient,
+                    noticeType: transactionData.noticeType === 'Custom' ? transactionData.customType : transactionData.noticeType,
                     estimatedFee: parseInt(fee) / 1000000,
                     timestamp: Date.now()
                 });
