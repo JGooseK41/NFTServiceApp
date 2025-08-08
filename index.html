@@ -21978,6 +21978,8 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                 for (const notice of backendData.notices) {
                                     allNotices.push({
                                         id: notice.notice_id,
+                                        alertId: notice.alert_id || '',
+                                        documentId: notice.document_id || '',
                                         recipient: notice.recipient_address,
                                         server: notice.server_address,
                                         servedAt: notice.served_at,
@@ -22026,8 +22028,31 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                             const userNotices = storedNotices[userAddress] || [];
                             const storedNotice = userNotices.find(n => n.noticeId === noticeData.noticeId);
                             
+                            // Extract Alert and Document IDs from stored data or noticeData
+                            let alertId = storedNotice?.alertId || noticeData.alertId || '';
+                            let documentId = storedNotice?.documentId || noticeData.documentId || '';
+                            
+                            // If not in stored data, try to determine from the notice structure
+                            if (!alertId && !documentId) {
+                                // For notices with both Alert and Document, IDs are typically sequential
+                                // Check if this notice has both types
+                                if (alertData && alertData[0] && docData && docData[0]) {
+                                    // Both exist - this is likely a dual notice
+                                    alertId = noticeData.noticeId;
+                                    documentId = noticeData.noticeId; // They might share the same ID or be sequential
+                                } else if (alertData && alertData[0]) {
+                                    // Only Alert exists
+                                    alertId = noticeData.noticeId;
+                                } else if (docData && docData[0]) {
+                                    // Only Document exists
+                                    documentId = noticeData.noticeId;
+                                }
+                            }
+                            
                             allNotices.push({
                                 id: noticeData.noticeId,
+                                alertId: alertId,
+                                documentId: documentId,
                                 recipient: noticeData.recipient,
                                 server: userAddress,
                                 servedAt: new Date(noticeData.timestamp).toISOString(),
@@ -22043,14 +22068,29 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     }
                 }
                 
-                // Sort by date (newest first)
-                allNotices.sort((a, b) => new Date(b.servedAt) - new Date(a.servedAt));
+                // Group notices by case number
+                const noticesByCaseNumber = {};
+                allNotices.forEach(notice => {
+                    const caseNum = notice.caseNumber || 'No Case Number';
+                    if (!noticesByCaseNumber[caseNum]) {
+                        noticesByCaseNumber[caseNum] = [];
+                    }
+                    noticesByCaseNumber[caseNum].push(notice);
+                });
+                
+                // Sort case numbers (put 'No Case Number' last)
+                const sortedCaseNumbers = Object.keys(noticesByCaseNumber).sort((a, b) => {
+                    if (a === 'No Case Number') return 1;
+                    if (b === 'No Case Number') return -1;
+                    return a.localeCompare(b);
+                });
                 
                 // Update stats
                 const totalSent = allNotices.length;
                 const delivered = allNotices.filter(n => n.accepted).length;
                 const pending = totalSent - delivered;
                 const deliveryRate = totalSent > 0 ? Math.round((delivered / totalSent) * 100) : 0;
+                const totalCases = sortedCaseNumbers.filter(c => c !== 'No Case Number').length;
                 
                 // Update stat displays
                 document.getElementById('totalSentNotices').textContent = totalSent;
@@ -22058,7 +22098,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 document.getElementById('pendingDelivery').textContent = pending;
                 document.getElementById('deliveryRate').textContent = deliveryRate + '%';
                 
-                // Display comprehensive results with action buttons
+                // Display grouped by case number with expandable sections
                 if (allNotices.length === 0) {
                     resultsDiv.innerHTML = `
                         <div class="empty-state">
@@ -22069,22 +22109,81 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     `;
                 } else {
                     resultsDiv.innerHTML = `
+                        <div style="margin-bottom: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <h4 style="margin: 0;">Total Cases: ${totalCases}</h4>
+                                <button class="btn btn-small btn-secondary" onclick="expandAllCases()">
+                                    <i class="fas fa-expand"></i> Expand All
+                                </button>
+                            </div>
+                        </div>
                         <div class="delivery-list" style="max-height: 600px; overflow-y: auto;">
-                            ${allNotices.map(notice => `
-                                <div class="delivery-item" style="border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; background: var(--bg-secondary);">
-                                    <div style="display: flex; justify-content: space-between; align-items: start;">
-                                        <div style="flex: 1;">
-                                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-                                                <strong style="font-size: 1.1rem;">Notice #${notice.id}</strong>
-                                                <span class="badge ${notice.accepted ? 'badge-success' : 'badge-warning'}">
-                                                    ${notice.accepted ? '<i class="fas fa-check"></i> Accepted' : '<i class="fas fa-clock"></i> Pending'}
-                                                </span>
-                                                ${notice.source === 'backend' && notice.viewCount > 0 ? `
-                                                    <span class="badge badge-info">
-                                                        <i class="fas fa-eye"></i> ${notice.viewCount} views
-                                                    </span>
-                                                ` : ''}
+                            ${sortedCaseNumbers.map(caseNumber => {
+                                const caseNotices = noticesByCaseNumber[caseNumber];
+                                const caseAccepted = caseNotices.filter(n => n.accepted).length;
+                                const casePending = caseNotices.length - caseAccepted;
+                                const caseId = caseNumber.replace(/[^a-zA-Z0-9]/g, '_');
+                                
+                                // Get Alert and Document IDs for the case
+                                const alertIds = [];
+                                const documentIds = [];
+                                caseNotices.forEach(notice => {
+                                    if (notice.alertId) alertIds.push(notice.alertId);
+                                    if (notice.documentId) documentIds.push(notice.documentId);
+                                });
+                                
+                                return `
+                                <div class="case-group" style="border: 2px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; background: white;">
+                                    <div class="case-header" style="padding: 1rem; background: var(--bg-secondary); cursor: pointer; border-radius: 6px 6px 0 0;"
+                                         onclick="toggleCaseExpansion('${caseId}')">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                                <i class="fas fa-chevron-right" id="chevron_${caseId}" style="transition: transform 0.3s;"></i>
+                                                <div>
+                                                    <strong style="font-size: 1.2rem;">Case: ${caseNumber}</strong>
+                                                    <div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                                                        ${caseNotices.length} notice${caseNotices.length > 1 ? 's' : ''} • 
+                                                        ${caseAccepted} accepted • 
+                                                        ${casePending} pending
+                                                    </div>
+                                                </div>
                                             </div>
+                                            <div style="display: flex; gap: 0.5rem;">
+                                                ${caseAccepted > 0 ? '<span class="badge badge-success">Has Acceptances</span>' : ''}
+                                                ${casePending > 0 ? '<span class="badge badge-warning">Pending</span>' : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div id="case_${caseId}" class="case-notices" style="display: none; padding: 1rem;">
+                                        ${caseNotices.sort((a, b) => new Date(b.servedAt) - new Date(a.servedAt)).map(notice => {
+                                            // Extract Alert and Document IDs from the notice
+                                            let alertId = notice.alertId || '';
+                                            let documentId = notice.documentId || '';
+                                            
+                                            return `
+                                            <div class="delivery-item" style="border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; background: var(--bg-secondary); cursor: pointer; transition: all 0.2s;"
+                                                 onmouseover="this.style.background='#e8f4f8'" 
+                                                 onmouseout="this.style.background='var(--bg-secondary)'"
+                                                 onclick="window.viewNoticeDetails('${notice.id}', '${alertId}', '${documentId}')">
+                                                <div style="display: flex; justify-content: space-between; align-items: start;">
+                                                    <div style="flex: 1;">
+                                                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                                            <strong style="font-size: 1.1rem;">
+                                                                ${alertId ? `Alert Notice #${alertId}` : ''}
+                                                                ${alertId && documentId ? ' / ' : ''}
+                                                                ${documentId ? `Document Notice #${documentId}` : ''}
+                                                                ${!alertId && !documentId ? `Notice #${notice.id}` : ''}
+                                                            </strong>
+                                                            <span class="badge ${notice.accepted ? 'badge-success' : 'badge-warning'}">
+                                                                ${notice.accepted ? '<i class="fas fa-check"></i> Signed' : '<i class="fas fa-clock"></i> Pending'}
+                                                            </span>
+                                                            ${notice.source === 'backend' && notice.viewCount > 0 ? `
+                                                                <span class="badge badge-info">
+                                                                    <i class="fas fa-eye"></i> ${notice.viewCount} views
+                                                                </span>
+                                                            ` : ''}
+                                                        </div>
                                             
                                             <div style="display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem; font-size: 0.9rem; color: var(--text-secondary);">
                                                 <span>Recipient:</span>
@@ -22128,25 +22227,29 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                         </div>
                                         
                                         <div style="display: flex; flex-direction: column; gap: 0.5rem; min-width: 140px;">
-                                            <button class="btn btn-small btn-primary" onclick="viewNoticeAuditTrail('${notice.id}')">
+                                            <button class="btn btn-small btn-primary" onclick="event.stopPropagation(); viewNoticeAuditTrail('${notice.id}')">
                                                 <i class="fas fa-history"></i> Audit Trail
                                             </button>
                                             ${notice.accepted ? `
-                                                <button class="btn btn-small btn-success" onclick="printAcceptanceReceipt('${notice.id}')">
+                                                <button class="btn btn-small btn-success" onclick="event.stopPropagation(); printAcceptanceReceipt('${notice.id}')">
                                                     <i class="fas fa-file-certificate"></i> Receipt
                                                 </button>
                                             ` : `
-                                                <button class="btn btn-small btn-secondary" onclick="viewServiceCertificate('${notice.id}')">
+                                                <button class="btn btn-small btn-secondary" onclick="event.stopPropagation(); viewServiceCertificate('${notice.id}')">
                                                     <i class="fas fa-certificate"></i> Service Cert
                                                 </button>
                                             `}
-                                            <button class="btn btn-small btn-info" onclick="viewOnBlockchain('${notice.id}')">
+                                            <button class="btn btn-small btn-info" onclick="event.stopPropagation(); viewOnBlockchain('${notice.id}')">
                                                 <i class="fas fa-link"></i> Blockchain
                                             </button>
                                         </div>
                                     </div>
                                 </div>
                             `).join('')}
+                                    </div>
+                                </div>
+                            `;
+                            }).join('')}
                         </div>
                     `;
                 }
@@ -22164,6 +22267,44 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 }
             }
         }
+        
+        // Toggle case expansion
+        function toggleCaseExpansion(caseId) {
+            const caseContent = document.getElementById(`case_${caseId}`);
+            const chevron = document.getElementById(`chevron_${caseId}`);
+            
+            if (caseContent) {
+                if (caseContent.style.display === 'none') {
+                    caseContent.style.display = 'block';
+                    if (chevron) {
+                        chevron.style.transform = 'rotate(90deg)';
+                    }
+                } else {
+                    caseContent.style.display = 'none';
+                    if (chevron) {
+                        chevron.style.transform = 'rotate(0deg)';
+                    }
+                }
+            }
+        }
+        
+        // Expand all cases
+        function expandAllCases() {
+            const caseGroups = document.querySelectorAll('.case-notices');
+            const chevrons = document.querySelectorAll('[id^="chevron_"]');
+            
+            caseGroups.forEach(group => {
+                group.style.display = 'block';
+            });
+            
+            chevrons.forEach(chevron => {
+                chevron.style.transform = 'rotate(90deg)';
+            });
+        }
+        
+        // Make functions globally accessible
+        window.toggleCaseExpansion = toggleCaseExpansion;
+        window.expandAllCases = expandAllCases;
         
         // View service certificate for unaccepted notices
         async function viewServiceCertificate(noticeId) {
