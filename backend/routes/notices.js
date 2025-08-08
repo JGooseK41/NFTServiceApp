@@ -335,7 +335,7 @@ router.get('/server/:serverAddress', async (req, res) => {
 
       // Get total count
       const countResult = await pool.query(
-        'SELECT COUNT(*) FROM active_notices WHERE LOWER(server_address) = LOWER($1)',
+        'SELECT COUNT(*) FROM served_notices WHERE LOWER(server_address) = LOWER($1)',
         [serverAddress]
       );
 

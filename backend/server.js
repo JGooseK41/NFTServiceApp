@@ -23,7 +23,8 @@ const allowedOrigins = [
   'https://blockserved.com',
   'https://www.blockserved.com',
   'http://localhost:8080',
-  'http://localhost:3000'
+  'http://localhost:3000',
+  'http://127.0.0.1:8080'
 ];
 
 app.use(cors({
@@ -525,8 +526,24 @@ app.post('/api/notices/served', async (req, res) => {
       hasDocument || false
     ];
 
-    const result = await pool.query(query, values);
-    console.log('Notice saved successfully:', result.rows[0]);
+    let result;
+    try {
+      result = await pool.query(query, values);
+      console.log('Notice saved successfully:', result.rows[0]);
+    } catch (dbError) {
+      // If insert fails due to duplicate, try to get the existing record
+      if (dbError.code === '23505') { // Unique violation
+        console.log('Notice already exists, returning existing record');
+        const existingResult = await pool.query(
+          'SELECT * FROM served_notices WHERE notice_id = $1',
+          [noticeId]
+        );
+        if (existingResult.rows.length > 0) {
+          return res.json({ success: true, servedNotice: existingResult.rows[0], message: 'Notice already exists' });
+        }
+      }
+      throw dbError;
+    }
     
     // Update process server stats only if we have a server address
     if (serverAddress) {
