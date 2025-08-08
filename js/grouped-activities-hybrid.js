@@ -92,7 +92,7 @@ async function refreshRecentActivitiesHybrid(forceBlockchain = false) {
             html += `
                 <div class="case-group" style="margin-bottom: 1rem; border: 1px solid var(--border-color); border-radius: 8px;">
                     <div class="case-header" style="padding: 1rem; background: var(--bg-secondary); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
-                         onclick="toggleCaseExpanded('${caseId}')">
+                         data-case-id="${caseId}">
                         <div style="flex: 1;">
                             <div style="display: flex; align-items: center; gap: 0.5rem;">
                                 <i class="fas fa-folder" style="color: var(--accent-blue);"></i>
@@ -146,6 +146,48 @@ async function refreshRecentActivitiesHybrid(forceBlockchain = false) {
         `;
         
         content.innerHTML = html;
+        
+        // Add click handlers directly after setting innerHTML
+        console.log('Adding click handlers to case headers...');
+        const caseHeaders = content.querySelectorAll('.case-header');
+        console.log('Found', caseHeaders.length, 'case headers');
+        
+        caseHeaders.forEach(header => {
+            const caseId = header.getAttribute('data-case-id');
+            console.log('Setting up click handler for:', caseId);
+            
+            // Remove any existing onclick and add new event listener
+            header.onclick = null;
+            header.addEventListener('click', function(e) {
+                console.log('Case header clicked via addEventListener:', caseId);
+                e.stopPropagation();
+                
+                const caseContent = document.getElementById(caseId);
+                const icon = document.getElementById(caseId + '-icon');
+                
+                console.log('Toggle elements found:', {
+                    caseContent: !!caseContent,
+                    icon: !!icon,
+                    currentDisplay: caseContent?.style.display
+                });
+                
+                if (caseContent && icon) {
+                    if (caseContent.style.display === 'none' || !caseContent.style.display) {
+                        console.log('Expanding case', caseId);
+                        caseContent.style.display = 'block';
+                        icon.style.transform = 'rotate(180deg)';
+                    } else {
+                        console.log('Collapsing case', caseId);
+                        caseContent.style.display = 'none';
+                        icon.style.transform = 'rotate(0deg)';
+                    }
+                } else {
+                    console.error('Could not find elements for case:', caseId);
+                    console.log('All elements with case in ID:', 
+                        Array.from(document.querySelectorAll('[id*="case"]')).map(el => el.id));
+                }
+            });
+        });
         
         // Listen for blockchain verification completion
         if (!result.verified) {
@@ -338,34 +380,8 @@ function groupNoticesByCaseNumber(notices) {
     });
 }
 
-// Toggle case expansion
-window.toggleCaseExpanded = function(caseId) {
-    console.log('toggleCaseExpanded called with:', caseId);
-    const caseContent = document.getElementById(caseId);
-    const icon = document.getElementById(caseId + '-icon');
-    
-    console.log('Found elements:', {
-        caseContent: !!caseContent,
-        icon: !!icon,
-        currentDisplay: caseContent?.style.display
-    });
-    
-    if (caseContent && icon) {
-        if (caseContent.style.display === 'none') {
-            console.log('Expanding case...');
-            caseContent.style.display = 'block';
-            icon.style.transform = 'rotate(180deg)';
-        } else {
-            console.log('Collapsing case...');
-            caseContent.style.display = 'none';
-            icon.style.transform = 'rotate(0deg)';
-        }
-    } else {
-        console.error('Elements not found for caseId:', caseId);
-        console.log('Available elements with IDs:', 
-            Array.from(document.querySelectorAll('[id]')).map(el => el.id).filter(id => id.includes('case')));
-    }
-};
+// Remove global function definition since we're using addEventListener directly
+// The click handlers are added inline after content is rendered
 
 // View notice details
 window.viewNoticeDetails = function(noticeId) {
