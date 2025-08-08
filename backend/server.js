@@ -526,25 +526,36 @@ app.post('/api/notices/served', async (req, res) => {
     ];
 
     const result = await pool.query(query, values);
+    console.log('Notice saved successfully:', result.rows[0]);
     
-    // Update process server stats
-    await pool.query(`
-      UPDATE process_servers 
-      SET total_notices_served = total_notices_served + 1
-      WHERE LOWER(wallet_address) = LOWER($1)
-    `, [serverAddress]);
+    // Update process server stats only if we have a server address
+    if (serverAddress) {
+      await pool.query(`
+        UPDATE process_servers 
+        SET total_notices_served = total_notices_served + 1
+        WHERE LOWER(wallet_address) = LOWER($1)
+      `, [serverAddress]).catch(err => {
+        console.warn('Could not update process server stats:', err.message);
+      });
+    }
     
     // Log audit event
-    await pool.query(
-      `INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address)
-       VALUES ('notice_served', $1, $2, $3, $4)`,
-      [serverAddress, noticeId, JSON.stringify({ recipientAddress, noticeType }), 
-       req.headers['x-forwarded-for'] || req.connection.remoteAddress]
-    );
+    if (serverAddress) {
+      await pool.query(
+        `INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address)
+         VALUES ('notice_served', $1, $2, $3, $4)`,
+        [serverAddress, noticeId, JSON.stringify({ recipientAddress, noticeType }), 
+         req.headers['x-forwarded-for'] || req.connection.remoteAddress]
+      ).catch(err => {
+        console.warn('Could not log audit event:', err.message);
+      });
+    }
 
     res.json({ success: true, servedNotice: result.rows[0] });
   } catch (error) {
     console.error('Error tracking served notice:', error);
+    console.error('Error details:', error.message);
+    console.error('Query values:', values);
     res.status(500).json({ error: 'Failed to track served notice' });
   }
 });

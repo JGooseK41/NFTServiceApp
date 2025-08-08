@@ -22793,8 +22793,9 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             }
             
             // Data from the TronScan transaction we saw
+            // Using notice ID 3 since 1 is already taken
             const case34Data = {
-                noticeId: '1', // Based on the LegalNoticeCreated event
+                noticeId: '3', // Changed to avoid conflict
                 alertId: '3',  // From the NoticeServed event
                 documentId: '4', // From the NoticeServed event
                 serverAddress: 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY', // From LegalNoticeCreated event
