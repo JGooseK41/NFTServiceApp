@@ -38,6 +38,7 @@ const EnergyRental = {
         const DOCUMENT_ENERGY = 100000; // Additional for document storage
         const IPFS_ENERGY = 50000; // IPFS metadata operations
         const PER_NOTICE_ENERGY = 900000; // Per notice in batch
+        const MINIMUM_RENTAL = 1500000; // Minimum 1.5M energy for any rental
         
         let totalEnergy = BASE_ENERGY;
         
@@ -52,7 +53,10 @@ const EnergyRental = {
         }
         
         // Add 30% buffer to ensure enough energy while tuning
-        return Math.ceil(totalEnergy * 1.3);
+        totalEnergy = Math.ceil(totalEnergy * 1.3);
+        
+        // Ensure minimum rental amount of 1.5M energy
+        return Math.max(totalEnergy, MINIMUM_RENTAL);
     },
     
     // Get current energy price from rental providers
@@ -121,8 +125,14 @@ const EnergyRental = {
     // Rent energy from JustLend
     async rentFromJustLend(amount, receiverAddress) {
         try {
+            // Ensure minimum rental of 1.5M energy
+            const MINIMUM_RENTAL = 1500000;
+            const rentalAmount = Math.max(amount, MINIMUM_RENTAL);
+            
             console.log('Attempting to rent energy from JustLend:', {
-                amount: amount,
+                requested: amount,
+                actual: rentalAmount,
+                minimum: MINIMUM_RENTAL,
                 receiver: receiverAddress
             });
             
@@ -229,8 +239,8 @@ const EnergyRental = {
             }
             
             // Validate amount
-            if (!amount || isNaN(amount) || amount <= 0) {
-                console.error('Invalid energy amount for rental:', amount);
+            if (!rentalAmount || isNaN(rentalAmount) || rentalAmount <= 0) {
+                console.error('Invalid energy amount for rental:', rentalAmount);
                 return {
                     success: false,
                     error: 'Invalid energy amount specified'
@@ -246,7 +256,7 @@ const EnergyRental = {
             // Calculate the TRX amount to delegate (this is NOT what we pay)
             // This is the amount of TRX that would need to be staked to get this energy
             const energyStakePerTrx = 1500; // Approximately 1500 energy per TRX staked
-            let trxAmountToDelegate = Math.ceil(amount / energyStakePerTrx) * 1_000_000; // Convert to SUN
+            let trxAmountToDelegate = Math.ceil(rentalAmount / energyStakePerTrx) * 1_000_000; // Convert to SUN
             
             // Ensure minimum delegation amount
             const MIN_DELEGATION = 1_000_000; // 1 TRX minimum in SUN
@@ -259,11 +269,11 @@ const EnergyRental = {
             // 60 sun per energy per day, but we get 50% discount for immediate return
             const sunPerEnergyPerDay = 30; // 30 sun for immediate use (50% discount)
             const rentalDays = 1; // We're renting for immediate use
-            const rentalCost = amount * sunPerEnergyPerDay * rentalDays; // Total rental cost in SUN
+            const rentalCost = rentalAmount * sunPerEnergyPerDay * rentalDays; // Total rental cost in SUN
             
             // Calculate security deposit
             // Security deposit = Energy amount * Unit price * 0.75 (for safety margin)
-            const securityDeposit = Math.ceil(amount * sunPerEnergyPerDay * 0.75);
+            const securityDeposit = Math.ceil(rentalAmount * sunPerEnergyPerDay * 0.75);
             
             // Add liquidation fee (minimum fee)
             const liquidationFee = 10 * 1_000_000; // 10 TRX liquidation fee
@@ -272,7 +282,8 @@ const EnergyRental = {
             const totalPrepayment = rentalCost + securityDeposit + liquidationFee;
             
             console.log('JustLend prepayment calculation:', {
-                energyAmount: amount,
+                energyAmount: rentalAmount,
+                requestedAmount: amount,
                 trxToDelegate: trxAmountToDelegate / 1_000_000,
                 rentalCostSUN: rentalCost,
                 rentalCostTRX: rentalCost / 1_000_000,
@@ -284,7 +295,7 @@ const EnergyRental = {
             });
             
             console.log('JustLend final parameters:', {
-                energyNeeded: amount,
+                energyNeeded: rentalAmount,
                 delegationAmountSUN: trxAmountToDelegate,
                 delegationAmountTRX: trxAmountToDelegate / 1_000_000,
                 totalCostSUN: totalPrepayment,
@@ -382,13 +393,13 @@ const EnergyRental = {
                         // Check specific revert reasons
                         if (sendError.message.includes('Not enough security deposit')) {
                             console.error('Security deposit insufficient. Current calculation:', {
-                                energyAmount: amount,
+                                energyAmount: rentalAmount,
                                 calculatedDeposit: securityDeposit / 1_000_000,
                                 totalPrepayment: totalPrepayment / 1_000_000
                             });
                             
                             // Try with increased security deposit
-                            const increasedDeposit = Math.ceil(amount * 60); // Try with full 60 sun per energy
+                            const increasedDeposit = Math.ceil(rentalAmount * 60); // Try with full 60 sun per energy
                             const increasedTotal = rentalCost + increasedDeposit + liquidationFee;
                             
                             return {
@@ -397,7 +408,7 @@ const EnergyRental = {
                                 userMessage: `JustLend requires ${(increasedTotal / 1_000_000).toFixed(2)} TRX security deposit. Current wallet may have insufficient balance.`,
                                 requiredAmount: increasedTotal / 1_000_000,
                                 currentCalculation: totalPrepayment / 1_000_000,
-                                fallbackOptions: this.getAlternativeOptions(amount, receiverAddress)
+                                fallbackOptions: this.getAlternativeOptions(rentalAmount, receiverAddress)
                             };
                         }
                         
@@ -409,7 +420,7 @@ const EnergyRental = {
                                     success: false,
                                     error: 'JustLend cannot rent to contract addresses',
                                     userMessage: 'Energy rental is only available for regular wallet addresses.',
-                                    fallbackOptions: this.getAlternativeOptions(amount, receiverAddress)
+                                    fallbackOptions: this.getAlternativeOptions(rentalAmount, receiverAddress)
                                 };
                             }
                             
@@ -418,7 +429,7 @@ const EnergyRental = {
                                     success: false,
                                     error: 'Account not activated',
                                     userMessage: 'The wallet must be activated on TRON before renting energy.',
-                                    fallbackOptions: this.getAlternativeOptions(amount, receiverAddress)
+                                    fallbackOptions: this.getAlternativeOptions(rentalAmount, receiverAddress)
                                 };
                             }
                         } catch (e) {
@@ -468,7 +479,8 @@ const EnergyRental = {
             // Store rental info for potential return
             const rentalInfo = {
                 provider: 'JustLend',
-                energyAmount: amount,
+                energyAmount: rentalAmount,
+                requestedAmount: amount,
                 trxDelegated: trxAmountToDelegate / 1_000_000, // TRX delegated
                 txId: txId,
                 totalCost: totalPrepayment / 1_000_000, // Total prepayment in TRX

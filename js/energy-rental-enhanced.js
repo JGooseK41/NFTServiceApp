@@ -80,6 +80,7 @@ const EnhancedEnergyRental = {
         const DOCUMENT_STORAGE = 100000;
         const IPFS_OPERATION = 50000;
         const LARGE_DOCUMENT_EXTRA = 50000;
+        const MINIMUM_RENTAL = 1500000; // Minimum 1.5M energy
         
         let totalEnergy = BASE_NFT_MINT;
         
@@ -99,7 +100,10 @@ const EnhancedEnergyRental = {
         }
         
         // Apply buffer
-        return Math.ceil(totalEnergy * this.config.energyBuffer);
+        totalEnergy = Math.ceil(totalEnergy * this.config.energyBuffer);
+        
+        // Ensure minimum rental amount
+        return Math.max(totalEnergy, MINIMUM_RENTAL);
     },
 
     // Energy.Store API integration
@@ -114,9 +118,15 @@ const EnhancedEnergyRental = {
         try {
             const { apiUrl, apiId, apiKey } = this.providers.energyStore;
             
+            // Ensure minimum rental amount (Energy.Store min is 65,000 but we want 1.5M)
+            const MINIMUM_RENTAL = 1500000;
+            const rentalAmount = Math.max(amount, MINIMUM_RENTAL);
+            
+            console.log(`Energy.Store rental: requested ${amount}, renting ${rentalAmount} (min: ${MINIMUM_RENTAL})`);
+            
             // Prepare request data
             const requestData = {
-                quantity: amount,
+                quantity: rentalAmount,
                 period: 1, // 1 hour minimum
                 receiver: receiverAddress
             };
@@ -143,7 +153,8 @@ const EnhancedEnergyRental = {
                     provider: 'Energy.Store',
                     orderId: result.orderID,
                     cost: result.cost,
-                    energyAmount: amount,
+                    energyAmount: rentalAmount, // Use actual rented amount
+                    requestedAmount: amount, // Original request
                     txId: result.transactionId
                 };
             } else {
@@ -198,6 +209,12 @@ const EnhancedEnergyRental = {
     // Enhanced JustLend integration with better error handling
     async rentFromJustLendEnhanced(amount, receiverAddress) {
         try {
+            // Ensure minimum rental amount
+            const MINIMUM_RENTAL = 1500000;
+            const rentalAmount = Math.max(amount, MINIMUM_RENTAL);
+            
+            console.log(`JustLend rental: requested ${amount}, renting ${rentalAmount} (min: ${MINIMUM_RENTAL})`);
+            
             // Check network
             if (!await this.isMainnet()) {
                 return {
@@ -217,7 +234,7 @@ const EnhancedEnergyRental = {
 
             // Check balance
             const balance = await window.tronWeb.trx.getBalance(receiverAddress);
-            const requiredBalance = this.calculateJustLendCost(amount);
+            const requiredBalance = this.calculateJustLendCost(rentalAmount);
             
             if (balance < requiredBalance.totalCost) {
                 return {
@@ -232,7 +249,7 @@ const EnhancedEnergyRental = {
             let lastError = null;
             for (let i = 0; i < this.config.maxRetries; i++) {
                 try {
-                    const result = await this.executeJustLendRental(amount, receiverAddress);
+                    const result = await this.executeJustLendRental(rentalAmount, receiverAddress);
                     if (result.success) {
                         return result;
                     }
