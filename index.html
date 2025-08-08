@@ -21950,7 +21950,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         };
         
         // Refresh delivery status
-        async function refreshDeliveryStatus() {
+        async function refreshDeliveryStatus(forceBlockchain = false) {
             if (!legalContract || !tronWeb.defaultAddress) {
                 uiManager.showNotification('error', 'Please connect wallet and contract first');
                 return;
@@ -21965,10 +21965,16 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 const userAddress = tronWeb.defaultAddress.base58;
                 let allNotices = [];
                 
-                // Try to get comprehensive data from backend first
-                if (window.BACKEND_API_URL) {
+                // Add timestamp to prevent caching
+                const timestamp = Date.now();
+                console.log(`Refreshing delivery status at ${new Date(timestamp).toLocaleTimeString()}...`);
+                
+                // Try to get comprehensive data from backend first (unless forced to use blockchain)
+                if (window.BACKEND_API_URL && !forceBlockchain) {
                     try {
-                        const response = await fetch(`${window.BACKEND_API_URL}/api/servers/${userAddress}/notices?limit=1000`);
+                        const response = await fetch(`${window.BACKEND_API_URL}/api/servers/${userAddress}/notices?limit=1000&t=${timestamp}`, {
+                            cache: 'no-cache'
+                        });
                         if (response.ok) {
                             const backendData = await response.json();
                             console.log('Backend delivery data:', backendData);
@@ -22001,10 +22007,17 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     }
                 }
                 
-                // If no backend data, get from blockchain
-                if (allNotices.length === 0) {
+                // If no backend data OR force blockchain, get from blockchain
+                if (allNotices.length === 0 || forceBlockchain) {
+                    console.log('Fetching notices from blockchain for address:', userAddress);
                     const blockchainNotices = await getServedNoticesFromBlockchain(userAddress, 1000);
                     console.log('Blockchain notices found:', blockchainNotices.length);
+                    console.log('Blockchain notices:', blockchainNotices);
+                    
+                    // Clear any backend data if forcing blockchain
+                    if (forceBlockchain) {
+                        allNotices = [];
+                    }
                     
                     for (const noticeData of blockchainNotices) {
                         try {
@@ -22109,12 +22122,17 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     `;
                 } else {
                     resultsDiv.innerHTML = `
-                        <div style="margin-bottom: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
+                        <div style="margin-bottom: 1rem; padding: 1rem; background: #f5f5f5; border-radius: 8px;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <h4 style="margin: 0;">Total Cases: ${totalCases}</h4>
-                                <button class="btn btn-small btn-secondary" onclick="expandAllCases()">
-                                    <i class="fas fa-expand"></i> Expand All
-                                </button>
+                                <h4 style="margin: 0; color: #333;">Total Cases: ${totalCases}</h4>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <button class="btn btn-small btn-primary" onclick="refreshDeliveryStatus(true)" title="Force refresh from blockchain">
+                                        <i class="fas fa-sync"></i> Force Refresh
+                                    </button>
+                                    <button class="btn btn-small btn-secondary" onclick="expandAllCases()">
+                                        <i class="fas fa-expand"></i> Expand All
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         <div class="delivery-list" style="max-height: 600px; overflow-y: auto;">
@@ -22133,15 +22151,15 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                 });
                                 
                                 return `
-                                <div class="case-group" style="border: 2px solid var(--border-color); border-radius: 8px; margin-bottom: 1rem; background: white;">
-                                    <div class="case-header" style="padding: 1rem; background: var(--bg-secondary); cursor: pointer; border-radius: 6px 6px 0 0;"
+                                <div class="case-group" style="border: 2px solid #ddd; border-radius: 8px; margin-bottom: 1rem; background: white;">
+                                    <div class="case-header" style="padding: 1rem; background: #f8f9fa; cursor: pointer; border-radius: 6px 6px 0 0; color: #333;"
                                          onclick="toggleCaseExpansion('${caseId}')">
                                         <div style="display: flex; justify-content: space-between; align-items: center;">
                                             <div style="display: flex; align-items: center; gap: 1rem;">
-                                                <i class="fas fa-chevron-right" id="chevron_${caseId}" style="transition: transform 0.3s;"></i>
+                                                <i class="fas fa-chevron-right" id="chevron_${caseId}" style="transition: transform 0.3s; color: #666;"></i>
                                                 <div>
-                                                    <strong style="font-size: 1.2rem;">Case: ${caseNumber}</strong>
-                                                    <div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                                                    <strong style="font-size: 1.2rem; color: #333;">Case: ${caseNumber}</strong>
+                                                    <div style="font-size: 0.9rem; color: #666; margin-top: 0.25rem;">
                                                         ${caseNotices.length} notice${caseNotices.length > 1 ? 's' : ''} • 
                                                         ${caseAccepted} accepted • 
                                                         ${casePending} pending
@@ -22155,21 +22173,21 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                         </div>
                                     </div>
                                     
-                                    <div id="case_${caseId}" class="case-notices" style="display: none; padding: 1rem;">
+                                    <div id="case_${caseId}" class="case-notices" style="display: none; padding: 1rem; background: #fafafa;">
                                         ${caseNotices.sort((a, b) => new Date(b.servedAt) - new Date(a.servedAt)).map(notice => {
                                             // Extract Alert and Document IDs from the notice
                                             let alertId = notice.alertId || '';
                                             let documentId = notice.documentId || '';
                                             
                                             return `
-                                            <div class="delivery-item" style="border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; background: var(--bg-secondary); cursor: pointer; transition: all 0.2s;"
-                                                 onmouseover="this.style.background='#e8f4f8'" 
-                                                 onmouseout="this.style.background='var(--bg-secondary)'"
-                                                 onclick="window.viewNoticeDetails('${notice.id}', '${alertId}', '${documentId}')">
+                                            <div class="delivery-item" style="border: 1px solid #e0e0e0; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; background: white; cursor: pointer; transition: all 0.2s;"
+                                                 onmouseover="this.style.background='#e8f4f8'; this.style.borderColor='#2196F3';" 
+                                                 onmouseout="this.style.background='white'; this.style.borderColor='#e0e0e0';"
+                                                 onclick="window.viewNoticeDetails('${notice.id}', '${alertId}', '${documentId}')">`
                                                 <div style="display: flex; justify-content: space-between; align-items: start;">
                                                     <div style="flex: 1;">
                                                         <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-                                                            <strong style="font-size: 1.1rem;">
+                                                            <strong style="font-size: 1.1rem; color: #333;">
                                                                 ${alertId ? `Alert Notice #${alertId}` : ''}
                                                                 ${alertId && documentId ? ' / ' : ''}
                                                                 ${documentId ? `Document Notice #${documentId}` : ''}
@@ -22185,38 +22203,38 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                                             ` : ''}
                                                         </div>
                                             
-                                            <div style="display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem; font-size: 0.9rem; color: var(--text-secondary);">
-                                                <span>Recipient:</span>
-                                                <code style="font-size: 0.85rem;">${formatAddress(notice.recipient)}</code>
+                                            <div style="display: grid; grid-template-columns: auto 1fr; gap: 0.5rem 1rem; font-size: 0.9rem; color: #666;">
+                                                <span style="color: #555;">Recipient:</span>
+                                                <code style="font-size: 0.85rem; color: #333; background: #f5f5f5; padding: 2px 4px; border-radius: 3px;">${formatAddress(notice.recipient)}</code>
                                                 
                                                 ${notice.caseNumber ? `
-                                                    <span>Case Number:</span>
-                                                    <span style="font-weight: 500;">${notice.caseNumber}</span>
+                                                    <span style="color: #555;">Case Number:</span>
+                                                    <span style="font-weight: 500; color: #333;">${notice.caseNumber}</span>
                                                 ` : ''}
                                                 
-                                                <span>Served:</span>
-                                                <span>${new Date(notice.servedAt).toLocaleString()}</span>
+                                                <span style="color: #555;">Served:</span>
+                                                <span style="color: #333;">${new Date(notice.servedAt).toLocaleString()}</span>
                                                 
                                                 ${notice.accepted ? `
-                                                    <span>Accepted:</span>
-                                                    <span style="color: var(--success-green);">
+                                                    <span style="color: #555;">Accepted:</span>
+                                                    <span style="color: #28a745;">
                                                         ${notice.acceptedAt ? new Date(notice.acceptedAt).toLocaleString() : 'Yes'}
                                                     </span>
                                                 ` : ''}
                                                 
                                                 ${notice.ipfsHash ? `
-                                                    <span>Document:</span>
-                                                    <span><i class="fas fa-file-pdf"></i> Attached</span>
+                                                    <span style="color: #555;">Document:</span>
+                                                    <span style="color: #333;"><i class="fas fa-file-pdf"></i> Attached</span>
                                                 ` : ''}
                                                 
                                                 ${notice.lastViewed ? `
-                                                    <span>Last Viewed:</span>
-                                                    <span>${new Date(notice.lastViewed).toLocaleString()}</span>
+                                                    <span style="color: #555;">Last Viewed:</span>
+                                                    <span style="color: #333;">${new Date(notice.lastViewed).toLocaleString()}</span>
                                                 ` : ''}
                                                 
                                                 ${notice.acceptanceLocation ? `
-                                                    <span>Location:</span>
-                                                    <span>
+                                                    <span style="color: #555;">Location:</span>
+                                                    <span style="color: #333;">
                                                         <i class="fas fa-map-marker-alt"></i> 
                                                         ${typeof notice.acceptanceLocation === 'string' 
                                                             ? JSON.parse(notice.acceptanceLocation).city 
