@@ -26,6 +26,7 @@
     <script src="js/thumbnail-generator-v5.js?v=2"></script>
     <script src="js/energy-rental.js?v=4"></script>
     <script src="js/energy-rental-enhanced.js?v=1"></script>
+    <script src="js/pending-transactions.js?v=1"></script>
     <script src="js/translations.js?v=1"></script>
     <script>
         // Pinata IPFS Configuration - shared across all users
@@ -2835,6 +2836,12 @@
                     <i class="fas fa-circle"></i>
                     <span id="networkName">Disconnected</span>
                 </div>
+                <!-- Pending Transactions Button -->
+                <button id="pendingBtn" class="btn btn-secondary btn-small" onclick="PendingTransactions.showPendingPanel()" style="position: relative; margin-right: 0.5rem;">
+                    <i class="fas fa-clock"></i>
+                    <span>Pending</span>
+                    <span id="pendingBadge" style="position: absolute; top: -8px; right: -8px; background: #ef4444; color: white; border-radius: 50%; min-width: 18px; height: 18px; display: none; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: bold; padding: 0 4px;">0</span>
+                </button>
                 <div class="wallet-status">
                     <div class="wallet-address" id="walletAddress" style="display: none;">
                         <span id="walletAddressText">Not Connected</span>
@@ -24345,39 +24352,65 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 return;
             }
             
-            // Get form values - use correct mint form IDs
-            const recipient = document.getElementById('mintRecipient')?.value.trim() || '';
-            const publicText = document.getElementById('noticeText')?.value.trim() || '';
-            const noticeType = document.getElementById('noticeType')?.value || 'Legal Notice';
-            const customType = document.getElementById('customNoticeType')?.value.trim() || '';
-            const caseNumber = document.getElementById('mintCaseNumber')?.value.trim() || '';
-            const issuingAgency = document.getElementById('issuingAgency')?.value.trim() || '';
-            const tokenName = document.getElementById('mintTokenName')?.value.trim() || 'Legal Notice';
-            const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked')?.value || 'document';
+            // Check if we're resuming a pending transaction
+            let transactionData;
+            if (window.isResumingTransaction && window.pendingTransactionData) {
+                // Use pending transaction data
+                transactionData = window.pendingTransactionData;
+                window.pendingTransactionData = null;
+            } else {
+                // Get form values - use correct mint form IDs
+                const recipient = document.getElementById('mintRecipient')?.value.trim() || '';
+                const publicText = document.getElementById('noticeText')?.value.trim() || '';
+                const noticeType = document.getElementById('noticeType')?.value || 'Legal Notice';
+                const customType = document.getElementById('customNoticeType')?.value.trim() || '';
+                const caseNumber = document.getElementById('mintCaseNumber')?.value.trim() || '';
+                const issuingAgency = document.getElementById('issuingAgency')?.value.trim() || '';
+                const tokenName = document.getElementById('mintTokenName')?.value.trim() || 'Legal Notice';
+                const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked')?.value || 'document';
+                
+                // Validation
+                if (!recipient) {
+                    uiManager.showNotification('error', 'Please enter recipient address');
+                    return;
+                }
+                
+                if (!tronWeb.isAddress(recipient)) {
+                    uiManager.showNotification('error', 'Invalid recipient address');
+                    return;
+                }
+                
+                if (!publicText && deliveryMethod === 'text') {
+                    uiManager.showNotification('error', 'Please enter notice text');
+                    return;
+                }
+                
+                if (deliveryMethod === 'document' && !uploadedImage) {
+                    uiManager.showNotification('error', 'Please upload a document');
+                    return;
+                }
+                
+                // Create transaction data object
+                transactionData = {
+                    recipient,
+                    publicText,
+                    noticeType,
+                    customType,
+                    caseNumber,
+                    issuingAgency,
+                    tokenName,
+                    deliveryMethod,
+                    hasDocument: deliveryMethod === 'document' && uploadedImage,
+                    documentData: uploadedImage?.data,
+                    documentPreview: uploadedImage?.preview,
+                    senderAddress: tronWeb.defaultAddress.base58,
+                    contractAddress: legalContract.address,
+                    type: 'single'
+                };
+            }
             
             // Generate a temporary notice ID for the direct link (will be replaced with actual ID after minting)
             const tempNoticeId = Date.now().toString();
-            
-            // Validation
-            if (!recipient) {
-                uiManager.showNotification('error', 'Please enter recipient address');
-                return;
-            }
-            
-            if (!tronWeb.isAddress(recipient)) {
-                uiManager.showNotification('error', 'Invalid recipient address');
-                return;
-            }
-            
-            if (!publicText && deliveryMethod === 'text') {
-                uiManager.showNotification('error', 'Please enter notice text');
-                return;
-            }
-            
-            if (deliveryMethod === 'document' && !uploadedImage) {
-                uiManager.showNotification('error', 'Please upload a document');
-                return;
-            }
             
             // Define fee outside try block so it's available in catch
             let fee = 150000000; // Default fee (150 TRX)
@@ -24455,14 +24488,28 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     
                     // Check if user already made a choice (enhanced version)
                     if (energyResult.userChoice === 'cancel') {
-                        // User cancelled
+                        // User cancelled - save as pending
+                        transactionData.fee = fee;
+                        transactionData.estimatedEnergy = estimatedEnergy;
+                        
+                        // Show cancel confirmation
+                        const saveAsPending = await PendingTransactions.showCancelConfirmation();
+                        
+                        if (saveAsPending) {
+                            PendingTransactions.savePending(transactionData);
+                        }
+                        
                         if (submitButton) {
                             setButtonLoading(submitButton, false);
                         }
                         return;
                     } else if (energyResult.userChoice === 'manual') {
-                        // User chose manual rental
-                        uiManager.showNotification('info', 'Please complete energy rental and try again');
+                        // User chose manual rental - save as pending
+                        transactionData.fee = fee;
+                        transactionData.estimatedEnergy = estimatedEnergy;
+                        PendingTransactions.savePending(transactionData);
+                        
+                        uiManager.showNotification('info', 'Transaction saved. Complete energy rental and resume from Pending Transactions');
                         if (submitButton) {
                             setButtonLoading(submitButton, false);
                         }
