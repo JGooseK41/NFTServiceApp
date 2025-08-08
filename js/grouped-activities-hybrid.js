@@ -150,6 +150,32 @@ async function refreshRecentActivitiesHybrid(forceBlockchain = false) {
         content.innerHTML = html;
         console.log('HTML set, case expansion handlers are inline');
         
+        // Debug: Check what was actually created
+        setTimeout(() => {
+            const allCases = document.querySelectorAll('[id^="case-"]');
+            console.log('=== EXPANSION DEBUG ===');
+            console.log('Found case elements:', allCases.length);
+            allCases.forEach(el => {
+                console.log('Case element ID:', el.id, 'Display:', el.style.display);
+            });
+            
+            const allIcons = document.querySelectorAll('[id$="-icon"]');
+            console.log('Found icon elements:', allIcons.length);
+            allIcons.forEach(el => {
+                console.log('Icon element ID:', el.id);
+            });
+            
+            // Test the function directly
+            console.log('Testing toggleNoticeCase function:');
+            console.log('window.toggleNoticeCase exists:', typeof window.toggleNoticeCase);
+            
+            // Try to find the specific case
+            const testCase = document.getElementById('case-123456');
+            const testIcon = document.getElementById('case-123456-icon');
+            console.log('Test case-123456 found:', !!testCase);
+            console.log('Test case-123456-icon found:', !!testIcon);
+        }, 100);
+        
         // Listen for blockchain verification completion
         if (!result.verified) {
             const verificationListener = (event) => {
@@ -343,29 +369,69 @@ function groupNoticesByCaseNumber(notices) {
 
 // Global function for toggling case expansion
 window.toggleNoticeCase = function(caseId) {
-    console.log('Toggling case:', caseId);
-    const content = document.getElementById(caseId);
-    const icon = document.getElementById(caseId + '-icon');
+    console.log('=== TOGGLE NOTICE CASE CALLED ===');
+    console.log('Case ID:', caseId);
+    console.log('Type of caseId:', typeof caseId);
+    
+    // Try different ways to find the element
+    let content = document.getElementById(caseId);
+    if (!content) {
+        console.log('Trying querySelector with #' + caseId);
+        content = document.querySelector('#' + caseId);
+    }
+    if (!content) {
+        console.log('Trying to find by data attribute');
+        content = document.querySelector(`[data-case-content="${caseId}"]`);
+    }
+    
+    let icon = document.getElementById(caseId + '-icon');
+    if (!icon) {
+        icon = document.querySelector('#' + caseId + '-icon');
+    }
+    
+    console.log('Content element found:', !!content);
+    console.log('Icon element found:', !!icon);
+    
+    if (!content) {
+        console.error('Content element not found for case:', caseId);
+        console.log('All IDs in document:', 
+            Array.from(document.querySelectorAll('[id]'))
+                .map(e => e.id)
+                .filter(id => id.includes('case'))
+                .join(', '));
+    }
+    
+    if (!icon) {
+        console.error('Icon element not found for case:', caseId + '-icon');
+    }
     
     if (!content || !icon) {
-        console.error('Elements not found for case:', caseId);
-        console.log('Looking for elements:', caseId, caseId + '-icon');
-        console.log('Available elements:', Array.from(document.querySelectorAll('[id*="case"]')).map(e => e.id));
         return;
     }
     
-    console.log('Current display:', content.style.display);
+    console.log('Current display:', content.style.display || 'not set');
+    console.log('Element className:', content.className);
     
-    if (content.style.display === 'none' || !content.style.display) {
-        console.log('Expanding case');
+    // Toggle the display
+    if (content.style.display === 'none' || content.style.display === '') {
+        console.log('Setting display to block');
         content.style.display = 'block';
         icon.style.transform = 'rotate(180deg)';
+        console.log('After setting - display:', content.style.display);
     } else {
-        console.log('Collapsing case');
+        console.log('Setting display to none');
         content.style.display = 'none';
         icon.style.transform = 'rotate(0deg)';
+        console.log('After setting - display:', content.style.display);
     }
 };
+
+// Make sure it's available globally
+if (typeof window.toggleNoticeCase === 'undefined') {
+    console.error('Failed to set window.toggleNoticeCase!');
+} else {
+    console.log('window.toggleNoticeCase is available');
+}
 
 // View notice details
 window.viewNoticeDetails = function(noticeId) {
