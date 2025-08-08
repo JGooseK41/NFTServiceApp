@@ -25202,7 +25202,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                         
                         // Check recipient's balance
                         try {
-                            const recipientBalance = await legalContract.balanceOf(recipient).call();
+                            const recipientBalance = await legalContract.balanceOf(transactionData.recipient).call();
                             console.log('Recipient NFT balance:', recipientBalance.toString());
                             
                             // Try to enumerate tokens
@@ -25259,7 +25259,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 hideProcessing();
                 
                 // Generate and update NFT metadata with sealed thumbnail
-                if (noticeId && deliveryMethod === 'document' && uploadedImage) {
+                if (noticeId && transactionData.deliveryMethod === 'document' && uploadedImage) {
                     try {
                         console.log('Generating NFT metadata with document preview (v5)...');
                         showProcessing('Creating document preview for wallet visibility...');
