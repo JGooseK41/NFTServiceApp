@@ -19,7 +19,9 @@ const pool = new Pool({
 const allowedOrigins = [
   'https://nft-legal-service.netlify.app',
   'https://theblockservice.com',
+  'https://www.theblockservice.com',
   'https://blockserved.com',
+  'https://www.blockserved.com',
   'http://localhost:8080',
   'http://localhost:3000'
 ];

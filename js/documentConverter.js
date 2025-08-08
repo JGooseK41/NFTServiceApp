@@ -407,7 +407,45 @@ class DocumentConverter {
     /**
      * Generate SHA256 hash of document
      */
-    async hashDocument(arrayBuffer) {
+    async hashDocument(data) {
+        let arrayBuffer;
+        
+        // Handle different input types
+        if (data instanceof ArrayBuffer) {
+            arrayBuffer = data;
+        } else if (typeof data === 'string') {
+            // Handle base64 data URL or raw base64
+            let base64String = data;
+            
+            // Remove data URL prefix if present
+            if (data.startsWith('data:')) {
+                const parts = data.split(',');
+                base64String = parts[1] || parts[0];
+            }
+            
+            // Convert base64 to ArrayBuffer
+            try {
+                const binaryString = atob(base64String);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                arrayBuffer = bytes.buffer;
+            } catch (e) {
+                console.error('Failed to decode base64 for hashing:', e);
+                // Return a hash of the string itself as fallback
+                const encoder = new TextEncoder();
+                arrayBuffer = encoder.encode(data).buffer;
+            }
+        } else if (data && typeof data === 'object' && data.data) {
+            // Handle object with data property
+            return this.hashDocument(data.data);
+        } else {
+            console.error('Unsupported data type for hashing:', typeof data);
+            // Return a default hash
+            return '0x' + '0'.repeat(64);
+        }
+        
         const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
