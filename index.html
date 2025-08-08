@@ -9277,9 +9277,29 @@ function useConnectedAddressForFeeCollector() {
                     documentIds = noticeEvents.map(e => e.result.documentId);
                 }
                 
+                const finalAlertIds = alertIds.length ? alertIds : recipients.map((_, i) => this.currentIndex + i + 1);
+                const finalDocumentIds = documentIds.length ? documentIds : recipients.map((_, i) => this.currentIndex + i + 1001);
+                
+                // Update backend for each notice in the batch
+                for (let i = 0; i < recipients.length; i++) {
+                    await updateBackendAfterNoticeCreation({
+                        noticeId: finalAlertIds[i] || finalDocumentIds[i],
+                        alertId: finalAlertIds[i],
+                        documentId: this.document ? finalDocumentIds[i] : '',
+                        serverAddress: tronWeb.defaultAddress.base58,
+                        recipientAddress: recipients[i].address,
+                        noticeType: recipients[i].noticeType || 'Legal Notice',
+                        issuingAgency: agencyName || '',
+                        caseNumber: caseNumber || '',
+                        documentHash: '',
+                        ipfsHash: this.document ? 'batch-encrypted-ipfs' : '',
+                        hasDocument: !!this.document
+                    });
+                }
+                
                 return {
-                    alertIds: alertIds.length ? alertIds : recipients.map((_, i) => this.currentIndex + i + 1),
-                    documentIds: documentIds.length ? documentIds : recipients.map((_, i) => this.currentIndex + i + 1001),
+                    alertIds: finalAlertIds,
+                    documentIds: finalDocumentIds,
                     txHash: tx.txid || tx
                 };
             },
@@ -21956,22 +21976,103 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             address: null
         };
         
+        // Update backend when a new notice is created
+        async function updateBackendAfterNoticeCreation(noticeData) {
+            if (!window.BACKEND_API_URL) {
+                console.warn('Backend URL not configured, skipping backend update');
+                return;
+            }
+            
+            try {
+                console.log('Updating backend with new notice:', noticeData);
+                
+                // Send to backend /api/notices/served endpoint
+                const response = await fetch(`${window.BACKEND_API_URL}/api/notices/served`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        noticeId: noticeData.noticeId || noticeData.id,
+                        alertId: noticeData.alertId || '',
+                        documentId: noticeData.documentId || '',
+                        serverAddress: noticeData.serverAddress || tronWeb.defaultAddress.base58,
+                        recipientAddress: noticeData.recipientAddress,
+                        noticeType: noticeData.noticeType || 'Legal Notice',
+                        issuingAgency: noticeData.issuingAgency || '',
+                        caseNumber: noticeData.caseNumber || '',
+                        documentHash: noticeData.documentHash || '',
+                        ipfsHash: noticeData.ipfsHash || '',
+                        hasDocument: noticeData.hasDocument || false
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Backend updated successfully:', result);
+                    
+                    // Also track wallet connection if needed
+                    if (noticeData.recipientAddress) {
+                        try {
+                            await fetch(`${window.BACKEND_API_URL}/api/wallet-connections`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    walletAddress: noticeData.recipientAddress,
+                                    eventType: 'notice_served',
+                                    site: window.location.hostname,
+                                    userAgent: navigator.userAgent
+                                })
+                            });
+                        } catch (e) {
+                            console.warn('Failed to track wallet connection:', e);
+                        }
+                    }
+                } else {
+                    console.error('Backend update failed:', response.status);
+                }
+            } catch (error) {
+                console.error('Error updating backend:', error);
+                // Don't throw - we don't want backend failures to affect the user experience
+            }
+        }
+        
+        // Make it globally available
+        window.updateBackendAfterNoticeCreation = updateBackendAfterNoticeCreation;
+        
         // Verify and sync blockchain data with backend (once per session)
-        async function verifyAndSyncBlockchainData(userAddress) {
+        async function verifyAndSyncBlockchainData(userAddress, forceCheck = false) {
             const sessionKey = `delivery_verified_${userAddress}`;
             const sessionData = sessionStorage.getItem(sessionKey);
             const now = Date.now();
             
             // Check if already verified this session (within last 30 minutes)
-            if (sessionData) {
+            if (sessionData && !forceCheck) {
                 const parsed = JSON.parse(sessionData);
                 if (now - parsed.timestamp < 30 * 60 * 1000) {
                     console.log('Using session-verified data from', new Date(parsed.timestamp).toLocaleTimeString());
-                    return false; // No need to verify again
+                    
+                    // Quick stale data check - compare counts
+                    try {
+                        const response = await fetch(`${window.BACKEND_API_URL}/api/servers/${userAddress}/notices?limit=1`);
+                        if (response.ok) {
+                            const data = await response.json();
+                            const backendCount = data.stats?.total_notices || 0;
+                            
+                            if (Math.abs(backendCount - parsed.noticeCount) > 2) {
+                                console.log(`Stale data detected: Backend has ${backendCount} notices, session has ${parsed.noticeCount}`);
+                                // Continue with verification
+                            } else {
+                                return false; // Data is fresh enough
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Could not check for stale data:', e);
+                    }
                 }
             }
             
-            console.log('Performing one-time blockchain verification for this session...');
+            console.log('Performing blockchain verification and backend sync...');
             
             // Get all notices from blockchain
             const blockchainNotices = await getServedNoticesFromBlockchain(userAddress, 1000);
@@ -22059,7 +22160,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     sessionStorage.removeItem(`delivery_verified_${userAddress}`);
                 }
                 
-                await verifyAndSyncBlockchainData(userAddress);
+                await verifyAndSyncBlockchainData(userAddress, forceRefresh);
                 
                 // Now always use backend as the source of truth
                 if (window.BACKEND_API_URL) {
@@ -26478,6 +26579,21 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 }
                 
                 hideProcessing();
+                
+                // Update backend with the new notice
+                await updateBackendAfterNoticeCreation({
+                    noticeId: noticeId,
+                    alertId: alertId,
+                    documentId: documentId,
+                    serverAddress: tronWeb.defaultAddress.base58,
+                    recipientAddress: transactionData.recipient,
+                    noticeType: transactionData.noticeType === 'Custom' ? transactionData.customType : transactionData.noticeType,
+                    issuingAgency: transactionData.issuingAgency || getCurrentUserAgency(),
+                    caseNumber: transactionData.caseNumber,
+                    documentHash: transactionData.documentHash || '',
+                    ipfsHash: transactionData.encryptedIPFS || '',
+                    hasDocument: transactionData.deliveryMethod === 'document'
+                });
                 
                 // Generate and update NFT metadata with sealed thumbnail
                 if (noticeId && transactionData.deliveryMethod === 'document' && uploadedImage) {
