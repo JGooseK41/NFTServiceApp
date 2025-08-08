@@ -55,6 +55,7 @@
     <!-- New unified workflow system -->
     <script src="js/notice-workflow.js"></script>
     <script src="js/server-dashboard.js"></script>
+    <script src="js/clear-test-data.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -23001,23 +23002,45 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 return;
             }
             
-            const userAddress = tronWeb.defaultAddress.base58;
+            uiManager.showNotification('info', 'Clearing ALL test data and fetching real blockchain data...');
             
-            // Clear session cache
-            console.log('Clearing all cached data...');
-            sessionStorage.removeItem(`delivery_verified_${userAddress}`);
-            
-            // Clear any local storage
-            const storedNotices = JSON.parse(localStorage.getItem('servedNotices') || '{}');
-            if (storedNotices[userAddress]) {
-                delete storedNotices[userAddress];
-                localStorage.setItem('servedNotices', JSON.stringify(storedNotices));
+            // Use the new comprehensive test data cleaner
+            if (window.clearAllTestData) {
+                try {
+                    const realNotices = await window.clearAllTestData();
+                    console.log('✅ Cleared test data and loaded real notices:', realNotices);
+                    
+                    // If we have the new dashboard, update it
+                    if (window.serverDashboard && window.serverDashboard.init) {
+                        await window.serverDashboard.init();
+                    } else {
+                        // Fall back to old refresh
+                        await refreshDeliveryStatus(true);
+                    }
+                    
+                    uiManager.showNotification('success', `Loaded ${realNotices ? realNotices.length : 0} real notices from blockchain`);
+                } catch (error) {
+                    console.error('Error clearing test data:', error);
+                    uiManager.showNotification('error', 'Failed to clear test data: ' + error.message);
+                }
+            } else {
+                // Fallback to old method
+                const userAddress = tronWeb.defaultAddress.base58;
+                
+                // Clear session cache
+                console.log('Clearing all cached data...');
+                sessionStorage.removeItem(`delivery_verified_${userAddress}`);
+                
+                // Clear any local storage
+                const storedNotices = JSON.parse(localStorage.getItem('servedNotices') || '{}');
+                if (storedNotices[userAddress]) {
+                    delete storedNotices[userAddress];
+                    localStorage.setItem('servedNotices', JSON.stringify(storedNotices));
+                }
+                
+                // Force refresh from blockchain
+                await refreshDeliveryStatus(true);
             }
-            
-            uiManager.showNotification('info', 'Cleared test data, refreshing from blockchain...');
-            
-            // Force refresh from blockchain
-            await refreshDeliveryStatus(true);
         }
         
         // Print acceptance receipt
