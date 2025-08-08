@@ -43,11 +43,13 @@ async function refreshRecentActivitiesHybrid(forceBlockchain = false) {
         console.log('Notices count:', notices ? notices.length : 0);
         
         // Show source indicator
-        const sourceIndicator = result.verified 
-            ? '<span class="badge badge-success"><i class="fas fa-check-circle"></i> Blockchain Verified</span>'
-            : result.source === 'backend'
-            ? '<span class="badge badge-info"><i class="fas fa-database"></i> Cached Data</span>'
-            : '<span class="badge badge-primary"><i class="fas fa-link"></i> Blockchain</span>';
+        const sourceIndicator = result.source === 'blockchain'
+            ? '<span class="badge badge-success"><i class="fas fa-link"></i> Blockchain Data</span>'
+            : result.verified 
+            ? '<span class="badge badge-info"><i class="fas fa-check-circle"></i> Backend (Verified)</span>'
+            : '<span class="badge badge-warning"><i class="fas fa-database"></i> Backend (Unverified)</span>';
+        
+        console.log('Data source:', result.source, 'Verified:', result.verified);
         
         if (!notices || notices.length === 0) {
             content.innerHTML = `

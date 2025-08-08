@@ -739,6 +739,10 @@ app.get('/api/wallets/:walletAddress/connections', async (req, res) => {
 const documentsRouter = require('./routes/documents');
 app.use('/api/documents', documentsRouter);
 
+// Notice management routes (new workflow-based)
+const noticesRouter = require('./routes/notices');
+app.use('/api/notices', noticesRouter);
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);

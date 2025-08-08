@@ -20,6 +20,18 @@ class HybridDataService {
         console.log('Force blockchain:', forceBlockchain);
         console.log('Backend URL configured:', this.backendUrl);
         
+        // If forcing blockchain, skip backend entirely
+        if (forceBlockchain) {
+            console.log('Force blockchain enabled, skipping backend');
+            const blockchainData = await this.fetchFromBlockchain(serverAddress);
+            console.log('Blockchain data result:', blockchainData ? `${blockchainData.length} notices` : 'null/empty');
+            return {
+                notices: blockchainData,
+                source: 'blockchain',
+                verified: true
+            };
+        }
+        
         // Check if we've already verified blockchain this session
         const hasVerified = window.sessionCache.hasVerifiedBlockchain(serverAddress);
         console.log('Has verified this session:', hasVerified);
@@ -28,9 +40,9 @@ class HybridDataService {
         let backendData = await this.fetchFromBackend(serverAddress);
         console.log('Backend data result:', backendData ? `${backendData.length} notices` : 'null/empty');
         
-        // If no backend data or force blockchain, get from blockchain
-        if (!backendData || backendData.length === 0 || forceBlockchain) {
-            console.log('Falling back to blockchain fetch...');
+        // If no backend data, get from blockchain
+        if (!backendData || backendData.length === 0) {
+            console.log('No backend data, falling back to blockchain fetch...');
             const blockchainData = await this.fetchFromBlockchain(serverAddress);
             console.log('Blockchain data result:', blockchainData ? `${blockchainData.length} notices` : 'null/empty');
             return {
@@ -61,8 +73,8 @@ class HybridDataService {
         }
 
         try {
-            // Use the correct endpoint that exists in the backend
-            const url = `${this.backendUrl}/api/servers/${serverAddress}/notices?limit=100`;
+            // Use the new workflow-based endpoint
+            const url = `${this.backendUrl}/api/notices/server/${serverAddress}?limit=100`;
             console.log('Fetching from backend URL:', url);
             const response = await fetch(url);
             
@@ -77,7 +89,8 @@ class HybridDataService {
             }
 
             const data = await response.json();
-            console.log('Backend data received:', data);
+            console.log('=== BACKEND DATA RECEIVED ===');
+            console.log('Full response:', JSON.stringify(data, null, 2));
             
             // Handle the response structure from /api/servers/{address}/notices
             const notices = data.notices || data;
@@ -88,18 +101,24 @@ class HybridDataService {
             }
             
             console.log('Processing', notices.length, 'notices from backend');
+            console.log('First notice example:', notices[0]);
             
             // Transform backend data to match our format
+            // New structure from active_notices table
             return notices.map(notice => ({
-                noticeId: notice.id || notice.alert_id || notice.alertId || notice.notice_id,
-                alertId: notice.alert_id || notice.alertId,
-                documentId: notice.document_id || notice.documentId,
-                recipient: notice.recipient,
-                timestamp: notice.timestamp || notice.served_at || notice.created_at,
-                caseNumber: notice.case_number || notice.caseNumber || 'Unknown',
-                noticeType: notice.notice_type || notice.noticeType || 'Legal Notice',
-                status: notice.status || 'pending',
-                acknowledged: notice.acknowledged || notice.alert_acknowledged || false,
+                noticeId: notice.id || notice.alert_id,
+                alertId: notice.alert_id,
+                documentId: notice.document_id,
+                recipient: notice.recipient_address,
+                timestamp: notice.alert_delivered_at ? new Date(notice.alert_delivered_at).getTime() : Date.now(),
+                caseNumber: notice.case_number || 'Unknown',
+                noticeType: notice.notice_type || 'Legal Notice',
+                status: notice.is_acknowledged ? 'acknowledged' : 'pending',
+                acknowledged: notice.is_acknowledged || false,
+                acknowledgedAt: notice.acknowledged_at,
+                alertThumbnailUrl: notice.alert_thumbnail_url,
+                documentUnencryptedUrl: notice.document_unencrypted_url,
+                viewCount: notice.view_count || 0,
                 isBackendData: true,
                 lastVerified: null
             }));
