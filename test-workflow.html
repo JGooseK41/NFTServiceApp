@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Notice Workflow System</title>
+    <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        button {
+            background: #0ea5e9;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0284c7;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background: #333;
+        }
+        .success {
+            background: #10b981;
+            color: white;
+        }
+        .error {
+            background: #ef4444;
+            color: white;
+        }
+        .info {
+            background: #3b82f6;
+            color: white;
+        }
+        pre {
+            background: #000;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 Notice Workflow System Test</h1>
+    
+    <div class="section">
+        <h2>System Status</h2>
+        <div id="status"></div>
+        <button onclick="checkSystem()">Check System</button>
+        <button onclick="connectWallet()">Connect Wallet</button>
+    </div>
+
+    <div class="section">
+        <h2>Test Notice Creation</h2>
+        <div>
+            <input type="text" id="recipientAddress" placeholder="Recipient Address" style="width: 300px; padding: 5px;">
+            <input type="text" id="caseNumber" placeholder="Case Number" style="width: 200px; padding: 5px;">
+            <button onclick="testCreateNotice()">Create Test Notice</button>
+        </div>
+        <div id="createResult"></div>
+    </div>
+
+    <div class="section">
+        <h2>Test Backend Sync</h2>
+        <button onclick="testBackendSync()">Test Backend Connection</button>
+        <button onclick="fetchFromBackend()">Fetch All Notices</button>
+        <div id="backendResult"></div>
+    </div>
+
+    <div class="section">
+        <h2>Test Dashboard</h2>
+        <button onclick="testDashboard()">Load Dashboard</button>
+        <button onclick="searchCase()">Search Case</button>
+        <input type="text" id="searchCaseNumber" placeholder="Case number to search" style="width: 200px; padding: 5px;">
+        <div id="dashboardResult"></div>
+    </div>
+
+    <div class="section">
+        <h2>Test Receipt Generation</h2>
+        <input type="text" id="noticeId" placeholder="Notice ID" style="width: 200px; padding: 5px;">
+        <button onclick="generateTestReceipt()">Generate Receipt</button>
+        <div id="receiptResult"></div>
+    </div>
+
+    <script>
+        // Configuration
+        window.BACKEND_API_URL = 'https://nft-legal-service-backend.onrender.com';
+        window.CONTRACT_ADDRESS = 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN';
+        
+        let tronWeb = null;
+        let workflow = null;
+        let dashboard = null;
+
+        // Initialize TronWeb
+        async function initTronWeb() {
+            const HttpProvider = TronWeb.providers.HttpProvider;
+            const fullNode = new HttpProvider('https://api.trongrid.io');
+            const solidityNode = new HttpProvider('https://api.trongrid.io');
+            const eventServer = new HttpProvider('https://api.trongrid.io');
+            
+            tronWeb = new TronWeb(fullNode, solidityNode, eventServer);
+            window.tronWeb = tronWeb;
+            
+            return tronWeb;
+        }
+
+        // Check system status
+        async function checkSystem() {
+            const status = document.getElementById('status');
+            status.innerHTML = '<div class="status info">Checking system...</div>';
+            
+            try {
+                // Check TronWeb
+                if (!tronWeb) {
+                    await initTronWeb();
+                }
+                
+                // Load workflow system
+                const workflowScript = await fetch('https://theblockservice.com/js/notice-workflow.js');
+                if (workflowScript.ok) {
+                    eval(await workflowScript.text());
+                    workflow = new NoticeWorkflow();
+                    window.noticeWorkflow = workflow;
+                }
+                
+                // Load dashboard
+                const dashboardScript = await fetch('https://theblockservice.com/js/server-dashboard.js');
+                if (dashboardScript.ok) {
+                    eval(await dashboardScript.text());
+                    dashboard = new ServerDashboard();
+                    window.serverDashboard = dashboard;
+                }
+                
+                // Check backend
+                const backendCheck = await fetch(window.BACKEND_API_URL + '/api/notices/all?limit=1').catch(e => ({ ok: false }));
+                
+                status.innerHTML = `
+                    <div class="status success">✅ System Ready</div>
+                    <pre>
+TronWeb: ${tronWeb ? 'Connected' : 'Not connected'}
+Workflow: ${workflow ? 'Loaded' : 'Not loaded'}
+Dashboard: ${dashboard ? 'Loaded' : 'Not loaded'}
+Backend: ${backendCheck.ok ? 'Online' : 'Offline'}
+Contract: ${window.CONTRACT_ADDRESS}
+                    </pre>
+                `;
+            } catch (error) {
+                status.innerHTML = `<div class="status error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Connect wallet
+        async function connectWallet() {
+            const status = document.getElementById('status');
+            
+            if (window.tronLink) {
+                try {
+                    await window.tronLink.request({ method: 'tron_requestAccounts' });
+                    window.tronWeb = window.tronLink.tronWeb;
+                    tronWeb = window.tronLink.tronWeb;
+                    
+                    const address = tronWeb.defaultAddress.base58;
+                    status.innerHTML = `<div class="status success">✅ Wallet Connected: ${address}</div>`;
+                } catch (error) {
+                    status.innerHTML = `<div class="status error">Failed to connect wallet: ${error.message}</div>`;
+                }
+            } else {
+                status.innerHTML = `<div class="status error">TronLink not found. Please install TronLink extension.</div>`;
+            }
+        }
+
+        // Test notice creation
+        async function testCreateNotice() {
+            const result = document.getElementById('createResult');
+            result.innerHTML = '<div class="status info">Creating test notice...</div>';
+            
+            try {
+                if (!workflow) {
+                    throw new Error('Workflow not loaded. Click "Check System" first.');
+                }
+                
+                const recipientAddress = document.getElementById('recipientAddress').value || 'TD1F37V4cAFH1YQCYVLtcFyFXkZUs7mBDE';
+                const caseNumber = document.getElementById('caseNumber').value || `TEST-${Date.now()}`;
+                
+                const noticeData = {
+                    recipientAddress,
+                    caseNumber,
+                    noticeType: 'Test Notice',
+                    issuingAgency: 'Test Agency',
+                    publicText: 'This is a test notice created by the workflow system',
+                    documentData: null
+                };
+                
+                // Mock the creation for testing
+                const mockResult = {
+                    id: `test_${Date.now()}`,
+                    status: 'created',
+                    ...noticeData,
+                    createdAt: new Date().toISOString()
+                };
+                
+                result.innerHTML = `
+                    <div class="status success">✅ Test Notice Created</div>
+                    <pre>${JSON.stringify(mockResult, null, 2)}</pre>
+                `;
+            } catch (error) {
+                result.innerHTML = `<div class="status error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Test backend sync
+        async function testBackendSync() {
+            const result = document.getElementById('backendResult');
+            result.innerHTML = '<div class="status info">Testing backend connection...</div>';
+            
+            try {
+                const response = await fetch(window.BACKEND_API_URL + '/api/notices/all?limit=5');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    result.innerHTML = `
+                        <div class="status success">✅ Backend Connected</div>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    throw new Error(`Backend returned ${response.status}`);
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="status error">Backend Error: ${error.message}</div>`;
+            }
+        }
+
+        // Fetch from backend
+        async function fetchFromBackend() {
+            const result = document.getElementById('backendResult');
+            result.innerHTML = '<div class="status info">Fetching notices from backend...</div>';
+            
+            try {
+                if (!workflow) {
+                    throw new Error('Workflow not loaded. Click "Check System" first.');
+                }
+                
+                const notices = await workflow.fetchFromBackend();
+                result.innerHTML = `
+                    <div class="status success">✅ Fetched ${notices.length} notices</div>
+                    <pre>${JSON.stringify(notices.slice(0, 3), null, 2)}</pre>
+                `;
+            } catch (error) {
+                result.innerHTML = `<div class="status error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Test dashboard
+        async function testDashboard() {
+            const result = document.getElementById('dashboardResult');
+            result.innerHTML = '<div class="status info">Loading dashboard...</div>';
+            
+            try {
+                if (!dashboard) {
+                    throw new Error('Dashboard not loaded. Click "Check System" first.');
+                }
+                
+                // Mock some cases for testing
+                dashboard.cases.set('34-987654', {
+                    caseNumber: '34-987654',
+                    notices: [{
+                        id: '1',
+                        alertId: '3',
+                        documentId: '4',
+                        status: 'delivered'
+                    }],
+                    status: 'delivered',
+                    createdAt: new Date().toISOString(),
+                    recipientAddress: 'TD1F37V4cAFH1YQCYVLtcFyFXkZUs7mBDE',
+                    noticeType: 'Notice of Seizure',
+                    issuingAgency: 'The Block Audit'
+                });
+                
+                result.innerHTML = `
+                    <div class="status success">✅ Dashboard Ready</div>
+                    <p>Cases loaded: ${dashboard.cases.size}</p>
+                    <div id="miniDashboard"></div>
+                `;
+                
+                // Create mini dashboard
+                const miniDashboard = document.getElementById('miniDashboard');
+                miniDashboard.innerHTML = dashboard.renderCases();
+            } catch (error) {
+                result.innerHTML = `<div class="status error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Search case
+        async function searchCase() {
+            const result = document.getElementById('dashboardResult');
+            const caseNumber = document.getElementById('searchCaseNumber').value || '34-987654';
+            
+            result.innerHTML = '<div class="status info">Searching for case...</div>';
+            
+            try {
+                if (!workflow) {
+                    throw new Error('Workflow not loaded. Click "Check System" first.');
+                }
+                
+                const cases = await workflow.searchByCaseNumber(caseNumber);
+                
+                if (cases.length > 0) {
+                    result.innerHTML = `
+                        <div class="status success">✅ Found ${cases.length} notices for case ${caseNumber}</div>
+                        <pre>${JSON.stringify(cases, null, 2)}</pre>
+                    `;
+                } else {
+                    result.innerHTML = `<div class="status info">No notices found for case ${caseNumber}</div>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="status error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Generate test receipt
+        async function generateTestReceipt() {
+            const result = document.getElementById('receiptResult');
+            const noticeId = document.getElementById('noticeId').value || '3';
+            
+            result.innerHTML = '<div class="status info">Generating receipt...</div>';
+            
+            try {
+                if (!workflow) {
+                    throw new Error('Workflow not loaded. Click "Check System" first.');
+                }
+                
+                // Mock receipt for testing
+                const mockReceipt = {
+                    type: 'ALERT_NOTICE_RECEIPT',
+                    title: 'Legal Notice Delivery Confirmation',
+                    notice: {
+                        id: noticeId,
+                        caseNumber: '34-987654',
+                        type: 'Notice of Seizure',
+                        issuingAgency: 'The Block Audit',
+                        status: 'DELIVERED',
+                        deliveredAt: new Date().toISOString()
+                    },
+                    blockchain: {
+                        network: 'TRON',
+                        contractAddress: window.CONTRACT_ADDRESS,
+                        tokenId: noticeId,
+                        transactionHash: '0x' + Math.random().toString(36).substr(2, 64),
+                        blockNumber: Math.floor(Math.random() * 1000000),
+                        timestamp: Date.now()
+                    },
+                    parties: {
+                        server: {
+                            address: 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY',
+                            name: 'Authorized Process Server'
+                        },
+                        recipient: {
+                            address: 'TD1F37V4cAFH1YQCYVLtcFyFXkZUs7mBDE',
+                            status: 'Notice Delivered'
+                        }
+                    },
+                    verification: {
+                        method: 'Blockchain Immutable Record',
+                        verifiedAt: new Date().toISOString(),
+                        integrity: 'VERIFIED'
+                    }
+                };
+                
+                result.innerHTML = `
+                    <div class="status success">✅ Receipt Generated</div>
+                    <pre>${JSON.stringify(mockReceipt, null, 2)}</pre>
+                `;
+            } catch (error) {
+                result.innerHTML = `<div class="status error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Auto-check system on load
+        window.onload = () => {
+            setTimeout(checkSystem, 1000);
+        };
+    </script>
+</body>
+</html>
