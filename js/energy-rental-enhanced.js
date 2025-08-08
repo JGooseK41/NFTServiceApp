@@ -443,8 +443,15 @@ const EnhancedEnergyRental = {
                 const rentalResult = await this.rentEnergyAutomated(energyDeficit, userAddress);
                 
                 if (rentalResult.success) {
-                    // Wait for energy to arrive
-                    await this.waitForEnergy(userAddress, requiredEnergy, 30000); // 30 second timeout
+                    // For JustLend, wait for energy to arrive
+                    if (rentalResult.provider === 'JustLend') {
+                        const energyArrived = await this.waitForEnergy(userAddress, requiredEnergy, 60000); // 60 second timeout
+                        
+                        if (!energyArrived) {
+                            console.warn('Energy did not arrive in time, but proceeding anyway');
+                        }
+                    }
+                    // For Energy.Store, energy should be instant
                     
                     return {
                         success: true,
@@ -483,22 +490,45 @@ const EnhancedEnergyRental = {
     },
 
     // Wait for energy to arrive after rental
-    async waitForEnergy(address, targetAmount, timeout = 30000) {
+    async waitForEnergy(address, targetAmount, timeout = 60000) { // Increased to 60 seconds
         const startTime = Date.now();
-        const checkInterval = 2000; // Check every 2 seconds
+        const checkInterval = 3000; // Check every 3 seconds
+        let lastEnergy = 0;
+        
+        console.log(`Waiting for energy to arrive. Target: ${targetAmount}`);
         
         while (Date.now() - startTime < timeout) {
             const currentEnergy = await this.checkUserEnergy(address);
             
-            if (currentEnergy >= targetAmount) {
-                console.log('Energy arrived:', currentEnergy);
+            if (currentEnergy !== lastEnergy) {
+                console.log(`Energy update: ${currentEnergy} / ${targetAmount}`);
+                lastEnergy = currentEnergy;
+            }
+            
+            // Consider successful if we have at least 90% of target (some may be consumed by check)
+            if (currentEnergy >= targetAmount * 0.9) {
+                console.log('Sufficient energy arrived:', currentEnergy);
                 return true;
             }
             
             await this.delay(checkInterval);
         }
         
-        console.warn('Timeout waiting for energy');
+        // Final check
+        const finalEnergy = await this.checkUserEnergy(address);
+        if (finalEnergy >= targetAmount * 0.9) {
+            console.log('Energy arrived on final check:', finalEnergy);
+            return true;
+        }
+        
+        console.warn(`Timeout waiting for energy. Final: ${finalEnergy}, Target: ${targetAmount}`);
+        
+        // Return true anyway if we have reasonable energy (may proceed with partial)
+        if (finalEnergy >= 500000) { // At least 500k energy
+            console.log('Proceeding with partial energy:', finalEnergy);
+            return true;
+        }
+        
         return false;
     },
 

@@ -381,10 +381,34 @@ class DocumentConverter {
                 }
             }
             
+            // Check if data URL is valid format
+            const dataUrlRegex = /^data:image\/(jpeg|jpg|png|gif|webp);base64,/;
+            if (!dataUrlRegex.test(imageData)) {
+                console.error('Invalid data URL format:', imageData.substring(0, 50));
+                reject(new Error('Invalid data URL format'));
+                return;
+            }
+            
+            // Check if the base64 part is valid
+            const base64Part = imageData.split(',')[1];
+            if (!base64Part || base64Part.length === 0) {
+                console.error('Empty base64 data');
+                reject(new Error('Empty image data'));
+                return;
+            }
+            
+            // For very large images, we might need to handle them differently
+            if (imageData.length > 5000000) { // > 5MB as data URL
+                console.warn('Very large image detected, compression will be aggressive');
+            }
+            
             const img = new Image();
             img.onerror = (error) => {
                 console.error('Failed to load image for compression:', error);
-                reject(new Error('Failed to load image: ' + error.message));
+                console.error('Image data URL length:', imageData.length);
+                console.error('First 100 chars:', imageData.substring(0, 100));
+                // Return the original image if compression fails
+                resolve(base64Image);
             };
             img.onload = () => {
                 const canvas = document.createElement('canvas');
