@@ -25047,6 +25047,9 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 const isLawEnforcement = await legalContract.serviceFeeExemptions(tronWeb.defaultAddress.base58).call();
                 console.log('User law enforcement status:', isLawEnforcement);
                 
+                // Define sponsorship amount (typically 2 TRX for recipient support)
+                const sponsorshipAmount = 2000000; // 2 TRX in sun
+                
                 if (isLawEnforcement && fee <= 2000000) {
                     console.warn('Law enforcement user - only paying sponsorship fee.');
                     console.warn('Energy costs will be additional on testnet!');
@@ -25060,7 +25063,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     recipient: transactionData.recipient,
                     noticeType: transactionData.noticeType === 'Custom' ? transactionData.customType : transactionData.noticeType,
                     caseNumber: transactionData.caseNumber,
-                    sponsorshipAmount: sponsorshipAmount,
+                    sponsorshipAmount: sponsorshipAmount / 1000000, // Convert to TRX for display
                     totalCost: totalCostTRX,
                     isPublicNotice: transactionData.deliveryMethod === 'text',
                     network: getCurrentNetwork()
@@ -25358,7 +25361,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     noticeId: noticeId,
                     alertId: alertId,
                     documentId: documentId,
-                    recipient: recipient,
+                    recipient: transactionData.recipient,
                     feePaid: parseInt(fee) / 1000000,
                     energyUsed: 0, // Will be updated when we get actual energy usage
                     ipfsHash: encryptedData ? encryptedData.ipfsHash : null,
@@ -25394,7 +25397,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 const txData = {
                     txid: txHash || 'N/A',
                     noticeId: noticeId,
-                    recipient: recipient,
+                    recipient: transactionData.recipient,
                     sender: tronWeb.defaultAddress.base58,
                     noticeType: noticeRequest.noticeType,
                     fee: parseInt(fee) / 1000000,
@@ -25412,7 +25415,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 // Still save to localStorage as backup (but blockchain is primary source)
                 const servedNoticeData = {
                     noticeId: noticeId,
-                    recipient: recipient,
+                    recipient: transactionData.recipient,
                     noticeType: noticeRequest.noticeType || 'Legal Notice',
                     caseNumber: noticeRequest.caseNumber || '',
                     timestamp: Date.now(),
