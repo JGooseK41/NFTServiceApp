@@ -817,11 +817,25 @@ const EnergyRental = {
             },
             {
                 type: 'external',
-                name: 'TRONEnergy Market',
-                description: 'Rent energy from alternative provider',
-                url: `https://tronenergy.market?amount=${energyAmount}&receiver=${receiverAddress}`,
+                name: 'TRONEnergy Market (Manual Rental)',
+                description: 'Rent energy externally then return here',
+                detailedInstructions: `
+                    <ol style="text-align: left; margin-top: 0.5rem; font-size: 0.875rem;">
+                        <li>Connect your current wallet (${receiverAddress.substring(0, 6)}...${receiverAddress.slice(-4)})</li>
+                        <li>Rent approximately <strong>1,500,000 energy</strong> for <strong>5 minutes</strong></li>
+                        <li>Sign the transaction and wait for your order to be filled</li>
+                        <li>Once energy arrives in your wallet, return to TheBlockService</li>
+                        <li>Click "Proceed with Transaction" to complete your NFT creation</li>
+                    </ol>
+                    <p style="margin-top: 0.5rem; font-size: 0.75rem; color: #fbbf24;">
+                        <strong>Important:</strong> Keep this tab open while renting energy!
+                    </p>
+                `,
+                url: `https://tronenergy.market?amount=1500000&receiver=${receiverAddress}`,
                 action: 'external',
-                icon: 'fa-external-link-alt'
+                icon: 'fa-external-link-alt',
+                estimatedCost: Math.ceil((1500000 * 30) / 1_000_000), // Rough estimate at 30 sun per energy
+                energyToRent: 1500000
             },
             {
                 type: 'stake',
@@ -958,13 +972,15 @@ const EnergyRental = {
                                      onmouseout="this.style.backgroundColor=''; this.style.borderColor='#e5e7eb';"
                                      onclick="window.energyAlternativeResolve('${option.action}', ${JSON.stringify(option).replace(/"/g, '&quot;')})">
                                     <div style="display: flex; align-items: start; gap: 1rem;">
-                                        <div style="font-size: 1.5rem; color: ${option.action === 'proceed' ? '#ef4444' : option.action === 'stake' ? '#10b981' : '#6b7280'};">
+                                        <div style="font-size: 1.5rem; color: ${option.action === 'proceed' ? '#ef4444' : option.action === 'external' ? '#3b82f6' : option.action === 'stake' ? '#10b981' : '#6b7280'};">
                                             <i class="fas ${option.icon}"></i>
                                         </div>
                                         <div style="flex: 1;">
                                             <h5 style="margin: 0; font-size: 1.125rem; font-weight: 600;">${option.name}</h5>
                                             <p style="margin: 0.25rem 0 0 0; color: #6b7280;">${option.description}</p>
-                                            ${option.cost ? `<p style="margin: 0.5rem 0 0 0; font-weight: 600; color: #dc2626;">Cost: ${option.cost.toFixed(2)} TRX</p>` : ''}
+                                            ${option.detailedInstructions ? option.detailedInstructions : ''}
+                                            ${option.cost ? `<p style="margin: 0.5rem 0 0 0; font-weight: 600; color: #dc2626;">Cost: ~${option.cost.toFixed(2)} TRX</p>` : ''}
+                                            ${option.estimatedCost && !option.cost ? `<p style="margin: 0.5rem 0 0 0; font-weight: 600; color: #059669;">Estimated Cost: ~${option.estimatedCost} TRX</p>` : ''}
                                         </div>
                                     </div>
                                 </div>
