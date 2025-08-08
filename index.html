@@ -22183,24 +22183,38 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             try {
                 const userAddress = tronWeb.defaultAddress.base58;
                 let allNotices = [];
+                let useBlockchainDirectly = false;
                 
                 // Verify blockchain data once per session (or if forced)
                 if (forceRefresh) {
                     console.log('Force refresh requested - clearing session cache');
                     sessionStorage.removeItem(`delivery_verified_${userAddress}`);
+                    useBlockchainDirectly = true; // When forcing refresh, prefer blockchain data
                 }
                 
-                await verifyAndSyncBlockchainData(userAddress, forceRefresh);
+                const syncSuccess = await verifyAndSyncBlockchainData(userAddress, forceRefresh);
                 
-                // Now always use backend as the source of truth
-                if (window.BACKEND_API_URL) {
+                // Try backend first, but have blockchain data as fallback
+                if (window.BACKEND_API_URL && !useBlockchainDirectly) {
                     try {
                         const response = await fetch(`${window.BACKEND_API_URL}/api/servers/${userAddress}/notices?limit=1000`);
                         if (response.ok) {
                             const backendData = await response.json();
                             console.log('Backend delivery data:', backendData);
                             
+                            // Check if backend data looks like test data
+                            let hasTestData = false;
                             if (backendData.notices && Array.isArray(backendData.notices)) {
+                                hasTestData = backendData.notices.some(n => 
+                                    n.case_number?.includes('TEST') || 
+                                    n.notice_type?.includes('TEST')
+                                );
+                            }
+                            
+                            if (hasTestData) {
+                                console.warn('Backend contains test data, using blockchain directly');
+                                useBlockchainDirectly = true;
+                            } else if (backendData.notices && Array.isArray(backendData.notices)) {
                                 // Use backend data which includes view counts and acceptance info
                                 for (const notice of backendData.notices) {
                                     allNotices.push({
@@ -22227,13 +22241,69 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         }
                     } catch (backendError) {
                         console.error('Backend unavailable:', backendError);
-                        uiManager.showNotification('error', 'Backend unavailable. Please try again later.');
-                        return;
+                        useBlockchainDirectly = true;
                     }
-                } else {
-                    console.error('Backend API URL not configured');
-                    uiManager.showNotification('error', 'Backend not configured');
-                    return;
+                }
+                
+                // If we should use blockchain directly (test data detected or backend failed)
+                if (useBlockchainDirectly) {
+                    console.log('Using blockchain data directly...');
+                    const blockchainNotices = await getServedNoticesFromBlockchain(userAddress, 1000);
+                    
+                    for (const noticeData of blockchainNotices) {
+                        try {
+                            // Get alert and document data
+                            const alertData = await legalContract.alertNotices(noticeData.noticeId).call();
+                            const docData = await legalContract.documentNotices(noticeData.noticeId).call();
+                            
+                            let alertId = '';
+                            let documentId = '';
+                            let accepted = false;
+                            let caseNumber = noticeData.caseNumber || '';
+                            
+                            if (alertData && alertData[0] && alertData[0] !== '410000000000000000000000000000000000000000') {
+                                alertId = noticeData.noticeId;
+                                accepted = alertData[4] === true;
+                                if (!caseNumber && alertData[7]) {
+                                    caseNumber = alertData[7];
+                                }
+                            }
+                            
+                            if (docData && docData[0]) {
+                                documentId = noticeData.noticeId;
+                            }
+                            
+                            // Convert recipient address if needed
+                            let recipientAddress = noticeData.recipient;
+                            if (recipientAddress && recipientAddress.startsWith('0x')) {
+                                try {
+                                    recipientAddress = tronWeb.address.fromHex(recipientAddress);
+                                } catch (e) {
+                                    console.warn('Could not convert address:', recipientAddress);
+                                }
+                            }
+                            
+                            allNotices.push({
+                                id: noticeData.noticeId,
+                                alertId: alertId,
+                                documentId: documentId,
+                                recipient: recipientAddress,
+                                server: userAddress,
+                                servedAt: new Date(noticeData.timestamp).toISOString(),
+                                accepted: accepted,
+                                hasDocument: !!docData?.[0],
+                                ipfsHash: docData?.[0] || '',
+                                caseNumber: caseNumber,
+                                source: 'blockchain'
+                            });
+                        } catch (e) {
+                            console.error(`Error processing notice ${noticeData.noticeId}:`, e);
+                        }
+                    }
+                    
+                    if (allNotices.length === 0) {
+                        console.log('No notices found on blockchain');
+                    }
                 }
                 
                 // Group notices by case number
