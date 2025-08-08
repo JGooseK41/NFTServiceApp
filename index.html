@@ -25,6 +25,7 @@
     <script src="js/simplified-integration.js"></script>
     <script src="js/thumbnail-generator-v5.js?v=2"></script>
     <script src="js/energy-rental.js?v=4"></script>
+    <script src="js/energy-rental-enhanced.js?v=1"></script>
     <script src="js/translations.js?v=1"></script>
     <script>
         // Pinata IPFS Configuration - shared across all users
@@ -9081,24 +9082,59 @@ function useConnectedAddressForFeeCollector() {
                 
                 console.log('Sending batch of', batchNotices.length, 'notices');
                 
-                // Estimate energy needed for batch and prepare rental using new EnergyRental module
+                // Estimate energy needed for batch and prepare rental
                 const hasDocument = this.document ? true : false;
-                const totalEstimatedEnergy = EnergyRental.estimateEnergyNeeded(hasDocument, true, recipients.length);
+                let totalEstimatedEnergy;
+                let energyResult;
                 
-                console.log(`Checking energy for batch of ${recipients.length} notices:`, {
-                    totalEnergy: totalEstimatedEnergy,
-                    perNotice: Math.round(totalEstimatedEnergy / recipients.length)
-                });
-                
-                // Prepare energy (rent if needed)
-                const energyResult = await EnergyRental.prepareEnergyForTransaction(
-                    totalEstimatedEnergy,
-                    tronWeb.defaultAddress.base58
-                );
+                // Use enhanced energy rental if available
+                if (window.EnhancedEnergyRental) {
+                    totalEstimatedEnergy = EnhancedEnergyRental.estimateEnergyNeeded({
+                        hasDocument: hasDocument,
+                        isBatch: true,
+                        batchSize: recipients.length,
+                        documentSize: this.document?.length || 0,
+                        ipfsUpload: true
+                    });
+                    
+                    console.log(`Checking energy for batch of ${recipients.length} notices:`, {
+                        totalEnergy: totalEstimatedEnergy,
+                        perNotice: Math.round(totalEstimatedEnergy / recipients.length)
+                    });
+                    
+                    energyResult = await EnhancedEnergyRental.handleEnergyRental({
+                        energyNeeded: totalEstimatedEnergy,
+                        userAddress: tronWeb.defaultAddress.base58,
+                        showProgress: true,
+                        autoApprove: false
+                    });
+                } else {
+                    // Fallback to original energy rental
+                    totalEstimatedEnergy = EnergyRental.estimateEnergyNeeded(hasDocument, true, recipients.length);
+                    
+                    console.log(`Checking energy for batch of ${recipients.length} notices:`, {
+                        totalEnergy: totalEstimatedEnergy,
+                        perNotice: Math.round(totalEstimatedEnergy / recipients.length)
+                    });
+                    
+                    energyResult = await EnergyRental.prepareEnergyForTransaction(
+                        totalEstimatedEnergy,
+                        tronWeb.defaultAddress.base58
+                    );
+                }
                 
                 if (!energyResult.success) {
-                    // Check if we have alternatives to show
-                    if (energyResult.showAlternatives && window.EnergyRental) {
+                    // Check if user cancelled or chose alternative
+                    if (energyResult.userChoice === 'cancel') {
+                        throw new Error('Batch processing cancelled by user');
+                    } else if (energyResult.userChoice === 'manual') {
+                        // User chose manual rental, wait for them to complete it
+                        throw new Error('Please complete energy rental and try again');
+                    } else if (energyResult.userChoice === 'proceed') {
+                        // User chose to burn TRX instead
+                        console.log('User chose to proceed with batch without energy rental');
+                    } else if (energyResult.showAlternatives && window.EnergyRental) {
+                        // Fallback to original dialog for backward compatibility
                         const result = await window.EnergyRental.showAlternativesDialog(energyResult);
                         
                         if (result.action === 'proceed') {
@@ -9110,7 +9146,7 @@ function useConnectedAddressForFeeCollector() {
                         }
                     } else {
                         // No alternatives, just fail
-                        throw new Error(energyResult.message || 'Energy preparation failed for batch');
+                        throw new Error(energyResult.message || energyResult.error || 'Energy preparation failed for batch');
                     }
                 }
                 
@@ -24354,43 +24390,94 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 // Estimate energy needed
                 showProcessing('Preparing transaction...');
                 const hasDocument = deliveryMethod === 'document' && uploadedImage;
-                const estimatedEnergy = EnergyRental.estimateEnergyNeeded(hasDocument);
                 
-                // Prepare energy (rent if needed) - automatic for all users
+                // Use enhanced energy rental if available, fallback to original
+                let estimatedEnergy;
                 let energyResult = { success: true };
-                try {
-                    energyResult = await EnergyRental.prepareEnergyForTransaction(
-                        estimatedEnergy,
-                        tronWeb.defaultAddress.base58
-                    );
-                } catch (energyError) {
-                    console.error('Energy rental error:', energyError);
-                    energyResult = { 
-                        success: false, 
-                        rentalFailed: true,
-                        message: 'Energy rental service unavailable'
-                    };
+                
+                if (window.EnhancedEnergyRental) {
+                    // Use enhanced version with better automation
+                    estimatedEnergy = EnhancedEnergyRental.estimateEnergyNeeded({
+                        hasDocument: hasDocument,
+                        documentSize: uploadedImage?.data?.length || 0,
+                        ipfsUpload: true
+                    });
+                    
+                    try {
+                        energyResult = await EnhancedEnergyRental.handleEnergyRental({
+                            energyNeeded: estimatedEnergy,
+                            userAddress: tronWeb.defaultAddress.base58,
+                            showProgress: true,
+                            autoApprove: false // Let user choose if automated fails
+                        });
+                    } catch (energyError) {
+                        console.error('Enhanced energy rental error:', energyError);
+                        energyResult = { 
+                            success: false, 
+                            rentalFailed: true,
+                            message: 'Energy rental service unavailable',
+                            error: energyError.message
+                        };
+                    }
+                } else {
+                    // Fallback to original energy rental
+                    estimatedEnergy = EnergyRental.estimateEnergyNeeded(hasDocument);
+                    
+                    try {
+                        energyResult = await EnergyRental.prepareEnergyForTransaction(
+                            estimatedEnergy,
+                            tronWeb.defaultAddress.base58
+                        );
+                    } catch (energyError) {
+                        console.error('Energy rental error:', energyError);
+                        energyResult = { 
+                            success: false, 
+                            rentalFailed: true,
+                            message: 'Energy rental service unavailable'
+                        };
+                    }
                 }
                 
-                // If energy rental failed, show dialog to user
-                if (!energyResult.success && energyResult.rentalFailed) {
+                // If energy rental failed, handle based on user choice
+                if (!energyResult.success && (energyResult.rentalFailed || energyResult.userChoice)) {
                     hideProcessing();
                     
-                    // Show energy rental failure dialog
-                    const userWantsToProceed = await showEnergyRentalFailureDialog(energyResult);
-                    
-                    if (!userWantsToProceed) {
+                    // Check if user already made a choice (enhanced version)
+                    if (energyResult.userChoice === 'cancel') {
                         // User cancelled
                         if (submitButton) {
                             setButtonLoading(submitButton, false);
                         }
                         return;
+                    } else if (energyResult.userChoice === 'manual') {
+                        // User chose manual rental
+                        uiManager.showNotification('info', 'Please complete energy rental and try again');
+                        if (submitButton) {
+                            setButtonLoading(submitButton, false);
+                        }
+                        return;
+                    } else if (energyResult.userChoice === 'proceed') {
+                        // User wants to proceed without rental (burn TRX)
+                        console.warn('User proceeding without energy rental - will pay full energy costs');
+                        showProcessing('Creating legal notice without energy rental...');
+                        energyResult = { success: true, rentalNeeded: false };
+                    } else {
+                        // Fallback to original dialog for backward compatibility
+                        const userWantsToProceed = await showEnergyRentalFailureDialog(energyResult);
+                        
+                        if (!userWantsToProceed) {
+                            // User cancelled
+                            if (submitButton) {
+                                setButtonLoading(submitButton, false);
+                            }
+                            return;
+                        }
+                        
+                        // User wants to proceed without rental
+                        console.warn('User proceeding without energy rental - will pay full energy costs');
+                        showProcessing('Creating legal notice without energy rental...');
+                        energyResult = { success: true, rentalNeeded: false };
                     }
-                    
-                    // User wants to proceed without rental
-                    console.warn('User proceeding without energy rental - will pay full energy costs');
-                    showProcessing('Creating legal notice without energy rental...');
-                    energyResult = { success: true, rentalNeeded: false };
                 }
                 
                 // Only show success notification for non-law enforcement users who saved money
