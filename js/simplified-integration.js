@@ -42,26 +42,49 @@ async function createDocumentNotice(recipientAddress) {
         
         showProcessing('Encrypting and sending document...');
         
-        // Create encrypted notice
-        const result = await SimpleEncryption.createEncryptedNotice(
-            window.legalContract,
-            recipientAddress,
-            uploadedImage, // The document data
-            {
-                publicText: publicText,
-                noticeType: noticeType,
-                caseNumber: caseNumber,
-                issuingAgency: issuingAgency,
-                fee: 150e6 // 150 TRX
+        // Use new workflow system if available
+        if (window.noticeWorkflow) {
+            const noticeData = {
+                recipientAddress,
+                documentData: uploadedImage,
+                noticeType,
+                issuingAgency,
+                caseNumber,
+                publicText,
+                thumbnailUrl: uploadedThumbnailUrl || null
+            };
+            
+            const result = await window.noticeWorkflow.createNotice(noticeData);
+            
+            hideProcessing();
+            
+            if (result) {
+                uiManager.showNotification('success', 'Document notice created successfully!');
+                closeMintModal();
+                refreshNotices();
             }
-        );
-        
-        hideProcessing();
-        
-        if (result.success) {
-            uiManager.showNotification('success', 'Document notice created successfully!');
-            closeMintModal();
-            refreshNotices();
+        } else {
+            // Fallback to old method
+            const result = await SimpleEncryption.createEncryptedNotice(
+                window.legalContract,
+                recipientAddress,
+                uploadedImage,
+                {
+                    publicText: publicText,
+                    noticeType: noticeType,
+                    caseNumber: caseNumber,
+                    issuingAgency: issuingAgency,
+                    fee: 150e6
+                }
+            );
+            
+            hideProcessing();
+            
+            if (result.success) {
+                uiManager.showNotification('success', 'Document notice created successfully!');
+                closeMintModal();
+                refreshNotices();
+            }
         }
         
     } catch (error) {
@@ -86,18 +109,40 @@ async function createTextOnlyNotice(recipientAddress) {
         
         showProcessing('Sending text notice...');
         
-        const tx = await window.legalContract.createTextNotice(
-            recipientAddress,
-            publicText,
-            noticeType,
-            caseNumber,
-            issuingAgency
-        ).send({
-            feeLimit: 200_000_000,
-            callValue: 15e6 // 15 TRX
-        });
-        
-        hideProcessing();
+        // Use new workflow system if available
+        if (window.noticeWorkflow) {
+            const noticeData = {
+                recipientAddress,
+                noticeType,
+                issuingAgency,
+                caseNumber,
+                publicText,
+                documentData: null // No document for text-only
+            };
+            
+            const result = await window.noticeWorkflow.createNotice(noticeData);
+            
+            hideProcessing();
+            
+            if (result) {
+                uiManager.showNotification('success', 'Text notice created successfully!');
+                closeMintModal();
+                refreshNotices();
+            }
+        } else {
+            // Fallback to old method
+            const tx = await window.legalContract.createTextNotice(
+                recipientAddress,
+                publicText,
+                noticeType,
+                caseNumber,
+                issuingAgency
+            ).send({
+                feeLimit: 200_000_000,
+                callValue: 15e6 // 15 TRX
+            });
+            
+            hideProcessing();
         
         uiManager.showNotification('success', 'Text notice sent successfully!');
         closeMintModal();
