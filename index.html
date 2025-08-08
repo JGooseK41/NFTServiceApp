@@ -21949,8 +21949,96 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             }
         };
         
+        // Session cache for delivery data
+        let deliverySessionCache = {
+            lastVerified: null,
+            data: null,
+            address: null
+        };
+        
+        // Verify and sync blockchain data with backend (once per session)
+        async function verifyAndSyncBlockchainData(userAddress) {
+            const sessionKey = `delivery_verified_${userAddress}`;
+            const sessionData = sessionStorage.getItem(sessionKey);
+            const now = Date.now();
+            
+            // Check if already verified this session (within last 30 minutes)
+            if (sessionData) {
+                const parsed = JSON.parse(sessionData);
+                if (now - parsed.timestamp < 30 * 60 * 1000) {
+                    console.log('Using session-verified data from', new Date(parsed.timestamp).toLocaleTimeString());
+                    return false; // No need to verify again
+                }
+            }
+            
+            console.log('Performing one-time blockchain verification for this session...');
+            
+            // Get all notices from blockchain
+            const blockchainNotices = await getServedNoticesFromBlockchain(userAddress, 1000);
+            console.log(`Found ${blockchainNotices.length} notices on blockchain`);
+            
+            // Process and update backend with any missing data
+            for (const noticeData of blockchainNotices) {
+                try {
+                    const alertData = await legalContract.alertNotices(noticeData.noticeId).call();
+                    const docData = await legalContract.documentNotices(noticeData.noticeId).call();
+                    
+                    // Determine notice types and IDs
+                    let alertId = '';
+                    let documentId = '';
+                    let accepted = false;
+                    
+                    if (alertData && alertData[0]) {
+                        alertId = noticeData.noticeId;
+                        if (Array.isArray(alertData) && alertData.length > 4) {
+                            accepted = alertData[4] === true;
+                        }
+                    }
+                    
+                    if (docData && docData[0]) {
+                        documentId = noticeData.noticeId;
+                    }
+                    
+                    // Update backend with this notice
+                    if (window.BACKEND_API_URL) {
+                        try {
+                            await fetch(`${window.BACKEND_API_URL}/api/notices/served`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    noticeId: noticeData.noticeId,
+                                    alertId: alertId,
+                                    documentId: documentId,
+                                    serverAddress: userAddress,
+                                    recipientAddress: noticeData.recipient,
+                                    noticeType: alertId && documentId ? 'dual' : (alertId ? 'alert' : 'document'),
+                                    caseNumber: noticeData.caseNumber || '',
+                                    hasDocument: !!docData?.[0],
+                                    ipfsHash: docData?.[0] || '',
+                                    documentHash: ''
+                                })
+                            });
+                        } catch (e) {
+                            console.warn('Failed to sync notice to backend:', e);
+                        }
+                    }
+                } catch (e) {
+                    console.error(`Error processing notice ${noticeData.noticeId}:`, e);
+                }
+            }
+            
+            // Mark as verified for this session
+            sessionStorage.setItem(sessionKey, JSON.stringify({
+                timestamp: now,
+                noticeCount: blockchainNotices.length
+            }));
+            
+            console.log('Blockchain verification complete and synced to backend');
+            return true;
+        }
+        
         // Refresh delivery status
-        async function refreshDeliveryStatus(forceBlockchain = false) {
+        async function refreshDeliveryStatus(forceRefresh = false) {
             if (!legalContract || !tronWeb.defaultAddress) {
                 uiManager.showNotification('error', 'Please connect wallet and contract first');
                 return;
@@ -21958,23 +22046,25 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             
             const resultsDiv = document.getElementById('deliveryResults');
             if (resultsDiv) {
-                resultsDiv.innerHTML = '<div class="loading">Loading all your served notices...</div>';
+                resultsDiv.innerHTML = '<div class="loading">Loading your served notices...</div>';
             }
             
             try {
                 const userAddress = tronWeb.defaultAddress.base58;
                 let allNotices = [];
                 
-                // Add timestamp to prevent caching
-                const timestamp = Date.now();
-                console.log(`Refreshing delivery status at ${new Date(timestamp).toLocaleTimeString()}...`);
+                // Verify blockchain data once per session (or if forced)
+                if (forceRefresh) {
+                    console.log('Force refresh requested - clearing session cache');
+                    sessionStorage.removeItem(`delivery_verified_${userAddress}`);
+                }
                 
-                // Try to get comprehensive data from backend first (unless forced to use blockchain)
-                if (window.BACKEND_API_URL && !forceBlockchain) {
+                await verifyAndSyncBlockchainData(userAddress);
+                
+                // Now always use backend as the source of truth
+                if (window.BACKEND_API_URL) {
                     try {
-                        const response = await fetch(`${window.BACKEND_API_URL}/api/servers/${userAddress}/notices?limit=1000&t=${timestamp}`, {
-                            cache: 'no-cache'
-                        });
+                        const response = await fetch(`${window.BACKEND_API_URL}/api/servers/${userAddress}/notices?limit=1000`);
                         if (response.ok) {
                             const backendData = await response.json();
                             console.log('Backend delivery data:', backendData);
@@ -22001,84 +22091,18 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                     });
                                 }
                             }
+                        } else {
+                            console.error('Failed to fetch notices from backend:', response.status);
                         }
                     } catch (backendError) {
-                        console.error('Backend unavailable, falling back to blockchain:', backendError);
+                        console.error('Backend unavailable:', backendError);
+                        uiManager.showNotification('error', 'Backend unavailable. Please try again later.');
+                        return;
                     }
-                }
-                
-                // If no backend data OR force blockchain, get from blockchain
-                if (allNotices.length === 0 || forceBlockchain) {
-                    console.log('Fetching notices from blockchain for address:', userAddress);
-                    const blockchainNotices = await getServedNoticesFromBlockchain(userAddress, 1000);
-                    console.log('Blockchain notices found:', blockchainNotices.length);
-                    console.log('Blockchain notices:', blockchainNotices);
-                    
-                    // Clear any backend data if forcing blockchain
-                    if (forceBlockchain) {
-                        allNotices = [];
-                    }
-                    
-                    for (const noticeData of blockchainNotices) {
-                        try {
-                            // Check alert notices for acceptance
-                            const alertData = await legalContract.alertNotices(noticeData.noticeId).call();
-                            const docData = await legalContract.documentNotices(noticeData.noticeId).call();
-                            
-                            let accepted = false;
-                            let hasDocument = false;
-                            
-                            if (alertData && Array.isArray(alertData) && alertData.length > 4) {
-                                accepted = alertData[4] === true;
-                            }
-                            
-                            if (docData && docData[0]) {
-                                hasDocument = true;
-                            }
-                            
-                            // Try to get case number from localStorage or transaction data
-                            const storedNotices = JSON.parse(localStorage.getItem('servedNotices') || '{}');
-                            const userNotices = storedNotices[userAddress] || [];
-                            const storedNotice = userNotices.find(n => n.noticeId === noticeData.noticeId);
-                            
-                            // Extract Alert and Document IDs from stored data or noticeData
-                            let alertId = storedNotice?.alertId || noticeData.alertId || '';
-                            let documentId = storedNotice?.documentId || noticeData.documentId || '';
-                            
-                            // If not in stored data, try to determine from the notice structure
-                            if (!alertId && !documentId) {
-                                // For notices with both Alert and Document, IDs are typically sequential
-                                // Check if this notice has both types
-                                if (alertData && alertData[0] && docData && docData[0]) {
-                                    // Both exist - this is likely a dual notice
-                                    alertId = noticeData.noticeId;
-                                    documentId = noticeData.noticeId; // They might share the same ID or be sequential
-                                } else if (alertData && alertData[0]) {
-                                    // Only Alert exists
-                                    alertId = noticeData.noticeId;
-                                } else if (docData && docData[0]) {
-                                    // Only Document exists
-                                    documentId = noticeData.noticeId;
-                                }
-                            }
-                            
-                            allNotices.push({
-                                id: noticeData.noticeId,
-                                alertId: alertId,
-                                documentId: documentId,
-                                recipient: noticeData.recipient,
-                                server: userAddress,
-                                servedAt: new Date(noticeData.timestamp).toISOString(),
-                                accepted: accepted,
-                                hasDocument: hasDocument,
-                                ipfsHash: docData ? docData[0] : null,
-                                caseNumber: storedNotice?.caseNumber || noticeData.caseNumber || '',
-                                source: 'blockchain'
-                            });
-                        } catch (e) {
-                            console.error(`Error processing notice ${noticeData.noticeId}:`, e);
-                        }
-                    }
+                } else {
+                    console.error('Backend API URL not configured');
+                    uiManager.showNotification('error', 'Backend not configured');
+                    return;
                 }
                 
                 // Group notices by case number
@@ -22121,13 +22145,30 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         </div>
                     `;
                 } else {
+                    // Check session verification status
+                    const sessionKey = `delivery_verified_${userAddress}`;
+                    const sessionData = sessionStorage.getItem(sessionKey);
+                    let verificationInfo = '';
+                    
+                    if (sessionData) {
+                        const parsed = JSON.parse(sessionData);
+                        const verifiedTime = new Date(parsed.timestamp).toLocaleTimeString();
+                        verificationInfo = `<small style="color: #666; margin-left: 1rem;">
+                            <i class="fas fa-check-circle" style="color: #28a745;"></i> 
+                            Verified at ${verifiedTime}
+                        </small>`;
+                    }
+                    
                     resultsDiv.innerHTML = `
                         <div style="margin-bottom: 1rem; padding: 1rem; background: #f5f5f5; border-radius: 8px;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <h4 style="margin: 0; color: #333;">Total Cases: ${totalCases}</h4>
+                                <div style="display: flex; align-items: center;">
+                                    <h4 style="margin: 0; color: #333;">Total Cases: ${totalCases}</h4>
+                                    ${verificationInfo}
+                                </div>
                                 <div style="display: flex; gap: 0.5rem;">
-                                    <button class="btn btn-small btn-primary" onclick="refreshDeliveryStatus(true)" title="Force refresh from blockchain">
-                                        <i class="fas fa-sync"></i> Force Refresh
+                                    <button class="btn btn-small btn-primary" onclick="refreshDeliveryStatus(true)" title="Re-verify blockchain data and refresh">
+                                        <i class="fas fa-sync"></i> Verify & Refresh
                                     </button>
                                     <button class="btn btn-small btn-secondary" onclick="expandAllCases()">
                                         <i class="fas fa-expand"></i> Expand All
