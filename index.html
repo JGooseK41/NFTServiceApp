@@ -13708,11 +13708,16 @@ async function checkUserRoles() {
                             hour12: true
                         });
                         
+                        // Prepare the IDs safely for the onclick handler
+                        const safeNoticeId = noticeData.noticeId || '';
+                        const safeAlertId = noticeData.alertId || '';
+                        const safeDocumentId = noticeData.documentId || '';
+                        
                         html += `
                             <div class="activity-item" style="padding: 1rem; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background 0.2s;"
                                  onmouseover="this.style.background='var(--bg-secondary)'" 
                                  onmouseout="this.style.background='transparent'"
-                                 onclick="viewNoticeDetails('${noticeData.noticeId}', '${noticeData.alertId || ''}', '${noticeData.documentId || ''}')">
+                                 onclick="window.viewNoticeDetails('${safeNoticeId}', '${safeAlertId}', '${safeDocumentId}')">
                                 <div style="display: flex; justify-content: space-between; align-items: start;">
                                     <div style="flex: 1;">
                                         ${noticeData.previewImage ? `
@@ -13757,10 +13762,10 @@ async function checkUserRoles() {
                                         ` : ''}
                                     </div>
                                     <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                                        <button class="btn btn-small btn-primary" onclick="event.stopPropagation(); viewNoticeDetails('${noticeData.noticeId}', '${noticeData.alertId || ''}', '${noticeData.documentId || ''}')">
+                                        <button class="btn btn-small btn-primary" onclick="event.stopPropagation(); window.viewNoticeDetails('${safeNoticeId}', '${safeAlertId}', '${safeDocumentId}')">
                                             <i class="fas fa-eye"></i> View Details
                                         </button>
-                                        <button class="btn btn-small btn-secondary" onclick="event.stopPropagation(); viewNoticeAuditTrail('${noticeData.noticeId}')">
+                                        <button class="btn btn-small btn-secondary" onclick="event.stopPropagation(); window.viewNoticeAuditTrail('${safeNoticeId}')">
                                             <i class="fas fa-history"></i> Audit
                                         </button>
                                     </div>
@@ -13871,6 +13876,8 @@ async function checkUserRoles() {
 
         // Function to view comprehensive notice details
         async function viewNoticeDetails(noticeId, alertId, documentId) {
+            console.log('viewNoticeDetails called with:', { noticeId, alertId, documentId });
+            
             try {
                 if (!legalContract) {
                     uiManager.showNotification('error', 'Please connect to contract first');
@@ -13924,10 +13931,17 @@ async function checkUserRoles() {
                 const visitLogs = JSON.parse(localStorage.getItem('noticeVisitLogs') || '{}');
                 const ipData = visitLogs[noticeId] ? visitLogs[noticeId][0] : null;
                 
+                // Remove any existing modal first
+                const existingModal = document.querySelector('.notice-details-modal');
+                if (existingModal) {
+                    existingModal.remove();
+                }
+                
                 // Create detailed modal
                 const modal = document.createElement('div');
-                modal.className = 'modal';
+                modal.className = 'modal notice-details-modal';
                 modal.style.display = 'block';
+                modal.style.zIndex = '10000'; // Ensure it's on top
                 modal.innerHTML = `
                     <div class="modal-content" style="max-width: 800px;">
                         <div class="modal-header">
@@ -14064,10 +14078,39 @@ async function checkUserRoles() {
                     </div>
                 `;
                 document.body.appendChild(modal);
+                console.log('Notice details modal added to page');
                 
             } catch (error) {
                 console.error('Error viewing notice details:', error);
-                uiManager.showNotification('error', 'Failed to load notice details');
+                uiManager.showNotification('error', 'Failed to load notice details: ' + error.message);
+                
+                // Still try to show a basic modal with the IDs we have
+                try {
+                    const modal = document.createElement('div');
+                    modal.className = 'modal notice-details-modal';
+                    modal.style.display = 'block';
+                    modal.style.zIndex = '10000';
+                    modal.innerHTML = `
+                        <div class="modal-content" style="max-width: 600px;">
+                            <div class="modal-header">
+                                <h3>Notice Details - Error Loading</h3>
+                                <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
+                            </div>
+                            <div class="modal-body">
+                                <p>Error loading notice details: ${error.message}</p>
+                                <p>Notice ID: ${noticeId || 'N/A'}</p>
+                                <p>Alert ID: ${alertId || 'N/A'}</p>
+                                <p>Document ID: ${documentId || 'N/A'}</p>
+                                <div style="margin-top: 1rem;">
+                                    <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
+                } catch (e) {
+                    console.error('Failed to show error modal:', e);
+                }
             }
         }
         
