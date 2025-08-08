@@ -24731,12 +24731,12 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 // Show confirmation modal before transaction
                 const totalCostTRX = (fee / 1000000).toFixed(2);
                 const confirmed = await showTransactionConfirmation('serveNotice', {
-                    recipient: recipient,
-                    noticeType: noticeType === 'Custom' ? customType : noticeType,
-                    caseNumber: caseNumber,
+                    recipient: transactionData.recipient,
+                    noticeType: transactionData.noticeType === 'Custom' ? transactionData.customType : transactionData.noticeType,
+                    caseNumber: transactionData.caseNumber,
                     sponsorshipAmount: sponsorshipAmount,
                     totalCost: totalCostTRX,
-                    isPublicNotice: deliveryMethod === 'text',
+                    isPublicNotice: transactionData.deliveryMethod === 'text',
                     network: getCurrentNetwork()
                 });
                 
