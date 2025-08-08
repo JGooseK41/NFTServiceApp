@@ -361,15 +361,33 @@ class DocumentConverter {
      */
     async compressImage(base64Image, maxSize = 200000) { // 200KB default for better readability
         return new Promise((resolve, reject) => {
+            // Handle object input (e.g., {type: 'pdf', data: '...'} or {type: 'image-array', data: [...]})
+            let inputData = base64Image;
+            if (base64Image && typeof base64Image === 'object') {
+                if (base64Image.data) {
+                    // If it's an array of images, use the first one or combine them
+                    if (Array.isArray(base64Image.data)) {
+                        console.log('Handling image array, using first image');
+                        inputData = base64Image.data[0];
+                    } else {
+                        inputData = base64Image.data;
+                    }
+                } else {
+                    console.error('Invalid object format - no data property:', base64Image);
+                    reject(new Error('Invalid image object format'));
+                    return;
+                }
+            }
+            
             // Validate input
-            if (!base64Image || typeof base64Image !== 'string') {
-                console.error('Invalid base64Image input:', typeof base64Image);
+            if (!inputData || typeof inputData !== 'string') {
+                console.error('Invalid base64Image input after extraction:', typeof inputData);
                 reject(new Error('Invalid image data provided'));
                 return;
             }
             
             // Ensure proper data URL format
-            let imageData = base64Image;
+            let imageData = inputData;
             if (!imageData.startsWith('data:')) {
                 // Check if it's just base64 without the data URL prefix
                 if (imageData.match(/^[A-Za-z0-9+/=]+$/)) {
@@ -394,6 +412,13 @@ class DocumentConverter {
             if (!base64Part || base64Part.length === 0) {
                 console.error('Empty base64 data');
                 reject(new Error('Empty image data'));
+                return;
+            }
+            
+            // Check for truncated data (contains ellipsis or is suspiciously short)
+            if (base64Part.includes('…') || base64Part.length < 100) {
+                console.error('Data appears to be truncated or invalid:', base64Part.substring(0, 50));
+                reject(new Error('Image data appears to be truncated'));
                 return;
             }
             

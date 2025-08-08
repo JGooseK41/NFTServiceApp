@@ -24577,6 +24577,13 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                         // If we have a document converter, use its compression
                         if (window.documentConverter && window.documentConverter.compressImage) {
                             try {
+                                console.log('Document data before compression:', {
+                                    type: typeof documentDataToEncrypt,
+                                    length: documentDataToEncrypt ? documentDataToEncrypt.length : 0,
+                                    isObject: typeof documentDataToEncrypt === 'object',
+                                    hasData: documentDataToEncrypt && documentDataToEncrypt.data ? 'yes' : 'no',
+                                    preview: documentDataToEncrypt ? documentDataToEncrypt.substring ? documentDataToEncrypt.substring(0, 100) : 'object' : 'null'
+                                });
                                 // Increase maxSize for better quality but still manageable
                                 documentDataToEncrypt = await window.documentConverter.compressImage(documentDataToEncrypt, 500000); // 500KB max
                             } catch (compressionError) {
