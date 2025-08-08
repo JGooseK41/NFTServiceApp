@@ -28,6 +28,7 @@
     <script src="js/energy-rental-enhanced.js?v=1"></script>
     <script src="js/pending-transactions.js?v=1"></script>
     <script src="js/translations.js?v=1"></script>
+    <script src="js/audit-logger.js?v=1"></script>
     <script>
         // Pinata IPFS Configuration - shared across all users
         window.PINATA_CONFIG = {
@@ -3595,6 +3596,100 @@
                             Verify Transaction
                         </button>
                         <div id="txVerificationResult" style="margin-top: 1rem;"></div>
+                    </div>
+
+                    <!-- Audit Log Viewer -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2><i class="fas fa-history"></i> Audit Logs</h2>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button class="btn btn-secondary btn-small" onclick="refreshAuditLogs()">
+                                    <i class="fas fa-sync"></i> Refresh
+                                </button>
+                                <button class="btn btn-secondary btn-small" onclick="exportAuditLogs()">
+                                    <i class="fas fa-download"></i> Export CSV
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Audit Filters -->
+                        <div style="padding: 1rem; border-bottom: 1px solid var(--border-color);">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                                <div class="form-group" style="margin: 0;">
+                                    <label class="form-label">Status</label>
+                                    <select class="form-input" id="auditStatusFilter" onchange="refreshAuditLogs()">
+                                        <option value="">All</option>
+                                        <option value="success">Success</option>
+                                        <option value="failed">Failed</option>
+                                        <option value="validation_error">Validation Errors</option>
+                                        <option value="energy_error">Energy Errors</option>
+                                        <option value="ipfs_error">IPFS Errors</option>
+                                        <option value="blockchain_error">Blockchain Errors</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="margin: 0;">
+                                    <label class="form-label">Date Range</label>
+                                    <input type="date" class="form-input" id="auditStartDate" onchange="refreshAuditLogs()">
+                                </div>
+                                <div class="form-group" style="margin: 0;">
+                                    <label class="form-label">To</label>
+                                    <input type="date" class="form-input" id="auditEndDate" onchange="refreshAuditLogs()">
+                                </div>
+                                <div class="form-group" style="margin: 0;">
+                                    <label class="form-label">Sender Address</label>
+                                    <input type="text" class="form-input" id="auditSenderFilter" placeholder="Filter by sender" onkeyup="debounceAuditRefresh()">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Audit Statistics -->
+                        <div id="auditStatistics" style="padding: 1rem; background: var(--bg-secondary); display: none;">
+                            <h4 style="margin-bottom: 1rem;">Statistics</h4>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+                                <div class="stat-card">
+                                    <div class="stat-value" id="totalAttempts">0</div>
+                                    <div class="stat-label">Total Attempts</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value" style="color: var(--success);" id="successCount">0</div>
+                                    <div class="stat-label">Successful</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value" style="color: var(--error);" id="failedCount">0</div>
+                                    <div class="stat-label">Failed</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value" id="uniqueSenders">0</div>
+                                    <div class="stat-label">Unique Senders</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Audit Logs Table -->
+                        <div id="auditLogsContent" style="max-height: 600px; overflow-y: auto;">
+                            <div class="empty-state">
+                                <i class="fas fa-history"></i>
+                                <h3>Click Refresh to load audit logs</h3>
+                                <p>View all notice service attempts and failures</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Pagination -->
+                        <div id="auditPagination" style="padding: 1rem; border-top: 1px solid var(--border-color); display: none;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    Showing <span id="auditShowingStart">0</span> - <span id="auditShowingEnd">0</span> of <span id="auditTotal">0</span>
+                                </div>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <button class="btn btn-secondary btn-small" onclick="previousAuditPage()" id="auditPrevBtn" disabled>
+                                        <i class="fas fa-chevron-left"></i> Previous
+                                    </button>
+                                    <button class="btn btn-secondary btn-small" onclick="nextAuditPage()" id="auditNextBtn">
+                                        Next <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Contract Management -->
@@ -10809,6 +10904,181 @@ function useConnectedAddressForFeeCollector() {
             const registrationNotice = document.getElementById('registrationNotice');
             if (registrationNotice) {
                 registrationNotice.style.display = 'none';
+            }
+        }
+        
+        // Audit log management
+        let currentAuditPage = 0;
+        const auditPageSize = 50;
+        let auditDebounceTimer = null;
+        
+        async function refreshAuditLogs() {
+            const statusFilter = document.getElementById('auditStatusFilter')?.value;
+            const startDate = document.getElementById('auditStartDate')?.value;
+            const endDate = document.getElementById('auditEndDate')?.value;
+            const senderFilter = document.getElementById('auditSenderFilter')?.value;
+            
+            // Fetch statistics
+            if (window.auditLogger) {
+                const stats = await window.auditLogger.getStatistics({
+                    start_date: startDate,
+                    end_date: endDate
+                });
+                
+                if (stats.success && stats.stats) {
+                    document.getElementById('auditStatistics').style.display = 'block';
+                    document.getElementById('totalAttempts').textContent = stats.stats.total_attempts || 0;
+                    document.getElementById('successCount').textContent = stats.stats.successful || 0;
+                    document.getElementById('failedCount').textContent = stats.stats.failed || 0;
+                    document.getElementById('uniqueSenders').textContent = stats.stats.unique_senders || 0;
+                }
+            }
+            
+            // Fetch logs
+            const filters = {
+                status: statusFilter,
+                start_date: startDate,
+                end_date: endDate,
+                sender_address: senderFilter,
+                limit: auditPageSize,
+                offset: currentAuditPage * auditPageSize
+            };
+            
+            // Remove empty filters
+            Object.keys(filters).forEach(key => {
+                if (!filters[key]) delete filters[key];
+            });
+            
+            if (window.auditLogger) {
+                const result = await window.auditLogger.getLogs(filters);
+                
+                if (result.success && result.logs) {
+                    displayAuditLogs(result.logs, result.total);
+                }
+            } else {
+                document.getElementById('auditLogsContent').innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <h3>Audit logger not available</h3>
+                        <p>Please check your connection</p>
+                    </div>
+                `;
+            }
+        }
+        
+        function displayAuditLogs(logs, total) {
+            const container = document.getElementById('auditLogsContent');
+            const pagination = document.getElementById('auditPagination');
+            
+            if (logs.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-check-circle"></i>
+                        <h3>No audit logs found</h3>
+                        <p>Adjust your filters or check back later</p>
+                    </div>
+                `;
+                pagination.style.display = 'none';
+                return;
+            }
+            
+            // Build table
+            let html = `
+                <table class="data-table" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Status</th>
+                            <th>Sender</th>
+                            <th>Recipient</th>
+                            <th>Type</th>
+                            <th>Case #</th>
+                            <th>Error</th>
+                            <th>TX Hash</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            logs.forEach(log => {
+                const time = new Date(log.created_at).toLocaleString();
+                const statusClass = log.status === 'success' ? 'success' : 'error';
+                const statusIcon = log.status === 'success' ? '✓' : '✗';
+                
+                html += `
+                    <tr>
+                        <td style="font-size: 0.85rem;">${time}</td>
+                        <td><span class="badge badge-${statusClass}">${statusIcon} ${log.status}</span></td>
+                        <td style="font-size: 0.85rem;" title="${log.sender_address}">${log.sender_address.substring(0, 8)}...</td>
+                        <td style="font-size: 0.85rem;" title="${log.recipient_address || 'N/A'}">${log.recipient_address ? log.recipient_address.substring(0, 8) + '...' : 'N/A'}</td>
+                        <td>${log.notice_type || 'N/A'}</td>
+                        <td>${log.case_number || 'N/A'}</td>
+                        <td style="font-size: 0.85rem; color: var(--error);" title="${log.error_message || ''}">${log.error_message ? log.error_message.substring(0, 30) + '...' : ''}</td>
+                        <td style="font-size: 0.85rem;">
+                            ${log.transaction_hash ? `<a href="${getTxScanUrl()}${log.transaction_hash}" target="_blank">${log.transaction_hash.substring(0, 8)}...</a>` : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+            `;
+            
+            container.innerHTML = html;
+            
+            // Update pagination
+            const start = currentAuditPage * auditPageSize + 1;
+            const end = Math.min((currentAuditPage + 1) * auditPageSize, total);
+            
+            document.getElementById('auditShowingStart').textContent = start;
+            document.getElementById('auditShowingEnd').textContent = end;
+            document.getElementById('auditTotal').textContent = total;
+            
+            document.getElementById('auditPrevBtn').disabled = currentAuditPage === 0;
+            document.getElementById('auditNextBtn').disabled = end >= total;
+            
+            pagination.style.display = 'block';
+        }
+        
+        function previousAuditPage() {
+            if (currentAuditPage > 0) {
+                currentAuditPage--;
+                refreshAuditLogs();
+            }
+        }
+        
+        function nextAuditPage() {
+            currentAuditPage++;
+            refreshAuditLogs();
+        }
+        
+        function debounceAuditRefresh() {
+            clearTimeout(auditDebounceTimer);
+            auditDebounceTimer = setTimeout(() => {
+                currentAuditPage = 0;
+                refreshAuditLogs();
+            }, 500);
+        }
+        
+        async function exportAuditLogs() {
+            const statusFilter = document.getElementById('auditStatusFilter')?.value;
+            const startDate = document.getElementById('auditStartDate')?.value;
+            const endDate = document.getElementById('auditEndDate')?.value;
+            
+            if (window.auditLogger) {
+                const result = await window.auditLogger.exportLogs({
+                    status: statusFilter,
+                    start_date: startDate,
+                    end_date: endDate
+                });
+                
+                if (result.success) {
+                    uiManager.showNotification('success', 'Audit logs exported successfully');
+                } else {
+                    uiManager.showNotification('error', 'Failed to export audit logs');
+                }
             }
         }
         
@@ -24371,24 +24641,64 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 const tokenName = document.getElementById('mintTokenName')?.value.trim() || 'Legal Notice';
                 const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked')?.value || 'document';
                 
-                // Validation
+                // Validation with audit logging
                 if (!recipient) {
-                    uiManager.showNotification('error', 'Please enter recipient address');
+                    const errorMsg = 'Please enter recipient address';
+                    uiManager.showNotification('error', errorMsg);
+                    if (window.auditLogger) {
+                        window.auditLogger.logValidationError({
+                            senderAddress: tronWeb.defaultAddress.base58,
+                            field: 'recipient',
+                            error: errorMsg,
+                            errorCode: 'MISSING_RECIPIENT'
+                        });
+                    }
                     return;
                 }
                 
                 if (!tronWeb.isAddress(recipient)) {
-                    uiManager.showNotification('error', 'Invalid recipient address');
+                    const errorMsg = 'Invalid recipient address';
+                    uiManager.showNotification('error', errorMsg);
+                    if (window.auditLogger) {
+                        window.auditLogger.logValidationError({
+                            senderAddress: tronWeb.defaultAddress.base58,
+                            recipientAddress: recipient,
+                            field: 'recipient',
+                            value: recipient,
+                            error: errorMsg,
+                            errorCode: 'INVALID_ADDRESS'
+                        });
+                    }
                     return;
                 }
                 
                 if (!publicText && deliveryMethod === 'text') {
-                    uiManager.showNotification('error', 'Please enter notice text');
+                    const errorMsg = 'Please enter notice text';
+                    uiManager.showNotification('error', errorMsg);
+                    if (window.auditLogger) {
+                        window.auditLogger.logValidationError({
+                            senderAddress: tronWeb.defaultAddress.base58,
+                            recipientAddress: recipient,
+                            field: 'publicText',
+                            error: errorMsg,
+                            errorCode: 'MISSING_NOTICE_TEXT'
+                        });
+                    }
                     return;
                 }
                 
                 if (deliveryMethod === 'document' && !uploadedImage) {
-                    uiManager.showNotification('error', 'Please upload a document');
+                    const errorMsg = 'Please upload a document';
+                    uiManager.showNotification('error', errorMsg);
+                    if (window.auditLogger) {
+                        window.auditLogger.logValidationError({
+                            senderAddress: tronWeb.defaultAddress.base58,
+                            recipientAddress: recipient,
+                            field: 'document',
+                            error: errorMsg,
+                            errorCode: 'MISSING_DOCUMENT'
+                        });
+                    }
                     return;
                 }
                 
@@ -24420,6 +24730,22 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
             try {
                 console.log('Starting createLegalNotice...');
                 showProcessing('Creating legal notice...');
+                
+                // Log the attempt to audit system
+                if (window.auditLogger) {
+                    window.auditLogger.logNoticeAttempt({
+                        senderAddress: tronWeb.defaultAddress.base58,
+                        recipientAddress: transactionData.recipient,
+                        noticeType: transactionData.noticeType === 'Custom' ? transactionData.customType : transactionData.noticeType,
+                        caseNumber: transactionData.caseNumber,
+                        hasDocument: transactionData.hasDocument,
+                        deliveryMethod: transactionData.deliveryMethod,
+                        documentHash: transactionData.hasDocument ? await window.documentConverter?.hashDocument(transactionData.documentData) : null,
+                        sponsorshipAmount: 0, // Will be updated later
+                        estimatedGas: 0 // Will be updated later
+                    });
+                }
+                
                 const submitButton = document.getElementById('createNoticeBtn');
                 if (submitButton) {
                     setButtonLoading(submitButton, true);
@@ -25007,6 +25333,25 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     console.log('===================================\n');
                 }
                 
+                // Log success to audit system
+                if (window.auditLogger) {
+                    window.auditLogger.logNoticeSuccess({
+                        senderAddress: tronWeb.defaultAddress.base58,
+                        recipientAddress: transactionData.recipient,
+                        noticeType: transactionData.noticeType === 'Custom' ? transactionData.customType : transactionData.noticeType,
+                        caseNumber: transactionData.caseNumber,
+                        transactionHash: txHash,
+                        gasUsed: 0, // Will be updated when we get actual gas usage
+                        feePaid: fee,
+                        documentHash: transactionData.hasDocument ? await window.documentConverter?.hashDocument(transactionData.documentData) : null,
+                        ipfsHash: encryptedData ? encryptedData.ipfsHash : null,
+                        noticeId: noticeId,
+                        alertId: alertId,
+                        blockNumber: null, // Can be added if needed
+                        confirmationTime: Date.now()
+                    });
+                }
+                
                 // Show success with proper receipt
                 showTransactionResult(true, {
                     txHash: txHash || 'Transaction confirmed',
@@ -25101,6 +25446,22 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
             } catch (error) {
                 hideProcessing();
                 console.error('Error creating notice:', error);
+                
+                // Log failure to audit system
+                if (window.auditLogger) {
+                    window.auditLogger.logNoticeFailure({
+                        senderAddress: tronWeb.defaultAddress.base58,
+                        recipientAddress: transactionData.recipient,
+                        noticeType: transactionData.noticeType === 'Custom' ? transactionData.customType : transactionData.noticeType,
+                        caseNumber: transactionData.caseNumber,
+                        error: error.message || error.toString(),
+                        stage: 'transaction_execution',
+                        hasDocument: transactionData.hasDocument,
+                        deliveryMethod: transactionData.deliveryMethod,
+                        attemptedAt: Date.now(),
+                        stackTrace: error.stack
+                    });
+                }
                 
                 // Show error in transaction result modal
                 showTransactionResult(false, {
