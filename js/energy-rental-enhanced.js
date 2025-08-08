@@ -35,7 +35,8 @@ const EnhancedEnergyRental = {
         preferredProvider: 'justlend',
         energyBuffer: 1.3, // 30% buffer
         minRentalDuration: 300, // 5 minutes in seconds
-        apiCredentials: {}
+        apiCredentials: {},
+        proxyUrl: null // URL for Energy.Store proxy server
     },
 
     // Initialize with config
@@ -108,52 +109,75 @@ const EnhancedEnergyRental = {
 
     // Energy.Store API integration
     async rentFromEnergyStore(amount, receiverAddress) {
-        if (!this.providers.energyStore.enabled) {
+        // Check if we should use proxy or direct API
+        const useProxy = this.config.proxyUrl !== null;
+        
+        if (!useProxy && !this.providers.energyStore.enabled) {
             return { 
                 success: false, 
-                error: 'Energy.Store API credentials not configured' 
+                error: 'Energy.Store API not configured (no proxy or credentials)' 
             };
         }
 
         try {
-            const { apiUrl, apiId, apiKey } = this.providers.energyStore;
-            
             // Ensure minimum rental amount (Energy.Store min is 65,000 but we want 1.5M)
             const MINIMUM_RENTAL = 1500000;
             const rentalAmount = Math.max(amount, MINIMUM_RENTAL);
             
             console.log(`Energy.Store rental: requested ${amount}, renting ${rentalAmount} (min: ${MINIMUM_RENTAL})`);
             
-            // Prepare request data
-            const requestData = {
-                quantity: rentalAmount,
-                period: 1, // 1 hour minimum
-                receiver: receiverAddress
-            };
+            let response;
             
-            // Calculate signature
-            const signature = await this.calculateEnergyStoreSignature(requestData, apiKey);
-            
-            // Make API request
-            const response = await fetch(`${apiUrl}/createOrder`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-API-ID': apiId,
-                    'SIGNATURE': signature
-                },
-                body: JSON.stringify(requestData)
-            });
+            if (useProxy) {
+                // Use proxy server to avoid CORS
+                console.log('Using Energy.Store proxy:', this.config.proxyUrl);
+                
+                response = await fetch(`${this.config.proxyUrl}/api/energy/createOrder`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        quantity: rentalAmount,
+                        period: 1, // 1 hour minimum
+                        receiver: receiverAddress
+                    })
+                });
+            } else {
+                // Direct API call (will fail in browser due to CORS)
+                const { apiUrl, apiId, apiKey } = this.providers.energyStore;
+                
+                // Prepare request data
+                const requestData = {
+                    quantity: rentalAmount,
+                    period: 1, // 1 hour minimum
+                    receiver: receiverAddress
+                };
+                
+                // Calculate signature
+                const signature = await this.calculateEnergyStoreSignature(requestData, apiKey);
+                
+                // Make API request
+                response = await fetch(`${apiUrl}/createOrder`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-ID': apiId,
+                        'SIGNATURE': signature
+                    },
+                    body: JSON.stringify(requestData)
+                });
+            }
             
             const result = await response.json();
             
-            if (result.status === 'success') {
+            if (result.status === 'success' || result.status === 'created') {
                 return {
                     success: true,
                     provider: 'Energy.Store',
                     orderId: result.orderID,
                     cost: result.cost,
-                    energyAmount: rentalAmount, // Use actual rented amount
+                    energyAmount: result.actualQuantity || rentalAmount, // Use actual rented amount
                     requestedAmount: amount, // Original request
                     txId: result.transactionId
                 };

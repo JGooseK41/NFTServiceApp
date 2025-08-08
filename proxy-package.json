@@ -1,0 +1,21 @@
+{
+  "name": "energy-store-proxy",
+  "version": "1.0.0",
+  "description": "Proxy server for Energy.Store API to handle CORS",
+  "main": "energy-store-proxy.js",
+  "scripts": {
+    "start": "node energy-store-proxy.js",
+    "dev": "nodemon energy-store-proxy.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "node-fetch": "^2.6.9"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

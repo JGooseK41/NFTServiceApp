@@ -16915,15 +16915,17 @@ async function checkUserRoles() {
                 LanguageManager.init();
             }
             
-            // Initialize Enhanced Energy Rental with Energy.Store API credentials
+            // Initialize Enhanced Energy Rental
+            // Note: Energy.Store API requires server-side proxy due to CORS restrictions
             if (window.EnhancedEnergyRental) {
                 EnhancedEnergyRental.init({
-                    energyStoreApiId: '17933',
-                    energyStoreApiKey: '2b14f71f7068f600a36323032ce7f8cf3079c89a7345521f2aeada792a6c83a1',
+                    // Energy.Store credentials (disabled due to CORS - needs backend proxy)
+                    // energyStoreApiId: '17933',
+                    // energyStoreApiKey: '2b14f71f7068f600a36323032ce7f8cf3079c89a7345521f2aeada792a6c83a1',
                     autoRentEnabled: true,
-                    preferredProvider: 'energyStore' // Prefer Energy.Store since we have API keys
+                    preferredProvider: 'justlend' // Use JustLend as primary since Energy.Store needs backend
                 });
-                console.log('Enhanced Energy Rental initialized with Energy.Store API');
+                console.log('Enhanced Energy Rental initialized with JustLend as primary provider');
             }
             
             // Apply site configuration
