@@ -22284,10 +22284,36 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     // Get ALL notices from blockchain, not just from current user
                     const blockchainNotices = await getServedNoticesFromBlockchain('ALL', 1000);
                     
+                    // Debug: Log the structure of notices
+                    if (blockchainNotices.length > 0) {
+                        console.log('Sample notice structure:', blockchainNotices[0]);
+                        const case34 = blockchainNotices.find(n => n.caseNumber === '34-987654');
+                        if (case34) {
+                            console.log('Case 34-987654 full data:', case34);
+                        }
+                    }
+                    
                     // Filter for notices from this server OR to this recipient
+                    // Check multiple fields for server since notices from null address have server in event data
                     const relevantNotices = blockchainNotices.filter(notice => {
-                        const isServer = notice.server && ensureBase58Address(notice.server).toLowerCase() === ensureBase58Address(userAddress).toLowerCase();
+                        // Check if user is the actual server (from events or transaction)
+                        const actualServer = notice.eventServer || notice.txSender || notice.server;
+                        const isServer = actualServer && ensureBase58Address(actualServer).toLowerCase() === ensureBase58Address(userAddress).toLowerCase();
+                        
+                        // Check if user is the recipient
                         const isRecipient = notice.recipient && ensureBase58Address(notice.recipient).toLowerCase() === ensureBase58Address(userAddress).toLowerCase();
+                        
+                        // For debugging
+                        if (notice.caseNumber === '34-987654') {
+                            console.log(`Case 34-987654 filter check:
+                                - actualServer: ${actualServer}
+                                - userAddress: ${userAddress}
+                                - isServer: ${isServer}
+                                - recipient: ${notice.recipient}
+                                - isRecipient: ${isRecipient}
+                            `);
+                        }
+                        
                         return isServer || isRecipient;
                     });
                     
@@ -22836,6 +22862,52 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         }
         
         window.syncCase34ToBackend = syncCase34ToBackend;
+        
+        // Temporary workaround - add case without alert_id/document_id
+        async function syncCase34Simple() {
+            if (!window.BACKEND_API_URL) {
+                console.error('Backend URL not configured');
+                return;
+            }
+            
+            // Simplified data without alert_id and document_id
+            const case34Data = {
+                noticeId: '3',
+                serverAddress: 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY',
+                recipientAddress: 'TD1F37V4cAFH1YQCYVLtcFyFXkZUs7mBDE',
+                noticeType: 'Notice of Seizure',
+                caseNumber: '34-987654'
+            };
+            
+            try {
+                console.log('Syncing case 34-987654 (simplified)...', case34Data);
+                
+                // Use the metadata endpoint which doesn't require alert_id
+                const response = await fetch(`${window.BACKEND_API_URL}/api/notices/3/metadata`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(case34Data)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ Successfully synced case 34-987654:', result);
+                    
+                    // Now refresh the delivery status
+                    if (window.refreshDeliveryStatus) {
+                        await refreshDeliveryStatus(true);
+                    }
+                } else {
+                    console.error('Failed to sync:', response.status);
+                    const text = await response.text();
+                    console.error('Response:', text);
+                }
+            } catch (error) {
+                console.error('Error syncing case 34-987654:', error);
+            }
+        }
+        
+        window.syncCase34Simple = syncCase34Simple;
         window.checkAllBackendNotices = checkAllBackendNotices;
         window.printAcceptanceReceipt = printAcceptanceReceipt;
         window.viewServiceCertificate = viewServiceCertificate;
