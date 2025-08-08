@@ -17,6 +17,8 @@ class AuditLogger {
      */
     async logEvent(eventData) {
         try {
+            // Skip audit logging if backend is unavailable
+            // This prevents CORS errors from affecting the main app
             const response = await fetch(`${this.backendUrl}/api/audit/log`, {
                 method: 'POST',
                 headers: {
@@ -24,7 +26,7 @@ class AuditLogger {
                 },
                 body: JSON.stringify({
                     ...eventData,
-                    client_ip: await this.getClientIP(),
+                    client_ip: await this.getClientIP().catch(() => 'unknown'),
                     user_agent: navigator.userAgent,
                     metadata: {
                         ...eventData.metadata,
@@ -34,7 +36,15 @@ class AuditLogger {
                         wallet_type: this.getWalletType()
                     }
                 })
+            }).catch(error => {
+                // Silently fail on network errors (including CORS)
+                console.warn('Audit logging skipped due to network error');
+                return null;
             });
+
+            if (!response) {
+                return { success: false, error: 'Network error' };
+            }
 
             const result = await response.json();
             
@@ -46,7 +56,7 @@ class AuditLogger {
             
             return result;
         } catch (error) {
-            console.error('Error logging audit event:', error);
+            console.warn('Audit logging error (non-critical):', error.message);
             // Don't throw - we don't want audit logging failures to break the app
             return { success: false, error: error.message };
         }
@@ -170,7 +180,15 @@ class AuditLogger {
      */
     async getClientIP() {
         try {
-            const response = await fetch('https://api.ipify.org?format=json');
+            // Use a timeout to prevent hanging
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000);
+            
+            const response = await fetch('https://api.ipify.org?format=json', {
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            
             const data = await response.json();
             return data.ip;
         } catch (error) {
