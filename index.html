@@ -15248,6 +15248,25 @@ async function checkUserRoles() {
                 console.log('Notice ID:', noticeId);
                 console.log('Backend URL:', `${window.BACKEND_API_URL}/api/notices/${noticeId}/audit?serverAddress=${serverAddress}`);
                 console.log('Raw audit data from backend:', auditData);
+                
+                // Filter out test data
+                if (auditData.views) {
+                    auditData.views = auditData.views.filter(view => {
+                        // Remove test entries
+                        if (view.viewer_address && view.viewer_address.includes('TEST')) return false;
+                        if (view.ip_address && view.ip_address === '127.0.0.1') return false;
+                        return true;
+                    });
+                }
+                
+                if (auditData.acceptances) {
+                    auditData.acceptances = auditData.acceptances.filter(acc => {
+                        // Remove test entries
+                        if (acc.acceptor_address && acc.acceptor_address.includes('TEST')) return false;
+                        if (acc.ip_address && acc.ip_address === '127.0.0.1') return false;
+                        return true;
+                    });
+                }
                 console.log('Number of views:', auditData.views ? auditData.views.length : 0);
                 console.log('View data sample:', auditData.views ? auditData.views.slice(0, 2) : 'none');
                 hideProcessing();
