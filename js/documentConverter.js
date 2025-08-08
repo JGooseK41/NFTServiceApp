@@ -360,8 +360,32 @@ class DocumentConverter {
      * Compress image for blockchain storage while maintaining readability
      */
     async compressImage(base64Image, maxSize = 200000) { // 200KB default for better readability
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
+            // Validate input
+            if (!base64Image || typeof base64Image !== 'string') {
+                console.error('Invalid base64Image input:', typeof base64Image);
+                reject(new Error('Invalid image data provided'));
+                return;
+            }
+            
+            // Ensure proper data URL format
+            let imageData = base64Image;
+            if (!imageData.startsWith('data:')) {
+                // Check if it's just base64 without the data URL prefix
+                if (imageData.match(/^[A-Za-z0-9+/=]+$/)) {
+                    imageData = `data:image/jpeg;base64,${imageData}`;
+                } else {
+                    console.error('Invalid image format - not a valid data URL or base64');
+                    reject(new Error('Invalid image format'));
+                    return;
+                }
+            }
+            
             const img = new Image();
+            img.onerror = (error) => {
+                console.error('Failed to load image for compression:', error);
+                reject(new Error('Failed to load image: ' + error.message));
+            };
             img.onload = () => {
                 const canvas = document.createElement('canvas');
                 let width = img.width;
@@ -434,7 +458,7 @@ class DocumentConverter {
                 
                 resolve(result);
             };
-            img.src = base64Image;
+            img.src = imageData; // Use the validated/formatted imageData instead of raw base64Image
         });
     }
 }
