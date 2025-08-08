@@ -22267,6 +22267,11 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                 if (!caseNumber && alertData[7]) {
                                     caseNumber = alertData[7];
                                 }
+                            } else if (alertData && Array.isArray(alertData)) {
+                                // Even if recipient is empty, check for case number in the data
+                                if (alertData[7]) {
+                                    caseNumber = alertData[7];
+                                }
                             }
                             
                             if (docData && docData[0]) {
@@ -22592,10 +22597,25 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             await refreshDeliveryStatus(true);
         }
         
+        // Print acceptance receipt
+        async function printAcceptanceReceipt(noticeId) {
+            try {
+                // For now, use the alert receipt generator
+                await generateAlertReceipt(noticeId);
+            } catch (error) {
+                console.error('Error generating receipt:', error);
+                uiManager.showNotification('error', 'Failed to generate receipt');
+            }
+        }
+        
         // Make functions globally accessible
         window.toggleCaseExpansion = toggleCaseExpansion;
         window.expandAllCases = expandAllCases;
         window.clearTestDataAndRefresh = clearTestDataAndRefresh;
+        window.printAcceptanceReceipt = printAcceptanceReceipt;
+        window.viewServiceCertificate = viewServiceCertificate;
+        window.viewNoticeAuditTrail = viewNoticeAuditTrail;
+        window.viewOnBlockchain = viewOnBlockchain;
         
         // View service certificate for unaccepted notices
         async function viewServiceCertificate(noticeId) {
