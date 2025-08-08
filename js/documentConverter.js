@@ -80,19 +80,30 @@ class DocumentConverter {
             // Generate preview from first page
             const previewImage = await this.generatePDFPreview(pdf, 1);
             
-            // Convert all pages to images for full document
-            const fullPages = [];
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const pageImage = await this.renderPDFPage(pdf, i, 800); // Reduced res for manageable size
-                fullPages.push(pageImage);
-            }
+            // For multi-page PDFs, create a combined image
+            let fullDocument;
             
-            // Create a combined image or PDF for IPFS
-            const fullDocument = await this.combinePagesToDocument(fullPages, 'pdf');
+            if (pdf.numPages === 1) {
+                // Single page - just use higher res version
+                fullDocument = await this.renderPDFPage(pdf, 1, 1000, false);
+            } else {
+                // Multiple pages - combine them into one tall image
+                const fullPages = [];
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    console.log(`Rendering page ${i} of ${pdf.numPages}`);
+                    const pageImage = await this.renderPDFPage(pdf, i, 800); // Reduced res for manageable size
+                    fullPages.push(pageImage);
+                }
+                
+                // Combine all pages into a single tall image
+                console.log('Combining', fullPages.length, 'pages into single image');
+                fullDocument = await this.combineImages(fullPages);
+            }
             
             return {
                 preview: previewImage,
                 fullDocument: fullDocument,
+                data: fullDocument, // Add data property for compatibility
                 documentHash: await this.hashDocument(arrayBuffer),
                 pageCount: pdf.numPages,
                 fileType: 'pdf'
@@ -317,33 +328,80 @@ class DocumentConverter {
      * Combine multiple images into one long image
      */
     async combineImages(images) {
-        // Create temporary images to get dimensions
-        const imgElements = await Promise.all(images.map(src => {
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.onload = () => resolve(img);
-                img.src = src;
-            });
-        }));
-        
-        // Calculate total height
-        const maxWidth = Math.max(...imgElements.map(img => img.width));
-        const totalHeight = imgElements.reduce((sum, img) => sum + img.height, 0);
-        
-        // Create combined canvas
-        const canvas = document.createElement('canvas');
-        canvas.width = maxWidth;
-        canvas.height = totalHeight;
-        const ctx = canvas.getContext('2d');
-        
-        // Draw all images
-        let currentY = 0;
-        for (const img of imgElements) {
-            ctx.drawImage(img, 0, currentY);
-            currentY += img.height;
+        try {
+            console.log('Combining', images.length, 'images');
+            
+            // Create temporary images to get dimensions
+            const imgElements = await Promise.all(images.map((src, index) => {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        console.log(`Image ${index + 1} loaded: ${img.width}x${img.height}`);
+                        resolve(img);
+                    };
+                    img.onerror = (error) => {
+                        console.error(`Failed to load image ${index + 1}:`, error);
+                        // Create a placeholder for failed images
+                        const placeholder = new Image();
+                        placeholder.width = 800;
+                        placeholder.height = 1000;
+                        resolve(placeholder);
+                    };
+                    img.src = src;
+                });
+            }));
+            
+            // Calculate total height
+            const maxWidth = Math.max(...imgElements.map(img => img.width || 800));
+            const totalHeight = imgElements.reduce((sum, img) => sum + (img.height || 1000), 0);
+            
+            console.log(`Creating combined canvas: ${maxWidth}x${totalHeight}`);
+            
+            // Limit canvas size to prevent memory issues
+            const MAX_HEIGHT = 10000;
+            let finalHeight = totalHeight;
+            let scale = 1;
+            
+            if (totalHeight > MAX_HEIGHT) {
+                scale = MAX_HEIGHT / totalHeight;
+                finalHeight = MAX_HEIGHT;
+                console.log(`Canvas too tall (${totalHeight}px), scaling down by ${scale}`);
+            }
+            
+            // Create combined canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(maxWidth * scale);
+            canvas.height = Math.round(finalHeight);
+            const ctx = canvas.getContext('2d');
+            
+            // White background
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw all images
+            let currentY = 0;
+            for (let i = 0; i < imgElements.length; i++) {
+                const img = imgElements[i];
+                if (img.src) { // Only draw if image loaded successfully
+                    const drawWidth = Math.round(img.width * scale);
+                    const drawHeight = Math.round(img.height * scale);
+                    ctx.drawImage(img, 0, currentY, drawWidth, drawHeight);
+                    currentY += drawHeight;
+                } else {
+                    console.warn(`Skipping image ${i + 1} - no source`);
+                }
+            }
+            
+            // Use JPEG for better compression of multi-page documents
+            const result = canvas.toDataURL('image/jpeg', 0.85);
+            console.log(`Combined image created: ${(result.length / 1024).toFixed(1)}KB`);
+            
+            return result;
+        } catch (error) {
+            console.error('Error combining images:', error);
+            // Return first page on error
+            return images[0] || this.createPlaceholderImage();
         }
-        
-        return canvas.toDataURL('image/png');
     }
     
     /**
@@ -357,157 +415,301 @@ class DocumentConverter {
     }
     
     /**
+     * Create a placeholder image when compression fails
+     */
+    createPlaceholderImage() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 400;
+        canvas.height = 600;
+        const ctx = canvas.getContext('2d');
+        
+        // White background
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Add border
+        ctx.strokeStyle = '#e74c3c';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+        
+        // Add text
+        ctx.fillStyle = '#333';
+        ctx.font = 'bold 24px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('LEGAL DOCUMENT', canvas.width / 2, 100);
+        
+        ctx.font = '16px Arial';
+        ctx.fillText('Document Preview', canvas.width / 2, 140);
+        ctx.fillText('(Full document stored on blockchain)', canvas.width / 2, 170);
+        
+        // Add timestamp
+        ctx.font = '12px Arial';
+        ctx.fillStyle = '#666';
+        const timestamp = new Date().toLocaleString();
+        ctx.fillText(`Generated: ${timestamp}`, canvas.width / 2, canvas.height - 30);
+        
+        return canvas.toDataURL('image/jpeg', 0.8);
+    }
+    
+    /**
      * Compress image for blockchain storage while maintaining readability
      */
     async compressImage(base64Image, maxSize = 200000) { // 200KB default for better readability
-        return new Promise((resolve, reject) => {
-            // Handle object input (e.g., {type: 'pdf', data: '...'} or {type: 'image-array', data: [...]})
-            let inputData = base64Image;
-            if (base64Image && typeof base64Image === 'object') {
-                if (base64Image.data) {
-                    // If it's an array of images, use the first one or combine them
-                    if (Array.isArray(base64Image.data)) {
-                        console.log('Handling image array, using first image');
-                        inputData = base64Image.data[0];
+        return new Promise(async (resolve, reject) => {
+            try {
+                console.log('Starting compression, input type:', typeof base64Image);
+                
+                // Handle object input (e.g., {type: 'pdf', data: '...'} or {type: 'image-array', data: [...]})
+                let inputData = base64Image;
+                if (base64Image && typeof base64Image === 'object') {
+                    if (base64Image.data) {
+                        // If it's an array of images, use the first one or combine them
+                        if (Array.isArray(base64Image.data)) {
+                            console.log('Handling image array, using first image');
+                            inputData = base64Image.data[0];
+                        } else {
+                            inputData = base64Image.data;
+                        }
                     } else {
-                        inputData = base64Image.data;
+                        console.warn('Invalid object format - no data property, returning original');
+                        resolve(base64Image);
+                        return;
                     }
-                } else {
-                    console.error('Invalid object format - no data property:', base64Image);
-                    reject(new Error('Invalid image object format'));
+                }
+                
+                // Validate input
+                if (!inputData || typeof inputData !== 'string') {
+                    console.warn('Invalid input type, returning original:', typeof inputData);
+                    resolve(base64Image);
                     return;
                 }
-            }
-            
-            // Validate input
-            if (!inputData || typeof inputData !== 'string') {
-                console.error('Invalid base64Image input after extraction:', typeof inputData);
-                reject(new Error('Invalid image data provided'));
-                return;
-            }
-            
-            // Ensure proper data URL format
-            let imageData = inputData;
-            if (!imageData.startsWith('data:')) {
-                // Check if it's just base64 without the data URL prefix
-                if (imageData.match(/^[A-Za-z0-9+/=]+$/)) {
-                    imageData = `data:image/jpeg;base64,${imageData}`;
-                } else {
-                    console.error('Invalid image format - not a valid data URL or base64');
-                    reject(new Error('Invalid image format'));
+                
+                // Handle data URI strings (sometimes returned by PDF conversion)
+                if (inputData.startsWith('data:application/pdf')) {
+                    console.log('PDF data URI detected, cannot compress directly');
+                    resolve(inputData);
                     return;
                 }
-            }
-            
-            // Check if data URL is valid format
-            const dataUrlRegex = /^data:image\/(jpeg|jpg|png|gif|webp);base64,/;
-            if (!dataUrlRegex.test(imageData)) {
-                console.error('Invalid data URL format:', imageData.substring(0, 50));
-                reject(new Error('Invalid data URL format'));
-                return;
-            }
-            
-            // Check if the base64 part is valid
-            const base64Part = imageData.split(',')[1];
-            if (!base64Part || base64Part.length === 0) {
-                console.error('Empty base64 data');
-                reject(new Error('Empty image data'));
-                return;
-            }
-            
-            // Check for truncated data (contains ellipsis or is suspiciously short)
-            if (base64Part.includes('…') || base64Part.length < 100) {
-                console.error('Data appears to be truncated or invalid:', base64Part.substring(0, 50));
-                reject(new Error('Image data appears to be truncated'));
-                return;
-            }
-            
-            // For very large images, we might need to handle them differently
-            if (imageData.length > 5000000) { // > 5MB as data URL
-                console.warn('Very large image detected, compression will be aggressive');
-            }
-            
-            const img = new Image();
-            img.onerror = (error) => {
-                console.error('Failed to load image for compression:', error);
-                console.error('Image data URL length:', imageData.length);
-                console.error('First 100 chars:', imageData.substring(0, 100));
-                // Return the original image if compression fails
+                
+                // Log the size of the input
+                console.log('Input data length:', inputData.length, 'characters');
+                
+                // For EXTREMELY large base64 (>10MB), try a different approach
+                if (inputData.length > 10000000) {
+                    console.log('Extremely large image detected, using aggressive compression');
+                    try {
+                        // Extract just the base64 part if it's a data URL
+                        let base64Data = inputData;
+                        if (inputData.startsWith('data:')) {
+                            const parts = inputData.split(',');
+                            if (parts.length > 1) {
+                                base64Data = parts[1];
+                            }
+                        }
+                        
+                        // Create a blob from the base64 data
+                        const byteCharacters = atob(base64Data);
+                        const byteNumbers = new Array(byteCharacters.length);
+                        for (let i = 0; i < byteCharacters.length; i++) {
+                            byteNumbers[i] = byteCharacters.charCodeAt(i);
+                        }
+                        const byteArray = new Uint8Array(byteNumbers);
+                        const blob = new Blob([byteArray], {type: 'image/jpeg'});
+                        
+                        // Create object URL and load into image
+                        const objectURL = URL.createObjectURL(blob);
+                        const img = new Image();
+                        
+                        img.onload = () => {
+                            try {
+                                // Aggressively resize for huge images
+                                const maxDimension = 600;
+                                let width = img.width;
+                                let height = img.height;
+                                
+                                if (width > maxDimension || height > maxDimension) {
+                                    const scale = Math.min(maxDimension / width, maxDimension / height);
+                                    width = Math.round(width * scale);
+                                    height = Math.round(height * scale);
+                                }
+                                
+                                const canvas = document.createElement('canvas');
+                                canvas.width = width;
+                                canvas.height = height;
+                                const ctx = canvas.getContext('2d');
+                                
+                                ctx.fillStyle = 'white';
+                                ctx.fillRect(0, 0, width, height);
+                                ctx.drawImage(img, 0, 0, width, height);
+                                
+                                // Use lower quality for huge files
+                                const result = canvas.toDataURL('image/jpeg', 0.6);
+                                
+                                URL.revokeObjectURL(objectURL);
+                                console.log(`Huge image compressed: ${(result.length / 1024).toFixed(1)}KB at ${width}x${height}`);
+                                resolve(result);
+                            } catch (e) {
+                                URL.revokeObjectURL(objectURL);
+                                console.error('Canvas error for huge image:', e);
+                                // Return a minimal placeholder
+                                resolve(this.createPlaceholderImage());
+                            }
+                        };
+                        
+                        img.onerror = () => {
+                            URL.revokeObjectURL(objectURL);
+                            console.warn('Failed to load huge image, creating placeholder');
+                            resolve(this.createPlaceholderImage());
+                        };
+                        
+                        img.src = objectURL;
+                        return; // Exit early for huge images
+                        
+                    } catch (blobError) {
+                        console.error('Blob creation failed:', blobError);
+                        // Create a placeholder image
+                        resolve(this.createPlaceholderImage());
+                        return;
+                    }
+                }
+                
+                // Ensure proper data URL format for normal sized images
+                let imageData = inputData;
+                if (!imageData.startsWith('data:')) {
+                    // Check if it's just base64 without the data URL prefix
+                    if (imageData.match(/^[A-Za-z0-9+/=]+$/)) {
+                        imageData = `data:image/jpeg;base64,${imageData}`;
+                    } else {
+                        console.warn('Invalid format, returning original');
+                        resolve(base64Image);
+                        return;
+                    }
+                }
+                
+                // Check if data URL is valid format
+                const dataUrlRegex = /^data:image\/(jpeg|jpg|png|gif|webp);base64,/;
+                if (!dataUrlRegex.test(imageData)) {
+                    console.warn('Not an image data URL, returning original:', imageData.substring(0, 50));
+                    resolve(base64Image);
+                    return;
+                }
+                
+                // Check if the base64 part is valid
+                const base64Part = imageData.split(',')[1];
+                if (!base64Part || base64Part.length === 0) {
+                    console.warn('Empty base64 data, returning original');
+                    resolve(base64Image);
+                    return;
+                }
+                
+                // Check for truncated data
+                if (base64Part.includes('…') || base64Part.length < 100) {
+                    console.warn('Data appears truncated, returning original');
+                    resolve(base64Image);
+                    return;
+                }
+                
+                // For very large images, we might need to handle them differently
+                if (imageData.length > 5000000) { // > 5MB as data URL
+                    console.warn('Very large image detected, compression will be aggressive');
+                }
+                
+                const img = new Image();
+                
+                // Set up error handler
+                img.onerror = (error) => {
+                    console.warn('Image load failed, returning original data');
+                    console.log('Data URL length:', imageData.length);
+                    // Return the original input on error
+                    resolve(base64Image);
+                };
+                
+                // Set up load handler
+                img.onload = () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+                        let quality = 0.9;
+                        
+                        // For legal documents, balance readability and size
+                        // Adjust based on target size
+                        const minWidth = maxSize > 300000 ? 800 : 600;
+                        const maxWidth = maxSize > 300000 ? 1000 : 800;
+                        
+                        // Scale to optimal size
+                        if (width < minWidth) {
+                            // Upscale if too small
+                            const scale = minWidth / width;
+                            width = Math.round(width * scale);
+                            height = Math.round(height * scale);
+                        } else if (width > maxWidth) {
+                            // Downscale if too large
+                            const scale = maxWidth / width;
+                            width = Math.round(width * scale);
+                            height = Math.round(height * scale);
+                        }
+                        
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        
+                        // High quality settings
+                        ctx.imageSmoothingEnabled = true;
+                        ctx.imageSmoothingQuality = 'high';
+                        
+                        // White background for documents
+                        ctx.fillStyle = 'white';
+                        ctx.fillRect(0, 0, width, height);
+                        
+                        // Draw image
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        // Add border for preview
+                        ctx.strokeStyle = '#e74c3c';
+                        ctx.lineWidth = 3;
+                        ctx.strokeRect(1.5, 1.5, width - 3, height - 3);
+                        
+                        // Try different quality levels
+                        let result = canvas.toDataURL('image/jpeg', quality);
+                        
+                        // If still too large, reduce quality gradually
+                        while (result.length > maxSize && quality > 0.5) {
+                            quality -= 0.05;
+                            result = canvas.toDataURL('image/jpeg', quality);
+                        }
+                        
+                        // If still too large, reduce dimensions
+                        if (result.length > maxSize) {
+                            const scaleFactor = 0.8;
+                            width = Math.round(width * scaleFactor);
+                            height = Math.round(height * scaleFactor);
+                            canvas.width = width;
+                            canvas.height = height;
+                            ctx.imageSmoothingEnabled = true;
+                            ctx.imageSmoothingQuality = 'high';
+                            ctx.fillStyle = 'white';
+                            ctx.fillRect(0, 0, width, height);
+                            ctx.drawImage(img, 0, 0, width, height);
+                            result = canvas.toDataURL('image/jpeg', 0.7);
+                        }
+                        
+                        console.log(`Image compressed: ${(result.length / 1024).toFixed(1)}KB at ${width}x${height}`);
+                        resolve(result);
+                    } catch (canvasError) {
+                        console.error('Canvas processing error:', canvasError);
+                        resolve(base64Image);
+                    }
+                };
+                
+                // Attempt to load the image
+                img.src = imageData;
+                
+            } catch (error) {
+                console.error('Compression error:', error);
+                // Always resolve with original on any error
                 resolve(base64Image);
-            };
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-                let quality = 0.9;
-                
-                // For legal documents, balance readability and size
-                // Adjust based on target size
-                const minWidth = maxSize > 300000 ? 800 : 600;
-                const maxWidth = maxSize > 300000 ? 1000 : 800;
-                
-                // Scale to optimal size
-                if (width < minWidth) {
-                    // Upscale if too small
-                    const scale = minWidth / width;
-                    width *= scale;
-                    height *= scale;
-                } else if (width > maxWidth) {
-                    // Downscale if too large
-                    const scale = maxWidth / width;
-                    width *= scale;
-                    height *= scale;
-                }
-                
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                
-                // High quality settings
-                ctx.imageSmoothingEnabled = true;
-                ctx.imageSmoothingQuality = 'high';
-                
-                // White background for documents
-                ctx.fillStyle = 'white';
-                ctx.fillRect(0, 0, width, height);
-                
-                // Draw image
-                ctx.drawImage(img, 0, 0, width, height);
-                
-                // Add border for preview
-                ctx.strokeStyle = '#e74c3c';
-                ctx.lineWidth = 3;
-                ctx.strokeRect(1.5, 1.5, width - 3, height - 3);
-                
-                // Try different quality levels
-                let result = canvas.toDataURL('image/jpeg', quality);
-                
-                // If still too large, reduce quality gradually
-                while (result.length > maxSize && quality > 0.5) {
-                    quality -= 0.05;
-                    result = canvas.toDataURL('image/jpeg', quality);
-                }
-                
-                // If still too large, reduce dimensions
-                if (result.length > maxSize) {
-                    const scaleFactor = 0.8;
-                    width *= scaleFactor;
-                    height *= scaleFactor;
-                    canvas.width = width;
-                    canvas.height = height;
-                    ctx.imageSmoothingEnabled = true;
-                    ctx.imageSmoothingQuality = 'high';
-                    ctx.fillStyle = 'white';
-                    ctx.fillRect(0, 0, width, height);
-                    ctx.drawImage(img, 0, 0, width, height);
-                    result = canvas.toDataURL('image/jpeg', 0.7);
-                }
-                
-                console.log(`Preview compressed: ${(result.length / 1024).toFixed(1)}KB at ${width}x${height}`);
-                
-                resolve(result);
-            };
-            img.src = imageData; // Use the validated/formatted imageData instead of raw base64Image
+            }
         });
     }
 }
