@@ -24753,8 +24753,18 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 
                 // Calculate fee
                 console.log('Calculating fee...');
+                console.log('User address for fee calculation:', tronWeb.defaultAddress.base58);
                 fee = await calculateFeeFromConstants(tronWeb.defaultAddress.base58);
                 console.log('Fee calculated:', fee, 'sun =', fee/1000000, 'TRX');
+                
+                // Double-check the exemption status
+                const doubleCheckExemption = await legalContract.serviceFeeExemptions(tronWeb.defaultAddress.base58).call();
+                console.log('Double-check exemption status:', doubleCheckExemption);
+                
+                if (doubleCheckExemption && fee > 2000000) {
+                    console.error('WARNING: User is exempt but fee is too high!');
+                    console.error('Expected: 2 TRX, Got:', fee/1000000, 'TRX');
+                }
                 
                 // Store fee globally for energy rental to check
                 window._currentTransactionFee = fee;
@@ -25079,6 +25089,21 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 // Complete contract uses serveNotice with different parameters
                 // serveNotice(recipient, encryptedIPFS, decryptionKey, issuingAgency, noticeType, caseNumber, caseDetails, legalRights, sponsorFees)
                 const sponsorFees = fee > serviceFee; // Sponsor fees if paying more than just service fee
+                
+                console.log('=== TRANSACTION DETAILS ===');
+                console.log('Fee being sent to contract:', fee, 'sun =', fee/1000000, 'TRX');
+                console.log('Is law enforcement exempt?:', isLawEnforcement);
+                console.log('Expected fee for exempt user: 2 TRX');
+                console.log('Actual fee being charged:', fee/1000000, 'TRX');
+                
+                if (isLawEnforcement && fee > 2000000) {
+                    console.error('CRITICAL: Overcharging exempt user!');
+                    const shouldProceed = confirm(`WARNING: You are being charged ${fee/1000000} TRX instead of 2 TRX (law enforcement rate). Continue anyway?`);
+                    if (!shouldProceed) {
+                        hideProcessing();
+                        return;
+                    }
+                }
                 
                 const tx = await legalContract.serveNotice(
                     noticeRequest.recipient,
