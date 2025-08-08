@@ -13340,9 +13340,21 @@ async function checkUserRoles() {
                             console.log('No document data for notice:', noticeId, e);
                         }
                         
+                        // Extract server address from event (for LegalNoticeCreated events)
+                        let serverAddress = null;
+                        if (event.result && event.result.server) {
+                            try {
+                                serverAddress = tronWeb.address.fromHex(event.result.server);
+                            } catch (e) {
+                                console.log('Could not convert server address:', event.result.server);
+                                serverAddress = event.result.server;
+                            }
+                        }
+                        
                         const noticeInfo = {
                             noticeId: noticeId.toString(),
                             recipient: recipientAddress,
+                            server: serverAddress, // Add server field
                             noticeType: noticeType,
                             caseNumber: caseNumber,
                             timestamp: blockchainTimestamp || (parseInt(event.result.timestamp) * 1000) || Date.now(),
@@ -22306,9 +22318,12 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     // Debug: Log the structure of notices
                     if (blockchainNotices.length > 0) {
                         console.log('Sample notice structure:', blockchainNotices[0]);
+                        console.log('All notice fields:', Object.keys(blockchainNotices[0]));
                         const case34 = blockchainNotices.find(n => n.caseNumber === '34-987654');
                         if (case34) {
                             console.log('Case 34-987654 full data:', case34);
+                        } else {
+                            console.log('Available case numbers:', blockchainNotices.map(n => n.caseNumber));
                         }
                     }
                     
