@@ -11,6 +11,7 @@ ADD COLUMN IF NOT EXISTS recipient_jurisdiction VARCHAR(100);
 -- Create active_notices table if it doesn't exist (used by notices route)
 CREATE TABLE IF NOT EXISTS active_notices (
     id SERIAL PRIMARY KEY,
+    pending_notice_id INTEGER,
     notice_id VARCHAR(100) UNIQUE,
     alert_id VARCHAR(100),
     document_id VARCHAR(100),
@@ -24,8 +25,62 @@ CREATE TABLE IF NOT EXISTS active_notices (
     has_document BOOLEAN DEFAULT false,
     accepted BOOLEAN DEFAULT false,
     accepted_at TIMESTAMP,
+    alert_tx_hash VARCHAR(100),
+    alert_thumbnail_url TEXT,
+    alert_nft_description TEXT,
+    alert_token_uri TEXT,
+    alert_delivered_at TIMESTAMP,
+    document_tx_hash VARCHAR(100),
+    document_ipfs_hash TEXT,
+    document_encryption_key TEXT,
+    document_unencrypted_url TEXT,
+    document_created_at TIMESTAMP,
+    contract_address VARCHAR(100),
+    is_acknowledged BOOLEAN DEFAULT false,
+    acknowledged_at TIMESTAMP,
+    acknowledgment_tx_hash VARCHAR(100),
+    view_count INTEGER DEFAULT 0,
+    last_viewed_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create pending_notices table if it doesn't exist
+CREATE TABLE IF NOT EXISTS pending_notices (
+    id SERIAL PRIMARY KEY,
+    case_number VARCHAR(100),
+    server_address VARCHAR(100),
+    recipient_address VARCHAR(100),
+    recipient_name VARCHAR(200),
+    notice_type VARCHAR(100),
+    issuing_agency VARCHAR(200),
+    jurisdiction VARCHAR(100),
+    document_file_url TEXT,
+    document_thumbnail_url TEXT,
+    document_preview_url TEXT,
+    document_metadata JSONB,
+    alert_nft_description TEXT,
+    document_nft_description TEXT,
+    status VARCHAR(50) DEFAULT 'draft',
+    ready_at TIMESTAMP,
+    sent_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create notice_events table if it doesn't exist
+CREATE TABLE IF NOT EXISTS notice_events (
+    id SERIAL PRIMARY KEY,
+    notice_id INTEGER,
+    event_type VARCHAR(100),
+    actor_address VARCHAR(100),
+    actor_type VARCHAR(50),
+    ip_address VARCHAR(100),
+    user_agent TEXT,
+    location_data JSONB,
+    details JSONB,
+    transaction_hash VARCHAR(100),
+    occurred_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create notice_views table if missing

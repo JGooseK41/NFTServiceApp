@@ -298,9 +298,19 @@ router.get('/server/:serverAddress', async (req, res) => {
 
     if (groupByCases === 'true') {
       // Return grouped by cases
+      // Group notices by case number
       const query = `
-        SELECT * FROM cases_summary 
+        SELECT 
+          case_number,
+          server_address,
+          COUNT(*) as total_notices,
+          MAX(created_at) as last_served,
+          array_agg(notice_id) as notice_ids,
+          array_agg(recipient_address) as recipients,
+          SUM(CASE WHEN accepted = true THEN 1 ELSE 0 END) as accepted_count
+        FROM served_notices
         WHERE LOWER(server_address) = LOWER($1)
+        GROUP BY case_number, server_address
         ORDER BY last_served DESC
         LIMIT $2 OFFSET $3
       `;
@@ -315,19 +325,20 @@ router.get('/server/:serverAddress', async (req, res) => {
       // Return individual notices
       const query = `
         SELECT 
-          an.*,
-          pn.document_file_url,
-          pn.document_metadata,
-          pn.recipient_name,
+          sn.*,
           (
             SELECT COUNT(*) 
-            FROM notice_events ne 
-            WHERE ne.notice_id = an.id AND ne.event_type = 'viewed'
-          ) as view_count
-        FROM active_notices an
-        LEFT JOIN pending_notices pn ON an.pending_notice_id = pn.id
-        WHERE LOWER(an.server_address) = LOWER($1)
-        ORDER BY an.created_at DESC
+            FROM notice_views nv 
+            WHERE nv.notice_id = sn.notice_id
+          ) as view_count,
+          (
+            SELECT MAX(viewed_at) 
+            FROM notice_views nv 
+            WHERE nv.notice_id = sn.notice_id
+          ) as last_viewed_at
+        FROM served_notices sn
+        WHERE LOWER(sn.server_address) = LOWER($1)
+        ORDER BY sn.created_at DESC
         LIMIT $2 OFFSET $3
       `;
 
@@ -359,26 +370,24 @@ router.get('/:noticeId', async (req, res) => {
 
     const query = `
       SELECT 
-        an.*,
-        pn.document_file_url,
-        pn.document_metadata,
-        pn.recipient_name,
-        pn.document_preview_url,
+        sn.*,
         (
           SELECT JSON_AGG(
             JSON_BUILD_OBJECT(
-              'event_type', ne.event_type,
-              'occurred_at', ne.occurred_at,
-              'actor_address', ne.actor_address,
-              'details', ne.details
-            ) ORDER BY ne.occurred_at DESC
+              'event_type', 'viewed',
+              'occurred_at', nv.viewed_at,
+              'viewer_address', nv.viewer_address,
+              'ip_address', nv.ip_address
+            ) ORDER BY nv.viewed_at DESC
           )
-          FROM notice_events ne
-          WHERE ne.notice_id = an.id
-        ) as events
-      FROM active_notices an
-      LEFT JOIN pending_notices pn ON an.pending_notice_id = pn.id
-      WHERE an.id = $1 OR an.alert_id = $1 OR an.document_id = $1
+          FROM notice_views nv
+          WHERE nv.notice_id = sn.notice_id
+        ) as events,
+        na.accepted_at as acceptance_timestamp,
+        na.transaction_hash as acceptance_tx_hash
+      FROM served_notices sn
+      LEFT JOIN notice_acceptances na ON na.notice_id = sn.notice_id
+      WHERE sn.notice_id = $1 OR sn.alert_id = $1 OR sn.document_id = $1
     `;
 
     const result = await pool.query(query, [noticeId]);
@@ -407,7 +416,7 @@ router.post('/:noticeId/view', async (req, res) => {
 
     // Find the notice
     const noticeResult = await pool.query(
-      'SELECT id FROM active_notices WHERE id = $1 OR alert_id = $1 OR document_id = $1',
+      'SELECT id, notice_id FROM served_notices WHERE notice_id = $1 OR alert_id = $1 OR document_id = $1',
       [noticeId]
     );
 
@@ -419,27 +428,16 @@ router.post('/:noticeId/view', async (req, res) => {
 
     // Log view event
     await pool.query(`
-      INSERT INTO notice_events (
-        notice_id, event_type, actor_address, actor_type,
-        ip_address, user_agent, location_data
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO notice_views (
+        notice_id, viewer_address, ip_address, user_agent, location_data
+      ) VALUES ($1, $2, $3, $4, $5)
     `, [
-      notice.id,
-      'viewed',
+      notice.notice_id || noticeId,
       viewerAddress?.toLowerCase(),
-      viewerAddress ? 'viewer' : 'anonymous',
       ipAddress,
       userAgent,
       locationData
     ]);
-
-    // Update view count and last viewed
-    await pool.query(`
-      UPDATE active_notices 
-      SET view_count = view_count + 1,
-          last_viewed_at = CURRENT_TIMESTAMP
-      WHERE id = $1
-    `, [notice.id]);
 
     res.json({ success: true });
   } catch (error) {
@@ -455,7 +453,7 @@ router.get('/:noticeId/audit', async (req, res) => {
 
     // Find the notice
     const noticeResult = await pool.query(
-      'SELECT * FROM active_notices WHERE id = $1 OR alert_id = $1 OR document_id = $1',
+      'SELECT * FROM served_notices WHERE notice_id = $1 OR alert_id = $1 OR document_id = $1',
       [noticeId]
     );
 
@@ -465,20 +463,29 @@ router.get('/:noticeId/audit', async (req, res) => {
 
     const notice = noticeResult.rows[0];
 
-    // Get all events
-    const eventsResult = await pool.query(`
-      SELECT * FROM notice_events 
+    // Get all view events
+    const viewsResult = await pool.query(`
+      SELECT * FROM notice_views 
       WHERE notice_id = $1 
-      ORDER BY occurred_at DESC
-    `, [notice.id]);
+      ORDER BY viewed_at DESC
+    `, [notice.notice_id]);
+    
+    // Get acceptance events
+    const acceptanceResult = await pool.query(`
+      SELECT * FROM notice_acceptances 
+      WHERE notice_id = $1
+    `, [notice.notice_id]);
 
     res.json({
       notice: notice,
-      events: eventsResult.rows,
+      views: viewsResult.rows,
+      acceptance: acceptanceResult.rows[0] || null,
       summary: {
-        total_views: eventsResult.rows.filter(e => e.event_type === 'viewed').length,
-        acknowledged: notice.is_acknowledged,
-        acknowledged_at: notice.acknowledged_at
+        total_views: viewsResult.rows.length,
+        unique_viewers: [...new Set(viewsResult.rows.map(v => v.viewer_address))].length,
+        accepted: notice.accepted,
+        accepted_at: notice.accepted_at,
+        last_viewed_at: viewsResult.rows[0]?.viewed_at
       }
     });
   } catch (error) {

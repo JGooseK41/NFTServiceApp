@@ -12755,6 +12755,12 @@ async function checkUserRoles() {
                 
                 console.log('Querying blockchain for notices served by:', serverAddress || 'ALL SERVERS');
                 
+                // Clear cache if searching for ALL (to find case 34-987654)
+                if (serverAddress === 'ALL') {
+                    console.log('Clearing cache to search for all notices...');
+                    localStorage.removeItem('blockchain_notices_ALL');
+                }
+                
                 // Check cache first
                 const cacheKey = `blockchain_notices_${serverAddress}`;
                 const cached = localStorage.getItem(cacheKey);
@@ -12770,7 +12776,10 @@ async function checkUserRoles() {
                         if (parsedCache.notices.length === 1 && parsedCache.notices[0].noticeId === '0') {
                             console.log('Cache only has notice 0, checking for more notices...');
                             skipCache = true;
-                        } else if (parsedCache.notices.length > 0) {
+                        } else if (parsedCache.notices.length === 2 && !parsedCache.notices.find(n => n.caseNumber === '34-987654')) {
+                            console.log('Cache missing case 34-987654, fetching fresh data...');
+                            skipCache = true;
+                        } else if (parsedCache.notices.length > 0 && !skipCache) {
                             return parsedCache.notices.slice(0, limit);
                         } else {
                             console.log('Cache is empty, fetching fresh data');
