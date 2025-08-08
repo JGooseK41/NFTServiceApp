@@ -22073,10 +22073,17 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             }
             
             console.log('Performing blockchain verification and backend sync...');
+            console.log('Verifying for address:', userAddress);
             
             // Get all notices from blockchain
             const blockchainNotices = await getServedNoticesFromBlockchain(userAddress, 1000);
             console.log(`Found ${blockchainNotices.length} notices on blockchain`);
+            console.log('Blockchain notices:', blockchainNotices);
+            
+            // If no blockchain notices found, clear any test data
+            if (blockchainNotices.length === 0) {
+                console.log('No blockchain notices found - this might be a new account or test environment');
+            }
             
             // Process and update backend with any missing data
             for (const noticeData of blockchainNotices) {
@@ -22100,10 +22107,28 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         documentId = noticeData.noticeId;
                     }
                     
+                    // Convert recipient address to proper format
+                    let recipientAddress = noticeData.recipient;
+                    if (recipientAddress && recipientAddress.startsWith('0x')) {
+                        // Convert hex to base58 for TRON
+                        try {
+                            recipientAddress = tronWeb.address.fromHex(recipientAddress);
+                        } catch (e) {
+                            console.warn('Could not convert recipient address:', recipientAddress);
+                        }
+                    }
+                    
+                    // Extract case number from alert data if available
+                    let caseNumber = noticeData.caseNumber || '';
+                    if (!caseNumber && alertData && alertData[7]) {
+                        caseNumber = alertData[7]; // Case number from alert data
+                    }
+                    
                     // Update backend with this notice
                     if (window.BACKEND_API_URL) {
                         try {
-                            await fetch(`${window.BACKEND_API_URL}/api/notices/served`, {
+                            console.log(`Syncing notice ${noticeData.noticeId} to backend...`);
+                            const response = await fetch(`${window.BACKEND_API_URL}/api/notices/served`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
@@ -22111,14 +22136,19 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                     alertId: alertId,
                                     documentId: documentId,
                                     serverAddress: userAddress,
-                                    recipientAddress: noticeData.recipient,
+                                    recipientAddress: recipientAddress,
                                     noticeType: alertId && documentId ? 'dual' : (alertId ? 'alert' : 'document'),
-                                    caseNumber: noticeData.caseNumber || '',
+                                    issuingAgency: alertData?.[5] || '',
+                                    caseNumber: caseNumber,
                                     hasDocument: !!docData?.[0],
                                     ipfsHash: docData?.[0] || '',
                                     documentHash: ''
                                 })
                             });
+                            
+                            if (!response.ok) {
+                                console.error(`Failed to sync notice ${noticeData.noticeId}:`, response.status);
+                            }
                         } catch (e) {
                             console.warn('Failed to sync notice to backend:', e);
                         }
@@ -22273,6 +22303,9 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                     </button>
                                     <button class="btn btn-small btn-secondary" onclick="expandAllCases()">
                                         <i class="fas fa-expand"></i> Expand All
+                                    </button>
+                                    <button class="btn btn-small btn-warning" onclick="clearTestDataAndRefresh()" title="Clear test data and reload from blockchain">
+                                        <i class="fas fa-trash"></i> Clear Test Data
                                     </button>
                                 </div>
                             </div>
@@ -22463,9 +22496,36 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             });
         }
         
+        // Clear test data and force blockchain refresh
+        async function clearTestDataAndRefresh() {
+            if (!legalContract || !tronWeb.defaultAddress) {
+                uiManager.showNotification('error', 'Please connect wallet first');
+                return;
+            }
+            
+            const userAddress = tronWeb.defaultAddress.base58;
+            
+            // Clear session cache
+            console.log('Clearing all cached data...');
+            sessionStorage.removeItem(`delivery_verified_${userAddress}`);
+            
+            // Clear any local storage
+            const storedNotices = JSON.parse(localStorage.getItem('servedNotices') || '{}');
+            if (storedNotices[userAddress]) {
+                delete storedNotices[userAddress];
+                localStorage.setItem('servedNotices', JSON.stringify(storedNotices));
+            }
+            
+            uiManager.showNotification('info', 'Cleared test data, refreshing from blockchain...');
+            
+            // Force refresh from blockchain
+            await refreshDeliveryStatus(true);
+        }
+        
         // Make functions globally accessible
         window.toggleCaseExpansion = toggleCaseExpansion;
         window.expandAllCases = expandAllCases;
+        window.clearTestDataAndRefresh = clearTestDataAndRefresh;
         
         // View service certificate for unaccepted notices
         async function viewServiceCertificate(noticeId) {
