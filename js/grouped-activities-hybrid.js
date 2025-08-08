@@ -124,7 +124,7 @@ async function refreshRecentActivitiesHybrid(forceBlockchain = false) {
                         </div>
                         <i class="fas fa-chevron-down" id="${caseId}-icon" style="transition: transform 0.3s;"></i>
                     </div>
-                    <div id="${caseId}" class="case-notices" style="display: none; padding: 1rem; border-top: 1px solid var(--border-color);">
+                    <div id="${caseId}" class="case-notices" style="display: none; padding: 1rem; border-top: 1px solid var(--border-color);" data-case-id="${caseId}">
                         ${caseNoticesContent}
                     </div>
                 </div>
@@ -373,11 +373,20 @@ window.toggleNoticeCase = function(caseId) {
     console.log('Case ID:', caseId);
     console.log('Type of caseId:', typeof caseId);
     
+    // CSS escape function for special characters in IDs
+    function escapeCSS(str) {
+        return str.replace(/([!"#$%&'()*+,.\/:;<=>?@[\\\]^`{|}~])/g, '\\$1');
+    }
+    
     // Try different ways to find the element
     let content = document.getElementById(caseId);
     if (!content) {
-        console.log('Trying querySelector with #' + caseId);
-        content = document.querySelector('#' + caseId);
+        console.log('Trying querySelector with escaped ID');
+        try {
+            content = document.querySelector('#' + escapeCSS(caseId));
+        } catch (e) {
+            console.log('querySelector failed:', e);
+        }
     }
     if (!content) {
         console.log('Trying to find by data attribute');
@@ -386,7 +395,11 @@ window.toggleNoticeCase = function(caseId) {
     
     let icon = document.getElementById(caseId + '-icon');
     if (!icon) {
-        icon = document.querySelector('#' + caseId + '-icon');
+        try {
+            icon = document.querySelector('#' + escapeCSS(caseId + '-icon'));
+        } catch (e) {
+            console.log('Icon querySelector failed:', e);
+        }
     }
     
     console.log('Content element found:', !!content);
@@ -394,18 +407,33 @@ window.toggleNoticeCase = function(caseId) {
     
     if (!content) {
         console.error('Content element not found for case:', caseId);
-        console.log('All IDs in document:', 
+        console.log('All case-related IDs in document:', 
             Array.from(document.querySelectorAll('[id]'))
                 .map(e => e.id)
                 .filter(id => id.includes('case'))
                 .join(', '));
+        
+        // Try to find by partial match
+        const partialMatch = Array.from(document.querySelectorAll('[id*="case-"]')).find(el => {
+            return el.id === caseId;
+        });
+        if (partialMatch) {
+            console.log('Found partial match:', partialMatch.id);
+            content = partialMatch;
+        }
     }
     
-    if (!icon) {
-        console.error('Icon element not found for case:', caseId + '-icon');
+    if (!icon && content) {
+        // If we found content but not icon, try to find icon relative to content
+        const header = content.previousElementSibling;
+        if (header) {
+            icon = header.querySelector('.fa-chevron-down');
+            console.log('Found icon via DOM traversal:', !!icon);
+        }
     }
     
-    if (!content || !icon) {
+    if (!content) {
+        console.error('Still no content element after all attempts');
         return;
     }
     
@@ -416,12 +444,16 @@ window.toggleNoticeCase = function(caseId) {
     if (content.style.display === 'none' || content.style.display === '') {
         console.log('Setting display to block');
         content.style.display = 'block';
-        icon.style.transform = 'rotate(180deg)';
+        if (icon) {
+            icon.style.transform = 'rotate(180deg)';
+        }
         console.log('After setting - display:', content.style.display);
     } else {
         console.log('Setting display to none');
         content.style.display = 'none';
-        icon.style.transform = 'rotate(0deg)';
+        if (icon) {
+            icon.style.transform = 'rotate(0deg)';
+        }
         console.log('After setting - display:', content.style.display);
     }
 };
@@ -431,6 +463,25 @@ if (typeof window.toggleNoticeCase === 'undefined') {
     console.error('Failed to set window.toggleNoticeCase!');
 } else {
     console.log('window.toggleNoticeCase is available');
+}
+
+// Also add a simpler version as a fallback
+window.toggleCase = function(caseId) {
+    console.log('toggleCase called with:', caseId);
+    const content = document.getElementById(caseId);
+    const icon = document.getElementById(caseId + '-icon');
+    
+    if (content) {
+        if (content.style.display === 'none') {
+            content.style.display = 'block';
+            if (icon) icon.style.transform = 'rotate(180deg)';
+        } else {
+            content.style.display = 'none';  
+            if (icon) icon.style.transform = 'rotate(0deg)';
+        }
+    } else {
+        console.error('Element not found:', caseId);
+    }
 }
 
 // View notice details
@@ -466,3 +517,14 @@ if (!window.viewAuditTrail) {
         }
     };
 }
+
+// Ensure all functions are exported to window
+window.refreshRecentActivitiesHybrid = refreshRecentActivitiesHybrid;
+// toggleNoticeCase and toggleCase are already set above
+
+// Log availability on load
+console.log('Grouped Activities Hybrid loaded. Available functions:', {
+    refreshRecentActivitiesHybrid: typeof window.refreshRecentActivitiesHybrid,
+    toggleNoticeCase: typeof window.toggleNoticeCase,
+    toggleCase: typeof window.toggleCase
+});

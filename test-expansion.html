@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Case Expansion</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+        }
+        .case-group {
+            margin-bottom: 1rem;
+            border: 1px solid #333;
+            border-radius: 8px;
+        }
+        .case-header {
+            padding: 1rem;
+            background: #222;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .case-notices {
+            padding: 1rem;
+            border-top: 1px solid #333;
+            background: #2a2a2a;
+        }
+        .fa-chevron-down {
+            transition: transform 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Case Expansion</h1>
+    
+    <div class="case-group">
+        <div class="case-header" onclick="toggleTest('case-test-123')">
+            <div>
+                <strong>Case #TEST-123</strong>
+                <div>2 notices</div>
+            </div>
+            <span id="case-test-123-icon">▼</span>
+        </div>
+        <div id="case-test-123" class="case-notices" style="display: none;">
+            <p>Notice 1: Alert NFT - Delivered</p>
+            <p>Notice 2: Document NFT - Awaiting Signature</p>
+        </div>
+    </div>
+
+    <div class="case-group">
+        <div class="case-header" onclick="toggleTest('case-test-456')">
+            <div>
+                <strong>Case #TEST-456</strong>
+                <div>2 notices</div>
+            </div>
+            <span id="case-test-456-icon">▼</span>
+        </div>
+        <div id="case-test-456" class="case-notices" style="display: none;">
+            <p>Notice 1: Alert NFT - Delivered</p>
+            <p>Notice 2: Document NFT - Document Signed For</p>
+        </div>
+    </div>
+
+    <script>
+        function toggleTest(caseId) {
+            console.log('Toggle called for:', caseId);
+            const content = document.getElementById(caseId);
+            const icon = document.getElementById(caseId + '-icon');
+            
+            if (content) {
+                if (content.style.display === 'none') {
+                    content.style.display = 'block';
+                    if (icon) icon.textContent = '▲';
+                    console.log('Expanded case:', caseId);
+                } else {
+                    content.style.display = 'none';
+                    if (icon) icon.textContent = '▼';
+                    console.log('Collapsed case:', caseId);
+                }
+            } else {
+                console.error('Element not found:', caseId);
+            }
+        }
+        
+        // Test direct call
+        console.log('Test page loaded. Try clicking on the case headers.');
+    </script>
+</body>
+</html>
