@@ -16908,6 +16908,17 @@ async function checkUserRoles() {
                 LanguageManager.init();
             }
             
+            // Initialize Enhanced Energy Rental with Energy.Store API credentials
+            if (window.EnhancedEnergyRental) {
+                EnhancedEnergyRental.init({
+                    energyStoreApiId: '17933',
+                    energyStoreApiKey: '2b14f71f7068f600a36323032ce7f8cf3079c89a7345521f2aeada792a6c83a1',
+                    autoRentEnabled: true,
+                    preferredProvider: 'energyStore' // Prefer Energy.Store since we have API keys
+                });
+                console.log('Enhanced Energy Rental initialized with Energy.Store API');
+            }
+            
             // Apply site configuration
             const siteConfig = getSiteConfig();
             configureSiteForMode(siteConfig);

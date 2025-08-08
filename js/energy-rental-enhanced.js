@@ -47,9 +47,22 @@ const EnhancedEnergyRental = {
             this.providers.energyStore.apiId = config.energyStoreApiId;
             this.providers.energyStore.apiKey = config.energyStoreApiKey;
             this.providers.energyStore.enabled = true;
+            
+            // If Energy.Store is configured and preferred, update priorities
+            if (config.preferredProvider === 'energyStore') {
+                this.providers.energyStore.priority = 1;
+                this.providers.justlend.priority = 2;
+                this.providers.tronenergy.priority = 3;
+            }
         }
         
-        console.log('Enhanced Energy Rental initialized:', this.config);
+        console.log('Enhanced Energy Rental initialized:', {
+            ...this.config,
+            energyStoreEnabled: this.providers.energyStore.enabled,
+            priorities: Object.entries(this.providers)
+                .filter(([_, p]) => p.enabled)
+                .map(([k, p]) => `${k}: ${p.priority}`)
+        });
     },
 
     // Estimate energy needed with better calculation
