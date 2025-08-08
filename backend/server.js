@@ -834,10 +834,134 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong!' });
 });
 
+// Initialize database tables on startup
+async function initializeDatabase() {
+  try {
+    console.log('Initializing database tables...');
+    
+    // Create all required tables if they don't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS served_notices (
+        id SERIAL PRIMARY KEY,
+        notice_id VARCHAR(100) UNIQUE,
+        alert_id VARCHAR(100),
+        document_id VARCHAR(100),
+        server_address VARCHAR(100),
+        recipient_address VARCHAR(100),
+        notice_type VARCHAR(100),
+        issuing_agency VARCHAR(200),
+        case_number VARCHAR(100),
+        document_hash TEXT,
+        ipfs_hash TEXT,
+        has_document BOOLEAN DEFAULT false,
+        accepted BOOLEAN DEFAULT false,
+        accepted_at TIMESTAMP,
+        recipient_jurisdiction VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS notice_views (
+        id SERIAL PRIMARY KEY,
+        notice_id VARCHAR(100),
+        viewer_address VARCHAR(100),
+        ip_address VARCHAR(100),
+        user_agent TEXT,
+        location_data JSONB,
+        viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        real_ip VARCHAR(100)
+      )
+    `);
+    
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS notice_acceptances (
+        id SERIAL PRIMARY KEY,
+        notice_id VARCHAR(100) UNIQUE,
+        acceptor_address VARCHAR(100),
+        transaction_hash VARCHAR(100),
+        ip_address VARCHAR(100),
+        location_data JSONB,
+        accepted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        real_ip VARCHAR(100)
+      )
+    `);
+    
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id SERIAL PRIMARY KEY,
+        action_type VARCHAR(100),
+        actor_address VARCHAR(100),
+        target_id VARCHAR(100),
+        details JSONB,
+        ip_address VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS process_servers (
+        id SERIAL PRIMARY KEY,
+        wallet_address VARCHAR(100) UNIQUE,
+        agency_name VARCHAR(200),
+        contact_email VARCHAR(200),
+        phone_number VARCHAR(50),
+        website VARCHAR(200),
+        license_number VARCHAR(100),
+        jurisdictions JSONB,
+        verification_documents JSONB,
+        status VARCHAR(50) DEFAULT 'pending',
+        total_notices_served INTEGER DEFAULT 0,
+        average_rating DECIMAL(3,2) DEFAULT 0.00,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS wallet_connections (
+        id SERIAL PRIMARY KEY,
+        wallet_address VARCHAR(100),
+        event_type VARCHAR(100),
+        ip_address VARCHAR(100),
+        real_ip VARCHAR(100),
+        user_agent TEXT,
+        location_data JSONB,
+        site VARCHAR(200),
+        notice_count INTEGER DEFAULT 0,
+        connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS blockchain_cache (
+        id SERIAL PRIMARY KEY,
+        cache_key VARCHAR(255) UNIQUE,
+        type VARCHAR(50),
+        notice_id VARCHAR(100),
+        data JSONB,
+        network VARCHAR(50),
+        contract_address VARCHAR(100),
+        timestamp BIGINT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    console.log('✅ Database tables initialized successfully');
+  } catch (error) {
+    console.error('❌ Failed to initialize database:', error);
+  }
+}
+
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  
+  // Initialize database tables
+  await initializeDatabase();
 });
 
 module.exports = app;

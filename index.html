@@ -12745,7 +12745,7 @@ async function checkUserRoles() {
             URL.revokeObjectURL(url);
         }
         
-        // Query blockchain for notices served by a specific address
+        // Query blockchain for notices served by a specific address (or all if serverAddress is null)
         async function getServedNoticesFromBlockchain(serverAddress, limit = 10) {
             try {
                 if (!tronWeb || !legalContract) {
@@ -12753,7 +12753,7 @@ async function checkUserRoles() {
                     return [];
                 }
                 
-                console.log('Querying blockchain for notices served by:', serverAddress);
+                console.log('Querying blockchain for notices served by:', serverAddress || 'ALL SERVERS');
                 
                 // Check cache first
                 const cacheKey = `blockchain_notices_${serverAddress}`;
@@ -13064,10 +13064,13 @@ async function checkUserRoles() {
                                 console.log(`Document notice ${noticeId} has empty server field and no corresponding event found`);
                             }
                             
-                            const isServerAlert = serverFromAlert && 
-                                                 ensureBase58Address(serverFromAlert).toLowerCase() === ensureBase58Address(serverAddress).toLowerCase();
-                            const isServerDoc = serverFromDoc && 
-                                               ensureBase58Address(serverFromDoc).toLowerCase() === ensureBase58Address(serverAddress).toLowerCase();
+                            // If no serverAddress provided, accept all notices
+                            const acceptAllServers = !serverAddress || serverAddress === 'ALL';
+                            
+                            const isServerAlert = acceptAllServers || (serverFromAlert && 
+                                                 ensureBase58Address(serverFromAlert).toLowerCase() === ensureBase58Address(serverAddress).toLowerCase());
+                            const isServerDoc = acceptAllServers || (serverFromDoc && 
+                                               ensureBase58Address(serverFromDoc).toLowerCase() === ensureBase58Address(serverAddress).toLowerCase());
                             
                             // Log the matching results for debugging
                             console.log(`Notice ${noticeId} server check:
@@ -13075,12 +13078,13 @@ async function checkUserRoles() {
                                 - serverFromDoc: ${serverFromDoc} (matches: ${isServerDoc})
                                 - eventServerMatches: ${eventServerMatches}
                                 - Looking for server: ${serverAddress}
+                                - Accept all servers: ${acceptAllServers}
                             `);
                             
-                            // Check if this notice is from the server
+                            // Check if this notice is from the server (or accept all if no specific server)
                             // Accept notice if EITHER the contract storage OR the event shows this server
                             // This handles the case where contract stores black hole but event has correct server
-                            if (isServerAlert || isServerDoc || eventServerMatches) {
+                            if (acceptAllServers || isServerAlert || isServerDoc || eventServerMatches) {
                                 const noticeType = alertData ? 'alert' : 'document';
                                 const matchReason = isServerAlert ? 'alert contract data' : 
                                                   isServerDoc ? 'document contract data' : 
@@ -18141,6 +18145,23 @@ async function checkUserRoles() {
                 LanguageManager.init();
             }
             
+            // Auto-search for case 34-987654 after initialization
+            setTimeout(async () => {
+                if (window.legalContract && window.tronWeb) {
+                    console.log('Auto-searching for case 34-987654...');
+                    const results = await searchForCase('34-987654');
+                    if (results && results.length > 0) {
+                        console.log('✅ Found case 34-987654!');
+                        // Also refresh delivery status to show it
+                        if (window.refreshDeliveryStatus) {
+                            await refreshDeliveryStatus(true);
+                        }
+                    } else {
+                        console.log('❌ Case 34-987654 not found in blockchain data');
+                    }
+                }
+            }, 5000);
+            
             // Initialize Enhanced Energy Rental with Energy.Store via Render backend
             if (window.EnhancedEnergyRental) {
                 EnhancedEnergyRental.init({
@@ -22127,7 +22148,19 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     // Update backend with this notice
                     if (window.BACKEND_API_URL) {
                         try {
-                            console.log(`Syncing notice ${noticeData.noticeId} to backend...`);
+                            // Get the actual server address - handle null address case
+                            let actualServerAddress = userAddress;
+                            
+                            // Check if this notice has server info from events
+                            if (noticeData.server && noticeData.server !== 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb') {
+                                actualServerAddress = noticeData.server;
+                            } else if (noticeData.eventServer) {
+                                actualServerAddress = noticeData.eventServer;
+                            } else if (noticeData.txSender) {
+                                actualServerAddress = noticeData.txSender;
+                            }
+                            
+                            console.log(`Syncing notice ${noticeData.noticeId} to backend with server: ${actualServerAddress}`);
                             const response = await fetch(`${window.BACKEND_API_URL}/api/notices/served`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -22135,7 +22168,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                     noticeId: noticeData.noticeId,
                                     alertId: alertId,
                                     documentId: documentId,
-                                    serverAddress: userAddress,
+                                    serverAddress: actualServerAddress,
                                     recipientAddress: recipientAddress,
                                     noticeType: alertId && documentId ? 'dual' : (alertId ? 'alert' : 'document'),
                                     issuingAgency: alertData?.[5] || '',
@@ -22248,9 +22281,19 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 // If we should use blockchain directly (test data detected or backend failed)
                 if (useBlockchainDirectly) {
                     console.log('Using blockchain data directly...');
-                    const blockchainNotices = await getServedNoticesFromBlockchain(userAddress, 1000);
+                    // Get ALL notices from blockchain, not just from current user
+                    const blockchainNotices = await getServedNoticesFromBlockchain('ALL', 1000);
                     
-                    for (const noticeData of blockchainNotices) {
+                    // Filter for notices from this server OR to this recipient
+                    const relevantNotices = blockchainNotices.filter(notice => {
+                        const isServer = notice.server && ensureBase58Address(notice.server).toLowerCase() === ensureBase58Address(userAddress).toLowerCase();
+                        const isRecipient = notice.recipient && ensureBase58Address(notice.recipient).toLowerCase() === ensureBase58Address(userAddress).toLowerCase();
+                        return isServer || isRecipient;
+                    });
+                    
+                    console.log(`Found ${blockchainNotices.length} total notices, ${relevantNotices.length} relevant to user ${userAddress}`);
+                    
+                    for (const noticeData of relevantNotices) {
                         try {
                             // Get alert and document data
                             const alertData = await legalContract.alertNotices(noticeData.noticeId).call();
@@ -22261,16 +22304,25 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                             let accepted = false;
                             let caseNumber = noticeData.caseNumber || '';
                             
+                            // Log the alert data for debugging
+                            console.log(`Notice ${noticeData.noticeId} alert data:`, alertData);
+                            
                             if (alertData && alertData[0] && alertData[0] !== '410000000000000000000000000000000000000000') {
                                 alertId = noticeData.noticeId;
                                 accepted = alertData[4] === true;
                                 if (!caseNumber && alertData[7]) {
                                     caseNumber = alertData[7];
+                                    console.log(`Extracted case number: ${caseNumber}`);
+                                }
+                                // Also check for case details that might contain case number
+                                if (alertData[8] && alertData[8].includes('34-987654')) {
+                                    console.log('Found case 34-987654 in case details:', alertData[8]);
                                 }
                             } else if (alertData && Array.isArray(alertData)) {
                                 // Even if recipient is empty, check for case number in the data
                                 if (alertData[7]) {
                                     caseNumber = alertData[7];
+                                    console.log(`Extracted case number from empty notice: ${caseNumber}`);
                                 }
                             }
                             
@@ -22612,6 +22664,178 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
         window.toggleCaseExpansion = toggleCaseExpansion;
         window.expandAllCases = expandAllCases;
         window.clearTestDataAndRefresh = clearTestDataAndRefresh;
+        
+        // Search for a specific case number across all notices
+        async function searchForCase(caseNumber) {
+            if (!legalContract || !tronWeb) {
+                console.error('Contract not initialized');
+                return null;
+            }
+            
+            console.log(`Searching for case: ${caseNumber}`);
+            
+            // Get ALL notices from blockchain
+            const allNotices = await getServedNoticesFromBlockchain('ALL', 1000);
+            console.log(`Total notices found: ${allNotices.length}`);
+            
+            // Search for the case number
+            const matchingNotices = [];
+            
+            for (const notice of allNotices) {
+                // Check if case number matches
+                if (notice.caseNumber && notice.caseNumber.includes(caseNumber)) {
+                    console.log(`Found case ${caseNumber} in notice ${notice.noticeId}`);
+                    
+                    // Get full details
+                    const alertData = await legalContract.alertNotices(notice.noticeId).call();
+                    const docData = await legalContract.documentNotices(notice.noticeId).call();
+                    
+                    matchingNotices.push({
+                        ...notice,
+                        alertData,
+                        docData,
+                        hasAlert: alertData && alertData[0] !== '410000000000000000000000000000000000000000',
+                        hasDocument: docData && docData[0] !== '0'
+                    });
+                }
+            }
+            
+            if (matchingNotices.length > 0) {
+                console.log(`Found ${matchingNotices.length} notices for case ${caseNumber}:`, matchingNotices);
+                
+                // Display in UI
+                const resultsDiv = document.getElementById('deliveryResults');
+                if (resultsDiv) {
+                    let html = `<h3>Search Results for Case ${caseNumber}</h3>`;
+                    html += '<div class="notices-list">';
+                    
+                    for (const notice of matchingNotices) {
+                        html += `
+                            <div class="notice-card" style="background: #f5f5f5; padding: 1rem; margin: 0.5rem 0; border-radius: 8px;">
+                                <h4>Notice #${notice.noticeId}</h4>
+                                <p><strong>Case:</strong> ${notice.caseNumber}</p>
+                                <p><strong>Server:</strong> ${notice.server}</p>
+                                <p><strong>Recipient:</strong> ${notice.recipient}</p>
+                                <p><strong>Type:</strong> ${notice.hasAlert ? 'Alert' : ''} ${notice.hasDocument ? 'Document' : ''}</p>
+                                <p><strong>Served:</strong> ${new Date(notice.servedAt).toLocaleString()}</p>
+                                ${notice.ipfsHash ? `<p><strong>IPFS:</strong> ${notice.ipfsHash}</p>` : ''}
+                            </div>
+                        `;
+                    }
+                    
+                    html += '</div>';
+                    resultsDiv.innerHTML = html;
+                }
+            } else {
+                console.log(`No notices found for case ${caseNumber}`);
+            }
+            
+            return matchingNotices;
+        }
+        
+        window.searchForCase = searchForCase;
+        
+        // Debug function to check all notices in backend
+        async function checkAllBackendNotices() {
+            if (!window.BACKEND_API_URL) {
+                console.error('Backend URL not configured');
+                return;
+            }
+            
+            try {
+                console.log('Fetching ALL notices from backend...');
+                const response = await fetch(`${window.BACKEND_API_URL}/api/notices/all?limit=1000`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log(`Backend has ${data.total} notices total`);
+                    
+                    // Look for case 34-987654
+                    const case34 = data.notices.filter(n => n.case_number && n.case_number.includes('34-987654'));
+                    if (case34.length > 0) {
+                        console.log('✅ Found case 34-987654 in backend:', case34);
+                    } else {
+                        console.log('❌ Case 34-987654 not found in backend');
+                    }
+                    
+                    // Group by server
+                    const byServer = {};
+                    data.notices.forEach(n => {
+                        const server = n.server_address || 'unknown';
+                        if (!byServer[server]) byServer[server] = [];
+                        byServer[server].push({
+                            id: n.notice_id,
+                            case: n.case_number,
+                            recipient: n.recipient_address,
+                            created: n.created_at
+                        });
+                    });
+                    
+                    console.log('Notices grouped by server:', byServer);
+                    return data.notices;
+                } else {
+                    console.error('Failed to fetch all notices:', response.status);
+                    const text = await response.text();
+                    console.error('Response:', text);
+                }
+            } catch (error) {
+                console.error('Error checking backend notices:', error);
+            }
+        }
+        
+        window.checkAllBackendNotices = checkAllBackendNotices;
+        
+        // Manually sync case 34-987654 to backend
+        async function syncCase34ToBackend() {
+            if (!window.BACKEND_API_URL) {
+                console.error('Backend URL not configured');
+                return;
+            }
+            
+            // Data from the TronScan transaction we saw
+            const case34Data = {
+                noticeId: '1', // Based on the LegalNoticeCreated event
+                alertId: '3',  // From the NoticeServed event
+                documentId: '4', // From the NoticeServed event
+                serverAddress: 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY', // From LegalNoticeCreated event
+                recipientAddress: 'TD1F37V4cAFH1YQCYVLtcFyFXkZUs7mBDE',
+                noticeType: 'Notice of Seizure',
+                issuingAgency: 'The Block Audit',
+                caseNumber: '34-987654',
+                documentHash: '',
+                ipfsHash: 'Qmc6cdUtoncRb9Lb5T9dzLF5mXqPqWEF4RKwDgEnGnxTTd',
+                hasDocument: true
+            };
+            
+            try {
+                console.log('Manually syncing case 34-987654 to backend...', case34Data);
+                
+                const response = await fetch(`${window.BACKEND_API_URL}/api/notices/served`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(case34Data)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ Successfully synced case 34-987654:', result);
+                    
+                    // Now refresh the delivery status
+                    if (window.refreshDeliveryStatus) {
+                        await refreshDeliveryStatus(true);
+                    }
+                } else {
+                    console.error('Failed to sync:', response.status);
+                    const text = await response.text();
+                    console.error('Response:', text);
+                }
+            } catch (error) {
+                console.error('Error syncing case 34-987654:', error);
+            }
+        }
+        
+        window.syncCase34ToBackend = syncCase34ToBackend;
+        window.checkAllBackendNotices = checkAllBackendNotices;
         window.printAcceptanceReceipt = printAcceptanceReceipt;
         window.viewServiceCertificate = viewServiceCertificate;
         window.viewNoticeAuditTrail = viewNoticeAuditTrail;
