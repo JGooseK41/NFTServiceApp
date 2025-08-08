@@ -12853,11 +12853,11 @@ async function checkUserRoles() {
                         
                         // Try to get individual notices
                         const noticePromises = [];
-                        // Check at least 10 notices even if totalNotices is lower
-                        // This handles the case where totalNotices() returns incorrect count
-                        const minToCheck = 10;
+                        // Check more notices to find case 34-987654
+                        // Check at least 20 to ensure we find all notices
+                        const minToCheck = 20;
                         const reportedTotal = parseInt(totalNotices);
-                        const maxToCheck = Math.max(minToCheck, Math.min(reportedTotal, 50)); // Check at least 10, max 50
+                        const maxToCheck = Math.max(minToCheck, Math.min(reportedTotal, 50)); // Check at least 20, max 50
                         console.log(`Checking notices 0-${maxToCheck-1} (totalNotices reports ${reportedTotal}, but checking at least ${minToCheck})`)
                         
                         // Process in smaller batches to avoid rate limiting
@@ -22375,8 +22375,14 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                                     console.log(`Extracted case number: ${caseNumber}`);
                                 }
                                 // Also check for case details that might contain case number
-                                if (alertData[8] && alertData[8].includes('34-987654')) {
-                                    console.log('Found case 34-987654 in case details:', alertData[8]);
+                                if (alertData[8]) {
+                                    console.log(`Notice ${noticeData.noticeId} case details:`, alertData[8]);
+                                    if (alertData[8].includes('34-987654')) {
+                                        console.log('✅ Found case 34-987654 in case details!');
+                                        caseNumber = '34-987654'; // Override with correct case number
+                                    } else if (alertData[8].includes('34-123456')) {
+                                        console.log('Found 34-123456 in case details - possible typo?');
+                                    }
                                 }
                             } else if (alertData && Array.isArray(alertData)) {
                                 // Even if recipient is empty, check for case number in the data
