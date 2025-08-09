@@ -8,6 +8,7 @@ class UnifiedNoticeSystem {
         this.backend = window.BACKEND_API_URL || 'https://nftserviceapp.onrender.com';
         this.contractAddress = window.CONTRACT_ADDRESS;
         this.serverAddress = null; // Will be set on wallet connect
+        this.serverAgency = null; // Will be fetched from blockchain
         this.cases = new Map(); // Organized by case number
         this.pdfMerger = null; // For combining multiple PDFs
     }
@@ -22,6 +23,9 @@ class UnifiedNoticeSystem {
         if (window.tronWeb && window.tronWeb.defaultAddress) {
             this.serverAddress = window.tronWeb.defaultAddress.base58;
             console.log('Server address:', this.serverAddress);
+            
+            // Fetch server's registered agency
+            await this.fetchServerAgency();
         }
 
         // Load PDF merger library
@@ -34,6 +38,37 @@ class UnifiedNoticeSystem {
         await this.loadServerCases();
         
         return true;
+    }
+    
+    /**
+     * Fetch the server's registered agency from blockchain
+     */
+    async fetchServerAgency() {
+        try {
+            if (!window.legalContract || !this.serverAddress) {
+                console.log('Contract not ready, defaulting to The Block Audit');
+                this.serverAgency = 'The Block Audit';
+                return;
+            }
+            
+            // Get server info from blockchain
+            const serverInfo = await window.legalContract.processServers(this.serverAddress).call();
+            
+            // Extract agency (index 4 in the return array)
+            // Returns: [serverId, noticesServed, registeredDate, name, agency, active]
+            const agency = serverInfo[4] || 'The Block Audit';
+            
+            this.serverAgency = agency;
+            console.log('Server registered with agency:', this.serverAgency);
+            
+            // Store in localStorage for offline access
+            localStorage.setItem(`server_agency_${this.serverAddress}`, this.serverAgency);
+            
+        } catch (error) {
+            console.warn('Could not fetch agency from blockchain:', error);
+            // Try localStorage cache
+            this.serverAgency = localStorage.getItem(`server_agency_${this.serverAddress}`) || 'The Block Audit';
+        }
     }
 
     /**
@@ -552,7 +587,7 @@ class UnifiedNoticeSystem {
                     <div class="case-info">
                         <h3>Case #${caseData.caseNumber}</h3>
                         <span class="case-type">${caseData.noticeType}</span>
-                        <span class="case-agency">${caseData.issuingAgency || 'The Block Audit'}</span>
+                        <span class="case-agency">${caseData.issuingAgency || this.serverAgency || 'The Block Audit'}</span>
                         <span class="recipient-count" style="margin-left: 10px; padding: 2px 8px; background: #e3f2fd; color: #1976d2; border-radius: 12px; font-size: 0.85em; font-weight: 500;">${caseData.recipientCount || 1} Notice${(caseData.recipientCount || 1) > 1 ? 's' : ''} Served</span>
                     </div>
                     <div class="case-status">

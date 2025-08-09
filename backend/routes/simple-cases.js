@@ -51,7 +51,7 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
                     caseNumber: caseNumber,
                     serverAddress: row.server_address,
                     noticeType: row.notice_type,
-                    issuingAgency: row.issuing_agency || 'The Block Audit', // Server's registered agency
+                    issuingAgency: row.issuing_agency || 'The Block Audit', // Will be fetched from blockchain on frontend
                     createdAt: row.created_at,
                     recipients: []
                 });
