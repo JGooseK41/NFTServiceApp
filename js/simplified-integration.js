@@ -143,10 +143,11 @@ async function createTextOnlyNotice(recipientAddress) {
             });
             
             hideProcessing();
-        
-        uiManager.showNotification('success', 'Text notice sent successfully!');
-        closeMintModal();
-        refreshNotices();
+            
+            uiManager.showNotification('success', 'Text notice sent successfully!');
+            closeMintModal();
+            refreshNotices();
+        }
         
     } catch (error) {
         hideProcessing();
