@@ -855,6 +855,10 @@ app.use('/api/notices', noticesRouter);
 const casesRouter = require('./routes/cases');
 app.use('/api', casesRouter);
 
+// Simple cases route (no joins)
+const simpleCasesRouter = require('./routes/simple-cases');
+app.use('/api', simpleCasesRouter);
+
 // Blockchain sync routes
 const blockchainSyncRouter = require('./routes/blockchain-sync');
 app.use('/api', blockchainSyncRouter);

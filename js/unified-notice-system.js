@@ -203,9 +203,17 @@ class UnifiedNoticeSystem {
             await this.syncFromBlockchain();
             
             // Then query backend for structured data
-            const response = await fetch(
+            let response = await fetch(
                 `${this.backend}/api/servers/${this.serverAddress}/cases`
             );
+            
+            // If first endpoint fails, try simpler endpoint
+            if (!response.ok) {
+                console.log('Trying simple cases endpoint...');
+                response = await fetch(
+                    `${this.backend}/api/servers/${this.serverAddress}/simple-cases`
+                );
+            }
             
             if (response.ok) {
                 const data = await response.json();
@@ -238,12 +246,13 @@ class UnifiedNoticeSystem {
         try {
             // Get total supply of NFTs
             const totalSupply = await window.legalContract.totalSupply().call();
-            console.log(`Total NFTs on blockchain: ${totalSupply}`);
+            const totalSupplyNum = Number(totalSupply.toString());
+            console.log(`Total NFTs on blockchain: ${totalSupplyNum}`);
             
             const notices = [];
             
             // Check each NFT (up to 50 to cover your notices)
-            for (let i = 1; i <= Math.min(totalSupply, 50); i++) {
+            for (let i = 1; i <= Math.min(totalSupplyNum, 50); i++) {
                 try {
                     // Get alert data
                     const alertData = await window.legalContract.getAlert(i).call();
