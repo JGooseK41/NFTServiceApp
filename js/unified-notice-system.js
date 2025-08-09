@@ -53,9 +53,9 @@ class UnifiedNoticeSystem {
             });
         }
     }
-
+    
     /**
-     * DOCUMENT HANDLING - Merge multiple PDFs into one
+     * DOCUMENT HANDLING - Merge multiple PDFs into one  
      */
     async mergeMultiplePDFs(files) {
         console.log(`📄 Merging ${files.length} PDF files...`);
