@@ -851,6 +851,10 @@ app.use('/api/documents', documentsRouter);
 const noticesRouter = require('./routes/notices');
 app.use('/api/notices', noticesRouter);
 
+// Case management routes (unified system)
+const casesRouter = require('./routes/cases');
+app.use('/api', casesRouter);
+
 // Audit log routes
 const auditRouter = require('./routes/audit');
 app.use('/api/audit', auditRouter);

@@ -56,6 +56,10 @@
     <script src="js/notice-workflow.js"></script>
     <script src="js/server-dashboard.js"></script>
     <script src="js/clear-test-data.js"></script>
+    <!-- Complete overhaul unified system -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="js/unified-notice-system.js"></script>
+    <link href="css/unified-system.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -3531,17 +3535,18 @@
             <div class="card server-only" id="recentActivitiesCard">
                 <div class="card-header">
                     <h2><i class="fas fa-history"></i> Recent Served Notices</h2>
-                    <button class="btn btn-secondary btn-small" onclick="refreshRecentActivitiesHybrid()">
+                    <button class="btn btn-secondary btn-small" onclick="unifiedSystem.refreshData()">
                         <i class="fas fa-sync"></i> Refresh
                     </button>
-                    <button class="btn btn-secondary btn-small" onclick="refreshRecentActivitiesHybrid(true)" title="Force refresh from blockchain">
-                        <i class="fas fa-sync-alt"></i> Force Refresh
+                    <button class="btn btn-secondary btn-small" onclick="unifiedSystem.clearTestData()" title="Clear test data">
+                        <i class="fas fa-trash"></i> Clear Test Data
                     </button>
                 </div>
-                <div id="recentActivitiesContent">
+                <div id="unifiedCasesContainer">
+                    <!-- Unified system will render cases here -->
                     <div class="empty-state">
                         <i class="fas fa-clipboard"></i>
-                        <h3>No recent activity</h3>
+                        <h3>Loading cases...</h3>
                         <p>Your served notices will appear here</p>
                     </div>
                 </div>
@@ -18482,22 +18487,25 @@ async function checkUserRoles() {
                 LanguageManager.init();
             }
             
-            // Auto-search for case 34-987654 after initialization
-            setTimeout(async () => {
-                if (window.legalContract && window.tronWeb) {
-                    console.log('Auto-searching for case 34-987654...');
-                    const results = await searchForCase('34-987654');
-                    if (results && results.length > 0) {
-                        console.log('✅ Found case 34-987654!');
-                        // Also refresh delivery status to show it
-                        if (window.refreshDeliveryStatus) {
-                            await refreshDeliveryStatus(true);
-                        }
-                    } else {
-                        console.log('❌ Case 34-987654 not found in blockchain data');
+            // Initialize unified system when wallet connects
+            if (window.tronWeb && window.tronWeb.ready) {
+                setTimeout(async () => {
+                    if (window.unifiedSystem) {
+                        console.log('🚀 Initializing Unified Notice System...');
+                        await window.unifiedSystem.init();
+                        // Render cases in the recent activities container
+                        window.unifiedSystem.renderCases('unifiedCasesContainer');
                     }
+                }, 2000);
+            }
+            
+            // Listen for wallet connection
+            window.addEventListener('walletConnected', async () => {
+                if (window.unifiedSystem) {
+                    await window.unifiedSystem.init();
+                    window.unifiedSystem.renderCases('unifiedCasesContainer');
                 }
-            }, 5000);
+            });
             
             // Initialize Enhanced Energy Rental with Energy.Store via Render backend
             if (window.EnhancedEnergyRental) {
@@ -23349,10 +23357,19 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             if (selectedTab) {
                 selectedTab.style.display = 'block';
                 
-                // If showing delivery tab, use new dashboard
+                // If showing delivery tab, use unified system
                 if (tabName === 'delivery') {
-                    // Initialize the new server dashboard
-                    if (window.serverDashboard) {
+                    // Initialize the unified system and render in delivery container
+                    if (window.unifiedSystem) {
+                        window.unifiedSystem.init().then(() => {
+                            // Replace delivery content with unified cases
+                            const deliveryResults = document.getElementById('deliveryResults');
+                            if (deliveryResults) {
+                                deliveryResults.id = 'unifiedDeliveryCases';
+                                window.unifiedSystem.renderCases('unifiedDeliveryCases');
+                            }
+                        });
+                    } else if (window.serverDashboard) {
                         window.serverDashboard.init();
                     } else {
                         // Fallback to old method if new system not loaded
