@@ -8,7 +8,14 @@ class UnifiedNoticeSystem {
         this.backend = window.BACKEND_API_URL || 'https://nftserviceapp.onrender.com';
         this.contractAddress = window.CONTRACT_ADDRESS;
         this.serverAddress = null; // Will be set on wallet connect
-        this.serverAgency = null; // Will be fetched from blockchain
+        this.serverInfo = {
+            serverId: null,
+            name: null,
+            agency: null,
+            noticesServed: 0,
+            registeredDate: null,
+            active: false
+        }; // Complete server profile from blockchain
         this.cases = new Map(); // Organized by case number
         this.pdfMerger = null; // For combining multiple PDFs
     }
@@ -26,6 +33,12 @@ class UnifiedNoticeSystem {
             
             // Fetch server's registered agency
             await this.fetchServerAgency();
+            
+            // Check if server is active and show warning if not
+            if (this.serverInfo.serverId && this.serverInfo.serverId !== '0' && !this.serverInfo.active) {
+                console.warn('⚠️ Server account is inactive');
+                this.showNotification('⚠️ Warning: Your server account is currently inactive. Contact The Block Audit to reactivate.', 'warning');
+            }
         }
 
         // Load PDF merger library
@@ -41,33 +54,55 @@ class UnifiedNoticeSystem {
     }
     
     /**
-     * Fetch the server's registered agency from blockchain
+     * Fetch the complete server profile from blockchain
      */
     async fetchServerAgency() {
         try {
             if (!window.legalContract || !this.serverAddress) {
-                console.log('Contract not ready, defaulting to The Block Audit');
-                this.serverAgency = 'The Block Audit';
+                console.log('Contract not ready, using defaults');
+                this.serverInfo.agency = 'The Block Audit';
+                this.serverAgency = 'The Block Audit'; // Keep for backward compatibility
                 return;
             }
             
             // Get server info from blockchain
-            const serverInfo = await window.legalContract.processServers(this.serverAddress).call();
+            const blockchainData = await window.legalContract.processServers(this.serverAddress).call();
             
-            // Extract agency (index 4 in the return array)
+            // Parse all server data
             // Returns: [serverId, noticesServed, registeredDate, name, agency, active]
-            const agency = serverInfo[4] || 'The Block Audit';
+            this.serverInfo = {
+                serverId: blockchainData[0] ? blockchainData[0].toString() : '0',
+                noticesServed: blockchainData[1] ? parseInt(blockchainData[1].toString()) : 0,
+                registeredDate: blockchainData[2] ? new Date(parseInt(blockchainData[2].toString()) * 1000) : null,
+                name: blockchainData[3] || 'Process Server',
+                agency: blockchainData[4] || 'The Block Audit',
+                active: blockchainData[5] || false
+            };
             
-            this.serverAgency = agency;
-            console.log('Server registered with agency:', this.serverAgency);
+            // Keep backward compatibility
+            this.serverAgency = this.serverInfo.agency;
             
-            // Store in localStorage for offline access
-            localStorage.setItem(`server_agency_${this.serverAddress}`, this.serverAgency);
+            console.log('Server profile loaded:', this.serverInfo);
+            
+            // Check if server is active
+            if (!this.serverInfo.active && this.serverInfo.serverId !== '0') {
+                console.warn('⚠️ Warning: This server account is not active');
+            }
+            
+            // Store complete profile in localStorage for offline access
+            localStorage.setItem(`server_profile_${this.serverAddress}`, JSON.stringify(this.serverInfo));
             
         } catch (error) {
-            console.warn('Could not fetch agency from blockchain:', error);
+            console.warn('Could not fetch server profile from blockchain:', error);
             // Try localStorage cache
-            this.serverAgency = localStorage.getItem(`server_agency_${this.serverAddress}`) || 'The Block Audit';
+            const cached = localStorage.getItem(`server_profile_${this.serverAddress}`);
+            if (cached) {
+                this.serverInfo = JSON.parse(cached);
+                this.serverAgency = this.serverInfo.agency;
+            } else {
+                this.serverInfo.agency = 'The Block Audit';
+                this.serverAgency = 'The Block Audit';
+            }
         }
     }
 
@@ -546,8 +581,42 @@ class UnifiedNoticeSystem {
             c => !c.caseNumber.includes('TEST')
         );
 
+        // Build the server profile header
+        let serverProfileHtml = '';
+        if (this.serverInfo.serverId && this.serverInfo.serverId !== '0') {
+            const registrationDate = this.serverInfo.registeredDate ? 
+                this.serverInfo.registeredDate.toLocaleDateString() : 'Not available';
+            
+            serverProfileHtml = `
+                <div class="server-profile-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                        <div>
+                            <h2 style="margin: 0; font-size: 1.5rem; font-weight: 600;">
+                                ${this.serverInfo.name || 'Process Server'} 
+                                <span style="opacity: 0.8; font-size: 0.9rem;">#${this.serverInfo.serverId}</span>
+                            </h2>
+                            <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">
+                                <i class="fas fa-building"></i> ${this.serverInfo.agency}
+                                ${this.serverInfo.active ? 
+                                    '<span style="margin-left: 1rem; padding: 2px 8px; background: rgba(255,255,255,0.2); border-radius: 12px; font-size: 0.85em;"><i class="fas fa-check-circle"></i> Active</span>' : 
+                                    '<span style="margin-left: 1rem; padding: 2px 8px; background: rgba(255,100,100,0.3); border-radius: 12px; font-size: 0.85em;"><i class="fas fa-exclamation-circle"></i> Inactive</span>'
+                                }
+                            </p>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 2rem; font-weight: bold;">${this.serverInfo.noticesServed || 0}</div>
+                            <div style="opacity: 0.9; font-size: 0.9rem;">Total Notices Served</div>
+                            <div style="opacity: 0.8; font-size: 0.8rem; margin-top: 0.25rem;">
+                                <i class="fas fa-calendar"></i> Since ${registrationDate}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
         if (casesToRender.length === 0) {
-            container.innerHTML = `
+            container.innerHTML = serverProfileHtml + `
                 <div class="no-cases">
                     <i class="fas fa-inbox" style="font-size: 3rem; color: var(--text-muted);"></i>
                     <p>No cases found</p>
@@ -556,7 +625,7 @@ class UnifiedNoticeSystem {
             return;
         }
 
-        container.innerHTML = casesToRender.map(caseData => this.renderCase(caseData)).join('');
+        container.innerHTML = serverProfileHtml + casesToRender.map(caseData => this.renderCase(caseData)).join('');
         
         // Ensure click handlers work
         this.attachCaseHandlers();
