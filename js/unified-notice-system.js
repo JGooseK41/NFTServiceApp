@@ -552,7 +552,7 @@ class UnifiedNoticeSystem {
                     <div class="case-info">
                         <h3>Case #${caseData.caseNumber}</h3>
                         <span class="case-type">${caseData.noticeType}</span>
-                        <span class="case-agency">${caseData.issuingAgency || 'Legal Department'}</span>
+                        <span class="case-agency">${caseData.issuingAgency || 'The Block Audit'}</span>
                         <span class="recipient-count" style="margin-left: 10px; padding: 2px 8px; background: #e3f2fd; color: #1976d2; border-radius: 12px; font-size: 0.85em; font-weight: 500;">${caseData.recipientCount || 1} Notice${(caseData.recipientCount || 1) > 1 ? 's' : ''} Served</span>
                     </div>
                     <div class="case-status">
