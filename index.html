@@ -408,6 +408,28 @@
             pointer-events: none;
         }
 
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
         .stat-card {
             background: var(--card-bg);
             border: 1px solid var(--border-color);
@@ -3535,6 +3557,9 @@
             <div class="card server-only" id="recentActivitiesCard">
                 <div class="card-header">
                     <h2><i class="fas fa-history"></i> Recent Served Notices</h2>
+                    <button class="btn btn-primary btn-small" onclick="unifiedSystem.syncAndRefresh()">
+                        <i class="fas fa-cloud-download-alt"></i> Sync Blockchain
+                    </button>
                     <button class="btn btn-secondary btn-small" onclick="unifiedSystem.refreshData()">
                         <i class="fas fa-sync"></i> Refresh
                     </button>

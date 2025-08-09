@@ -5,7 +5,7 @@
 
 class UnifiedNoticeSystem {
     constructor() {
-        this.backend = window.BACKEND_API_URL || 'https://nft-legal-service-backend.onrender.com';
+        this.backend = window.BACKEND_API_URL || 'https://nftserviceapp.onrender.com';
         this.contractAddress = window.CONTRACT_ADDRESS;
         this.serverAddress = null; // Will be set on wallet connect
         this.cases = new Map(); // Organized by case number
@@ -26,6 +26,9 @@ class UnifiedNoticeSystem {
 
         // Load PDF merger library
         await this.loadPDFMerger();
+        
+        // Sync blockchain data to backend first
+        await this.syncFromBlockchain();
         
         // Load all cases for this server
         await this.loadServerCases();
@@ -196,7 +199,10 @@ class UnifiedNoticeSystem {
         }
 
         try {
-            // ALWAYS query backend by server address first
+            // First, sync from blockchain to ensure backend has latest data
+            await this.syncFromBlockchain();
+            
+            // Then query backend for structured data
             const response = await fetch(
                 `${this.backend}/api/servers/${this.serverAddress}/cases`
             );
@@ -204,14 +210,215 @@ class UnifiedNoticeSystem {
             if (response.ok) {
                 const data = await response.json();
                 this.processCasesData(data.cases || []);
+            } else {
+                // If backend fails, use blockchain data directly
+                console.log('Backend not responding, using blockchain data directly');
+                await this.loadDirectFromBlockchain();
             }
-            
-            // Then verify with blockchain in background
-            this.verifyWithBlockchain();
             
         } catch (error) {
             console.error('Error loading cases:', error);
+            // Fall back to blockchain
+            await this.loadDirectFromBlockchain();
         }
+    }
+
+    /**
+     * Sync blockchain data to backend
+     */
+    async syncFromBlockchain() {
+        console.log('🔄 Syncing from blockchain to backend...');
+        
+        // If contract not ready, do manual sync with known data
+        if (!window.legalContract || !window.tronWeb) {
+            console.log('Contract not ready, doing manual sync...');
+            return await this.manualSyncKnownCases();
+        }
+
+        try {
+            // Get total supply of NFTs
+            const totalSupply = await window.legalContract.totalSupply().call();
+            console.log(`Total NFTs on blockchain: ${totalSupply}`);
+            
+            const notices = [];
+            
+            // Check each NFT (up to 50 to cover your notices)
+            for (let i = 1; i <= Math.min(totalSupply, 50); i++) {
+                try {
+                    // Get alert data
+                    const alertData = await window.legalContract.getAlert(i).call();
+                    const alertServer = tronWeb.address.fromHex(alertData[0]);
+                    
+                    // Check if this alert belongs to our server
+                    if (alertServer.toLowerCase() === this.serverAddress.toLowerCase() || 
+                        alertServer === 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb') { // null address
+                        
+                        // This is our notice - extract data
+                        const notice = {
+                            alertId: i.toString(),
+                            serverAddress: this.serverAddress, // Use OUR address, not null
+                            recipientAddress: tronWeb.address.fromHex(alertData[1]),
+                            alertURI: alertData[2],
+                            alertDescription: alertData[3],
+                            alertThumbnail: alertData[4],
+                            jurisdiction: alertData[5],
+                            timestamp: parseInt(alertData[6]),
+                            delivered: alertData[7],
+                            
+                            // Get associated document if exists
+                            documentId: (i + 1).toString(), // Documents are usually next ID
+                            
+                            // Parse case number from description or URI
+                            caseNumber: this.extractCaseNumber(alertData[3]) || `CASE-${i}`
+                        };
+                        
+                        // Check for associated document
+                        try {
+                            const docData = await window.legalContract.getDocument(i + 1).call();
+                            notice.documentURI = docData[2];
+                            notice.hasDocument = true;
+                        } catch (e) {
+                            notice.hasDocument = false;
+                        }
+                        
+                        notices.push(notice);
+                        
+                        // Sync this notice to backend
+                        await this.syncNoticeToBackend(notice);
+                    }
+                } catch (error) {
+                    console.warn(`Could not fetch NFT ${i}:`, error);
+                }
+            }
+            
+            console.log(`✅ Synced ${notices.length} notices from blockchain`);
+            return notices;
+            
+        } catch (error) {
+            console.error('Error syncing from blockchain:', error);
+            // Fall back to manual sync
+            return await this.manualSyncKnownCases();
+        }
+    }
+    
+    /**
+     * Manual sync for known cases when blockchain is unavailable
+     */
+    async manualSyncKnownCases() {
+        console.log('📝 Manual sync of known cases...');
+        
+        try {
+            const response = await fetch(`${this.backend}/api/sync-blockchain`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    serverAddress: this.serverAddress || 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY'
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('✅ Manual sync completed:', data);
+                return data.cases || [];
+            }
+        } catch (error) {
+            console.error('Manual sync failed:', error);
+        }
+        
+        return [];
+    }
+
+    /**
+     * Extract case number from description
+     */
+    extractCaseNumber(description) {
+        // Look for patterns like "Case #123456" or "34-987654"
+        const patterns = [
+            /Case\s*#?\s*([0-9\-]+)/i,
+            /\b(\d{2,}-\d{6})\b/,
+            /\b(\d{6})\b/
+        ];
+        
+        for (const pattern of patterns) {
+            const match = description.match(pattern);
+            if (match) {
+                return match[1];
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * Sync individual notice to backend
+     */
+    async syncNoticeToBackend(notice) {
+        try {
+            const response = await fetch(`${this.backend}/api/notices/served`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    noticeId: notice.alertId,
+                    alertId: notice.alertId,
+                    documentId: notice.documentId,
+                    serverAddress: this.serverAddress, // Always use OUR address
+                    recipientAddress: notice.recipientAddress,
+                    caseNumber: notice.caseNumber,
+                    noticeType: 'Legal Notice',
+                    issuingAgency: notice.jurisdiction || '',
+                    hasDocument: notice.hasDocument
+                })
+            });
+            
+            if (response.ok) {
+                console.log(`✅ Synced notice ${notice.alertId} to backend`);
+            }
+        } catch (error) {
+            console.warn('Could not sync notice to backend:', error);
+        }
+    }
+
+    /**
+     * Load directly from blockchain if backend is down
+     */
+    async loadDirectFromBlockchain() {
+        console.log('📡 Loading directly from blockchain...');
+        
+        const notices = await this.syncFromBlockchain();
+        
+        // Group by case number
+        const caseMap = new Map();
+        
+        for (const notice of notices) {
+            const caseNumber = notice.caseNumber;
+            
+            if (!caseMap.has(caseNumber)) {
+                caseMap.set(caseNumber, {
+                    caseNumber,
+                    serverAddress: this.serverAddress,
+                    recipientAddress: notice.recipientAddress,
+                    createdAt: new Date(notice.timestamp * 1000).toISOString(),
+                    alertId: notice.alertId,
+                    documentId: notice.documentId,
+                    hasDocument: notice.hasDocument,
+                    alertNFT: {
+                        id: notice.alertId,
+                        type: 'ALERT',
+                        status: 'DELIVERED'
+                    },
+                    documentNFT: {
+                        id: notice.documentId,
+                        type: 'DOCUMENT',
+                        status: 'AWAITING_SIGNATURE',
+                        pageCount: 1
+                    }
+                });
+            }
+        }
+        
+        // Process the cases
+        this.cases = caseMap;
+        console.log(`✅ Loaded ${this.cases.size} cases from blockchain`);
     }
 
     /**
@@ -221,40 +428,63 @@ class UnifiedNoticeSystem {
         this.cases.clear();
         
         for (const caseData of casesArray) {
-            // Ensure each case has both Alert and Document NFTs paired
-            const structuredCase = {
-                caseNumber: caseData.caseNumber,
-                serverAddress: caseData.serverAddress || this.serverAddress,
-                recipientAddress: caseData.recipientAddress,
-                recipientName: caseData.recipientName || '',
-                noticeType: caseData.noticeType,
-                issuingAgency: caseData.issuingAgency,
-                createdAt: caseData.createdAt,
+            // Handle cases with multiple recipients
+            if (caseData.recipients && caseData.recipients.length > 0) {
+                // New structure with multiple recipients
+                const structuredCase = {
+                    caseNumber: caseData.caseNumber,
+                    serverAddress: caseData.serverAddress || this.serverAddress,
+                    noticeType: caseData.noticeType,
+                    issuingAgency: caseData.issuingAgency,
+                    createdAt: caseData.firstServedAt || caseData.createdAt,
+                    
+                    // Multiple recipients
+                    recipients: caseData.recipients,
+                    recipientCount: caseData.recipientCount,
+                    
+                    // Aggregate status
+                    allSigned: caseData.allSigned,
+                    partialSigned: caseData.partialSigned,
+                    totalViews: caseData.totalViews,
+                    totalAccepted: caseData.totalAccepted,
+                    lastViewedAt: caseData.lastViewedAt
+                };
                 
-                // Paired NFTs
-                alertNFT: {
-                    id: caseData.alertId,
-                    type: 'ALERT',
-                    status: 'DELIVERED',
-                    transactionHash: caseData.alertTxHash,
-                    deliveredAt: caseData.alertDeliveredAt || caseData.createdAt
-                },
-                documentNFT: {
-                    id: caseData.documentId,
-                    type: 'DOCUMENT',
-                    status: caseData.documentStatus || 'AWAITING_SIGNATURE',
-                    transactionHash: caseData.documentTxHash,
-                    signedAt: caseData.documentSignedAt,
-                    pageCount: caseData.pageCount || 1
-                },
+                this.cases.set(caseData.caseNumber, structuredCase);
+            } else {
+                // Legacy single recipient structure (backward compatibility)
+                const structuredCase = {
+                    caseNumber: caseData.caseNumber,
+                    serverAddress: caseData.serverAddress || this.serverAddress,
+                    noticeType: caseData.noticeType,
+                    issuingAgency: caseData.issuingAgency,
+                    createdAt: caseData.createdAt,
+                    
+                    // Convert to multi-recipient format
+                    recipients: [{
+                        recipientAddress: caseData.recipientAddress,
+                        recipientName: caseData.recipientName || '',
+                        alertId: caseData.alertId,
+                        documentId: caseData.documentId,
+                        alertStatus: 'DELIVERED',
+                        documentStatus: caseData.documentStatus || 'AWAITING_SIGNATURE',
+                        viewCount: caseData.viewCount || 0,
+                        lastViewedAt: caseData.lastViewedAt,
+                        acceptedAt: caseData.acceptedAt,
+                        pageCount: caseData.pageCount || 1
+                    }],
+                    recipientCount: 1,
+                    
+                    // Aggregate status
+                    allSigned: caseData.documentStatus === 'SIGNED',
+                    partialSigned: false,
+                    totalViews: caseData.viewCount || 0,
+                    totalAccepted: caseData.documentStatus === 'SIGNED' ? 1 : 0,
+                    lastViewedAt: caseData.lastViewedAt
+                };
                 
-                // Tracking data
-                viewCount: caseData.viewCount || 0,
-                lastViewedAt: caseData.lastViewedAt,
-                auditTrail: caseData.auditTrail || []
-            };
-            
-            this.cases.set(caseData.caseNumber, structuredCase);
+                this.cases.set(caseData.caseNumber, structuredCase);
+            }
         }
         
         console.log(`✅ Loaded ${this.cases.size} cases`);
@@ -289,15 +519,23 @@ class UnifiedNoticeSystem {
     }
 
     /**
-     * Render individual case with paired NFTs
+     * Render individual case with multiple recipients
      */
     renderCase(caseData) {
         const caseId = `case-${caseData.caseNumber.replace(/[^a-zA-Z0-9]/g, '_')}`;
         
-        // Determine overall case status
-        const caseStatus = caseData.documentNFT.status === 'SIGNED' ? 'completed' : 'pending';
-        const statusLabel = caseStatus === 'completed' ? 'Completed' : 'Awaiting Signature';
-        const statusClass = caseStatus === 'completed' ? 'status-completed' : 'status-pending';
+        // Determine overall case status based on all recipients
+        let statusLabel, statusClass;
+        if (caseData.allSigned) {
+            statusLabel = 'All Signed';
+            statusClass = 'status-completed';
+        } else if (caseData.partialSigned) {
+            statusLabel = `${caseData.totalAccepted}/${caseData.recipientCount} Signed`;
+            statusClass = 'status-partial';
+        } else {
+            statusLabel = 'Awaiting Signatures';
+            statusClass = 'status-pending';
+        }
         
         return `
             <div class="case-card" data-case="${caseData.caseNumber}">
@@ -314,52 +552,79 @@ class UnifiedNoticeSystem {
                 </div>
                 
                 <div class="case-details" id="${caseId}-details" style="display: none;">
-                    <!-- Case Metadata -->
+                    <!-- Case Overview -->
                     <div class="case-meta">
                         <div class="meta-item">
-                            <label>Recipient:</label>
-                            <span>${caseData.recipientAddress}</span>
+                            <label>Recipients:</label>
+                            <span>${caseData.recipientCount} ${caseData.recipientCount === 1 ? 'party' : 'parties'}</span>
                         </div>
                         <div class="meta-item">
                             <label>Served By:</label>
                             <span>${caseData.serverAddress}</span>
                         </div>
                         <div class="meta-item">
-                            <label>Created:</label>
+                            <label>Total Views:</label>
+                            <span>${caseData.totalViews}</span>
+                        </div>
+                        <div class="meta-item">
+                            <label>First Served:</label>
                             <span>${new Date(caseData.createdAt).toLocaleString()}</span>
                         </div>
                     </div>
                     
-                    <!-- Paired NFTs Display -->
-                    <div class="paired-nfts">
-                        <h4>Notice Components</h4>
-                        
-                        <!-- Alert NFT -->
-                        <div class="nft-item alert-nft">
-                            <div class="nft-icon">
-                                <i class="fas fa-bell"></i>
-                            </div>
-                            <div class="nft-info">
-                                <span class="nft-label">Alert Notice</span>
-                                <span class="nft-id">NFT ID: ${caseData.alertNFT.id || 'Pending'}</span>
-                                <span class="nft-status status-delivered">✓ Delivered</span>
-                            </div>
-                            <div class="nft-actions">
-                                <button onclick="unifiedSystem.viewReceipt('${caseData.caseNumber}', 'alert')" 
-                                        class="btn btn-small btn-primary">
-                                    <i class="fas fa-file-alt"></i> View Receipt
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <!-- Document NFT -->
-                        <div class="nft-item document-nft">
-                            <div class="nft-icon">
-                                <i class="fas fa-file-contract"></i>
-                            </div>
-                            <div class="nft-info">
-                                <span class="nft-label">Document Notice (${caseData.documentNFT.pageCount} pages)</span>
-                                <span class="nft-id">NFT ID: ${caseData.documentNFT.id || 'Pending'}</span>
+                    <!-- Recipients List -->
+                    <div class="recipients-section">
+                        <h4>Recipients (${caseData.recipientCount})</h4>
+                        ${caseData.recipients.map((recipient, index) => `
+                            <div class="recipient-card">
+                                <div class="recipient-header">
+                                    <span class="recipient-number">Recipient ${index + 1}</span>
+                                    <span class="recipient-status ${recipient.documentStatus === 'SIGNED' ? 'status-signed' : 'status-pending'}">
+                                        ${recipient.documentStatus === 'SIGNED' ? '✓ Signed' : '⏳ Awaiting'}
+                                    </span>
+                                </div>
+                                
+                                <div class="recipient-details">
+                                    <div class="recipient-address">
+                                        <label>Address:</label>
+                                        <span>${recipient.recipientAddress}</span>
+                                    </div>
+                                    ${recipient.recipientName ? `
+                                        <div class="recipient-name">
+                                            <label>Name:</label>
+                                            <span>${recipient.recipientName}</span>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                
+                                <!-- Paired NFTs for this recipient -->
+                                <div class="paired-nfts">
+                                    <!-- Alert NFT -->
+                                    <div class="nft-item alert-nft">
+                                        <div class="nft-icon">
+                                            <i class="fas fa-bell"></i>
+                                        </div>
+                                        <div class="nft-info">
+                                            <span class="nft-label">Alert Notice</span>
+                                            <span class="nft-id">NFT ID: ${recipient.alertId || 'Pending'}</span>
+                                            <span class="nft-status status-delivered">✓ Delivered</span>
+                                        </div>
+                                        <div class="nft-actions">
+                                            <button onclick="unifiedSystem.viewReceipt('${caseData.caseNumber}', 'alert', '${recipient.recipientAddress}')" 
+                                                    class="btn btn-small btn-primary">
+                                                <i class="fas fa-file-alt"></i> Receipt
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Document NFT -->
+                                    <div class="nft-item document-nft">
+                                        <div class="nft-icon">
+                                            <i class="fas fa-file-contract"></i>
+                                        </div>
+                                        <div class="nft-info">
+                                            <span class="nft-label">Document (${recipient.pageCount || 1} pages)</span>
+                                            <span class="nft-id">NFT ID: ${recipient.documentId || 'Pending'}</span>
                                 <span class="nft-status ${caseData.documentNFT.status === 'SIGNED' ? 'status-signed' : 'status-pending'}">
                                     ${caseData.documentNFT.status === 'SIGNED' ? '✓ Signed For' : '⏳ Awaiting Signature'}
                                 </span>
@@ -837,6 +1102,64 @@ class UnifiedNoticeSystem {
     async refreshData() {
         await this.loadServerCases();
         this.renderCases('unifiedCasesContainer');
+    }
+    
+    /**
+     * Sync blockchain and refresh
+     */
+    async syncAndRefresh() {
+        console.log('⚡ Syncing blockchain and refreshing...');
+        
+        // Show loading state
+        const container = document.getElementById('unifiedCasesContainer');
+        if (container) {
+            container.innerHTML = `
+                <div class="loading-state" style="text-align: center; padding: 2rem;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #007bff;"></i>
+                    <p style="margin-top: 1rem;">Syncing blockchain data...</p>
+                </div>
+            `;
+        }
+        
+        // Sync from blockchain
+        await this.syncFromBlockchain();
+        
+        // Wait a moment for backend to process
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Refresh the UI
+        await this.refreshData();
+        
+        // Show success message
+        this.showNotification('Blockchain sync complete!', 'success');
+    }
+    
+    /**
+     * Show notification
+     */
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'success' ? '#28a745' : '#007bff'};
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 10000;
+            animation: slideIn 0.3s ease;
+        `;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
     }
 
     clearTestData() {

@@ -855,6 +855,10 @@ app.use('/api/notices', noticesRouter);
 const casesRouter = require('./routes/cases');
 app.use('/api', casesRouter);
 
+// Blockchain sync routes
+const blockchainSyncRouter = require('./routes/blockchain-sync');
+app.use('/api', blockchainSyncRouter);
+
 // Audit log routes
 const auditRouter = require('./routes/audit');
 app.use('/api/audit', auditRouter);

@@ -10,37 +10,30 @@ const pool = new Pool({
 
 /**
  * Get all cases for a server address
- * Groups notices by case number with paired Alert/Document NFTs
+ * Groups notices by case number, supporting multiple recipients per case
  */
 router.get('/servers/:serverAddress/cases', async (req, res) => {
     try {
         const { serverAddress } = req.params;
         console.log(`Fetching cases for server: ${serverAddress}`);
         
-        // Query to get all notices grouped by case number
+        // Query to get all notices, then group by case in application logic
         const query = `
             SELECT 
-                case_number,
-                server_address,
-                recipient_address,
-                recipient_name,
-                notice_type,
-                issuing_agency,
-                MIN(created_at) as created_at,
-                MAX(updated_at) as updated_at,
-                
-                -- Alert NFT data
-                MAX(CASE WHEN alert_id IS NOT NULL THEN alert_id END) as alert_id,
-                MAX(CASE WHEN alert_id IS NOT NULL THEN notice_id END) as alert_notice_id,
-                
-                -- Document NFT data  
-                MAX(CASE WHEN document_id IS NOT NULL THEN document_id END) as document_id,
-                MAX(CASE WHEN document_id IS NOT NULL THEN notice_id END) as document_notice_id,
-                MAX(CASE WHEN document_id IS NOT NULL THEN page_count END) as page_count,
-                
-                -- Status tracking
-                BOOL_OR(accepted) as has_acceptance,
-                MAX(accepted_at) as accepted_at,
+                sn.case_number,
+                sn.server_address,
+                sn.recipient_address,
+                sn.recipient_name,
+                sn.notice_type,
+                sn.issuing_agency,
+                sn.created_at,
+                sn.updated_at,
+                sn.notice_id,
+                sn.alert_id,
+                sn.document_id,
+                sn.page_count,
+                sn.accepted,
+                sn.accepted_at,
                 
                 -- View tracking
                 COUNT(DISTINCT nv.id) as view_count,
@@ -53,51 +46,109 @@ router.get('/servers/:serverAddress/cases', async (req, res) => {
                 AND sn.case_number != ''
                 AND sn.case_number NOT LIKE '%TEST%'
             GROUP BY 
-                case_number,
-                server_address,
-                recipient_address,
-                recipient_name,
-                notice_type,
-                issuing_agency
-            ORDER BY created_at DESC
+                sn.id,
+                sn.case_number,
+                sn.server_address,
+                sn.recipient_address,
+                sn.recipient_name,
+                sn.notice_type,
+                sn.issuing_agency,
+                sn.created_at,
+                sn.updated_at,
+                sn.notice_id,
+                sn.alert_id,
+                sn.document_id,
+                sn.page_count,
+                sn.accepted,
+                sn.accepted_at
+            ORDER BY sn.case_number, sn.created_at DESC
         `;
         
         const result = await pool.query(query, [serverAddress]);
         
-        // Transform into structured case data
-        const cases = result.rows.map(row => ({
-            caseNumber: row.case_number,
-            serverAddress: row.server_address,
-            recipientAddress: row.recipient_address,
-            recipientName: row.recipient_name,
-            noticeType: row.notice_type,
-            issuingAgency: row.issuing_agency,
-            createdAt: row.created_at,
-            updatedAt: row.updated_at,
+        // Group notices by case number to handle multiple recipients
+        const caseMap = new Map();
+        
+        for (const row of result.rows) {
+            const caseNumber = row.case_number;
             
-            // Alert NFT
-            alertId: row.alert_id,
-            alertNoticeId: row.alert_notice_id,
-            alertStatus: 'DELIVERED', // Alert is always delivered
+            if (!caseMap.has(caseNumber)) {
+                // Initialize case with first recipient
+                caseMap.set(caseNumber, {
+                    caseNumber: caseNumber,
+                    serverAddress: row.server_address,
+                    noticeType: row.notice_type,
+                    issuingAgency: row.issuing_agency,
+                    createdAt: row.created_at,
+                    updatedAt: row.updated_at,
+                    
+                    // Array of recipients for this case
+                    recipients: [],
+                    
+                    // Aggregate tracking
+                    totalViews: 0,
+                    totalAccepted: 0,
+                    lastViewedAt: null,
+                    firstServedAt: row.created_at,
+                    lastServedAt: row.created_at
+                });
+            }
             
-            // Document NFT
-            documentId: row.document_id,
-            documentNoticeId: row.document_notice_id,
-            documentStatus: row.has_acceptance ? 'SIGNED' : 'AWAITING_SIGNATURE',
-            pageCount: row.page_count || 1,
+            const caseData = caseMap.get(caseNumber);
             
-            // Tracking
-            viewCount: parseInt(row.view_count) || 0,
-            lastViewedAt: row.last_viewed_at,
-            acceptedAt: row.accepted_at
+            // Add recipient data
+            caseData.recipients.push({
+                recipientAddress: row.recipient_address,
+                recipientName: row.recipient_name || '',
+                noticeId: row.notice_id,
+                
+                // NFT pairing
+                alertId: row.alert_id,
+                documentId: row.document_id,
+                
+                // Status
+                alertStatus: 'DELIVERED',
+                documentStatus: row.accepted ? 'SIGNED' : 'AWAITING_SIGNATURE',
+                
+                // Tracking
+                viewCount: parseInt(row.view_count) || 0,
+                lastViewedAt: row.last_viewed_at,
+                acceptedAt: row.accepted_at,
+                servedAt: row.created_at,
+                pageCount: row.page_count || 1
+            });
+            
+            // Update aggregate data
+            caseData.totalViews += parseInt(row.view_count) || 0;
+            if (row.accepted) caseData.totalAccepted++;
+            
+            // Update timestamps
+            if (!caseData.lastViewedAt || (row.last_viewed_at && row.last_viewed_at > caseData.lastViewedAt)) {
+                caseData.lastViewedAt = row.last_viewed_at;
+            }
+            if (row.created_at < caseData.firstServedAt) {
+                caseData.firstServedAt = row.created_at;
+            }
+            if (row.created_at > caseData.lastServedAt) {
+                caseData.lastServedAt = row.created_at;
+            }
+        }
+        
+        // Convert map to array and add summary
+        const cases = Array.from(caseMap.values()).map(caseData => ({
+            ...caseData,
+            recipientCount: caseData.recipients.length,
+            allSigned: caseData.totalAccepted === caseData.recipients.length,
+            partialSigned: caseData.totalAccepted > 0 && caseData.totalAccepted < caseData.recipients.length
         }));
         
-        console.log(`Found ${cases.length} cases for server ${serverAddress}`);
+        console.log(`Found ${cases.length} cases with ${result.rows.length} total notices for server ${serverAddress}`);
         
         res.json({
             success: true,
             cases,
-            total: cases.length
+            totalCases: cases.length,
+            totalNotices: result.rows.length
         });
         
     } catch (error) {
