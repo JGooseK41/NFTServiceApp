@@ -41,6 +41,9 @@ class UnifiedNoticeSystem {
             }
         }
 
+        // Set up global event delegation for case expansion
+        this.setupGlobalEventDelegation();
+
         // Load PDF merger library
         await this.loadPDFMerger();
         
@@ -51,6 +54,38 @@ class UnifiedNoticeSystem {
         await this.loadServerCases();
         
         return true;
+    }
+    
+    /**
+     * Set up global event delegation for case clicks
+     */
+    setupGlobalEventDelegation() {
+        // Remove any existing listener
+        if (this.globalClickHandler) {
+            document.removeEventListener('click', this.globalClickHandler);
+        }
+        
+        // Create new handler
+        this.globalClickHandler = (e) => {
+            // Check if clicked element is within a case header
+            const caseHeader = e.target.closest('.case-header');
+            if (caseHeader) {
+                const caseCard = caseHeader.closest('.case-card');
+                if (caseCard) {
+                    const caseNumber = caseCard.getAttribute('data-case');
+                    if (caseNumber) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('Global delegation: Toggling case', caseNumber);
+                        this.toggleCase(caseNumber);
+                    }
+                }
+            }
+        };
+        
+        // Add listener to document
+        document.addEventListener('click', this.globalClickHandler);
+        console.log('Global event delegation set up for case expansion');
     }
     
     /**
@@ -627,8 +662,10 @@ class UnifiedNoticeSystem {
 
         container.innerHTML = serverProfileHtml + casesToRender.map(caseData => this.renderCase(caseData)).join('');
         
-        // Ensure click handlers work
-        this.attachCaseHandlers();
+        // Ensure click handlers work with a small delay for DOM to settle
+        setTimeout(() => {
+            this.attachCaseHandlers();
+        }, 100);
     }
 
     /**
@@ -652,7 +689,7 @@ class UnifiedNoticeSystem {
         
         return `
             <div class="case-card" data-case="${caseData.caseNumber}">
-                <div class="case-header" onclick="window.unifiedSystem.toggleCase('${caseData.caseNumber}')">
+                <div class="case-header">
                     <div class="case-info">
                         <h3>Case #${caseData.caseNumber}</h3>
                         <span class="case-type">${caseData.noticeType}</span>
@@ -777,18 +814,33 @@ class UnifiedNoticeSystem {
      * Toggle case expansion (FIXED click handler)
      */
     toggleCase(caseNumber) {
+        console.log('toggleCase called for:', caseNumber);
         const caseId = `case-${caseNumber.replace(/[^a-zA-Z0-9]/g, '_')}`;
         const details = document.getElementById(`${caseId}-details`);
         const chevron = document.getElementById(`${caseId}-chevron`);
         
+        console.log('Looking for elements:', {
+            caseId,
+            detailsFound: !!details,
+            chevronFound: !!chevron,
+            currentDisplay: details ? details.style.display : 'not found'
+        });
+        
         if (details && chevron) {
-            if (details.style.display === 'none') {
+            if (details.style.display === 'none' || !details.style.display) {
                 details.style.display = 'block';
                 chevron.className = 'fas fa-chevron-up';
+                console.log('Expanded case:', caseNumber);
             } else {
                 details.style.display = 'none';
                 chevron.className = 'fas fa-chevron-down';
+                console.log('Collapsed case:', caseNumber);
             }
+        } else {
+            console.error('Could not find elements for case:', caseNumber, {
+                details: details,
+                chevron: chevron
+            });
         }
     }
 
@@ -1205,6 +1257,29 @@ class UnifiedNoticeSystem {
     attachCaseHandlers() {
         // All handlers are inline, but we ensure the functions are available globally
         window.unifiedSystem = this;
+        
+        // Add explicit event listeners as a fallback
+        document.querySelectorAll('.case-header').forEach(header => {
+            // Remove any existing listeners to prevent duplicates
+            header.replaceWith(header.cloneNode(true));
+        });
+        
+        // Re-query after replacement
+        document.querySelectorAll('.case-header').forEach(header => {
+            header.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const caseCard = header.closest('.case-card');
+                if (caseCard) {
+                    const caseNumber = caseCard.getAttribute('data-case');
+                    if (caseNumber) {
+                        console.log('Click event fired for case:', caseNumber);
+                        this.toggleCase(caseNumber);
+                    }
+                }
+            });
+        });
+        
+        console.log('Attached click handlers to', document.querySelectorAll('.case-header').length, 'case headers');
     }
 
     /**

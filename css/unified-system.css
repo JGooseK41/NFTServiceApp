@@ -37,6 +37,9 @@
     cursor: pointer;
     background: var(--card-bg);
     transition: background 0.2s;
+    position: relative;
+    z-index: 10;
+    pointer-events: auto !important;
 }
 
 .case-header:hover {
@@ -107,6 +110,19 @@
     padding: 1.5rem;
     background: var(--primary-dark);
     border-top: 1px solid var(--border-color);
+    position: relative;
+    z-index: 5;
+}
+
+/* Ensure Recent Activities container doesn't block clicks */
+#unifiedCasesContainer {
+    position: relative;
+    z-index: 1;
+}
+
+#recentActivitiesCard {
+    position: relative;
+    z-index: 1;
 }
 
 .case-meta {
