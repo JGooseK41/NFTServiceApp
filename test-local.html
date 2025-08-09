@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Multi-Recipient Display</title>
+    <link rel="stylesheet" href="css/unified-system.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        h1 {
+            color: #333;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Multi-Recipient Case Display Test</h1>
+        
+        <div style="margin: 20px 0;">
+            <button class="btn" onclick="loadSingleRecipient()">Load Single Recipient Case</button>
+            <button class="btn" onclick="loadMultiRecipient()">Load Multi-Recipient Case</button>
+            <button class="btn" onclick="clearDisplay()">Clear</button>
+        </div>
+        
+        <div id="unifiedCasesContainer"></div>
+    </div>
+
+    <script src="js/unified-notice-system.js"></script>
+    <script>
+        // Create a mock unified system for testing
+        const mockSystem = {
+            cases: new Map(),
+            
+            renderCase(caseData) {
+                const caseId = `case-${caseData.caseNumber.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                
+                // Determine overall case status
+                let statusLabel, statusClass;
+                if (caseData.allSigned) {
+                    statusLabel = 'All Signed';
+                    statusClass = 'status-completed';
+                } else if (caseData.partialSigned) {
+                    statusLabel = `${caseData.totalAccepted}/${caseData.recipientCount} Signed`;
+                    statusClass = 'status-partial';
+                } else {
+                    statusLabel = 'Awaiting Signatures';
+                    statusClass = 'status-pending';
+                }
+                
+                return `
+                    <div class="case-card" data-case="${caseData.caseNumber}">
+                        <div class="case-header" onclick="toggleCase('${caseData.caseNumber}')">
+                            <div class="case-info">
+                                <h3>Case #${caseData.caseNumber}</h3>
+                                <span class="case-type">${caseData.noticeType}</span>
+                                <span class="case-agency">${caseData.issuingAgency}</span>
+                            </div>
+                            <div class="case-status">
+                                <span class="status-badge ${statusClass}">${statusLabel}</span>
+                                <i class="fas fa-chevron-down" id="${caseId}-chevron"></i>
+                            </div>
+                        </div>
+                        
+                        <div class="case-details" id="${caseId}-details" style="display: none;">
+                            <!-- Case Overview -->
+                            <div class="case-meta">
+                                <div class="meta-item">
+                                    <label>Recipients:</label>
+                                    <span>${caseData.recipientCount} ${caseData.recipientCount === 1 ? 'party' : 'parties'}</span>
+                                </div>
+                                <div class="meta-item">
+                                    <label>Total Views:</label>
+                                    <span>${caseData.totalViews}</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Recipients List -->
+                            <div class="recipients-section">
+                                <h4>Recipients (${caseData.recipientCount})</h4>
+                                ${caseData.recipients.map((recipient, index) => `
+                                    <div class="recipient-card">
+                                        <div class="recipient-header">
+                                            <span class="recipient-number">Recipient ${index + 1}</span>
+                                            <span class="recipient-status ${recipient.documentStatus === 'SIGNED' ? 'status-signed' : 'status-pending'}">
+                                                ${recipient.documentStatus === 'SIGNED' ? '✓ Signed' : '⏳ Awaiting'}
+                                            </span>
+                                        </div>
+                                        
+                                        <div class="recipient-details">
+                                            <div class="recipient-address">
+                                                <label>Address:</label>
+                                                <span>${recipient.recipientAddress}</span>
+                                            </div>
+                                            ${recipient.recipientName ? `
+                                                <div class="recipient-name">
+                                                    <label>Name:</label>
+                                                    <span>${recipient.recipientName}</span>
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                        
+                                        <!-- NFT Status -->
+                                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                            <div style="flex: 1; padding: 10px; background: #f0f0f0; border-radius: 4px;">
+                                                <strong>Alert NFT #${recipient.alertId}</strong><br>
+                                                <span style="color: green;">✓ Delivered</span>
+                                            </div>
+                                            <div style="flex: 1; padding: 10px; background: #f0f0f0; border-radius: 4px;">
+                                                <strong>Document NFT #${recipient.documentId}</strong><br>
+                                                <span style="color: ${recipient.documentStatus === 'SIGNED' ? 'green' : 'orange'};">
+                                                    ${recipient.documentStatus === 'SIGNED' ? '✓ Signed' : '⏳ Awaiting'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        };
+        
+        function toggleCase(caseNumber) {
+            const caseId = `case-${caseNumber.replace(/[^a-zA-Z0-9]/g, '_')}`;
+            const details = document.getElementById(`${caseId}-details`);
+            const chevron = document.getElementById(`${caseId}-chevron`);
+            
+            if (details.style.display === 'none') {
+                details.style.display = 'block';
+                chevron.className = 'fas fa-chevron-up';
+            } else {
+                details.style.display = 'none';
+                chevron.className = 'fas fa-chevron-down';
+            }
+        }
+        
+        function loadSingleRecipient() {
+            const caseData = {
+                caseNumber: "123456",
+                noticeType: "Legal Notice",
+                issuingAgency: "Court Agency",
+                recipientCount: 1,
+                totalViews: 5,
+                totalAccepted: 1,
+                allSigned: true,
+                partialSigned: false,
+                recipients: [{
+                    recipientAddress: "TFfagVe1aZpSfYaruY6xJfVPYZBuMj57FH",
+                    alertId: "1",
+                    documentId: "2",
+                    documentStatus: "SIGNED"
+                }]
+            };
+            
+            document.getElementById('unifiedCasesContainer').innerHTML = mockSystem.renderCase(caseData);
+        }
+        
+        function loadMultiRecipient() {
+            const caseData = {
+                caseNumber: "34-987654",
+                noticeType: "Notice of Seizure",
+                issuingAgency: "The Block Audit",
+                recipientCount: 3,
+                totalViews: 6,
+                totalAccepted: 1,
+                allSigned: false,
+                partialSigned: true,
+                recipients: [
+                    {
+                        recipientAddress: "TD1F37V4cAFH1YQCYVLtcFyFXkZUs7mBDE",
+                        recipientName: "Primary Defendant",
+                        alertId: "3",
+                        documentId: "4",
+                        documentStatus: "AWAITING_SIGNATURE"
+                    },
+                    {
+                        recipientAddress: "TTestAddress2234567890abcdefghijk",
+                        recipientName: "Co-Defendant",
+                        alertId: "5",
+                        documentId: "6",
+                        documentStatus: "SIGNED"
+                    },
+                    {
+                        recipientAddress: "TTestAddress3234567890abcdefghijk",
+                        recipientName: "Third Party",
+                        alertId: "7",
+                        documentId: "8",
+                        documentStatus: "AWAITING_SIGNATURE"
+                    }
+                ]
+            };
+            
+            document.getElementById('unifiedCasesContainer').innerHTML = mockSystem.renderCase(caseData);
+        }
+        
+        function clearDisplay() {
+            document.getElementById('unifiedCasesContainer').innerHTML = '';
+        }
+    </script>
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</body>
+</html>

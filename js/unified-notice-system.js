@@ -610,8 +610,7 @@ class UnifiedNoticeSystem {
                                             <span class="nft-status status-delivered">✓ Delivered</span>
                                         </div>
                                         <div class="nft-actions">
-                                            <button onclick="unifiedSystem.viewReceipt('${caseData.caseNumber}', 'alert', '${recipient.recipientAddress}')" 
-                                                    class="btn btn-small btn-primary">
+                                            <button onclick="unifiedSystem.viewReceipt('${caseData.caseNumber}', 'alert', '${recipient.recipientAddress}')" class="btn btn-small btn-primary">
                                                 <i class="fas fa-file-alt"></i> Receipt
                                             </button>
                                         </div>
@@ -625,35 +624,33 @@ class UnifiedNoticeSystem {
                                         <div class="nft-info">
                                             <span class="nft-label">Document (${recipient.pageCount || 1} pages)</span>
                                             <span class="nft-id">NFT ID: ${recipient.documentId || 'Pending'}</span>
-                                <span class="nft-status ${caseData.documentNFT.status === 'SIGNED' ? 'status-signed' : 'status-pending'}">
-                                    ${caseData.documentNFT.status === 'SIGNED' ? '✓ Signed For' : '⏳ Awaiting Signature'}
-                                </span>
+                                            <span class="nft-status ${recipient.documentStatus === 'SIGNED' ? 'status-signed' : 'status-pending'}">
+                                                ${recipient.documentStatus === 'SIGNED' ? '✓ Signed For' : '⏳ Awaiting Signature'}
+                                            </span>
+                                        </div>
+                                        <div class="nft-actions">
+                                            <button onclick="unifiedSystem.viewReceipt('${caseData.caseNumber}', 'document')" class="btn btn-small btn-primary">
+                                                <i class="fas fa-file-alt"></i> View Receipt
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="nft-actions">
-                                <button onclick="unifiedSystem.viewReceipt('${caseData.caseNumber}', 'document')" 
-                                        class="btn btn-small btn-primary">
-                                    <i class="fas fa-file-alt"></i> View Receipt
-                                </button>
-                            </div>
-                        </div>
+                        `).join('')}
                     </div>
                     
                     <!-- Case Actions -->
                     <div class="case-actions">
-                        <button onclick="unifiedSystem.viewServiceCertificate('${caseData.caseNumber}')" 
-                                class="btn btn-secondary">
+                        <button onclick="unifiedSystem.viewServiceCertificate('${caseData.caseNumber}')" class="btn btn-secondary">
                             <i class="fas fa-certificate"></i> Service Certificate
                         </button>
-                        <button onclick="unifiedSystem.viewAuditTrail('${caseData.caseNumber}')" 
-                                class="btn btn-secondary">
+                        <button onclick="unifiedSystem.viewAuditTrail('${caseData.caseNumber}')" class="btn btn-secondary">
                             <i class="fas fa-list"></i> Audit Trail
                         </button>
-                        <button onclick="unifiedSystem.downloadCaseDocuments('${caseData.caseNumber}')" 
-                                class="btn btn-secondary">
+                        <button onclick="unifiedSystem.downloadCaseDocuments('${caseData.caseNumber}')" class="btn btn-secondary">
                             <i class="fas fa-download"></i> Download All
                         </button>
-                        <button onclick="unifiedSystem.printForCourt('${caseData.caseNumber}')" 
-                                class="btn btn-primary">
+                        <button onclick="unifiedSystem.printForCourt('${caseData.caseNumber}')" class="btn btn-primary">
                             <i class="fas fa-print"></i> Print for Court
                         </button>
                     </div>

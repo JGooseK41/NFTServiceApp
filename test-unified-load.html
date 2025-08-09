@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test UnifiedNoticeSystem Load</title>
+</head>
+<body>
+    <h1>Testing UnifiedNoticeSystem</h1>
+    <div id="test-results"></div>
+    
+    <script src="js/unified-notice-system.js"></script>
+    <script>
+        const results = document.getElementById('test-results');
+        
+        // Test 1: Check if UnifiedNoticeSystem class exists
+        if (typeof UnifiedNoticeSystem !== 'undefined') {
+            results.innerHTML += '<p>✅ UnifiedNoticeSystem class is defined</p>';
+            
+            // Test 2: Try to instantiate it
+            try {
+                const system = new UnifiedNoticeSystem();
+                results.innerHTML += '<p>✅ UnifiedNoticeSystem instantiated successfully</p>';
+                
+                // Test 3: Check if window.unifiedSystem exists
+                if (window.unifiedSystem) {
+                    results.innerHTML += '<p>✅ window.unifiedSystem is available</p>';
+                } else {
+                    results.innerHTML += '<p>❌ window.unifiedSystem is NOT available</p>';
+                }
+                
+                // Test 4: Check key methods
+                const methods = ['init', 'renderCase', 'renderCases', 'toggleCase', 
+                                'viewReceipt', 'viewServiceCertificate', 'downloadCaseDocuments'];
+                
+                methods.forEach(method => {
+                    if (typeof system[method] === 'function') {
+                        results.innerHTML += `<p>✅ Method ${method} exists</p>`;
+                    } else {
+                        results.innerHTML += `<p>❌ Method ${method} missing</p>`;
+                    }
+                });
+                
+            } catch (error) {
+                results.innerHTML += `<p>❌ Error instantiating: ${error.message}</p>`;
+            }
+        } else {
+            results.innerHTML += '<p>❌ UnifiedNoticeSystem class is NOT defined</p>';
+        }
+    </script>
+</body>
+</html>

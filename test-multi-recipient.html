@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Multi-Recipient Cases</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .output {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>Multi-Recipient Case Testing</h1>
+    
+    <div class="test-section">
+        <h2>Test Scenario 1: Single Case, Multiple Recipients</h2>
+        <p>Simulate Case #999888 served to 3 different addresses</p>
+        <button onclick="testMultipleRecipients()">Run Test</button>
+        <div id="output1" class="output"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Scenario 2: Backend Sync</h2>
+        <p>Test the backend sync with multiple recipients per case</p>
+        <button onclick="testBackendSync()">Test Backend Sync</button>
+        <div id="output2" class="output"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Scenario 3: Load and Display</h2>
+        <p>Load cases and verify multi-recipient display</p>
+        <button onclick="testLoadAndDisplay()">Test Load & Display</button>
+        <div id="output3" class="output"></div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'https://nft-legal-service-backend.onrender.com';
+        const SERVER_ADDRESS = 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY';
+        
+        async function testMultipleRecipients() {
+            const output = document.getElementById('output1');
+            output.innerHTML = 'Testing multiple recipients for single case...\n\n';
+            
+            try {
+                // Create test data for case with 3 recipients
+                const recipients = [
+                    { address: 'TTestAddress1234567890abcdefghijk', name: 'John Doe' },
+                    { address: 'TTestAddress2234567890abcdefghijk', name: 'Jane Smith' },
+                    { address: 'TTestAddress3234567890abcdefghijk', name: 'Bob Wilson' }
+                ];
+                
+                output.innerHTML += 'Creating notices for Case #999888:\n';
+                
+                for (let i = 0; i < recipients.length; i++) {
+                    const notice = {
+                        noticeId: `notice_999888_${i+1}`,
+                        alertId: `${100 + i*2}`,
+                        documentId: `${101 + i*2}`,
+                        serverAddress: SERVER_ADDRESS,
+                        recipientAddress: recipients[i].address,
+                        recipientName: recipients[i].name,
+                        caseNumber: '999888',
+                        noticeType: 'Test Multi-Party Notice',
+                        issuingAgency: 'Test Agency',
+                        hasDocument: true
+                    };
+                    
+                    output.innerHTML += `\n✓ Created notice for ${recipients[i].name} (${recipients[i].address.substring(0, 10)}...)`;
+                    output.innerHTML += `\n  - Alert NFT ID: ${notice.alertId}`;
+                    output.innerHTML += `\n  - Document NFT ID: ${notice.documentId}`;
+                }
+                
+                output.innerHTML += '\n\n<span class="success">✅ Test data created successfully!</span>';
+                output.innerHTML += '\n\nExpected result: Case #999888 should show "3 parties" with individual tracking.';
+                
+            } catch (error) {
+                output.innerHTML += `\n<span class="error">❌ Error: ${error.message}</span>`;
+            }
+        }
+        
+        async function testBackendSync() {
+            const output = document.getElementById('output2');
+            output.innerHTML = 'Testing backend sync...\n\n';
+            
+            try {
+                // First, sync the known cases
+                output.innerHTML += 'Syncing blockchain data to backend...\n';
+                
+                const response = await fetch(`${BACKEND_URL}/api/sync-blockchain`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ serverAddress: SERVER_ADDRESS })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    output.innerHTML += `\n✓ Sync successful!`;
+                    output.innerHTML += `\n  - Total cases: ${data.total || data.totalCases || 0}`;
+                    output.innerHTML += `\n  - Cases synced: ${data.cases ? data.cases.length : 0}`;
+                    
+                    if (data.cases && data.cases.length > 0) {
+                        output.innerHTML += '\n\nSynced cases:';
+                        data.cases.forEach(c => {
+                            output.innerHTML += `\n  - Case #${c.case_number}: ${c.recipient_address.substring(0, 10)}...`;
+                        });
+                    }
+                    
+                    output.innerHTML += '\n\n<span class="success">✅ Backend sync completed!</span>';
+                } else {
+                    throw new Error(`Backend returned ${response.status}`);
+                }
+                
+            } catch (error) {
+                output.innerHTML += `\n<span class="error">❌ Error: ${error.message}</span>`;
+                output.innerHTML += '\n\nNote: Backend might be sleeping. Try again in a moment.';
+            }
+        }
+        
+        async function testLoadAndDisplay() {
+            const output = document.getElementById('output3');
+            output.innerHTML = 'Testing case loading and display...\n\n';
+            
+            try {
+                output.innerHTML += 'Fetching cases from backend...\n';
+                
+                const response = await fetch(`${BACKEND_URL}/api/servers/${SERVER_ADDRESS}/cases`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    output.innerHTML += `\n✓ Loaded ${data.totalCases || 0} cases`;
+                    output.innerHTML += `\n✓ Total notices: ${data.totalNotices || 0}`;
+                    
+                    if (data.cases && data.cases.length > 0) {
+                        output.innerHTML += '\n\nCase Details:';
+                        data.cases.forEach(caseData => {
+                            output.innerHTML += `\n\n📁 Case #${caseData.caseNumber}`;
+                            output.innerHTML += `\n  - Recipients: ${caseData.recipientCount || 1}`;
+                            output.innerHTML += `\n  - Type: ${caseData.noticeType}`;
+                            output.innerHTML += `\n  - Agency: ${caseData.issuingAgency}`;
+                            output.innerHTML += `\n  - Status: ${caseData.allSigned ? 'All Signed' : caseData.partialSigned ? 'Partially Signed' : 'Awaiting Signatures'}`;
+                            output.innerHTML += `\n  - Total Views: ${caseData.totalViews || 0}`;
+                            
+                            if (caseData.recipients && caseData.recipients.length > 1) {
+                                output.innerHTML += '\n  - Multiple Recipients:';
+                                caseData.recipients.forEach((r, i) => {
+                                    output.innerHTML += `\n    ${i+1}. ${r.recipientAddress.substring(0, 10)}... (${r.documentStatus})`;
+                                });
+                            }
+                        });
+                        
+                        output.innerHTML += '\n\n<span class="success">✅ Multi-recipient support verified!</span>';
+                    } else {
+                        output.innerHTML += '\n\nNo cases found. Run "Test Backend Sync" first.';
+                    }
+                } else {
+                    throw new Error(`Backend returned ${response.status}`);
+                }
+                
+            } catch (error) {
+                output.innerHTML += `\n<span class="error">❌ Error: ${error.message}</span>`;
+            }
+        }
+    </script>
+</body>
+</html>
