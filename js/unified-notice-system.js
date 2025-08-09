@@ -364,8 +364,9 @@ class UnifiedNoticeSystem {
                     const alertServer = tronWeb.address.fromHex(alertData[0]);
                     
                     // Check if this alert belongs to our server
-                    if (alertServer.toLowerCase() === this.serverAddress.toLowerCase() || 
-                        alertServer === 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb') { // null address
+                    if (this.serverAddress && 
+                        (alertServer.toLowerCase() === this.serverAddress.toLowerCase() || 
+                         alertServer === 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb')) { // null address
                         
                         // This is our notice - extract data
                         const notice = {
@@ -1286,6 +1287,28 @@ class UnifiedNoticeSystem {
      * Quick access functions
      */
     async refreshData() {
+        // Ensure we have a server address
+        if (!this.serverAddress && window.tronWeb && window.tronWeb.defaultAddress) {
+            this.serverAddress = window.tronWeb.defaultAddress.base58;
+            console.log('Set server address from wallet:', this.serverAddress);
+            await this.fetchServerAgency();
+        }
+        
+        if (!this.serverAddress) {
+            console.error('Cannot refresh - no wallet connected');
+            const container = document.getElementById('unifiedCasesContainer');
+            if (container) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-wallet"></i>
+                        <h3>Connect wallet to view cases</h3>
+                        <p>Your served notices will appear here</p>
+                    </div>
+                `;
+            }
+            return;
+        }
+        
         await this.loadServerCases();
         this.renderCases('unifiedCasesContainer');
     }
@@ -1295,6 +1318,20 @@ class UnifiedNoticeSystem {
      */
     async syncAndRefresh() {
         console.log('⚡ Syncing blockchain and refreshing...');
+        
+        // Ensure we have a server address first
+        if (!this.serverAddress && window.tronWeb && window.tronWeb.defaultAddress) {
+            this.serverAddress = window.tronWeb.defaultAddress.base58;
+            console.log('Set server address from wallet:', this.serverAddress);
+            // Also fetch server agency info
+            await this.fetchServerAgency();
+        }
+        
+        if (!this.serverAddress) {
+            console.error('Cannot sync - no wallet connected');
+            this.showNotification('Please connect your wallet first', 'error');
+            return;
+        }
         
         // Show loading state
         const container = document.getElementById('unifiedCasesContainer');
@@ -1364,11 +1401,24 @@ window.unifiedSystem = new UnifiedNoticeSystem();
 
 // Auto-initialize when wallet connects
 if (window.tronWeb && window.tronWeb.ready) {
-    window.unifiedSystem.init();
+    setTimeout(() => {
+        window.unifiedSystem.init();
+    }, 500); // Small delay to ensure TronWeb is fully ready
 } else {
     window.addEventListener('tronWebReady', () => {
-        window.unifiedSystem.init();
+        setTimeout(() => {
+            window.unifiedSystem.init();
+        }, 500);
     });
 }
+
+// Also listen for manual wallet connection
+window.addEventListener('walletConnected', () => {
+    if (window.unifiedSystem && !window.unifiedSystem.serverAddress) {
+        setTimeout(() => {
+            window.unifiedSystem.init();
+        }, 500);
+    }
+});
 
 console.log('✅ Unified Notice System loaded');
