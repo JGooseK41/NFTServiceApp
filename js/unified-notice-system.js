@@ -254,8 +254,8 @@ class UnifiedNoticeSystem {
             // Check each NFT (up to 50 to cover your notices)
             for (let i = 1; i <= Math.min(totalSupplyNum, 50); i++) {
                 try {
-                    // Get alert data
-                    const alertData = await window.legalContract.getAlert(i).call();
+                    // Get alert data (using alerts mapping)
+                    const alertData = await window.legalContract.alerts(i).call();
                     const alertServer = tronWeb.address.fromHex(alertData[0]);
                     
                     // Check if this alert belongs to our server
@@ -283,7 +283,7 @@ class UnifiedNoticeSystem {
                         
                         // Check for associated document
                         try {
-                            const docData = await window.legalContract.getDocument(i + 1).call();
+                            const docData = await window.legalContract.documents(i + 1).call();
                             notice.documentURI = docData[2];
                             notice.hasDocument = true;
                         } catch (e) {
@@ -548,11 +548,12 @@ class UnifiedNoticeSystem {
         
         return `
             <div class="case-card" data-case="${caseData.caseNumber}">
-                <div class="case-header" onclick="unifiedSystem.toggleCase('${caseData.caseNumber}')">
+                <div class="case-header" onclick="window.unifiedSystem.toggleCase('${caseData.caseNumber}')">
                     <div class="case-info">
                         <h3>Case #${caseData.caseNumber}</h3>
                         <span class="case-type">${caseData.noticeType}</span>
-                        <span class="case-agency">${caseData.issuingAgency}</span>
+                        <span class="case-agency">${caseData.issuingAgency || 'Legal Department'}</span>
+                        <span class="recipient-count" style="margin-left: 10px; padding: 2px 8px; background: #e3f2fd; color: #1976d2; border-radius: 12px; font-size: 0.85em; font-weight: 500;">${caseData.recipientCount || 1} Notice${(caseData.recipientCount || 1) > 1 ? 's' : ''} Served</span>
                     </div>
                     <div class="case-status">
                         <span class="status-badge ${statusClass}">${statusLabel}</span>
