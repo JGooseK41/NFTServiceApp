@@ -27783,10 +27783,6 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     return;
                 }
                 
-                // Get all recipients for potential batch processing
-                const recipients = getAllRecipients();
-                const isBatch = recipients.length > 1;
-                
                 // Create transaction data object
                 transactionData = {
                     recipient: isBatch ? recipients[0] : recipient, // Primary recipient
