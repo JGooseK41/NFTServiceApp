@@ -134,7 +134,7 @@ router.post('/documents', upload.fields([
             try {
                 // Create notice record for this recipient
                 const noticeResult = await client.query(`
-                    INSERT INTO notices 
+                    INSERT INTO served_notices 
                     (notice_id, server_address, recipient_address, notice_type,
                      case_number, alert_id, document_id, issuing_agency,
                      has_document, ipfs_hash, status, batch_id)
