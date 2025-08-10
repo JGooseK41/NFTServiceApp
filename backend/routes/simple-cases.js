@@ -38,7 +38,7 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
         // Get a client from the pool
         client = await pool.connect();
         
-        // Simple query without joins
+        // Simple query without joins (removed page_count as it doesn't exist in served_notices)
         const query = `
             SELECT 
                 case_number,
@@ -51,7 +51,6 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
                 notice_id,
                 alert_id,
                 document_id,
-                page_count,
                 accepted
             FROM served_notices
             WHERE LOWER(server_address) = LOWER($1)
@@ -91,7 +90,7 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
                     recipientName: row.recipient_name,
                     alertId: row.alert_id,
                     documentId: row.document_id,
-                    pageCount: row.page_count || 1,
+                    pageCount: 1, // Default to 1 since page_count is in notice_components
                     documentStatus: row.accepted ? 'SIGNED' : 'AWAITING_SIGNATURE',
                     isPaired: !!(row.alert_id && row.document_id) // Set isPaired if both IDs exist
                 });

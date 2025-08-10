@@ -5,7 +5,7 @@
 
 class NoticeWorkflow {
     constructor() {
-        this.backendUrl = window.BACKEND_API_URL || 'https://nft-legal-service-backend.onrender.com';
+        this.backendUrl = window.BACKEND_API_URL || 'https://nftserviceapp.onrender.com';
         this.contractAddress = window.CONTRACT_ADDRESS;
         this.notices = new Map(); // Local cache of notices
         this.syncQueue = []; // Queue for backend sync
