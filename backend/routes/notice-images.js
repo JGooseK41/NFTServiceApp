@@ -24,69 +24,42 @@ router.get('/api/notices/:noticeId/images', async (req, res) => {
         
         client = await pool.connect();
         
-        // First try notice_components table which has the uploaded images
+        // Check notice_components table which has the uploaded images
+        // This is the single source of truth for document images
         let query = `
             SELECT 
-                alert_thumbnail_url,
-                document_unencrypted_url,
-                server_address,
-                case_number,
-                recipient_address,
-                alert_id,
-                document_id,
-                document_ipfs_hash as ipfs_hash
-            FROM notice_components
-            WHERE (alert_id = $1 OR document_id = $1 OR notice_id = $1)
+                nc.alert_thumbnail_url,
+                nc.document_unencrypted_url,
+                nc.server_address,
+                nc.case_number,
+                nc.recipient_address,
+                nc.alert_id,
+                nc.document_id,
+                nc.document_ipfs_hash as ipfs_hash
+            FROM notice_components nc
+            WHERE (nc.alert_id = $1 OR nc.document_id = $1 OR nc.notice_id = $1)
             LIMIT 1
         `;
         
         let result = await client.query(query, [noticeId]);
         
-        // If not found in notice_components, try served_notices table
+        // If not found in notice_components, check served_notices for basic info
         if (result.rows.length === 0) {
-            // Check if columns exist in served_notices
-            const columnCheckQuery = `
-                SELECT column_name 
-                FROM information_schema.columns 
-                WHERE table_name = 'served_notices' 
-                AND column_name IN ('alert_thumbnail_url', 'document_unencrypted_url')
+            // Get basic notice info without image URLs
+            query = `
+                SELECT 
+                    server_address,
+                    case_number,
+                    recipient_address,
+                    alert_id,
+                    document_id,
+                    ipfs_hash,
+                    NULL as alert_thumbnail_url,
+                    NULL as document_unencrypted_url
+                FROM served_notices
+                WHERE (alert_id = $1 OR document_id = $1 OR notice_id = $1)
+                LIMIT 1
             `;
-            
-            const columnCheck = await client.query(columnCheckQuery);
-            const hasImageColumns = columnCheck.rows.length === 2;
-            
-            if (hasImageColumns) {
-                query = `
-                    SELECT 
-                        alert_thumbnail_url,
-                        document_unencrypted_url,
-                        server_address,
-                        case_number,
-                        recipient_address,
-                        alert_id,
-                        document_id,
-                        ipfs_hash
-                    FROM served_notices
-                    WHERE (alert_id = $1 OR document_id = $1 OR notice_id = $1)
-                    LIMIT 1
-                `;
-            } else {
-                // Fallback query without image columns
-                query = `
-                    SELECT 
-                        server_address,
-                        case_number,
-                        recipient_address,
-                        alert_id,
-                        document_id,
-                        ipfs_hash,
-                        NULL as alert_thumbnail_url,
-                        NULL as document_unencrypted_url
-                    FROM served_notices
-                    WHERE (alert_id = $1 OR document_id = $1 OR notice_id = $1)
-                    LIMIT 1
-                `;
-            }
             
             result = await client.query(query, [noticeId]);
         }
