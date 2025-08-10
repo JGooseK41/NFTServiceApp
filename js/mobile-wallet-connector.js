@@ -605,6 +605,14 @@ class MobileWalletConnector {
             // Initialize contract if needed
             await this.initializeContract();
             
+            // Track wallet connection with comprehensive device info
+            if (window.deviceTracker && window.tronWeb && window.tronWeb.defaultAddress) {
+                window.deviceTracker.trackWalletConnection(
+                    window.tronWeb.defaultAddress.base58,
+                    'wallet_connected'
+                );
+            }
+            
             // Trigger wallet connected event
             window.dispatchEvent(new Event('walletConnected'));
             
@@ -748,6 +756,15 @@ class MobileWalletConnector {
                     console.log('Successfully connected to TronLink');
                     this.closeModal();
                     await this.initializeContract();
+                    
+                    // Track wallet connection
+                    if (window.deviceTracker && window.tronWeb && window.tronWeb.defaultAddress) {
+                        window.deviceTracker.trackWalletConnection(
+                            window.tronWeb.defaultAddress.base58,
+                            'wallet_connected_injected'
+                        );
+                    }
+                    
                     window.dispatchEvent(new Event('walletConnected'));
                     this.updateConnectedUI();
                 } else {

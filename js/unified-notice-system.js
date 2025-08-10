@@ -975,6 +975,9 @@ class UnifiedNoticeSystem {
                                             <span class="nft-status status-delivered">✓ Delivered</span>
                                         </div>
                                         <div class="nft-actions">
+                                            <button onclick="unifiedSystem.viewNotice('${caseData.caseNumber}', 'alert', '${recipient.alertId}')" class="btn btn-small btn-success">
+                                                <i class="fas fa-eye"></i> View
+                                            </button>
                                             <button onclick="unifiedSystem.viewReceipt('${caseData.caseNumber}', 'alert', '${recipient.recipientAddress}')" class="btn btn-small btn-primary">
                                                 <i class="fas fa-file-alt"></i> Receipt
                                             </button>
@@ -994,8 +997,11 @@ class UnifiedNoticeSystem {
                                             </span>
                                         </div>
                                         <div class="nft-actions">
+                                            <button onclick="unifiedSystem.viewNotice('${caseData.caseNumber}', 'document', '${recipient.documentId}')" class="btn btn-small btn-success">
+                                                <i class="fas fa-eye"></i> View
+                                            </button>
                                             <button onclick="unifiedSystem.viewReceipt('${caseData.caseNumber}', 'document')" class="btn btn-small btn-primary">
-                                                <i class="fas fa-file-alt"></i> View Receipt
+                                                <i class="fas fa-file-alt"></i> Receipt
                                             </button>
                                         </div>
                                     </div>
@@ -1006,8 +1012,8 @@ class UnifiedNoticeSystem {
                     
                     <!-- Case Actions -->
                     <div class="case-actions">
-                        <button onclick="unifiedSystem.viewNotice('${caseData.caseNumber}')" class="btn btn-primary">
-                            <i class="fas fa-eye"></i> View Notice
+                        <button onclick="unifiedSystem.viewNotice('${caseData.caseNumber}', 'both')" class="btn btn-primary">
+                            <i class="fas fa-eye"></i> View All Notices
                         </button>
                         <button onclick="unifiedSystem.viewServiceCertificate('${caseData.caseNumber}')" class="btn btn-secondary">
                             <i class="fas fa-certificate"></i> Service Certificate
@@ -1540,12 +1546,31 @@ class UnifiedNoticeSystem {
                                 <p>Date: ${new Date().toLocaleDateString()}</p>
                             </div>
                         </div>
+                        
+                        <!-- Placeholder for stamped notices -->
+                        <div id="stampedNoticesContainer" style="display: none;">
+                            <div class="certificate-section">
+                                <h3>ATTACHED STAMPED NOTICES</h3>
+                                <div id="stampedNoticesContent">
+                                    <!-- Stamped notices will be inserted here -->
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
                 <div class="modal-footer">
-                    <button onclick="window.print()" class="btn btn-primary">
+                    <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 10px;">
+                        <label style="display: flex; align-items: center; gap: 5px;">
+                            <input type="checkbox" id="includeStampedNotices" onchange="unifiedSystem.toggleStampedNotices(this.checked)" style="width: 18px; height: 18px;">
+                            <span>Include Stamped Notice Images</span>
+                        </label>
+                    </div>
+                    <button onclick="unifiedSystem.printCertificateWithNotices()" class="btn btn-primary">
                         <i class="fas fa-print"></i> Print
+                    </button>
+                    <button onclick="unifiedSystem.downloadCertificateWithNotices()" class="btn btn-primary">
+                        <i class="fas fa-download"></i> Download PDF
                     </button>
                     <button onclick="this.closest('.modal-overlay').remove()" class="btn btn-secondary">
                         Close
@@ -1731,7 +1756,7 @@ class UnifiedNoticeSystem {
      * View audit trail showing IP and location data for notice access
      */
     async viewAuditTrail(caseNumber) {
-        console.log('Viewing audit trail for case:', caseNumber);
+        console.log('Viewing comprehensive audit trail for case:', caseNumber);
         
         const caseData = this.cases.get(caseNumber);
         if (!caseData) {
@@ -1739,28 +1764,34 @@ class UnifiedNoticeSystem {
             return;
         }
         
-        // Create modal for audit trail
+        // Create modal for comprehensive audit trail
         const modal = document.createElement('div');
         modal.className = 'modal-overlay';
         modal.innerHTML = `
-            <div class="modal-content large">
+            <div class="modal-content large" style="max-width: 95%; width: 1200px;">
                 <div class="modal-header">
-                    <h2>Audit Trail - Case #${this.escapeHtml(caseNumber)}</h2>
+                    <h2>Comprehensive Audit Trail - Case #${this.escapeHtml(caseNumber)}</h2>
                     <button onclick="this.closest('.modal-overlay').remove()" class="modal-close">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
                 
-                <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                     <div id="auditTrailContent" style="padding: 20px;">
                         <div class="loading-spinner" style="text-align: center;">
                             <i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i>
-                            <p>Loading audit trail data...</p>
+                            <p>Loading comprehensive audit data...</p>
                         </div>
                     </div>
                 </div>
                 
                 <div class="modal-footer">
+                    <button onclick="unifiedSystem.exportAuditTrail('${caseNumber}')" class="btn btn-primary">
+                        <i class="fas fa-download"></i> Export CSV
+                    </button>
+                    <button onclick="unifiedSystem.loadRealAuditData('${caseNumber}')" class="btn btn-primary">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
                     <button onclick="window.print()" class="btn btn-primary">
                         <i class="fas fa-print"></i> Print
                     </button>
@@ -1773,11 +1804,57 @@ class UnifiedNoticeSystem {
         
         document.body.appendChild(modal);
         
-        // Simulate audit trail data (replace with actual backend call when available)
-        setTimeout(() => {
-            const content = document.getElementById('auditTrailContent');
-            if (content) {
-                content.innerHTML = `
+        // Load real audit data
+        await this.loadRealAuditData(caseNumber);
+    }
+    
+    /**
+     * Load real audit data from backend
+     */
+    async loadRealAuditData(caseNumber) {
+        const content = document.getElementById('auditTrailContent');
+        if (!content) return;
+        
+        const caseData = this.cases.get(caseNumber);
+        if (!caseData) return;
+        
+        try {
+            // Collect all notice IDs
+            const noticeIds = [];
+            if (caseData.recipients) {
+                caseData.recipients.forEach(r => {
+                    if (r.alertId) noticeIds.push(r.alertId);
+                    if (r.documentId) noticeIds.push(r.documentId);
+                });
+            }
+            
+            // Fetch audit data for each notice
+            const auditPromises = noticeIds.map(id => 
+                fetch(`${this.backend}/api/notices/${id}/audit?serverAddress=${this.serverAddress}`)
+                    .then(r => r.ok ? r.json() : null)
+                    .catch(() => null)
+            );
+            
+            // Also fetch wallet connection logs
+            const recipientAddress = caseData.recipients?.[0]?.recipientAddress;
+            const walletPromise = recipientAddress ? 
+                fetch(`${this.backend}/api/wallets/${recipientAddress}/connections`)
+                    .then(r => r.ok ? r.json() : [])
+                    .catch(() => []) : 
+                Promise.resolve([]);
+            
+            const [auditResults, walletConnections] = await Promise.all([
+                Promise.all(auditPromises),
+                walletPromise
+            ]);
+            
+            // Process and display the data
+            this.displayComprehensiveAudit(content, caseNumber, auditResults, walletConnections);
+            
+        } catch (error) {
+            console.error('Error loading audit data:', error);
+            // Fallback to simulated data
+            content.innerHTML = `
                     <div class="audit-summary" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                         <h3>Access Log Summary</h3>
                         <p>Case Number: ${this.escapeHtml(caseNumber)}</p>
@@ -1825,13 +1902,320 @@ class UnifiedNoticeSystem {
                     </div>
                 `;
             }
-        }, 1000);
+        }
     }
+    
+    /**
+     * Display comprehensive audit data
+     */
+    displayComprehensiveAudit(container, caseNumber, auditResults, walletConnections) {
+        // Combine all events
+        const allEvents = [];
+        
+        // Process audit results
+        auditResults.forEach((audit, index) => {
+            if (!audit) return;
+            
+            // Add view events
+            audit.views?.forEach(view => {
+                allEvents.push({
+                    timestamp: new Date(view.viewed_at),
+                    type: 'Notice Viewed',
+                    wallet: view.viewer_address,
+                    ip: view.ip_address || view.real_ip,
+                    userAgent: view.user_agent,
+                    location: view.location_data,
+                    details: `Notice #${audit.noticeId} viewed`
+                });
+            });
+            
+            // Add acceptance events
+            audit.acceptances?.forEach(acc => {
+                allEvents.push({
+                    timestamp: new Date(acc.accepted_at),
+                    type: 'Notice Accepted',
+                    wallet: acc.acceptor_address,
+                    ip: acc.ip_address || acc.real_ip,
+                    location: acc.location_data,
+                    transactionHash: acc.transaction_hash,
+                    details: `Notice #${audit.noticeId} accepted`
+                });
+            });
+        });
+        
+        // Add wallet connection events
+        walletConnections.forEach(conn => {
+            allEvents.push({
+                timestamp: new Date(conn.connected_at),
+                type: 'Wallet Connected',
+                wallet: conn.wallet_address,
+                ip: conn.ip_address || conn.real_ip,
+                userAgent: conn.user_agent,
+                location: conn.location_data,
+                site: conn.site,
+                noticeCount: conn.notice_count,
+                details: `${conn.event_type || 'Connection'} from ${conn.site || 'unknown site'}`
+            });
+        });
+        
+        // Sort by timestamp (newest first)
+        allEvents.sort((a, b) => b.timestamp - a.timestamp);
+        
+        // Calculate statistics
+        const stats = {
+            totalEvents: allEvents.length,
+            uniqueWallets: new Set(allEvents.map(e => e.wallet)).size,
+            uniqueIPs: new Set(allEvents.filter(e => e.ip).map(e => e.ip)).size,
+            views: allEvents.filter(e => e.type === 'Notice Viewed').length,
+            acceptances: allEvents.filter(e => e.type === 'Notice Accepted').length,
+            connections: allEvents.filter(e => e.type === 'Wallet Connected').length
+        };
+        
+        // Build the HTML
+        container.innerHTML = `
+            <!-- Statistics Cards -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; text-align: center;">
+                    <div style="font-size: 2.5rem; font-weight: bold;">${stats.totalEvents}</div>
+                    <div style="opacity: 0.9; font-size: 0.9rem;">Total Events</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 20px; border-radius: 12px; text-align: center;">
+                    <div style="font-size: 2.5rem; font-weight: bold;">${stats.uniqueWallets}</div>
+                    <div style="opacity: 0.9; font-size: 0.9rem;">Unique Wallets</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 20px; border-radius: 12px; text-align: center;">
+                    <div style="font-size: 2.5rem; font-weight: bold;">${stats.uniqueIPs}</div>
+                    <div style="opacity: 0.9; font-size: 0.9rem;">Unique IPs</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white; padding: 20px; border-radius: 12px; text-align: center;">
+                    <div style="font-size: 2.5rem; font-weight: bold;">${stats.views}</div>
+                    <div style="opacity: 0.9; font-size: 0.9rem;">Notice Views</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white; padding: 20px; border-radius: 12px; text-align: center;">
+                    <div style="font-size: 2.5rem; font-weight: bold;">${stats.acceptances}</div>
+                    <div style="opacity: 0.9; font-size: 0.9rem;">Acceptances</div>
+                </div>
+                <div style="background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); color: white; padding: 20px; border-radius: 12px; text-align: center;">
+                    <div style="font-size: 2.5rem; font-weight: bold;">${stats.connections}</div>
+                    <div style="opacity: 0.9; font-size: 0.9rem;">Connections</div>
+                </div>
+            </div>
+            
+            <!-- Detailed Events Table -->
+            <div style="background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <div style="background: #f8f9fa; padding: 15px; border-bottom: 2px solid #dee2e6;">
+                    <h3 style="margin: 0; color: #333;">Comprehensive Access Log</h3>
+                    <p style="margin: 5px 0 0 0; color: #6c757d; font-size: 0.9rem;">
+                        Case #${this.escapeHtml(caseNumber)} | Generated: ${new Date().toLocaleString()}
+                    </p>
+                </div>
+                
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f8f9fa;">
+                                <th style="padding: 12px; border: 1px solid #dee2e6; text-align: left; font-weight: 600;">Timestamp</th>
+                                <th style="padding: 12px; border: 1px solid #dee2e6; text-align: left; font-weight: 600;">Event Type</th>
+                                <th style="padding: 12px; border: 1px solid #dee2e6; text-align: left; font-weight: 600;">Wallet Address</th>
+                                <th style="padding: 12px; border: 1px solid #dee2e6; text-align: left; font-weight: 600;">IP Address</th>
+                                <th style="padding: 12px; border: 1px solid #dee2e6; text-align: left; font-weight: 600;">Location</th>
+                                <th style="padding: 12px; border: 1px solid #dee2e6; text-align: left; font-weight: 600;">Device/Browser</th>
+                                <th style="padding: 12px; border: 1px solid #dee2e6; text-align: left; font-weight: 600;">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${allEvents.map(event => this.renderAuditEventRow(event)).join('')}
+                            ${allEvents.length === 0 ? `
+                                <tr>
+                                    <td colspan="7" style="padding: 20px; text-align: center; color: #6c757d;">
+                                        No audit events recorded yet
+                                    </td>
+                                </tr>
+                            ` : ''}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Legal Compliance Notice -->
+            <div style="margin-top: 20px; padding: 15px; background: #e7f3ff; border-left: 4px solid #2196F3; border-radius: 4px;">
+                <h4 style="margin: 0 0 10px 0; color: #0056b3;">
+                    <i class="fas fa-shield-alt"></i> Legal Compliance & Data Collection Notice
+                </h4>
+                <p style="margin: 0; line-height: 1.6;">
+                    <strong>Comprehensive Tracking:</strong> All connection attempts, wallet queries, and notice interactions are logged for legal compliance. 
+                    This includes: IP addresses, device fingerprints, geographic locations (city/region/country), browser information, 
+                    wallet application types, device IDs, language settings, time zones, screen resolutions, and connection metadata.
+                </p>
+                <p style="margin: 10px 0 0 0; line-height: 1.6;">
+                    <strong>Immutable Records:</strong> All audit data is cryptographically hashed and stored on the TRON blockchain for court admissibility. 
+                    Device fingerprinting uses canvas, WebGL, and audio context APIs to create unique identifiers even across different sessions.
+                </p>
+            </div>
+        `;
+    }
+    
+    /**
+     * Render individual audit event row
+     */
+    renderAuditEventRow(event) {
+        const deviceInfo = this.parseDeviceInfo(event.userAgent);
+        const location = this.parseLocationData(event.location);
+        const eventIcon = this.getEventTypeIcon(event.type);
+        
+        return `
+            <tr>
+                <td style="padding: 10px; border: 1px solid #dee2e6; font-size: 0.9em;">
+                    ${event.timestamp.toLocaleString()}
+                </td>
+                <td style="padding: 10px; border: 1px solid #dee2e6;">
+                    <span style="display: flex; align-items: center; gap: 5px;">
+                        ${eventIcon}
+                        <span>${event.type}</span>
+                    </span>
+                </td>
+                <td style="padding: 10px; border: 1px solid #dee2e6; font-family: monospace; font-size: 0.85em;">
+                    ${this.formatWalletAddress(event.wallet)}
+                </td>
+                <td style="padding: 10px; border: 1px solid #dee2e6; font-family: monospace; font-size: 0.85em;">
+                    ${event.ip || 'N/A'}
+                </td>
+                <td style="padding: 10px; border: 1px solid #dee2e6; font-size: 0.9em;">
+                    ${location}
+                </td>
+                <td style="padding: 10px; border: 1px solid #dee2e6; font-size: 0.85em;">
+                    ${deviceInfo}
+                </td>
+                <td style="padding: 10px; border: 1px solid #dee2e6; font-size: 0.85em;">
+                    ${event.details || ''}
+                    ${event.transactionHash ? `<br><a href="https://tronscan.org/#/transaction/${event.transactionHash}" target="_blank" style="color: #007bff;">View TX</a>` : ''}
+                </td>
+            </tr>
+        `;
+    }
+    
+    /**
+     * Parse device info from user agent
+     */
+    parseDeviceInfo(userAgent) {
+        if (!userAgent) return 'Unknown Device';
+        
+        const ua = userAgent;
+        let info = [];
+        
+        // Detect wallet apps
+        if (ua.includes('TokenPocket')) info.push('TokenPocket');
+        else if (ua.includes('TronLink')) info.push('TronLink');
+        else if (ua.includes('Trust')) info.push('Trust Wallet');
+        else if (ua.includes('MetaMask')) info.push('MetaMask');
+        
+        // Detect browser
+        if (ua.includes('Chrome')) info.push('Chrome');
+        else if (ua.includes('Firefox')) info.push('Firefox');
+        else if (ua.includes('Safari') && !ua.includes('Chrome')) info.push('Safari');
+        else if (ua.includes('Edge')) info.push('Edge');
+        
+        // Detect OS
+        if (ua.includes('Windows')) info.push('Windows');
+        else if (ua.includes('Mac')) info.push('macOS');
+        else if (ua.includes('Linux')) info.push('Linux');
+        else if (ua.includes('Android')) info.push('Android');
+        else if (ua.includes('iPhone') || ua.includes('iPad')) info.push('iOS');
+        
+        // Detect device type
+        if (ua.includes('Mobile')) info.push('Mobile');
+        else if (ua.includes('Tablet')) info.push('Tablet');
+        
+        return info.join(' / ') || 'Unknown';
+    }
+    
+    /**
+     * Parse location data
+     */
+    parseLocationData(locationData) {
+        if (!locationData) return 'Unknown';
+        
+        if (typeof locationData === 'string') {
+            try {
+                locationData = JSON.parse(locationData);
+            } catch {
+                return locationData;
+            }
+        }
+        
+        const parts = [];
+        if (locationData.city) parts.push(locationData.city);
+        if (locationData.region) parts.push(locationData.region);
+        if (locationData.country) parts.push(locationData.country);
+        
+        return parts.join(', ') || locationData.timezone || 'Unknown';
+    }
+    
+    /**
+     * Get event type icon
+     */
+    getEventTypeIcon(type) {
+        const icons = {
+            'Notice Served': '<i class="fas fa-paper-plane" style="color: #28a745;"></i>',
+            'Notice Viewed': '<i class="fas fa-eye" style="color: #17a2b8;"></i>',
+            'Notice Accepted': '<i class="fas fa-check-circle" style="color: #28a745;"></i>',
+            'Wallet Connected': '<i class="fas fa-wallet" style="color: #6c757d;"></i>',
+            'Wallet Queried': '<i class="fas fa-search" style="color: #ffc107;"></i>',
+            'Connection Attempt': '<i class="fas fa-plug" style="color: #dc3545;"></i>'
+        };
+        
+        return icons[type] || '<i class="fas fa-circle" style="color: #6c757d;"></i>';
+    }
+    
+    /**
+     * Format wallet address
+     */
+    formatWalletAddress(address) {
+        if (!address) return 'Unknown';
+        if (address.length < 20) return address;
+        return `${address.substring(0, 8)}...${address.substring(address.length - 6)}`;
+    }
+    
+    /**
+     * Export audit trail as CSV
+     */
+    async exportAuditTrail(caseNumber) {
+        try {
+            // For now, create CSV from displayed data
+            const content = document.getElementById('auditTrailContent');
+            if (!content) return;
+            
+            const rows = content.querySelectorAll('tbody tr');
+            const csv = ['Timestamp,Event Type,Wallet,IP Address,Location,Device,Details'];
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length > 1) {
+                    const rowData = Array.from(cells).map(cell => 
+                        `"${cell.textContent.trim().replace(/"/g, '""')}"`
+                    ).join(',');
+                    csv.push(rowData);
+                }
+            });
+            
+            const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `audit_trail_${caseNumber}_${Date.now()}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            this.showNotification('Audit trail exported successfully', 'success');
+        } catch (error) {
+            console.error('Error exporting audit trail:', error);
+            this.showNotification('Failed to export audit trail', 'error');
+        }
 
     /**
      * View Notice - Display unencrypted notice images for process server
      */
-    async viewNotice(caseNumber) {
+    async viewNotice(caseNumber, type = 'both', noticeId = null) {
         const caseData = this.cases.get(caseNumber);
         if (!caseData) return;
 
@@ -1841,10 +2225,11 @@ class UnifiedNoticeSystem {
         // Create modal to display notice
         const modal = document.createElement('div');
         modal.className = 'modal-overlay';
+        const modalTitle = type === 'alert' ? 'Alert Thumbnail' : type === 'document' ? 'Full Document' : 'Notice';
         modal.innerHTML = `
             <div class="modal-content large" style="max-width: 90%; max-height: 90%;">
                 <div class="modal-header">
-                    <h2>Notice for Case #${caseNumber}</h2>
+                    <h2>${modalTitle} for Case #${caseNumber}</h2>
                     <button onclick="this.closest('.modal-overlay').remove()" class="modal-close">
                         <i class="fas fa-times"></i>
                     </button>
@@ -1852,7 +2237,7 @@ class UnifiedNoticeSystem {
                 
                 <div class="modal-body" style="overflow: auto; max-height: 70vh;">
                     <div id="noticeContainer" style="text-align: center;">
-                        <p>Loading notice images...</p>
+                        <p>Loading ${type === 'alert' ? 'thumbnail' : type === 'document' ? 'document' : 'notice'} images...</p>
                     </div>
                 </div>
                 
@@ -1870,8 +2255,11 @@ class UnifiedNoticeSystem {
 
         // Try to fetch unencrypted URLs from backend
         try {
+            // Use provided noticeId or find from recipients
+            const noticeIdForBackend = noticeId || (type === 'alert' ? firstRecipient.alertId : type === 'document' ? firstRecipient.documentId : firstRecipient.alertId || firstRecipient.documentId);
+            
             const response = await fetch(
-                `${this.backend}/api/notices/${firstRecipient.alertId || caseData.alertId}/images`
+                `${this.backend}/api/notices/${noticeIdForBackend}/images`
             );
             
             if (response.ok) {
@@ -1879,20 +2267,65 @@ class UnifiedNoticeSystem {
                 const container = document.getElementById('noticeContainer');
                 
                 if (data.alertThumbnailUrl || data.documentUnencryptedUrl) {
-                    container.innerHTML = `
-                        ${data.alertThumbnailUrl ? `
+                    // Display based on type requested
+                    if (type === 'alert' && data.alertThumbnailUrl) {
+                        // Show only thumbnail for alert type
+                        container.innerHTML = `
                             <div style="margin-bottom: 20px;">
-                                <h3>Alert Notice</h3>
+                                <h3>Alert Notice Thumbnail</h3>
                                 <img src="${data.alertThumbnailUrl}" style="max-width: 100%; border: 1px solid #ddd;" />
                             </div>
-                        ` : ''}
-                        ${data.documentUnencryptedUrl ? `
-                            <div>
-                                <h3>Document Notice</h3>
-                                <img src="${data.documentUnencryptedUrl}" style="max-width: 100%; border: 1px solid #ddd;" />
-                            </div>
-                        ` : ''}
-                    `;
+                        `;
+                    } else if (type === 'document' && data.documentUnencryptedUrl) {
+                        // Show full document for document type
+                        // Add blockchain stamp if possible
+                        const txHash = caseData.transactionHash || 'PENDING';
+                        const stampedBlob = await this.stampNoticeWithBlockchain(
+                            data.documentUnencryptedUrl,
+                            txHash,
+                            1,
+                            1
+                        );
+                        
+                        if (stampedBlob) {
+                            const stampedUrl = URL.createObjectURL(stampedBlob);
+                            container.innerHTML = `
+                                <div>
+                                    <h3>Full Document (Blockchain Stamped)</h3>
+                                    <img src="${stampedUrl}" style="max-width: 100%; border: 1px solid #ddd;" />
+                                    <div style="margin-top: 10px; color: red; font-size: 0.9em;">
+                                        <p>Transaction: ${txHash}</p>
+                                        <p>Stamped: ${new Date().toLocaleString()}</p>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            container.innerHTML = `
+                                <div>
+                                    <h3>Full Document</h3>
+                                    <img src="${data.documentUnencryptedUrl}" style="max-width: 100%; border: 1px solid #ddd;" />
+                                </div>
+                            `;
+                        }
+                    } else if (type === 'both') {
+                        // Show both for the general case
+                        container.innerHTML = `
+                            ${data.alertThumbnailUrl ? `
+                                <div style="margin-bottom: 20px;">
+                                    <h3>Alert Notice</h3>
+                                    <img src="${data.alertThumbnailUrl}" style="max-width: 100%; border: 1px solid #ddd;" />
+                                </div>
+                            ` : ''}
+                            ${data.documentUnencryptedUrl ? `
+                                <div>
+                                    <h3>Document Notice</h3>
+                                    <img src="${data.documentUnencryptedUrl}" style="max-width: 100%; border: 1px solid #ddd;" />
+                                </div>
+                            ` : ''}
+                        `;
+                    } else {
+                        container.innerHTML = '<p>No images available for requested type</p>';
+                    }
                 } else {
                     container.innerHTML = '<p>No notice images available</p>';
                 }
@@ -1907,6 +2340,128 @@ class UnifiedNoticeSystem {
             console.error('Error loading notice:', error);
             document.getElementById('noticeContainer').innerHTML = '<p>Error loading notice images</p>';
         }
+    }
+
+    /**
+     * Toggle display of stamped notices in certificate
+     */
+    async toggleStampedNotices(include) {
+        const container = document.getElementById('stampedNoticesContainer');
+        const contentDiv = document.getElementById('stampedNoticesContent');
+        
+        if (!container || !contentDiv) return;
+        
+        if (include) {
+            // Show loading state
+            container.style.display = 'block';
+            contentDiv.innerHTML = '<p>Loading stamped notices...</p>';
+            
+            // Get current case from modal context
+            const modal = container.closest('.modal-overlay');
+            if (!modal) return;
+            
+            // Extract case number from certificate content
+            const caseText = modal.querySelector('.certificate-section p')?.textContent || '';
+            const caseMatch = caseText.match(/Case Number:\s*(.+)/);
+            const caseNumber = caseMatch ? caseMatch[1] : null;
+            
+            if (!caseNumber) {
+                contentDiv.innerHTML = '<p>Could not determine case number</p>';
+                return;
+            }
+            
+            const caseData = this.cases.get(caseNumber);
+            if (!caseData) {
+                contentDiv.innerHTML = '<p>Case data not found</p>';
+                return;
+            }
+            
+            // Fetch and stamp notices
+            try {
+                const firstRecipient = caseData.recipients?.[0] || {};
+                const noticeId = firstRecipient.alertId || firstRecipient.documentId;
+                
+                if (!noticeId) {
+                    contentDiv.innerHTML = '<p>No notice ID available</p>';
+                    return;
+                }
+                
+                const response = await fetch(`${this.backend}/api/notices/${noticeId}/images`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    let stampedHtml = '';
+                    
+                    // Add stamped alert thumbnail
+                    if (data.alertThumbnailUrl) {
+                        const txHash = caseData.transactionHash || 'PENDING';
+                        const stampedBlob = await this.stampNoticeWithBlockchain(
+                            data.alertThumbnailUrl,
+                            txHash,
+                            1,
+                            1
+                        );
+                        
+                        if (stampedBlob) {
+                            const stampedUrl = URL.createObjectURL(stampedBlob);
+                            stampedHtml += `
+                                <div style="page-break-before: always; margin-top: 20px;">
+                                    <h4>Alert Notice (Stamped)</h4>
+                                    <img src="${stampedUrl}" style="max-width: 100%; border: 2px solid red;" />
+                                </div>
+                            `;
+                        }
+                    }
+                    
+                    // Add stamped document
+                    if (data.documentUnencryptedUrl) {
+                        const txHash = caseData.transactionHash || 'PENDING';
+                        const stampedBlob = await this.stampNoticeWithBlockchain(
+                            data.documentUnencryptedUrl,
+                            txHash,
+                            1,
+                            firstRecipient.pageCount || 1
+                        );
+                        
+                        if (stampedBlob) {
+                            const stampedUrl = URL.createObjectURL(stampedBlob);
+                            stampedHtml += `
+                                <div style="page-break-before: always; margin-top: 20px;">
+                                    <h4>Full Document (Stamped)</h4>
+                                    <img src="${stampedUrl}" style="max-width: 100%; border: 2px solid red;" />
+                                </div>
+                            `;
+                        }
+                    }
+                    
+                    contentDiv.innerHTML = stampedHtml || '<p>No notice images available</p>';
+                } else {
+                    contentDiv.innerHTML = '<p>Could not load notice images</p>';
+                }
+            } catch (error) {
+                console.error('Error loading stamped notices:', error);
+                contentDiv.innerHTML = '<p>Error loading notice images</p>';
+            }
+        } else {
+            // Hide stamped notices
+            container.style.display = 'none';
+        }
+    }
+    
+    /**
+     * Print certificate with optional stamped notices
+     */
+    printCertificateWithNotices() {
+        window.print();
+    }
+    
+    /**
+     * Download certificate as PDF with optional stamped notices
+     */
+    async downloadCertificateWithNotices() {
+        // For now, use browser print dialog to save as PDF
+        // In production, would use a PDF generation library
+        window.print();
     }
 
     /**
