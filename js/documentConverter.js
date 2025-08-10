@@ -80,12 +80,14 @@ class DocumentConverter {
             // Generate preview from first page
             const previewImage = await this.generatePDFPreview(pdf, 1);
             
-            // For multi-page PDFs, create a combined image
+            // For multi-page PDFs, create a combined image AND individual page previews
             let fullDocument;
+            const allPagePreviews = []; // Store individual page previews
             
             if (pdf.numPages === 1) {
                 // Single page - just use higher res version
                 fullDocument = await this.renderPDFPage(pdf, 1, 1000, false);
+                allPagePreviews.push(previewImage);
             } else {
                 // Multiple pages - combine them into one tall image
                 const fullPages = [];
@@ -93,6 +95,10 @@ class DocumentConverter {
                     console.log(`Rendering page ${i} of ${pdf.numPages}`);
                     const pageImage = await this.renderPDFPage(pdf, i, 800); // Reduced res for manageable size
                     fullPages.push(pageImage);
+                    
+                    // Also create a preview version for display
+                    const pagePreview = await this.renderPDFPage(pdf, i, 600, true);
+                    allPagePreviews.push(pagePreview);
                 }
                 
                 // Combine all pages into a single tall image
@@ -104,6 +110,7 @@ class DocumentConverter {
                 preview: previewImage,
                 fullDocument: fullDocument,
                 data: fullDocument, // Add data property for compatibility
+                allPagePreviews: allPagePreviews, // All individual page previews
                 documentHash: await this.hashDocument(arrayBuffer),
                 pageCount: pdf.numPages,
                 fileType: 'pdf'
