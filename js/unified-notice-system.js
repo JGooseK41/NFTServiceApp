@@ -98,10 +98,14 @@ class UnifiedNoticeSystem {
         // Load PDF merger library
         await this.loadPDFMerger();
         
-        // Sync blockchain data to backend first
-        await this.syncFromBlockchain();
+        // Try to sync blockchain data but don't let it block backend loading
+        try {
+            await this.syncFromBlockchain();
+        } catch (error) {
+            console.warn('Blockchain sync failed, continuing with backend data:', error);
+        }
         
-        // Load all cases for this server
+        // Load all cases for this server (from backend or blockchain fallback)
         await this.loadServerCases();
         
         return true;
@@ -434,10 +438,8 @@ class UnifiedNoticeSystem {
         }
 
         try {
-            // First, sync from blockchain to ensure backend has latest data
-            await this.syncFromBlockchain();
-            
-            // Then query backend for structured data
+            // Skip redundant sync - already done in init()
+            // Just query backend for structured data
             let response = await fetch(
                 `${this.backend}/api/servers/${this.serverAddress}/cases`
             );
@@ -452,16 +454,18 @@ class UnifiedNoticeSystem {
             
             if (response.ok) {
                 const data = await response.json();
+                console.log('✅ Loaded cases from backend:', data.cases?.length || 0);
                 this.processCasesData(data.cases || []);
             } else {
                 // If backend fails, use blockchain data directly
-                console.log('Backend not responding, using blockchain data directly');
+                console.log('Backend not responding (status:', response.status, '), trying blockchain fallback...');
                 await this.loadDirectFromBlockchain();
             }
             
         } catch (error) {
             console.error('Error loading cases:', error);
             // Fall back to blockchain
+            console.log('Network error, attempting blockchain fallback...');
             await this.loadDirectFromBlockchain();
         }
     }
@@ -477,6 +481,14 @@ class UnifiedNoticeSystem {
             console.log('Contract not ready, skipping blockchain sync...');
             return [];
         }
+
+        // Skip if we're being called too frequently
+        const now = Date.now();
+        if (this.lastSyncTime && (now - this.lastSyncTime) < 5000) {
+            console.log('Skipping sync - too soon since last sync');
+            return [];
+        }
+        this.lastSyncTime = now;
 
         try {
             // Get total supply of NFTs
@@ -653,41 +665,47 @@ class UnifiedNoticeSystem {
     async loadDirectFromBlockchain() {
         console.log('📡 Loading directly from blockchain...');
         
-        const notices = await this.syncFromBlockchain();
-        
-        // Group by case number
-        const caseMap = new Map();
-        
-        for (const notice of notices) {
-            const caseNumber = notice.caseNumber;
+        try {
+            const notices = await this.syncFromBlockchain();
             
-            if (!caseMap.has(caseNumber)) {
-                caseMap.set(caseNumber, {
-                    caseNumber,
-                    serverAddress: this.serverAddress,
-                    recipientAddress: notice.recipientAddress,
-                    createdAt: new Date(notice.timestamp * 1000).toISOString(),
-                    alertId: notice.alertId,
-                    documentId: notice.documentId,
-                    hasDocument: notice.hasDocument,
-                    alertNFT: {
-                        id: notice.alertId,
-                        type: 'ALERT',
-                        status: 'DELIVERED'
-                    },
-                    documentNFT: {
-                        id: notice.documentId,
-                        type: 'DOCUMENT',
-                        status: 'AWAITING_SIGNATURE',
-                        pageCount: 1
-                    }
-                });
+            // Group by case number
+            const caseMap = new Map();
+            
+            for (const notice of notices) {
+                const caseNumber = notice.caseNumber;
+                
+                if (!caseMap.has(caseNumber)) {
+                    caseMap.set(caseNumber, {
+                        caseNumber,
+                        serverAddress: this.serverAddress,
+                        recipientAddress: notice.recipientAddress,
+                        createdAt: new Date(notice.timestamp * 1000).toISOString(),
+                        alertId: notice.alertId,
+                        documentId: notice.documentId,
+                        hasDocument: notice.hasDocument,
+                        alertNFT: {
+                            id: notice.alertId,
+                            type: 'ALERT',
+                            status: 'DELIVERED'
+                        },
+                        documentNFT: {
+                            id: notice.documentId,
+                            type: 'DOCUMENT',
+                            status: 'AWAITING_SIGNATURE',
+                            pageCount: 1
+                        }
+                    });
+                }
             }
+            
+            // Process the cases
+            this.cases = caseMap;
+            console.log(`✅ Loaded ${this.cases.size} cases from blockchain`);
+        } catch (error) {
+            console.error('Blockchain loading failed:', error);
+            // Just log the error - cases should already be loaded from backend
+            console.log('Cases from backend should already be loaded');
         }
-        
-        // Process the cases
-        this.cases = caseMap;
-        console.log(`✅ Loaded ${this.cases.size} cases from blockchain`);
     }
 
     /**
@@ -775,7 +793,7 @@ class UnifiedNoticeSystem {
         let serverProfileHtml = '';
         if (this.serverInfo.serverId && this.serverInfo.serverId !== '0') {
             const registrationDate = this.serverInfo.registeredDate ? 
-                this.serverInfo.registeredDate.toLocaleDateString() : 'Not available';
+                new Date(Number(this.serverInfo.registeredDate) * 1000).toLocaleDateString() : 'Not available';
             
             serverProfileHtml = `
                 <div class="server-profile-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
