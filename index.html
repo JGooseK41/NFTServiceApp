@@ -71,6 +71,7 @@
     <!-- Upload Notice Documents -->
     <script src="js/id-manager.js?v=1"></script>
     <script src="js/batch-validator.js?v=1"></script>
+    <script src="js/batch-upload.js?v=1"></script>
     <script src="js/upload-notice-documents.js?v=2"></script>
     <!-- Sync Server Registration -->
     <script src="js/sync-server-registration.js?v=1"></script>
@@ -28128,29 +28129,61 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 
                 // CRITICAL: Upload documents to backend BEFORE blockchain transaction
                 // This must succeed or we abort the transaction to prevent fund loss
-                if (window.uploadNoticeDocuments && window.uploadedImage) {
+                if (window.uploadedImage) {
                     showProcessing('Uploading documents to backend server...');
                     console.log('Uploading documents to backend before transaction...');
                     
                     try {
-                        // For batch transactions, use the first recipient for document upload
-                        const primaryRecipient = Array.isArray(transactionData.recipient) ? 
-                                                transactionData.recipient[0] : transactionData.recipient;
+                        let backendUploadResult;
                         
-                        const backendUploadResult = await window.uploadNoticeDocuments({
-                            noticeId: Date.now().toString(), // Temporary ID
-                            alertId: null, // Will be set after transaction
-                            documentId: null, // Will be set after transaction
-                            serverAddress: tronWeb.defaultAddress.base58,
-                            recipient: primaryRecipient,
-                            recipientAddress: primaryRecipient,
-                            caseNumber: transactionData.caseNumber || '',
-                            noticeType: transactionData.noticeType === 'Custom' ? transactionData.customType : transactionData.noticeType,
-                            issuingAgency: transactionData.issuingAgency || getCurrentUserAgency() || '',
-                            ipfsHash: encryptedData?.ipfsHash || '',
-                            encryptionKey: encryptedData?.encryptionKey || '',
-                            tokenName: transactionData.tokenName || 'Legal Notice'
-                        });
+                        // Use batch upload for multiple recipients
+                        if (transactionData.isBatch && window.uploadBatchDocuments) {
+                            console.log('Using batch upload for', transactionData.recipients.length, 'recipients');
+                            
+                            backendUploadResult = await window.uploadBatchDocuments({
+                                batchId: transactionData.batchId,
+                                recipients: transactionData.recipients,
+                                serverAddress: tronWeb.defaultAddress.base58,
+                                caseNumber: transactionData.caseNumber || '',
+                                noticeType: transactionData.noticeType === 'Custom' ? transactionData.customType : transactionData.noticeType,
+                                issuingAgency: transactionData.issuingAgency || getCurrentUserAgency() || '',
+                                ipfsHash: encryptedData?.ipfsHash || '',
+                                encryptionKey: encryptedData?.encryptionKey || '',
+                                alertIds: [], // Will be filled after transaction
+                                documentIds: [] // Will be filled after transaction
+                            });
+                            
+                            // Check if batch upload succeeded for all recipients
+                            if (backendUploadResult && backendUploadResult.failureCount > 0) {
+                                const msg = `Warning: ${backendUploadResult.failureCount} of ${backendUploadResult.totalRecipients} recipients failed to upload`;
+                                console.warn(msg);
+                                // Show warning but allow user to decide
+                                const proceed = confirm(msg + '\n\nDo you want to continue with the transaction?');
+                                if (!proceed) {
+                                    throw new Error('Batch upload cancelled due to failures');
+                                }
+                            }
+                            
+                        } else if (window.uploadNoticeDocuments) {
+                            // Use single upload for single recipient
+                            const primaryRecipient = Array.isArray(transactionData.recipient) ? 
+                                                    transactionData.recipient[0] : transactionData.recipient;
+                            
+                            backendUploadResult = await window.uploadNoticeDocuments({
+                                noticeId: Date.now().toString(), // Temporary ID
+                                alertId: null, // Will be set after transaction
+                                documentId: null, // Will be set after transaction
+                                serverAddress: tronWeb.defaultAddress.base58,
+                                recipient: primaryRecipient,
+                                recipientAddress: primaryRecipient,
+                                caseNumber: transactionData.caseNumber || '',
+                                noticeType: transactionData.noticeType === 'Custom' ? transactionData.customType : transactionData.noticeType,
+                                issuingAgency: transactionData.issuingAgency || getCurrentUserAgency() || '',
+                                ipfsHash: encryptedData?.ipfsHash || '',
+                                encryptionKey: encryptedData?.encryptionKey || '',
+                                tokenName: transactionData.tokenName || 'Legal Notice'
+                            });
+                        }
                         
                         if (!backendUploadResult) {
                             throw new Error('Backend upload returned no result');
