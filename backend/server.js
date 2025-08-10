@@ -867,6 +867,10 @@ app.use('/api', blockchainSyncRouter);
 const auditRouter = require('./routes/audit');
 app.use('/api/audit', auditRouter);
 
+// Notice images routes (for process servers to view unencrypted images)
+const noticeImagesRouter = require('./routes/notice-images');
+app.use('/', noticeImagesRouter);
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);

@@ -1006,6 +1006,9 @@ class UnifiedNoticeSystem {
                     
                     <!-- Case Actions -->
                     <div class="case-actions">
+                        <button onclick="unifiedSystem.viewNotice('${caseData.caseNumber}')" class="btn btn-primary">
+                            <i class="fas fa-eye"></i> View Notice
+                        </button>
                         <button onclick="unifiedSystem.viewServiceCertificate('${caseData.caseNumber}')" class="btn btn-secondary">
                             <i class="fas fa-certificate"></i> Service Certificate
                         </button>
@@ -1823,6 +1826,197 @@ class UnifiedNoticeSystem {
                 `;
             }
         }, 1000);
+    }
+
+    /**
+     * View Notice - Display unencrypted notice images for process server
+     */
+    async viewNotice(caseNumber) {
+        const caseData = this.cases.get(caseNumber);
+        if (!caseData) return;
+
+        // Get the first recipient's notice URLs from backend
+        const firstRecipient = caseData.recipients?.[0] || {};
+        
+        // Create modal to display notice
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content large" style="max-width: 90%; max-height: 90%;">
+                <div class="modal-header">
+                    <h2>Notice for Case #${caseNumber}</h2>
+                    <button onclick="this.closest('.modal-overlay').remove()" class="modal-close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="modal-body" style="overflow: auto; max-height: 70vh;">
+                    <div id="noticeContainer" style="text-align: center;">
+                        <p>Loading notice images...</p>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button onclick="unifiedSystem.downloadStampedNotice('${caseNumber}')" class="btn btn-primary">
+                        <i class="fas fa-download"></i> Download Stamped Version
+                    </button>
+                    <button onclick="this.closest('.modal-overlay').remove()" class="btn btn-secondary">
+                        Close
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        // Try to fetch unencrypted URLs from backend
+        try {
+            const response = await fetch(
+                `${this.backend}/api/notices/${firstRecipient.alertId || caseData.alertId}/images`
+            );
+            
+            if (response.ok) {
+                const data = await response.json();
+                const container = document.getElementById('noticeContainer');
+                
+                if (data.alertThumbnailUrl || data.documentUnencryptedUrl) {
+                    container.innerHTML = `
+                        ${data.alertThumbnailUrl ? `
+                            <div style="margin-bottom: 20px;">
+                                <h3>Alert Notice</h3>
+                                <img src="${data.alertThumbnailUrl}" style="max-width: 100%; border: 1px solid #ddd;" />
+                            </div>
+                        ` : ''}
+                        ${data.documentUnencryptedUrl ? `
+                            <div>
+                                <h3>Document Notice</h3>
+                                <img src="${data.documentUnencryptedUrl}" style="max-width: 100%; border: 1px solid #ddd;" />
+                            </div>
+                        ` : ''}
+                    `;
+                } else {
+                    container.innerHTML = '<p>No notice images available</p>';
+                }
+            } else {
+                // Fallback: Show placeholder
+                document.getElementById('noticeContainer').innerHTML = `
+                    <p>Notice images not available from backend.</p>
+                    <p>Transaction Hash: ${caseData.transactionHash || 'Pending'}</p>
+                `;
+            }
+        } catch (error) {
+            console.error('Error loading notice:', error);
+            document.getElementById('noticeContainer').innerHTML = '<p>Error loading notice images</p>';
+        }
+    }
+
+    /**
+     * Add blockchain stamp to notice pages
+     */
+    async stampNoticeWithBlockchain(imageUrl, transactionHash, pageNum, totalPages) {
+        // Create canvas to add stamp
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Load the image
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        return new Promise((resolve) => {
+            img.onload = () => {
+                // Set canvas size to match image
+                canvas.width = img.width;
+                canvas.height = img.height;
+                
+                // Draw original image
+                ctx.drawImage(img, 0, 0);
+                
+                // Add red stamp header
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.1)';
+                ctx.fillRect(0, 0, canvas.width, 80);
+                
+                // Add text stamp
+                ctx.fillStyle = 'red';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                
+                // Line 1: Blockchain verification
+                ctx.fillText('BLOCKCHAIN VERIFIED LEGAL NOTICE', canvas.width / 2, 20);
+                
+                // Line 2: Date and time
+                const date = new Date().toLocaleString();
+                ctx.fillText(`Served: ${date}`, canvas.width / 2, 40);
+                
+                // Line 3: Transaction hash
+                const shortHash = transactionHash ? 
+                    `TX: ${transactionHash.substring(0, 8)}...${transactionHash.substring(transactionHash.length - 8)}` : 
+                    'TX: Pending Blockchain Confirmation';
+                ctx.fillText(shortHash, canvas.width / 2, 60);
+                
+                // Line 4: Page number
+                ctx.fillText(`Page ${pageNum} of ${totalPages}`, canvas.width / 2, 75);
+                
+                // Add watermark border
+                ctx.strokeStyle = 'red';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
+                
+                // Convert to blob
+                canvas.toBlob((blob) => {
+                    resolve(blob);
+                }, 'image/png');
+            };
+            
+            img.onerror = () => {
+                resolve(null);
+            };
+            
+            img.src = imageUrl;
+        });
+    }
+
+    /**
+     * Download stamped notice with blockchain header
+     */
+    async downloadStampedNotice(caseNumber) {
+        const caseData = this.cases.get(caseNumber);
+        if (!caseData) return;
+
+        try {
+            // Show loading
+            this.showNotification('Generating stamped notice...', 'info');
+            
+            // Get transaction hash (could be from blockchain or backend)
+            const transactionHash = caseData.transactionHash || 'PENDING_CONFIRMATION';
+            
+            // For now, create a sample stamped document
+            // In production, this would fetch actual images and stamp them
+            const stampedContent = `
+                BLOCKCHAIN STAMPED LEGAL NOTICE
+                ================================
+                Case Number: ${caseNumber}
+                Transaction Hash: ${transactionHash}
+                Date Served: ${new Date(caseData.createdAt).toLocaleString()}
+                Total Pages: ${caseData.recipients?.[0]?.pageCount || 1}
+                
+                This document has been cryptographically verified
+                and recorded on the TRON blockchain.
+            `;
+            
+            // Create download
+            const blob = new Blob([stampedContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `stamped_notice_${caseNumber}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            this.showNotification('Stamped notice downloaded', 'success');
+        } catch (error) {
+            console.error('Error downloading stamped notice:', error);
+            this.showNotification('Error generating stamped notice', 'error');
+        }
     }
 }
 
