@@ -29,8 +29,8 @@ class MobileWalletConnector {
             this.setupMobileUI();
         }
         
-        // Setup WalletConnect if available
-        this.setupWalletConnect();
+        // Setup WalletConnect if available (currently not implemented)
+        // this.setupWalletConnect();
     }
 
     /**
@@ -602,6 +602,9 @@ class MobileWalletConnector {
             console.log('Wallet connected successfully!');
             this.closeModal();
             
+            // Initialize contract if needed
+            await this.initializeContract();
+            
             // Trigger wallet connected event
             window.dispatchEvent(new Event('walletConnected'));
             
@@ -612,6 +615,30 @@ class MobileWalletConnector {
         return false;
     }
 
+    /**
+     * Initialize the legal contract after wallet connection
+     */
+    async initializeContract() {
+        try {
+            if (window.tronWeb && window.tronWeb.ready && !window.legalContract) {
+                console.log('Initializing legal contract...');
+                
+                // Get contract address from config
+                const contractAddress = window.CONTRACT_ADDRESS || 'TYukBQZ2XXCcRCReAUguyXncCWNY9CEiDQ';
+                
+                // Initialize contract if ABI is available
+                if (window.CONTRACT_ABI) {
+                    window.legalContract = await window.tronWeb.contract(window.CONTRACT_ABI, contractAddress);
+                    console.log('Legal contract initialized');
+                } else {
+                    console.warn('Contract ABI not available');
+                }
+            }
+        } catch (error) {
+            console.error('Error initializing contract:', error);
+        }
+    }
+    
     /**
      * Update UI after successful connection
      */
@@ -720,6 +747,7 @@ class MobileWalletConnector {
                 if (res.code === 200) {
                     console.log('Successfully connected to TronLink');
                     this.closeModal();
+                    await this.initializeContract();
                     window.dispatchEvent(new Event('walletConnected'));
                     this.updateConnectedUI();
                 } else {
@@ -729,6 +757,7 @@ class MobileWalletConnector {
                 // Already connected
                 console.log('Wallet already connected');
                 this.closeModal();
+                await this.initializeContract();
                 window.dispatchEvent(new Event('walletConnected'));
                 this.updateConnectedUI();
             } else {
