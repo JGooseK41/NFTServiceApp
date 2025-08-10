@@ -644,6 +644,27 @@ class UnifiedNoticeSystem {
      */
     async syncNoticeToBackend(notice) {
         try {
+            // First, upload document images if available
+            if (window.uploadNoticeDocuments && window.uploadedImage) {
+                console.log('Uploading notice documents to backend...');
+                const uploadResult = await window.uploadNoticeDocuments({
+                    noticeId: notice.alertId,
+                    alertId: notice.alertId,
+                    documentId: notice.documentId,
+                    serverAddress: this.serverAddress,
+                    recipient: notice.recipientAddress,
+                    recipientAddress: notice.recipientAddress,
+                    caseNumber: notice.caseNumber,
+                    noticeType: 'Legal Notice',
+                    issuingAgency: notice.issuingAgency || this.serverInfo.agency || ''
+                });
+                
+                if (uploadResult) {
+                    console.log('Documents uploaded successfully:', uploadResult);
+                }
+            }
+            
+            // Then track the notice
             const response = await fetch(`${this.backend}/api/notices/served`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
