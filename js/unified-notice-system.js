@@ -531,8 +531,28 @@ class UnifiedNoticeSystem {
                         
                         // This is our notice - extract data
                         
-                        // Try to extract case number from description first
-                        let extractedCaseNumber = this.extractCaseNumber(alertData[3]);
+                        // Get the ACTUAL case number from the notices mapping which has it!
+                        let actualCaseNumber = null;
+                        try {
+                            // The notices mapping uses a separate counter starting from 0
+                            // We need to find which notice corresponds to this alert
+                            // Since alerts are odd IDs (1, 3, 5...) and documents are even (2, 4, 6...)
+                            // The notice index would be: (alertId - 1) / 2
+                            const noticeIndex = Math.floor((i - 1) / 2);
+                            
+                            const noticeData = await window.legalContract.notices(noticeIndex).call();
+                            if (noticeData && noticeData[7]) { // caseNumber is at index 7 in the Notice struct
+                                actualCaseNumber = noticeData[7];
+                                if (actualCaseNumber && actualCaseNumber !== '') {
+                                    console.log(`✅ Found actual case number "${actualCaseNumber}" for alert ${i} from notices[${noticeIndex}]`);
+                                }
+                            }
+                        } catch (e) {
+                            console.warn(`Could not read notice data for alert ${i}:`, e);
+                        }
+                        
+                        // Use the actual case number if found, otherwise try to extract from description
+                        let extractedCaseNumber = actualCaseNumber || this.extractCaseNumber(alertData[3]);
                         
                         // Check if this looks like a test case number (CASE-X format where X is just a number)
                         const isFallbackCase = !extractedCaseNumber || /^CASE-\d+$/.test(extractedCaseNumber);
