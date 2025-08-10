@@ -260,7 +260,6 @@ class HybridDataService {
                     break;
                 }
             }
-            }
 
             // Cache the results
             if (window.sessionCache) {

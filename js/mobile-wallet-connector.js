@@ -596,7 +596,7 @@ class MobileWalletConnector {
     /**
      * Check if wallet is connected after app redirect
      */
-    checkConnection() {
+    async checkConnection() {
         // Check if TronWeb became available after redirect
         if (window.tronWeb && window.tronWeb.ready) {
             console.log('Wallet connected successfully!');
