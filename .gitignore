@@ -52,4 +52,4 @@ contracts/deployments/*_deployment_*.json
 # Backup files
 *.backup
 *.bak
-index.backup.html
+index.backup.htmltest-image.png
