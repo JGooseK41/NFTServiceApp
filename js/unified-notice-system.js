@@ -823,8 +823,8 @@ class UnifiedNoticeSystem {
                             </p>
                         </div>
                         <div style="text-align: right;">
-                            <div style="font-size: 2rem; font-weight: bold;">${this.serverInfo.noticesServed || 0}</div>
-                            <div style="opacity: 0.9; font-size: 0.9rem;">Total Notices Served</div>
+                            <div style="font-size: 2rem; font-weight: bold;">${this.cases.size || 0}</div>
+                            <div style="opacity: 0.9; font-size: 0.9rem;">Total Service Events</div>
                             <div style="opacity: 0.8; font-size: 0.8rem; margin-top: 0.25rem;">
                                 <i class="fas fa-calendar"></i> Since ${registrationDate}
                             </div>
@@ -862,16 +862,18 @@ class UnifiedNoticeSystem {
         const caseId = `case-${caseData.caseNumber.replace(/[^a-zA-Z0-9]/g, '_')}`;
         
         // Determine overall case status based on all recipients
+        // For paired Alert+Document notices: show "Delivered" until document is signed
         let statusLabel, statusClass;
         if (caseData.allSigned) {
-            statusLabel = 'All Signed';
+            statusLabel = 'Signed For';
             statusClass = 'status-completed';
         } else if (caseData.partialSigned) {
             statusLabel = `${caseData.totalAccepted}/${caseData.recipientCount} Signed`;
             statusClass = 'status-partial';
         } else {
-            statusLabel = 'Awaiting Signatures';
-            statusClass = 'status-pending';
+            // Paired notices are "Delivered" once sent, awaiting signature
+            statusLabel = 'Delivered';
+            statusClass = 'status-delivered';
         }
         
         // Format the service date
