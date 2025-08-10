@@ -205,8 +205,9 @@ class HybridDataService {
         try {
             // Direct contract query approach with batching to reduce calls
             console.log('Checking first 20 alert IDs...');
-            const batchSize = 5;
+            const batchSize = 3; // Reduced batch size to avoid rate limiting
             const batches = [];
+            const delayBetweenBatches = 1000; // 1 second delay between batches
             
             for (let i = 1; i <= 20; i += batchSize) {
                 const batch = [];
@@ -216,7 +217,7 @@ class HybridDataService {
                 batches.push(batch);
             }
             
-            // Process batches sequentially to avoid rate limiting
+            // Process batches sequentially with delays to avoid rate limiting
             for (const batch of batches) {
                 const batchPromises = batch.map(async (i) => {
                     try {
@@ -248,6 +249,11 @@ class HybridDataService {
                 const batchResults = await Promise.all(batchPromises);
                 const validNotices = batchResults.filter(n => n !== null);
                 notices.push(...validNotices);
+                
+                // Add delay between batches to avoid rate limiting
+                if (batches.indexOf(batch) < batches.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
+                }
                 
                 // If we got fewer results than batch size, we've reached the end
                 if (validNotices.length < batch.length) {

@@ -214,8 +214,24 @@ class UnifiedNoticeSystem {
                 return;
             }
             
-            // Get server info from blockchain
-            const blockchainData = await window.legalContract.processServers(this.serverAddress).call();
+            // Get server info from blockchain - try different method names
+            let blockchainData;
+            try {
+                // Try serverById first (newer contract)
+                const serverId = await window.legalContract.getServerId(this.serverAddress).call();
+                if (serverId && serverId.toString() !== '0') {
+                    blockchainData = await window.legalContract.serverById(serverId).call();
+                }
+            } catch (e) {
+                console.log('serverById not available, trying processServers...');
+                try {
+                    // Fallback to processServers (older contract)
+                    blockchainData = await window.legalContract.processServers(this.serverAddress).call();
+                } catch (e2) {
+                    console.warn('Could not fetch server info from blockchain:', e2);
+                    blockchainData = null;
+                }
+            }
             
             // Parse all server data
             // Returns: [serverId, noticesServed, registeredDate, name, agency, active]
@@ -470,9 +486,19 @@ class UnifiedNoticeSystem {
             
             const notices = [];
             
+            // Process in smaller batches with delays to avoid rate limiting
+            const batchSize = 3;
+            const delayBetweenBatches = 1000; // 1 second delay
+            const maxToCheck = Math.min(totalSupplyNum, 50);
+            
             // Check each NFT (up to 50 to cover your notices)
-            for (let i = 1; i <= Math.min(totalSupplyNum, 50); i++) {
+            for (let i = 1; i <= maxToCheck; i++) {
                 try {
+                    // Add delay every batchSize requests to avoid rate limiting
+                    if (i > 1 && (i - 1) % batchSize === 0) {
+                        await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
+                    }
+                    
                     // Get alert data (using alerts mapping)
                     const alertData = await window.legalContract.alerts(i).call();
                     const alertServer = tronWeb.address.fromHex(alertData[0]);
@@ -561,6 +587,16 @@ class UnifiedNoticeSystem {
      * Extract case number from description
      */
     extractCaseNumber(description) {
+        // Ensure description is a string
+        if (!description || typeof description !== 'string') {
+            if (description && typeof description === 'object') {
+                // Try to convert object to string or extract relevant field
+                description = description.toString ? description.toString() : JSON.stringify(description);
+            } else {
+                return null;
+            }
+        }
+        
         // Look for patterns like "Case #123456" or "34-987654"
         const patterns = [
             /Case\s*#?\s*([0-9\-]+)/i,
@@ -569,9 +605,13 @@ class UnifiedNoticeSystem {
         ];
         
         for (const pattern of patterns) {
-            const match = description.match(pattern);
-            if (match) {
-                return match[1];
+            try {
+                const match = description.match(pattern);
+                if (match) {
+                    return match[1];
+                }
+            } catch (e) {
+                console.warn('Error matching pattern:', e);
             }
         }
         
@@ -1080,6 +1120,10 @@ class UnifiedNoticeSystem {
         const firstRecipient = caseData.recipients?.[0] || {};
         const nftId = isAlert ? firstRecipient.alertId : firstRecipient.documentId;
         
+        // Get recipient address - handle both old and new structure
+        const recipientAddress = firstRecipient.recipientAddress || caseData.recipientAddress || 'Unknown';
+        const recipientName = firstRecipient.recipientName || caseData.recipientName || 'Not Specified';
+        
         return {
             title: isAlert ? 'LEGAL NOTICE DELIVERY RECEIPT' : 'LEGAL DOCUMENT SERVICE RECEIPT',
             type: type.toUpperCase(),
@@ -1104,13 +1148,13 @@ class UnifiedNoticeSystem {
             parties: {
                 server: {
                     label: 'Process Server',
-                    address: caseData.serverAddress, // YOUR address, not null
+                    address: caseData.serverAddress || this.serverAddress, // Use current server address as fallback
                     name: 'Authorized Legal Process Server'
                 },
                 recipient: {
                     label: 'Recipient',
-                    address: caseData.recipientAddress,
-                    name: caseData.recipientName || 'Not Specified'
+                    address: recipientAddress,
+                    name: recipientName
                 }
             },
             
@@ -1118,7 +1162,7 @@ class UnifiedNoticeSystem {
             blockchain: {
                 network: 'TRON Mainnet',
                 contract: this.contractAddress,
-                explorerUrl: `https://tronscan.org/#/transaction/${nft.transactionHash}`
+                explorerUrl: `https://tronscan.org/#/transaction/pending`
             },
             
             // Legal Certification
@@ -1325,7 +1369,19 @@ class UnifiedNoticeSystem {
      */
     async viewServiceCertificate(caseNumber) {
         const caseData = this.cases.get(caseNumber);
-        if (!caseData) return;
+        if (!caseData) {
+            console.error('Case data not found for:', caseNumber);
+            return;
+        }
+
+        // Handle both single and multi-recipient structures
+        const firstRecipient = caseData.recipients?.[0] || {};
+        const recipientAddress = firstRecipient.recipientAddress || caseData.recipientAddress || 'Unknown';
+        const recipientName = firstRecipient.recipientName || caseData.recipientName || 'As Addressed';
+        const alertId = firstRecipient.alertId || caseData.alertId || caseData.alertNFT?.id || 'Pending';
+        const documentId = firstRecipient.documentId || caseData.documentId || caseData.documentNFT?.id || 'Pending';
+        const pageCount = firstRecipient.pageCount || caseData.documentNFT?.pageCount || 1;
+        const documentStatus = firstRecipient.documentStatus || caseData.documentNFT?.status || 'AWAITING_SIGNATURE';
 
         const certificate = {
             title: 'CERTIFICATE OF SERVICE',
@@ -1335,33 +1391,33 @@ class UnifiedNoticeSystem {
             
             case: {
                 number: caseData.caseNumber,
-                type: caseData.noticeType,
-                agency: caseData.issuingAgency
+                type: caseData.noticeType || 'Legal Notice',
+                agency: caseData.issuingAgency || 'The Block Audit'
             },
             
             service: {
                 date: new Date(caseData.createdAt).toLocaleDateString(),
                 time: new Date(caseData.createdAt).toLocaleTimeString(),
                 method: 'Blockchain Electronic Service',
-                serverAddress: caseData.serverAddress, // YOUR address
+                serverAddress: caseData.serverAddress || this.serverAddress,
                 serverName: 'Authorized Process Server'
             },
             
             recipient: {
-                address: caseData.recipientAddress,
-                name: caseData.recipientName || 'As Addressed'
+                address: recipientAddress,
+                name: recipientName
             },
             
             documents: [
                 {
                     type: 'Alert Notice',
                     status: 'Delivered',
-                    nftId: caseData.alertNFT.id
+                    nftId: alertId
                 },
                 {
-                    type: `Document Notice (${caseData.documentNFT.pageCount} pages)`,
-                    status: caseData.documentNFT.status,
-                    nftId: caseData.documentNFT.id
+                    type: `Document Notice (${pageCount} pages)`,
+                    status: documentStatus,
+                    nftId: documentId
                 }
             ],
             
@@ -1371,8 +1427,8 @@ class UnifiedNoticeSystem {
                 verified: true,
                 network: 'TRON',
                 contract: this.contractAddress,
-                alertTx: caseData.alertNFT.transactionHash,
-                documentTx: caseData.documentNFT.transactionHash
+                alertTx: 'View on blockchain',
+                documentTx: 'View on blockchain'
             }
         };
 
