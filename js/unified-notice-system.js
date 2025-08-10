@@ -1906,7 +1906,6 @@ class UnifiedNoticeSystem {
                 `;
             }
         }
-    }
     
     /**
      * Display comprehensive audit data

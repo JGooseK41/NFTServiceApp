@@ -93,7 +93,7 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
                     documentId: row.document_id,
                     pageCount: row.page_count || 1,
                     documentStatus: row.accepted ? 'SIGNED' : 'AWAITING_SIGNATURE',
-                    isPaired: false // Track if this is a paired Alert+Document
+                    isPaired: !!(row.alert_id && row.document_id) // Set isPaired if both IDs exist
                 });
             } else {
                 // This recipient already has a notice, merge Alert and Document IDs
