@@ -38,35 +38,26 @@
                                 </h3>
                                 
                                 <div style="background: var(--bg-card); padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;">
-                                    <h4 style="color: var(--primary); margin-bottom: 1rem;">Method 1: Open in TronLink Browser (Recommended)</h4>
-                                    <ol style="text-align: left; padding-left: 1.5rem; line-height: 1.8;">
+                                    <h4 style="color: var(--primary); margin-bottom: 1rem;">
+                                        <i class="fas fa-mobile-alt"></i> Connect Using TronLink Browser
+                                    </h4>
+                                    <ol style="text-align: left; padding-left: 1.5rem; line-height: 2; font-size: 1.05rem;">
                                         <li>Open <strong>TronLink app</strong> on your phone</li>
-                                        <li>Tap the <strong>Discover</strong> or <strong>Browser</strong> tab at the bottom</li>
-                                        <li>Enter this URL: <br>
-                                            <div style="background: var(--bg-primary); padding: 0.5rem; border-radius: 4px; margin: 0.5rem 0; word-break: break-all;">
-                                                <strong>${window.location.origin}</strong>
+                                        <li>Tap the <strong>Discover</strong> or <strong>Browser</strong> tab 
+                                            <span style="color: var(--text-muted); font-size: 0.9rem;">(bottom of screen)</span>
+                                        </li>
+                                        <li>Enter or paste this URL: <br>
+                                            <div style="background: var(--bg-primary); padding: 0.75rem; border-radius: 8px; margin: 0.75rem 0; word-break: break-all; font-family: monospace;">
+                                                <strong style="color: var(--primary); font-size: 1.1rem;">${window.location.origin}</strong>
                                             </div>
                                         </li>
-                                        <li>The wallet will connect automatically</li>
+                                        <li>The wallet will <strong>connect automatically</strong></li>
                                     </ol>
                                     
-                                    <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" 
+                                    <button class="btn btn-primary" style="width: 100%; margin-top: 1.5rem; font-size: 1.1rem; padding: 1rem;" 
                                             onclick="copyToClipboard('${window.location.origin}')">
-                                        <i class="fas fa-copy"></i> Copy URL
+                                        <i class="fas fa-copy"></i> Copy Website URL
                                     </button>
-                                </div>
-                                
-                                <div style="background: var(--bg-card); padding: 1.5rem; border-radius: 12px;">
-                                    <h4 style="color: var(--primary); margin-bottom: 1rem;">Method 2: Direct Link</h4>
-                                    <p style="text-align: left; margin-bottom: 1rem;">
-                                        If you have TronLink installed, try opening directly:
-                                    </p>
-                                    <a href="https://link.tronlink.org/open?url=${encodeURIComponent(window.location.origin)}" 
-                                       target="_blank" 
-                                       class="btn btn-secondary" 
-                                       style="width: 100%;">
-                                        <i class="fas fa-external-link-alt"></i> Open in TronLink
-                                    </a>
                                 </div>
                                 
                                 <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
@@ -104,6 +95,48 @@
             }
         };
     }
+    
+    // Handle TronLink deep link
+    window.handleTronLinkDeepLink = function(event) {
+        event.preventDefault();
+        
+        const url = window.location.origin;
+        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const isAndroid = /Android/i.test(navigator.userAgent);
+        
+        // Try different URL schemes based on platform
+        let deepLinkUrl;
+        
+        if (isIOS) {
+            // iOS scheme
+            deepLinkUrl = `tronlinkoutside://dapp?url=${encodeURIComponent(url)}`;
+        } else if (isAndroid) {
+            // Android scheme
+            deepLinkUrl = `tronlink://dapp?url=${encodeURIComponent(url)}`;
+        } else {
+            // Fallback for desktop
+            window.open('https://www.tronlink.org/download', '_blank');
+            return;
+        }
+        
+        // Try to open the deep link
+        window.location.href = deepLinkUrl;
+        
+        // If deep link fails, show alternative
+        setTimeout(() => {
+            if (document.hasFocus() || document.visibilityState === 'visible') {
+                // We're still here, deep link probably failed
+                // Update the UI to show the URL to copy
+                const btn = event.target.closest('a');
+                if (btn) {
+                    btn.innerHTML = '<i class="fas fa-info-circle"></i> Copy URL above and paste in TronLink browser';
+                    btn.onclick = function() {
+                        copyToClipboard(url);
+                    };
+                }
+            }
+        }, 2000);
+    };
     
     // Copy to clipboard function
     window.copyToClipboard = function(text) {
