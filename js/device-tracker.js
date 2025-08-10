@@ -312,25 +312,42 @@ class DeviceTracker {
      */
     async getGeolocation() {
         return new Promise((resolve) => {
-            if (!navigator.geolocation) {
-                resolve(null);
-                return;
-            }
-            
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    resolve({
-                        latitude: position.coords.latitude,
-                        longitude: position.coords.longitude,
-                        accuracy: position.coords.accuracy,
-                        timestamp: position.timestamp
-                    });
-                },
-                () => {
+            // Skip geolocation if permissions policy blocks it
+            try {
+                if (!navigator.geolocation) {
                     resolve(null);
-                },
-                { timeout: 5000 }
-            );
+                    return;
+                }
+                
+                // Check if we can access geolocation
+                navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+                    if (result.state === 'denied') {
+                        resolve(null);
+                        return;
+                    }
+                    
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            resolve({
+                                latitude: position.coords.latitude,
+                                longitude: position.coords.longitude,
+                                accuracy: position.coords.accuracy,
+                                timestamp: position.timestamp
+                            });
+                        },
+                        () => {
+                            resolve(null);
+                        },
+                        { timeout: 5000 }
+                    );
+                }).catch(() => {
+                    // Permissions API not available or blocked
+                    resolve(null);
+                });
+            } catch (error) {
+                // Geolocation access blocked by permissions policy
+                resolve(null);
+            }
         });
     }
 
