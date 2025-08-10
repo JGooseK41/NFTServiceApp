@@ -4549,10 +4549,23 @@
                         
                         <div class="preview-details">
                             <div class="form-group">
-                                <label class="form-label">Recipient Address <span style="color: var(--error);">*</span></label>
-                                <input type="text" class="form-input" id="mintRecipient" 
-                                       placeholder="Enter recipient's TRON address" required>
+                                <label class="form-label">
+                                    Recipient Address(es) <span style="color: var(--error);">*</span>
+                                    <span id="recipientCount" style="color: var(--accent-blue); font-weight: normal; margin-left: 10px;">(1 recipient)</span>
+                                </label>
+                                <div id="recipientsList">
+                                    <div class="recipient-input-group" data-index="0" style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                        <input type="text" class="form-input recipient-address" id="mintRecipient" 
+                                               placeholder="Enter recipient's TRON address" required style="flex: 1;">
+                                        <button type="button" class="btn btn-success btn-small" onclick="addRecipientField()" title="Add another recipient">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
                                 <div class="validation-message" id="recipientValidation" style="display: none;"></div>
+                                <p class="form-help" id="batchInfo" style="display: none; color: var(--accent-blue); margin-top: 0.5rem;">
+                                    <i class="fas fa-info-circle"></i> Batch mode: All recipients will receive the same notice
+                                </p>
                             </div>
                             
                             <div class="form-group">
@@ -10071,7 +10084,25 @@ function useConnectedAddressForFeeCollector() {
                     content += `</div>`;
                 }
                 
-                if (txData.recipient) {
+                // Handle batch or single recipient display
+                if (txData.isBatch && txData.recipients) {
+                    content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
+                    content += `<span>Recipients (${txData.recipientCount}):</span>`;
+                    content += `<strong style="color: var(--success);">${txData.recipientCount} wallets</strong>`;
+                    content += `</div>`;
+                    
+                    // Show list of recipients with their NFT IDs
+                    if (txData.allAlertIds && txData.allDocumentIds) {
+                        content += '<div style="margin-top: 0.5rem; padding: 0.5rem; background: var(--bg-primary); border-radius: 0.25rem;">';
+                        content += '<small style="display: block; margin-bottom: 0.5rem;">Batch Details:</small>';
+                        for (let i = 0; i < txData.recipients.length && i < txData.allAlertIds.length; i++) {
+                            content += `<div style="margin-bottom: 0.25rem; font-size: 0.85rem;">`;
+                            content += `${i + 1}. ${formatAddress(txData.recipients[i])} - Alert #${txData.allAlertIds[i]}`;
+                            content += `</div>`;
+                        }
+                        content += '</div>';
+                    }
+                } else if (txData.recipient) {
                     content += `<div class="detail-row" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">`;
                     content += `<span>Recipient Wallet:</span>`;
                     content += `<strong>${formatAddress(txData.recipient)}</strong>`;
@@ -18654,6 +18685,148 @@ async function checkUserRoles() {
         
         // Make cache available globally
         window.blockchainCache = blockchainCache;
+        
+        // Multi-recipient form management
+        let recipientCount = 1;
+        const MAX_RECIPIENTS = 10;
+        
+        function addRecipientField() {
+            if (recipientCount >= MAX_RECIPIENTS) {
+                if (window.uiManager) {
+                    window.uiManager.showNotification('warning', `Maximum ${MAX_RECIPIENTS} recipients allowed`);
+                } else {
+                    alert(`Maximum ${MAX_RECIPIENTS} recipients allowed`);
+                }
+                return;
+            }
+            
+            recipientCount++;
+            const recipientsList = document.getElementById('recipientsList');
+            const newIndex = recipientCount - 1;
+            
+            const newGroup = document.createElement('div');
+            newGroup.className = 'recipient-input-group';
+            newGroup.setAttribute('data-index', newIndex);
+            newGroup.style.cssText = 'display: flex; gap: 0.5rem; margin-bottom: 0.5rem; animation: fadeIn 0.3s ease-in;';
+            
+            newGroup.innerHTML = `
+                <input type="text" class="form-input recipient-address" 
+                       placeholder="Enter recipient's TRON address #${recipientCount}" 
+                       required style="flex: 1;">
+                <button type="button" class="btn btn-danger btn-small" onclick="removeRecipientField(${newIndex})" title="Remove this recipient">
+                    <i class="fas fa-minus"></i>
+                </button>
+            `;
+            
+            recipientsList.appendChild(newGroup);
+            updateRecipientCount();
+            
+            // Focus the new input
+            const newInput = newGroup.querySelector('input');
+            if (newInput) newInput.focus();
+        }
+        
+        function removeRecipientField(index) {
+            const group = document.querySelector(`.recipient-input-group[data-index="${index}"]`);
+            if (group) {
+                group.style.animation = 'fadeOut 0.3s ease-out';
+                setTimeout(() => {
+                    group.remove();
+                    recipientCount--;
+                    updateRecipientCount();
+                    
+                    // Re-index remaining fields
+                    const remaining = document.querySelectorAll('.recipient-input-group');
+                    remaining.forEach((g, i) => {
+                        g.setAttribute('data-index', i);
+                        const removeBtn = g.querySelector('.btn-danger');
+                        if (removeBtn) {
+                            removeBtn.setAttribute('onclick', `removeRecipientField(${i})`);
+                        }
+                        const input = g.querySelector('input');
+                        if (input && i > 0) {
+                            input.placeholder = `Enter recipient's TRON address #${i + 1}`;
+                        }
+                    });
+                }, 300);
+            }
+        }
+        
+        function updateRecipientCount() {
+            const countSpan = document.getElementById('recipientCount');
+            const batchInfo = document.getElementById('batchInfo');
+            
+            if (countSpan) {
+                countSpan.textContent = recipientCount === 1 ? '(1 recipient)' : `(${recipientCount} recipients - batch mode)`;
+            }
+            
+            if (batchInfo) {
+                batchInfo.style.display = recipientCount > 1 ? 'block' : 'none';
+            }
+            
+            // Update the first input's button based on count
+            const firstGroup = document.querySelector('.recipient-input-group[data-index="0"]');
+            if (firstGroup) {
+                const button = firstGroup.querySelector('button');
+                if (button) {
+                    if (recipientCount >= MAX_RECIPIENTS) {
+                        button.disabled = true;
+                        button.title = `Maximum ${MAX_RECIPIENTS} recipients reached`;
+                    } else {
+                        button.disabled = false;
+                        button.title = 'Add another recipient';
+                    }
+                }
+            }
+        }
+        
+        function getAllRecipients() {
+            const addresses = [];
+            const inputs = document.querySelectorAll('.recipient-address');
+            
+            inputs.forEach(input => {
+                const address = input.value.trim();
+                if (address) {
+                    addresses.push(address);
+                }
+            });
+            
+            // Remove duplicates
+            return [...new Set(addresses)];
+        }
+        
+        // Make functions globally available
+        window.addRecipientField = addRecipientField;
+        window.removeRecipientField = removeRecipientField;
+        window.updateRecipientCount = updateRecipientCount;
+        window.getAllRecipients = getAllRecipients;
+        
+        // Add CSS for animations
+        if (!document.getElementById('multiRecipientStyles')) {
+            const style = document.createElement('style');
+            style.id = 'multiRecipientStyles';
+            style.innerHTML = `
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(-10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes fadeOut {
+                    from { opacity: 1; transform: translateY(0); }
+                    to { opacity: 0; transform: translateY(-10px); }
+                }
+                .recipient-input-group {
+                    transition: all 0.3s ease;
+                }
+                .recipient-input-group:hover {
+                    background: rgba(59, 130, 246, 0.05);
+                    border-radius: 0.375rem;
+                    padding: 0.25rem;
+                    margin: -0.25rem;
+                    margin-bottom: 0.25rem;
+                }
+            `;
+            document.head.appendChild(style);
+        }
         
         document.addEventListener('DOMContentLoaded', async function() {
             // Initialize language support for recipient mode
@@ -27535,7 +27708,9 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 window.pendingTransactionData = null;
             } else {
                 // Get form values - use correct mint form IDs
-                const recipient = document.getElementById('mintRecipient')?.value.trim() || '';
+                const recipients = window.getAllRecipients ? window.getAllRecipients() : 
+                                  [document.getElementById('mintRecipient')?.value.trim() || ''];
+                const recipient = recipients[0]; // Primary recipient for backward compatibility
                 const publicText = document.getElementById('noticeText')?.value.trim() || '';
                 const noticeType = document.getElementById('noticeType')?.value || 'Legal Notice';
                 const customType = document.getElementById('customNoticeType')?.value.trim() || '';
@@ -27544,8 +27719,11 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 const tokenName = document.getElementById('mintTokenName')?.value.trim() || 'Legal Notice';
                 const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked')?.value || 'document';
                 
+                // Check if this is a batch transaction
+                const isBatch = recipients.length > 1;
+                
                 // Validation with audit logging
-                if (!recipient) {
+                if (!recipient || recipients.length === 0) {
                     const errorMsg = 'Please enter recipient address';
                     uiManager.showNotification('error', errorMsg);
                     if (window.auditLogger) {
@@ -27605,9 +27783,14 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     return;
                 }
                 
+                // Get all recipients for potential batch processing
+                const recipients = getAllRecipients();
+                const isBatch = recipients.length > 1;
+                
                 // Create transaction data object
                 transactionData = {
-                    recipient,
+                    recipient: isBatch ? recipients[0] : recipient, // Primary recipient
+                    recipients: isBatch ? recipients : [recipient], // All recipients for batch
                     publicText,
                     noticeType,
                     customType,
@@ -27620,7 +27803,8 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     documentPreview: uploadedImage?.preview,
                     senderAddress: tronWeb.defaultAddress.base58,
                     contractAddress: legalContract.address,
-                    type: 'single'
+                    type: isBatch ? 'batch' : 'single',
+                    isBatch: isBatch
                 };
             }
             
@@ -27629,6 +27813,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
             
             // Define fee outside try block so it's available in catch
             let fee = 150000000; // Default fee (150 TRX)
+            let totalFee = 150000000; // Total fee for batch transactions
             
             try {
                 console.log('Starting createLegalNotice...');
@@ -27639,13 +27824,15 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     window.auditLogger.logNoticeAttempt({
                         senderAddress: tronWeb.defaultAddress.base58,
                         recipientAddress: transactionData.recipient,
+                        recipientCount: transactionData.recipients ? transactionData.recipients.length : 1,
                         noticeType: transactionData.noticeType === 'Custom' ? transactionData.customType : transactionData.noticeType,
                         caseNumber: transactionData.caseNumber,
                         hasDocument: transactionData.hasDocument,
                         deliveryMethod: transactionData.deliveryMethod,
                         documentHash: transactionData.hasDocument ? await window.documentConverter?.hashDocument(transactionData.documentData) : null,
                         sponsorshipAmount: 0, // Will be updated later
-                        estimatedGas: 0 // Will be updated later
+                        estimatedGas: 0, // Will be updated later
+                        isBatch: transactionData.isBatch || false
                     });
                 }
                 
@@ -27654,11 +27841,22 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     setButtonLoading(submitButton, true);
                 }
                 
-                // Calculate fee
+                // Calculate fee (including batch if applicable)
                 console.log('Calculating fee...');
                 console.log('User address for fee calculation:', tronWeb.defaultAddress.base58);
                 fee = await calculateFeeFromConstants(tronWeb.defaultAddress.base58);
-                console.log('Fee calculated:', fee, 'sun =', fee/1000000, 'TRX');
+                
+                // For batch transactions, multiply fee by number of recipients
+                if (transactionData.isBatch && transactionData.recipients) {
+                    const recipientCount = transactionData.recipients.length;
+                    totalFee = fee * recipientCount;
+                    console.log(`Batch fee calculation: ${fee} sun × ${recipientCount} recipients = ${totalFee} sun (${totalFee/1000000} TRX)`);
+                } else {
+                    totalFee = fee;
+                }
+                
+                console.log('Fee calculated:', fee, 'sun =', fee/1000000, 'TRX per recipient');
+                console.log('Total fee:', totalFee, 'sun =', totalFee/1000000, 'TRX');
                 
                 // Double-check the exemption status
                 const doubleCheckExemption = await legalContract.serviceFeeExemptions(tronWeb.defaultAddress.base58).call();
@@ -28083,13 +28281,25 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     return;
                 }
                 
-                showProcessing('Sending transaction...');
+                // Check if this is a batch transaction
+                const isBatch = transactionData.isBatch && transactionData.recipients && transactionData.recipients.length > 1;
+                
+                if (isBatch) {
+                    showProcessing(`Sending batch transaction to ${transactionData.recipients.length} recipients...`);
+                } else {
+                    showProcessing('Sending transaction...');
+                }
                 
                 // Complete contract uses serveNotice with different parameters
                 // serveNotice(recipient, encryptedIPFS, decryptionKey, issuingAgency, noticeType, caseNumber, caseDetails, legalRights, sponsorFees)
                 const sponsorFees = fee > serviceFee; // Sponsor fees if paying more than just service fee
                 
                 console.log('=== TRANSACTION DETAILS ===');
+                console.log('Is batch transaction:', isBatch);
+                if (isBatch) {
+                    console.log('Number of recipients:', transactionData.recipients.length);
+                    console.log('Recipients:', transactionData.recipients);
+                }
                 console.log('Fee being sent to contract:', fee, 'sun =', fee/1000000, 'TRX');
                 console.log('Is law enforcement exempt?:', isLawEnforcement);
                 console.log('Expected fee for exempt user: 2 TRX');
@@ -28104,70 +28314,129 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     }
                 }
                 
-                // Store the promise so we can access the transaction hash
-                let txPromise;
+                // Store transaction results
                 let tx;
+                let allAlertIds = [];
+                let allDocumentIds = [];
                 
-                try {
-                    txPromise = legalContract.serveNotice(
-                        noticeRequest.recipient,
-                        noticeRequest.encryptedIPFS || '',
-                        noticeRequest.encryptionKey || '',
-                        noticeRequest.issuingAgency || '',
-                        noticeRequest.noticeType || '',
-                        noticeRequest.caseNumber || '',
-                        noticeRequest.publicText || '', // Use publicText as caseDetails
-                        noticeRequest.directLink || '', // Use the generated direct link
-                        sponsorFees,
-                        noticeRequest.metadataURI || '' // Add metadataURI parameter for NFT visibility
-                    ).send({
-                        feeLimit: 300_000_000,  // Increased for larger documents
-                        callValue: fee,
-                        shouldPollResponse: true
-                    });
+                if (isBatch && transactionData.recipients && transactionData.recipients.length > 1) {
+                    // Use batch function for multiple recipients
+                    showProcessing(`Sending batch transaction to ${transactionData.recipients.length} recipients...`);
                     
-                    tx = await txPromise;
-                } catch (sendError) {
-                    console.error('Transaction send error:', sendError);
-                    throw sendError;
+                    // Build batch notices array
+                    const batchNotices = transactionData.recipients.map(recipient => ({
+                        recipient: recipient,
+                        encryptedIPFS: noticeRequest.encryptedIPFS || '',
+                        encryptionKey: noticeRequest.encryptionKey || '',
+                        issuingAgency: noticeRequest.issuingAgency || '',
+                        noticeType: noticeRequest.noticeType || '',
+                        caseNumber: noticeRequest.caseNumber || '',
+                        caseDetails: noticeRequest.publicText || '',
+                        legalRights: noticeRequest.directLink || '',
+                        sponsorFees: sponsorFees,
+                        metadataURI: noticeRequest.metadataURI || ''
+                    }));
+                    
+                    console.log('Batch notices to send:', batchNotices);
+                    
+                    try {
+                        // Call the batch function
+                        const txPromise = legalContract.serveNoticeBatch(batchNotices).send({
+                            feeLimit: 500_000_000,  // Higher limit for batch
+                            callValue: totalFee,     // Use total fee for all recipients
+                            shouldPollResponse: true
+                        });
+                        
+                        tx = await txPromise;
+                        
+                        // Extract IDs from batch result
+                        if (tx && Array.isArray(tx)) {
+                            // Contract returns [alertIds[], documentIds[]]
+                            if (tx.length >= 2 && Array.isArray(tx[0]) && Array.isArray(tx[1])) {
+                                allAlertIds = tx[0].map(id => id.toString());
+                                allDocumentIds = tx[1].map(id => id.toString());
+                                console.log('Batch NFT IDs received - Alerts:', allAlertIds, 'Documents:', allDocumentIds);
+                            }
+                        }
+                    } catch (sendError) {
+                        console.error('Batch transaction send error:', sendError);
+                        throw sendError;
+                    }
+                    
+                } else {
+                    // Single recipient - use regular serveNotice
+                    try {
+                        const txPromise = legalContract.serveNotice(
+                            noticeRequest.recipient,
+                            noticeRequest.encryptedIPFS || '',
+                            noticeRequest.encryptionKey || '',
+                            noticeRequest.issuingAgency || '',
+                            noticeRequest.noticeType || '',
+                            noticeRequest.caseNumber || '',
+                            noticeRequest.publicText || '', // Use publicText as caseDetails
+                            noticeRequest.directLink || '', // Use the generated direct link
+                            sponsorFees,
+                            noticeRequest.metadataURI || '' // Add metadataURI parameter for NFT visibility
+                        ).send({
+                            feeLimit: 300_000_000,  // Increased for larger documents
+                            callValue: fee,
+                            shouldPollResponse: true
+                        });
+                        
+                        tx = await txPromise;
+                    } catch (sendError) {
+                        console.error('Transaction send error:', sendError);
+                        throw sendError;
+                    }
                 }
                 
+                // Process transaction results
                 console.log('Raw transaction result:', tx);
                 
-                // Extract transaction hash - TronLink may return it differently
+                // Extract transaction hash and NFT IDs
                 let txHash = null;
-                let contractReturnedNFTs = false;
                 let alertId = null;
                 let documentId = null;
+                let contractReturnedNFTs = false;
                 
-                // First check if tx is the transaction hash itself (string)
-                if (tx && typeof tx === 'string' && tx.length === 64) {
-                    txHash = tx;
-                    console.log('Transaction hash received directly:', txHash);
-                } 
-                // Check various transaction object formats
-                else if (tx && typeof tx === 'object' && !Array.isArray(tx)) {
-                    // Try different properties where TronLink might store the hash
-                    txHash = tx.txid || tx.txID || tx.hash || tx.transactionHash || 
-                             (tx.transaction && tx.transaction.txID) ||
-                             (tx.result && tx.result.txid) ||
-                             (tx.result && tx.result.txID);
-                    
-                    if (txHash) {
-                        console.log('Transaction hash extracted from object:', txHash);
-                    }
-                } 
-                // Handle array response (NFT IDs returned by contract)
-                else if (Array.isArray(tx)) {
-                    // Contract successfully returned the NFT IDs
-                    console.log('Contract successfully returned NFT IDs:', tx);
+                if (isBatch && allAlertIds.length > 0 && allDocumentIds.length > 0) {
+                    // Batch transaction - IDs already extracted
+                    console.log('Batch transaction completed successfully');
+                    alertId = allAlertIds[0];
+                    documentId = allDocumentIds[0];
                     contractReturnedNFTs = true;
+                } else {
+                    // Single transaction or need to extract IDs
                     
-                    // Extract NFT IDs from the array
-                    if (tx.length >= 2) {
-                        alertId = tx[0]?.toString() || null;
-                        documentId = tx[1]?.toString() || null;
-                        console.log('Extracted NFT IDs - Alert:', alertId, 'Document:', documentId);
+                    // First check if tx is the transaction hash itself (string)
+                    if (tx && typeof tx === 'string' && tx.length === 64) {
+                        txHash = tx;
+                        console.log('Transaction hash received directly:', txHash);
+                    } 
+                    // Check various transaction object formats
+                    else if (tx && typeof tx === 'object' && !Array.isArray(tx)) {
+                        // Try different properties where TronLink might store the hash
+                        txHash = tx.txid || tx.txID || tx.hash || tx.transactionHash || 
+                                 (tx.transaction && tx.transaction.txID) ||
+                                 (tx.result && tx.result.txid) ||
+                                 (tx.result && tx.result.txID);
+                        
+                        if (txHash) {
+                            console.log('Transaction hash extracted from object:', txHash);
+                        }
+                    } 
+                    // Handle array response (NFT IDs returned by contract)
+                    else if (Array.isArray(tx)) {
+                        // Contract successfully returned the NFT IDs
+                        console.log('Contract successfully returned NFT IDs:', tx);
+                        contractReturnedNFTs = true;
+                        
+                        // Extract NFT IDs from the array
+                        if (tx.length >= 2) {
+                            alertId = tx[0]?.toString() || null;
+                            documentId = tx[1]?.toString() || null;
+                            console.log('Extracted NFT IDs - Alert:', alertId, 'Document:', documentId);
+                        }
                     }
                 }
                 
@@ -28494,19 +28763,30 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 }
                 
                 // Show success with proper receipt
-                showTransactionResult(true, {
+                const resultData = {
                     txHash: txHash || 'Transaction confirmed',
                     noticeId: noticeId,
                     alertId: alertId,
                     documentId: documentId,
                     recipient: transactionData.recipient,
-                    feePaid: parseInt(fee) / 1000000,
+                    feePaid: parseInt(totalFee) / 1000000,
                     energyUsed: 0, // Will be updated when we get actual energy usage
                     ipfsHash: encryptedData ? encryptedData.ipfsHash : null,
                     encryptionMethod: 'AES-256 with recipient wallet',
                     energyRentalTxId: energyResult.rentalTxId || null,
                     energyResult: energyResult // Pass the full energy result for detailed breakdown
-                });
+                };
+                
+                // Add batch-specific data if applicable
+                if (isBatch && allAlertIds.length > 0) {
+                    resultData.isBatch = true;
+                    resultData.recipientCount = transactionData.recipients.length;
+                    resultData.allAlertIds = allAlertIds;
+                    resultData.allDocumentIds = allDocumentIds;
+                    resultData.recipients = transactionData.recipients;
+                }
+                
+                showTransactionResult(true, resultData);
                 
                 // Track energy return for cost savings (if rental was used)
                 if (energyResult.rentalNeeded && energyResult.txId) {
