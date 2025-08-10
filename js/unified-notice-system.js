@@ -893,8 +893,8 @@ class UnifiedNoticeSystem {
                      data-case-number="${caseData.caseNumber}"
                      onclick="event.preventDefault(); event.stopPropagation(); window.unifiedSystem.toggleCase('${caseData.caseNumber}'); return false;"
                      style="cursor: pointer; padding: 10px; border-radius: 5px; transition: all 0.2s; background-color: transparent;"
-                     onmouseover="this.style.backgroundColor='#f0f0f0'; this.style.color='#333333';" 
-                     onmouseout="this.style.backgroundColor='transparent'; this.style.color='inherit';">
+                     onmouseover="this.style.backgroundColor='#f0f0f0'; this.querySelectorAll('*').forEach(el => el.style.color='#333');" 
+                     onmouseout="this.style.backgroundColor='transparent'; this.querySelectorAll('*').forEach(el => el.style.color='');">
                     <div class="case-info">
                         <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
                             <h3 style="margin: 0;">Case #${caseData.caseNumber}</h3>
