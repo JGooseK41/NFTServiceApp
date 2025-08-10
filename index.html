@@ -1711,12 +1711,17 @@
             font-family: 'Inter', monospace;
             font-size: 0.875rem;
             word-break: break-all;
-            color: var(--accent-light);
+            color: #38bdf8; /* Ensure text is always visible */
             margin: 0.5rem 0;
-            background: var(--hover-bg);
+            background: rgba(31, 31, 31, 0.8); /* Semi-transparent dark background */
             padding: 0.75rem;
             border-radius: 0.5rem;
             border: 1px solid var(--border-color);
+            /* Add text shadow for better visibility */
+            text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+            /* Ensure minimum contrast */
+            min-height: 2.5rem;
+            display: block;
         }
         
         /* Enhanced transaction modal styles */
@@ -28007,22 +28012,33 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     }
                 }
                 
-                const tx = await legalContract.serveNotice(
-                    noticeRequest.recipient,
-                    noticeRequest.encryptedIPFS || '',
-                    noticeRequest.encryptionKey || '',
-                    noticeRequest.issuingAgency || '',
-                    noticeRequest.noticeType || '',
-                    noticeRequest.caseNumber || '',
-                    noticeRequest.publicText || '', // Use publicText as caseDetails
-                    noticeRequest.directLink || '', // Use the generated direct link
-                    sponsorFees,
-                    noticeRequest.metadataURI || '' // Add metadataURI parameter for NFT visibility
-                ).send({
-                    feeLimit: 300_000_000,  // Increased for larger documents
-                    callValue: fee,
-                    shouldPollResponse: true
-                });
+                // Store the promise so we can access the transaction hash
+                let txPromise;
+                let tx;
+                
+                try {
+                    txPromise = legalContract.serveNotice(
+                        noticeRequest.recipient,
+                        noticeRequest.encryptedIPFS || '',
+                        noticeRequest.encryptionKey || '',
+                        noticeRequest.issuingAgency || '',
+                        noticeRequest.noticeType || '',
+                        noticeRequest.caseNumber || '',
+                        noticeRequest.publicText || '', // Use publicText as caseDetails
+                        noticeRequest.directLink || '', // Use the generated direct link
+                        sponsorFees,
+                        noticeRequest.metadataURI || '' // Add metadataURI parameter for NFT visibility
+                    ).send({
+                        feeLimit: 300_000_000,  // Increased for larger documents
+                        callValue: fee,
+                        shouldPollResponse: true
+                    });
+                    
+                    tx = await txPromise;
+                } catch (sendError) {
+                    console.error('Transaction send error:', sendError);
+                    throw sendError;
+                }
                 
                 console.log('Raw transaction result:', tx);
                 
@@ -28032,15 +28048,25 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 let alertId = null;
                 let documentId = null;
                 
-                if (tx && typeof tx === 'string') {
+                // First check if tx is the transaction hash itself (string)
+                if (tx && typeof tx === 'string' && tx.length === 64) {
                     txHash = tx;
-                } else if (tx && tx.txid) {
-                    txHash = tx.txid;
-                } else if (tx && tx.hash) {
-                    txHash = tx.hash;
-                } else if (tx && tx.transaction && tx.transaction.txID) {
-                    txHash = tx.transaction.txID;
-                } else if (Array.isArray(tx)) {
+                    console.log('Transaction hash received directly:', txHash);
+                } 
+                // Check various transaction object formats
+                else if (tx && typeof tx === 'object' && !Array.isArray(tx)) {
+                    // Try different properties where TronLink might store the hash
+                    txHash = tx.txid || tx.txID || tx.hash || tx.transactionHash || 
+                             (tx.transaction && tx.transaction.txID) ||
+                             (tx.result && tx.result.txid) ||
+                             (tx.result && tx.result.txID);
+                    
+                    if (txHash) {
+                        console.log('Transaction hash extracted from object:', txHash);
+                    }
+                } 
+                // Handle array response (NFT IDs returned by contract)
+                else if (Array.isArray(tx)) {
                     // Contract successfully returned the NFT IDs
                     console.log('Contract successfully returned NFT IDs:', tx);
                     contractReturnedNFTs = true;
@@ -28051,18 +28077,66 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                         documentId = tx[1]?.toString() || null;
                         console.log('Extracted NFT IDs - Alert:', alertId, 'Document:', documentId);
                     }
-                    
-                    // Try to get the last transaction from TronLink
+                }
+                
+                // If we still don't have a transaction hash, try to get it from TronLink's transaction history
+                if (!txHash) {
                     try {
-                        // Try to get transaction hash from recent transactions
-                        const account = await tronWeb.trx.getAccount(tronWeb.defaultAddress.base58);
-                        console.log('Looking for recent transaction hash...');
+                        console.log('Attempting to retrieve transaction hash from TronLink...');
                         
-                        // Mark as successful even without retrieving the exact hash
-                        txHash = 'success_nfts_' + (alertId || Date.now());
+                        // Wait a moment for the transaction to be recorded
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        
+                        // Get recent transactions for the account
+                        const transactions = await tronWeb.trx.getTransactionsRelated(
+                            tronWeb.defaultAddress.base58, 
+                            'all', 
+                            10, 
+                            0
+                        );
+                        
+                        if (transactions && transactions.data && transactions.data.length > 0) {
+                            // Get the most recent transaction (should be ours)
+                            const recentTx = transactions.data[0];
+                            if (recentTx && recentTx.txID) {
+                                txHash = recentTx.txID;
+                                console.log('Transaction hash retrieved from history:', txHash);
+                            }
+                        }
                     } catch (e) {
-                        console.log('Could not retrieve transaction hash');
+                        console.log('Could not retrieve transaction from history:', e);
                     }
+                }
+                
+                // Final fallback - get transaction by contract event
+                if (!txHash && legalContract.address) {
+                    try {
+                        console.log('Attempting to get transaction from contract events...');
+                        const events = await tronWeb.event.getEventsByContractAddress(
+                            legalContract.address,
+                            {
+                                onlyConfirmed: false,
+                                eventName: 'NoticeServed',
+                                limit: 1,
+                                sort: 'block_timestamp'
+                            }
+                        );
+                        
+                        if (events && events.length > 0) {
+                            txHash = events[0].transaction;
+                            console.log('Transaction hash retrieved from events:', txHash);
+                        }
+                    } catch (e) {
+                        console.log('Could not retrieve transaction from events:', e);
+                    }
+                }
+                
+                // Only use fake hash as absolute last resort
+                if (!txHash) {
+                    console.warn('WARNING: Could not retrieve actual transaction hash');
+                    // Generate a temporary identifier but mark it clearly as not a real hash
+                    txHash = 'pending_' + Date.now() + '_temp';
+                    console.log('Using temporary identifier (not a real hash):', txHash);
                 }
                 
                 console.log('Transaction hash:', txHash);

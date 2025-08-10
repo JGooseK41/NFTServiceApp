@@ -44,8 +44,28 @@ async function uploadNoticeDocuments(noticeData) {
             }
         }
         
-        // Upload to backend
-        const noticeId = noticeData.noticeId || noticeData.alertId || Date.now();
+        // Upload to backend - use a more robust noticeId
+        // Try to use the actual NFT ID if available, otherwise use a formatted timestamp
+        let noticeId = noticeData.noticeId || noticeData.alertId || noticeData.documentId;
+        
+        // If no valid ID, create a formatted ID that backend might accept
+        if (!noticeId || noticeId === 'null' || noticeId === 'undefined') {
+            // Create a notice ID that looks like an NFT token ID
+            noticeId = Math.floor(Date.now() / 1000).toString();
+            console.log('Generated fallback notice ID:', noticeId);
+        }
+        
+        console.log('Uploading documents for notice ID:', noticeId);
+        console.log('FormData contents:', {
+            caseNumber: noticeData.caseNumber,
+            serverAddress: noticeData.serverAddress || tronWeb.defaultAddress.base58,
+            recipientAddress: noticeData.recipient || noticeData.recipientAddress,
+            alertId: noticeData.alertId,
+            documentId: noticeData.documentId,
+            hasThumnail: !!window.uploadedImage?.preview,
+            hasDocument: !!window.uploadedImage?.data
+        });
+        
         const response = await fetch(`${window.BACKEND_API_URL}/api/documents/notice/${noticeId}/components`, {
             method: 'POST',
             body: formData
@@ -56,7 +76,21 @@ async function uploadNoticeDocuments(noticeData) {
             console.log('Documents uploaded successfully:', result);
             return result;
         } else {
-            console.error('Failed to upload documents:', response.status);
+            // Try to get error details from response
+            let errorDetails = `Status: ${response.status}`;
+            try {
+                const errorText = await response.text();
+                if (errorText) {
+                    errorDetails += ` - ${errorText}`;
+                }
+            } catch (e) {
+                // Ignore error reading response
+            }
+            
+            console.error('Failed to upload documents:', errorDetails);
+            console.warn('Backend document upload failed but continuing with transaction');
+            
+            // Return null but don't throw - allow the transaction to continue
             return null;
         }
     } catch (error) {
