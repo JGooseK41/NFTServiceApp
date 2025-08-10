@@ -70,13 +70,28 @@ router.post('/documents', upload.fields([
         const documentIdList = typeof documentIds === 'string' ? 
             JSON.parse(documentIds) : documentIds || [];
         
-        // Validate
+        // Validate required fields
         if (!batchId || !recipientList || recipientList.length === 0) {
             return res.status(400).json({
                 success: false,
                 error: 'Batch ID and recipients are required'
             });
         }
+        
+        if (!serverAddress) {
+            return res.status(400).json({
+                success: false,
+                error: 'Server address is required'
+            });
+        }
+        
+        console.log('Batch upload validation passed:', {
+            batchId,
+            recipientCount: recipientList.length,
+            serverAddress,
+            caseNumber,
+            noticeType
+        });
         
         console.log(`Starting minimal batch upload for ${recipientList.length} recipients`);
         
@@ -87,7 +102,7 @@ router.post('/documents', upload.fields([
         const thumbnailPath = req.files?.thumbnail?.[0]?.filename || null;
         const documentPath = req.files?.document?.[0]?.filename || null;
         
-        // Create batch record
+        // Create batch record with explicit parameter types
         await client.query(`
             INSERT INTO batch_uploads 
             (batch_id, server_address, recipient_count, status, metadata)
@@ -95,17 +110,17 @@ router.post('/documents', upload.fields([
             ON CONFLICT (batch_id) DO UPDATE
             SET status = $4, metadata = $5
         `, [
-            batchId,
-            serverAddress,
-            recipientList.length,
-            'processing',
+            String(batchId || ''),
+            String(serverAddress || ''),
+            Number(recipientList.length),
+            String('processing'),
             JSON.stringify({
-                caseNumber,
-                noticeType,
-                issuingAgency,
-                ipfsHash,
-                thumbnailPath,
-                documentPath,
+                caseNumber: String(caseNumber || ''),
+                noticeType: String(noticeType || 'Legal Notice'),
+                issuingAgency: String(issuingAgency || ''),
+                ipfsHash: String(ipfsHash || ''),
+                thumbnailPath: thumbnailPath || null,
+                documentPath: documentPath || null,
                 timestamp: new Date().toISOString()
             })
         ]);
@@ -137,17 +152,17 @@ router.post('/documents', upload.fields([
                         batch_id = $11,
                         updated_at = CURRENT_TIMESTAMP
                 `, [
-                    noticeId.toString(),
-                    serverAddress.toLowerCase(),
-                    recipient.toLowerCase(),
-                    noticeType || 'Legal Notice',
-                    caseNumber || '',
-                    alertId.toString(),
-                    documentId.toString(),
-                    issuingAgency || '',
-                    !!documentPath,
-                    ipfsHash || '',
-                    batchId
+                    String(noticeId || ''),
+                    String(serverAddress || '').toLowerCase(),
+                    String(recipient || '').toLowerCase(),
+                    String(noticeType || 'Legal Notice'),
+                    String(caseNumber || ''),
+                    String(alertId || ''),
+                    String(documentId || ''),
+                    String(issuingAgency || ''),
+                    Boolean(documentPath),
+                    String(ipfsHash || ''),
+                    String(batchId || '')
                 ]);
                 
                 console.log(`✅ Created notice ${noticeId} for ${recipient}`);
@@ -167,23 +182,23 @@ router.post('/documents', upload.fields([
                             document_unencrypted_url = EXCLUDED.document_unencrypted_url,
                             updated_at = NOW()
                     `, [
-                        noticeId.toString(), // notice_id
-                        caseNumber || '', // case_number
-                        serverAddress.toLowerCase(), // server_address
-                        recipient.toLowerCase(), // recipient_address
-                        alertId.toString(), // alert_id
+                        String(noticeId || ''), // notice_id
+                        String(caseNumber || ''), // case_number
+                        String(serverAddress || '').toLowerCase(), // server_address
+                        String(recipient || '').toLowerCase(), // recipient_address
+                        String(alertId || ''), // alert_id
                         thumbnailPath ? `/uploads/documents/${thumbnailPath}` : null, // alert_thumbnail_url
-                        'Legal Notice Alert', // alert_nft_description
-                        documentId.toString(), // document_id
-                        ipfsHash || '', // document_ipfs_hash
-                        '', // document_encryption_key
+                        String('Legal Notice Alert'), // alert_nft_description
+                        String(documentId || ''), // document_id
+                        String(ipfsHash || ''), // document_ipfs_hash
+                        String(''), // document_encryption_key
                         documentPath ? `/uploads/documents/${documentPath}` : null, // document_unencrypted_url
-                        noticeType || 'Legal Notice', // notice_type
-                        issuingAgency || '', // issuing_agency
-                        'TRON', // chain_type
-                        1, // page_count
-                        false, // is_compiled
-                        1 // document_count
+                        String(noticeType || 'Legal Notice'), // notice_type
+                        String(issuingAgency || ''), // issuing_agency
+                        String('TRON'), // chain_type
+                        Number(1), // page_count
+                        Boolean(false), // is_compiled
+                        Number(1) // document_count
                     ]);
                     
                     console.log(`✅ Stored images for notice ${noticeId}`);
@@ -195,10 +210,10 @@ router.post('/documents', upload.fields([
                     (batch_id, notice_id, recipient_address, status)
                     VALUES ($1, $2, $3, $4)
                 `, [
-                    batchId,
-                    noticeId.toString(),
-                    recipient,
-                    'success'
+                    String(batchId || ''),
+                    String(noticeId || ''),
+                    String(recipient || ''),
+                    String('success')
                 ]);
                 
                 results.push({
