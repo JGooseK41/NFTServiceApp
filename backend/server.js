@@ -871,6 +871,10 @@ app.use('/api/audit', auditRouter);
 const noticeImagesRouter = require('./routes/notice-images');
 app.use('/', noticeImagesRouter);
 
+// Server registration routes
+const serverRegistrationRouter = require('./routes/server-registration');
+app.use('/', serverRegistrationRouter);
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);

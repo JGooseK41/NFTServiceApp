@@ -7,7 +7,9 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "init-db": "node init-db.js",
-    "migrate:ipfs": "node run-ipfs-migration.js"
+    "migrate:ipfs": "node run-ipfs-migration.js",
+    "migrate:server-fields": "node run-server-fields-migration.js",
+    "migrate:all": "npm run migrate:ipfs && npm run migrate:server-fields"
   },
   "dependencies": {
     "cors": "^2.8.5",
