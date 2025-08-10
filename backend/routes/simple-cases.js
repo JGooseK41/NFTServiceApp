@@ -40,8 +40,9 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
         
         const result = await pool.query(query, [serverAddress]);
         
-        // Group by case number
+        // Group by case number and pair Alert+Document notices per recipient
         const caseMap = new Map();
+        const recipientNotices = new Map(); // Track notices by recipient to pair Alert+Document
         
         for (const row of result.rows) {
             const caseNumber = row.case_number;
@@ -51,35 +52,67 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
                     caseNumber: caseNumber,
                     serverAddress: row.server_address,
                     noticeType: row.notice_type,
-                    issuingAgency: row.issuing_agency || 'The Block Audit', // Will be fetched from blockchain on frontend
+                    issuingAgency: row.issuing_agency || 'The Block Audit',
                     createdAt: row.created_at,
-                    recipients: []
+                    recipients: new Map() // Use Map to group by recipient
                 });
             }
             
-            // Add recipient to case
             const caseData = caseMap.get(caseNumber);
-            caseData.recipients.push({
-                recipientAddress: row.recipient_address,
-                recipientName: row.recipient_name,
-                alertId: row.alert_id,
-                documentId: row.document_id,
-                pageCount: row.page_count || 1,
-                documentStatus: row.accepted ? 'SIGNED' : 'AWAITING_SIGNATURE'
-            });
+            const recipientKey = `${caseNumber}_${row.recipient_address}`;
+            
+            // Check if we already have a notice for this recipient in this case
+            if (!caseData.recipients.has(row.recipient_address)) {
+                // Create a new service event for this recipient
+                caseData.recipients.set(row.recipient_address, {
+                    recipientAddress: row.recipient_address,
+                    recipientName: row.recipient_name,
+                    alertId: row.alert_id,
+                    documentId: row.document_id,
+                    pageCount: row.page_count || 1,
+                    documentStatus: row.accepted ? 'SIGNED' : 'AWAITING_SIGNATURE',
+                    isPaired: false // Track if this is a paired Alert+Document
+                });
+            } else {
+                // This recipient already has a notice, merge Alert and Document IDs
+                const existing = caseData.recipients.get(row.recipient_address);
+                if (row.alert_id && !existing.alertId) {
+                    existing.alertId = row.alert_id;
+                }
+                if (row.document_id && !existing.documentId) {
+                    existing.documentId = row.document_id;
+                    existing.pageCount = row.page_count || existing.pageCount;
+                }
+                // Mark as paired if we have both Alert and Document
+                if (existing.alertId && existing.documentId) {
+                    existing.isPaired = true;
+                }
+                // Update status if newer notice is accepted
+                if (row.accepted) {
+                    existing.documentStatus = 'SIGNED';
+                }
+            }
         }
         
         // Convert to array and add computed fields
         const cases = Array.from(caseMap.values()).map(caseData => {
-            const totalAccepted = caseData.recipients.filter(r => r.documentStatus === 'SIGNED').length;
+            // Convert recipients Map to array
+            const recipientsArray = Array.from(caseData.recipients.values());
+            const totalAccepted = recipientsArray.filter(r => r.documentStatus === 'SIGNED').length;
             
             return {
                 ...caseData,
-                recipientCount: caseData.recipients.length,
+                recipients: recipientsArray, // Convert Map back to array
+                recipientCount: recipientsArray.length, // Count unique recipients (service events)
                 totalAccepted: totalAccepted,
-                allSigned: totalAccepted === caseData.recipients.length,
-                partialSigned: totalAccepted > 0 && totalAccepted < caseData.recipients.length,
-                totalViews: 0 // Placeholder since we're not tracking views yet
+                allSigned: totalAccepted === recipientsArray.length,
+                partialSigned: totalAccepted > 0 && totalAccepted < recipientsArray.length,
+                totalViews: 0,
+                // Include a count of actual individual notices for debugging
+                totalNotices: recipientsArray.reduce((count, r) => {
+                    // Count 1 for single notice, 2 for paired Alert+Document
+                    return count + (r.isPaired ? 2 : 1);
+                }, 0)
             };
         });
         

@@ -308,13 +308,58 @@ class HybridDataService {
         const data = await this.fetchNoticesHybrid(serverAddress, forceRefresh);
         const notices = data.notices;
 
+        // Group notices by case or pair Alert+Document as single service events
+        // If notices have both alert_id and document_id, they're paired
+        const serviceEvents = new Map();
+        
+        for (const notice of notices) {
+            // If this notice has a case number, group by case
+            if (notice.caseNumber) {
+                if (!serviceEvents.has(notice.caseNumber)) {
+                    serviceEvents.set(notice.caseNumber, {
+                        caseNumber: notice.caseNumber,
+                        acknowledged: notice.acknowledged || false,
+                        notices: []
+                    });
+                }
+                serviceEvents.get(notice.caseNumber).notices.push(notice);
+                // Case is acknowledged if any notice in it is acknowledged
+                if (notice.acknowledged) {
+                    serviceEvents.get(notice.caseNumber).acknowledged = true;
+                }
+            } else if (notice.alert_id && notice.document_id) {
+                // This is a paired Alert+Document, count as one service event
+                const eventKey = `alert_${notice.alert_id}`;
+                if (!serviceEvents.has(eventKey)) {
+                    serviceEvents.set(eventKey, {
+                        acknowledged: notice.acknowledged || false,
+                        notices: [notice]
+                    });
+                }
+            } else {
+                // Standalone notice, count individually
+                const eventKey = `notice_${notice.id || notice.noticeId}`;
+                serviceEvents.set(eventKey, {
+                    acknowledged: notice.acknowledged || false,
+                    notices: [notice]
+                });
+            }
+        }
+
+        // Count service events instead of individual notices
+        const totalServiceEvents = serviceEvents.size;
+        const acknowledgedEvents = Array.from(serviceEvents.values()).filter(e => e.acknowledged).length;
+        const pendingEvents = totalServiceEvents - acknowledgedEvents;
+
         const stats = {
-            totalServed: notices.length,
-            acknowledged: notices.filter(n => n.acknowledged).length,
-            pending: notices.filter(n => !n.acknowledged).length,
+            totalServed: totalServiceEvents,  // Count service events, not individual notices
+            acknowledged: acknowledgedEvents,
+            pending: pendingEvents,
             source: data.source,
             verified: data.verified,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            // Also include raw notice count for reference
+            totalNotices: notices.length
         };
 
         // Cache the stats
