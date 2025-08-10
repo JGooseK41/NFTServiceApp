@@ -458,7 +458,11 @@ app.post('/api/notices/served', async (req, res) => {
       caseNumber,
       documentHash,
       ipfsHash,
-      hasDocument
+      hasDocument,
+      compiledDocumentId,
+      compiledDocumentUrl,
+      compiledThumbnailUrl,
+      pageCount
     } = req.body;
 
     console.log('Recording served notice:', {
@@ -498,8 +502,9 @@ app.post('/api/notices/served', async (req, res) => {
     const query = `
       INSERT INTO served_notices 
       (notice_id, alert_id, document_id, server_address, recipient_address, 
-       notice_type, issuing_agency, case_number, document_hash, ipfs_hash, has_document)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       notice_type, issuing_agency, case_number, document_hash, ipfs_hash, has_document,
+       compiled_document_id, compiled_document_url, compiled_thumbnail_url, page_count)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       ON CONFLICT (notice_id) 
       DO UPDATE SET 
         alert_id = COALESCE(EXCLUDED.alert_id, served_notices.alert_id),
@@ -508,6 +513,10 @@ app.post('/api/notices/served', async (req, res) => {
         recipient_address = COALESCE(EXCLUDED.recipient_address, served_notices.recipient_address),
         case_number = COALESCE(EXCLUDED.case_number, served_notices.case_number),
         issuing_agency = COALESCE(EXCLUDED.issuing_agency, served_notices.issuing_agency),
+        compiled_document_id = COALESCE(EXCLUDED.compiled_document_id, served_notices.compiled_document_id),
+        compiled_document_url = COALESCE(EXCLUDED.compiled_document_url, served_notices.compiled_document_url),
+        compiled_thumbnail_url = COALESCE(EXCLUDED.compiled_thumbnail_url, served_notices.compiled_thumbnail_url),
+        page_count = COALESCE(EXCLUDED.page_count, served_notices.page_count),
         updated_at = CURRENT_TIMESTAMP
       RETURNING *
     `;
@@ -523,7 +532,11 @@ app.post('/api/notices/served', async (req, res) => {
       caseNumber || '',
       documentHash || '',
       ipfsHash || '',
-      hasDocument || false
+      hasDocument || false,
+      compiledDocumentId || null,
+      compiledDocumentUrl || null,
+      compiledThumbnailUrl || null,
+      pageCount || 1
     ];
 
     let result;
@@ -843,7 +856,7 @@ app.get('/api/wallets/:walletAddress/connections', async (req, res) => {
   }
 });
 
-// Document management routes
+// Document management routes (includes compiled documents)
 const documentsRouter = require('./routes/documents');
 app.use('/api/documents', documentsRouter);
 

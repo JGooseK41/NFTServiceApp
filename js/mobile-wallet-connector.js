@@ -373,27 +373,49 @@ class MobileWalletConnector {
         this.connectionInProgress = true;
         
         try {
-            // Prepare DApp connection data
-            const dappData = {
-                name: 'The Block Service',
+            // Prepare proper DApp connection data for TronLink
+            const dappInfo = {
+                name: 'BlockServed',
                 url: window.location.origin,
-                icon: window.location.origin + '/favicon.ico'
+                type: 'dapp',
+                version: '1.0.0'
             };
             
-            // Create proper connection URL
-            const connectionUrl = window.location.origin + window.location.pathname;
+            // Create the base URL without hash or query parameters
+            const baseUrl = window.location.origin;
             
-            // Different deep link formats for iOS and Android
+            // Build proper deep link with required parameters
             let deepLink;
             if (this.isIOS) {
-                // iOS TronLink format
-                deepLink = `tronlinkoutside://dapp/${encodeURIComponent(connectionUrl)}`;
+                // iOS TronLink format with proper parameters
+                const params = {
+                    url: baseUrl,
+                    dappName: dappInfo.name,
+                    action: 'connect'
+                };
+                const queryString = Object.keys(params)
+                    .map(key => `${key}=${encodeURIComponent(params[key])}`)
+                    .join('&');
+                deepLink = `tronlinkoutside://open?${queryString}`;
             } else {
-                // Android TronLink format  
-                deepLink = `tronlink://dapp?url=${encodeURIComponent(connectionUrl)}`;
+                // Android TronLink format with proper structure
+                const params = {
+                    url: baseUrl,
+                    dappName: dappInfo.name,
+                    action: 'connect',
+                    protocol: 'TronLink'
+                };
+                const queryString = Object.keys(params)
+                    .map(key => `${key}=${encodeURIComponent(params[key])}`)
+                    .join('&');
+                deepLink = `tronlink://open?${queryString}`;
             }
             
             console.log('Deep link URL:', deepLink);
+            
+            // Store connection state for callback
+            sessionStorage.setItem('tronlink_connecting', 'true');
+            sessionStorage.setItem('tronlink_dapp', JSON.stringify(dappInfo));
             
             // Try to open the app
             window.location.href = deepLink;
@@ -677,6 +699,31 @@ class MobileWalletConnector {
         }
     }
     
+    /**
+     * Show a message to the user
+     */
+    showMessage(title, message) {
+        // Check if modal exists
+        const modal = document.querySelector('.mobile-wallet-modal');
+        if (modal) {
+            const optionsSection = modal.querySelector('.mobile-wallet-options');
+            if (optionsSection) {
+                optionsSection.innerHTML = `
+                    <div style="padding: 2rem; text-align: center;">
+                        <h3 style="margin-bottom: 1rem;">${title}</h3>
+                        <p style="color: var(--text-secondary);">${message}</p>
+                        <button class="btn btn-primary" style="margin-top: 2rem;" onclick="mobileWalletConnector.closeModal()">
+                            Close
+                        </button>
+                    </div>
+                `;
+            }
+        } else {
+            // Fallback to alert
+            alert(title + '\n\n' + message);
+        }
+    }
+
     /**
      * Try alternate connection method when deep link fails
      */

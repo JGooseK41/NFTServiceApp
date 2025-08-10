@@ -68,12 +68,25 @@ async function ensureTableExists(pool) {
                 chain_type VARCHAR(50) NOT NULL DEFAULT 'tron_mainnet',
                 transaction_hash VARCHAR(255),
                 
+                -- Compiled document fields
+                page_count INTEGER DEFAULT 1,
+                is_compiled BOOLEAN DEFAULT FALSE,
+                document_count INTEGER DEFAULT 1,
+                
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 
                 UNIQUE(notice_id, chain_type)
             )
         `);
+        
+        -- Add columns if they don't exist (for existing tables)
+        await pool.query(`
+            ALTER TABLE notice_components 
+            ADD COLUMN IF NOT EXISTS page_count INTEGER DEFAULT 1,
+            ADD COLUMN IF NOT EXISTS is_compiled BOOLEAN DEFAULT FALSE,
+            ADD COLUMN IF NOT EXISTS document_count INTEGER DEFAULT 1
+        `).catch(err => console.log('Columns might already exist:', err.message));
         
         // Create indexes
         await pool.query('CREATE INDEX IF NOT EXISTS idx_case_number ON notice_components(case_number)');
@@ -101,7 +114,10 @@ router.post('/notice/:noticeId/components', upload.fields([
         issuingAgency,
         ipfsHash,
         encryptionKey,
-        chainType = 'tron_mainnet'
+        chainType = 'tron_mainnet',
+        pageCount,
+        isCompiled,
+        documentCount
     } = req.body;
     
     try {
@@ -120,12 +136,15 @@ router.post('/notice/:noticeId/components', upload.fields([
                 alert_id, alert_thumbnail_url, alert_nft_description,
                 document_id, document_ipfs_hash, document_encryption_key,
                 document_unencrypted_url, notice_type, issuing_agency,
-                served_at, chain_type
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), $14)
+                served_at, chain_type, page_count, is_compiled, document_count
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), $14, $15, $16, $17)
             ON CONFLICT (notice_id, chain_type) DO UPDATE SET
                 alert_thumbnail_url = EXCLUDED.alert_thumbnail_url,
                 alert_nft_description = EXCLUDED.alert_nft_description,
                 document_unencrypted_url = EXCLUDED.document_unencrypted_url,
+                page_count = EXCLUDED.page_count,
+                is_compiled = EXCLUDED.is_compiled,
+                document_count = EXCLUDED.document_count,
                 updated_at = NOW()
             RETURNING *
         `;
@@ -134,14 +153,26 @@ router.post('/notice/:noticeId/components', upload.fields([
             noticeId, caseNumber, serverAddress, recipientAddress,
             alertId, thumbnailUrl, nftDescription,
             documentId, ipfsHash, encryptionKey, unencryptedDocUrl,
-            noticeType, issuingAgency, chainType
+            noticeType, issuingAgency, chainType,
+            parseInt(pageCount) || 1,
+            isCompiled === 'true' || false,
+            parseInt(documentCount) || 1
         ];
         
         const result = await pool.query(query, values);
         
         res.json({
             success: true,
+            noticeId: noticeId,
             data: result.rows[0],
+            // Return URLs in the format expected by multi-document handler
+            url: unencryptedDocUrl,
+            documentUrl: unencryptedDocUrl,
+            thumbnailUrl: thumbnailUrl,
+            alertThumbnailUrl: thumbnailUrl,
+            pageCount: parseInt(pageCount) || 1,
+            isCompiled: isCompiled === 'true',
+            documentCount: parseInt(documentCount) || 1,
             urls: {
                 thumbnail: thumbnailUrl,
                 unencryptedDocument: unencryptedDocUrl

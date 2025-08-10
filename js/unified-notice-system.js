@@ -664,7 +664,7 @@ class UnifiedNoticeSystem {
                 }
             }
             
-            // Then track the notice
+            // Then track the notice with compiled document info
             const response = await fetch(`${this.backend}/api/notices/served`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -677,7 +677,12 @@ class UnifiedNoticeSystem {
                     caseNumber: notice.caseNumber,
                     noticeType: 'Legal Notice',
                     issuingAgency: notice.jurisdiction || '',
-                    hasDocument: notice.hasDocument
+                    hasDocument: notice.hasDocument,
+                    // Include compiled document info if available
+                    compiledDocumentId: window.uploadedImage?.compiledDocumentId,
+                    compiledDocumentUrl: window.uploadedImage?.backendUrl,
+                    compiledThumbnailUrl: window.uploadedImage?.thumbnailUrl,
+                    pageCount: window.uploadedImage?.pageCount || 1
                 })
             });
             

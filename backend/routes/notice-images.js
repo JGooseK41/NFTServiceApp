@@ -35,7 +35,10 @@ router.get('/api/notices/:noticeId/images', async (req, res) => {
                 nc.recipient_address,
                 nc.alert_id,
                 nc.document_id,
-                nc.document_ipfs_hash as ipfs_hash
+                nc.document_ipfs_hash as ipfs_hash,
+                nc.page_count,
+                nc.is_compiled,
+                nc.document_count
             FROM notice_components nc
             WHERE (nc.alert_id = $1 OR nc.document_id = $1 OR nc.notice_id = $1)
             LIMIT 1
