@@ -1,6 +1,6 @@
 /**
- * Safe Batch Document Upload Endpoint
- * Handles document uploads for multiple recipients with better error handling
+ * Minimal Batch Document Upload Endpoint
+ * Only uses existing tables, no image handling
  */
 
 const express = require('express');
@@ -36,8 +36,8 @@ const upload = multer({
 });
 
 /**
- * POST /api/batch/documents
- * Safe batch upload using only existing table columns
+ * POST /api/batch/documents  
+ * Minimal batch upload - only uses served_notices and batch tables
  */
 router.post('/documents', upload.fields([
     { name: 'thumbnail', maxCount: 1 },
@@ -56,12 +56,11 @@ router.post('/documents', upload.fields([
             noticeType,
             issuingAgency,
             ipfsHash,
-            encryptionKey,
             alertIds,
             documentIds
         } = req.body;
         
-        // Parse recipients if it's a string
+        // Parse recipients 
         const recipientList = typeof recipients === 'string' ? 
             JSON.parse(recipients) : recipients;
         
@@ -71,7 +70,7 @@ router.post('/documents', upload.fields([
         const documentIdList = typeof documentIds === 'string' ? 
             JSON.parse(documentIds) : documentIds || [];
         
-        // Validate required fields
+        // Validate
         if (!batchId || !recipientList || recipientList.length === 0) {
             return res.status(400).json({
                 success: false,
@@ -79,65 +78,53 @@ router.post('/documents', upload.fields([
             });
         }
         
+        console.log(`Starting minimal batch upload for ${recipientList.length} recipients`);
+        
         // Start transaction
         await client.query('BEGIN');
-        console.log(`Starting batch upload for ${recipientList.length} recipients`);
         
-        // Generate safe notice IDs for each recipient
-        const noticeIds = [];
-        for (let i = 0; i < recipientList.length; i++) {
-            const noticeId = alertIdList[i] || generateSafeId(batchId, i);
-            noticeIds.push(noticeId);
-        }
-        
-        // Store file paths
+        // Store file info
         const thumbnailPath = req.files?.thumbnail?.[0]?.filename || null;
         const documentPath = req.files?.document?.[0]?.filename || null;
         
         // Create batch record
-        try {
-            const batchResult = await client.query(`
-                INSERT INTO batch_uploads 
-                (batch_id, server_address, recipient_count, status, metadata)
-                VALUES ($1, $2, $3, $4, $5)
-                ON CONFLICT (batch_id) DO UPDATE
-                SET status = $4, metadata = $5
-                RETURNING id
-            `, [
-                batchId,
-                serverAddress,
-                recipientList.length,
-                'processing',
-                JSON.stringify({
-                    caseNumber,
-                    noticeType,
-                    issuingAgency,
-                    ipfsHash,
-                    thumbnailPath,
-                    documentPath,
-                    timestamp: new Date().toISOString()
-                })
-            ]);
-            
-            console.log('Batch record created:', batchResult.rows[0].id);
-        } catch (error) {
-            console.error('Error creating batch record:', error.message);
-            throw error;
-        }
+        await client.query(`
+            INSERT INTO batch_uploads 
+            (batch_id, server_address, recipient_count, status, metadata)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (batch_id) DO UPDATE
+            SET status = $4, metadata = $5
+        `, [
+            batchId,
+            serverAddress,
+            recipientList.length,
+            'processing',
+            JSON.stringify({
+                caseNumber,
+                noticeType,
+                issuingAgency,
+                ipfsHash,
+                thumbnailPath,
+                documentPath,
+                timestamp: new Date().toISOString()
+            })
+        ]);
         
-        // Process each recipient - using only columns that exist in served_notices
+        console.log('Batch record created successfully');
+        
+        // Process each recipient - ONLY using served_notices table
         const results = [];
         for (let i = 0; i < recipientList.length; i++) {
             const recipient = recipientList[i];
-            const noticeId = noticeIds[i];
+            const noticeId = alertIdList[i] || generateSafeId(batchId, i);
             const alertId = alertIdList[i] || noticeId;
             const documentId = documentIdList[i] || (parseInt(noticeId) + 1).toString();
             
             try {
-                console.log(`Processing recipient ${i + 1}/${recipientList.length}: ${recipient}`);
+                console.log(`Processing recipient ${i + 1}: ${recipient}`);
                 
-                // Use only columns that exist in served_notices table
-                const noticeResult = await client.query(`
+                // Insert into served_notices only - no other tables
+                await client.query(`
                     INSERT INTO served_notices 
                     (notice_id, server_address, recipient_address, notice_type,
                      case_number, alert_id, document_id, issuing_agency,
@@ -149,7 +136,6 @@ router.post('/documents', upload.fields([
                         ipfs_hash = $10,
                         batch_id = $11,
                         updated_at = CURRENT_TIMESTAMP
-                    RETURNING notice_id
                 `, [
                     noticeId.toString(),
                     serverAddress.toLowerCase(),
@@ -164,15 +150,13 @@ router.post('/documents', upload.fields([
                     batchId
                 ]);
                 
-                console.log(`Notice created for recipient ${recipient}: ${noticeResult.rows[0].notice_id}`);
+                console.log(`✅ Created notice ${noticeId} for ${recipient}`);
                 
-                // Create batch item record
+                // Add to batch items
                 await client.query(`
                     INSERT INTO notice_batch_items
                     (batch_id, notice_id, recipient_address, status)
                     VALUES ($1, $2, $3, $4)
-                    ON CONFLICT (batch_id, notice_id) DO UPDATE
-                    SET status = $4
                 `, [
                     batchId,
                     noticeId.toString(),
@@ -189,13 +173,12 @@ router.post('/documents', upload.fields([
                 });
                 
             } catch (recipientError) {
-                console.error(`Error processing recipient ${recipient}:`, recipientError.message);
+                console.error(`❌ Failed recipient ${recipient}:`, recipientError.message);
                 
-                // Don't fail the entire batch for one recipient
                 results.push({
                     recipient,
                     noticeId,
-                    status: 'failed',
+                    status: 'failed', 
                     error: recipientError.message
                 });
             }
@@ -223,7 +206,7 @@ router.post('/documents', upload.fields([
         ]);
         
         await client.query('COMMIT');
-        console.log(`Batch upload completed: ${successCount}/${recipientList.length} successful`);
+        console.log(`✅ Batch complete: ${successCount}/${recipientList.length} successful`);
         
         res.json({
             success: true,
@@ -231,23 +214,20 @@ router.post('/documents', upload.fields([
             totalRecipients: recipientList.length,
             successCount,
             failureCount: recipientList.length - successCount,
-            results,
-            documentUrl: documentPath ? `/uploads/documents/${documentPath}` : null,
-            thumbnailUrl: thumbnailPath ? `/uploads/documents/${thumbnailPath}` : null
+            results
         });
         
     } catch (error) {
         if (client) {
             try {
                 await client.query('ROLLBACK');
-                console.log('Transaction rolled back');
+                console.log('🔄 Transaction rolled back');
             } catch (rollbackError) {
-                console.error('Error during rollback:', rollbackError.message);
+                console.error('Rollback error:', rollbackError.message);
             }
         }
         
-        console.error('Batch upload error:', error.message);
-        console.error('Stack:', error.stack);
+        console.error('❌ Batch upload error:', error.message);
         
         res.status(500).json({
             success: false,
@@ -262,13 +242,11 @@ router.post('/documents', upload.fields([
 
 /**
  * GET /api/batch/:batchId/status
- * Get status of a batch upload
  */
 router.get('/:batchId/status', async (req, res) => {
     try {
         const { batchId } = req.params;
         
-        // Get batch info
         const batchResult = await pool.query(`
             SELECT * FROM batch_uploads WHERE batch_id = $1
         `, [batchId]);
@@ -280,9 +258,6 @@ router.get('/:batchId/status', async (req, res) => {
             });
         }
         
-        const batch = batchResult.rows[0];
-        
-        // Get batch items
         const itemsResult = await pool.query(`
             SELECT * FROM notice_batch_items 
             WHERE batch_id = $1
@@ -291,10 +266,7 @@ router.get('/:batchId/status', async (req, res) => {
         
         res.json({
             success: true,
-            batch: {
-                ...batch,
-                metadata: batch.metadata || {}
-            },
+            batch: batchResult.rows[0],
             items: itemsResult.rows
         });
         
@@ -308,18 +280,14 @@ router.get('/:batchId/status', async (req, res) => {
 });
 
 /**
- * Generate a safe ID that fits in PostgreSQL INTEGER
+ * Generate safe ID for PostgreSQL
  */
 function generateSafeId(batchId, index) {
-    // Extract numeric part from batch ID
     const match = batchId.match(/\d+/);
     const batchNum = match ? match[0] : Date.now().toString();
-    
-    // Take last 8 digits and add index
     const truncated = batchNum.slice(-8);
     const safeId = parseInt(truncated) * 100 + index;
     
-    // Ensure it's within INTEGER range
     if (safeId > 2147483647) {
         return Math.floor(Math.random() * 1000000000);
     }
