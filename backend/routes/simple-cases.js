@@ -2,19 +2,41 @@ const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');
 
-// Database connection
+// Database connection with proper pooling and error handling
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL || 'postgresql://nftservice:nftservice123@localhost:5432/nftservice_db',
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+    max: 20, // Maximum number of clients in the pool
+    idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+    connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection cannot be established
+});
+
+// Handle pool errors
+pool.on('error', (err, client) => {
+    console.error('Unexpected error on idle database client', err);
 });
 
 /**
  * Simple endpoint to get cases without joins
  */
 router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
+    let client;
+    
     try {
         const { serverAddress } = req.params;
+        
+        // Validate server address format
+        if (!serverAddress || !/^T[A-Za-z0-9]{33}$/.test(serverAddress)) {
+            return res.status(400).json({ 
+                error: 'Invalid server address format',
+                success: false 
+            });
+        }
+        
         console.log(`Simple fetch for server: ${serverAddress}`);
+        
+        // Get a client from the pool
+        client = await pool.connect();
         
         // Simple query without joins
         const query = `
@@ -38,7 +60,7 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
             ORDER BY created_at DESC
         `;
         
-        const result = await pool.query(query, [serverAddress]);
+        const result = await client.query(query, [serverAddress]);
         
         // Group by case number and pair Alert+Document notices per recipient
         const caseMap = new Map();
@@ -124,10 +146,20 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
         
     } catch (error) {
         console.error('Error fetching simple cases:', error);
+        
+        // Don't expose internal error details to client
+        const message = process.env.NODE_ENV === 'development' ? error.message : 'An error occurred while fetching cases';
+        
         res.status(500).json({ 
             error: 'Database error', 
-            message: error.message 
+            message: message,
+            success: false
         });
+    } finally {
+        // Always release the client back to the pool
+        if (client) {
+            client.release();
+        }
     }
 });
 

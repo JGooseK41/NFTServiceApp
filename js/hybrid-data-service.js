@@ -6,6 +6,8 @@ class HybridDataService {
         // Defer reading backend URL until needed since it's set later
         this.verificationQueue = [];
         this.isVerifying = false;
+        this.pendingRequests = new Map(); // Prevent duplicate concurrent requests
+        this.requestTimeout = 10000; // 10 second timeout for requests
     }
     
     // Getter for backend URL that reads it when needed
@@ -65,18 +67,50 @@ class HybridDataService {
         };
     }
 
-    // Fetch from backend API
+    // Fetch from backend API with deduplication
     async fetchFromBackend(serverAddress) {
         if (!this.backendUrl) {
             console.log('No backend URL configured');
             return null;
         }
+        
+        // Check if we already have a pending request for this address
+        const requestKey = `backend-${serverAddress}`;
+        if (this.pendingRequests.has(requestKey)) {
+            console.log('Reusing pending backend request for:', serverAddress);
+            return this.pendingRequests.get(requestKey);
+        }
 
+        // Create new request promise
+        const requestPromise = this.doBackendFetch(serverAddress);
+        this.pendingRequests.set(requestKey, requestPromise);
+        
         try {
+            const result = await requestPromise;
+            return result;
+        } finally {
+            // Clean up pending request
+            this.pendingRequests.delete(requestKey);
+        }
+    }
+    
+    async doBackendFetch(serverAddress) {
+        try {
+            // Create AbortController for timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), this.requestTimeout);
             // Use the new workflow-based endpoint
             const url = `${this.backendUrl}/api/notices/server/${serverAddress}?limit=100`;
             console.log('Fetching from backend URL:', url);
-            const response = await fetch(url);
+            
+            const response = await fetch(url, {
+                signal: controller.signal,
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            clearTimeout(timeoutId);
             
             if (!response.ok) {
                 console.log('Backend fetch failed - Status:', response.status, 'StatusText:', response.statusText);
@@ -106,36 +140,61 @@ class HybridDataService {
             // Transform backend data to match our format
             // New structure from active_notices table
             return notices.map(notice => ({
-                noticeId: notice.id || notice.alert_id,
-                alertId: notice.alert_id,
-                documentId: notice.document_id,
-                recipient: notice.recipient_address,
+                noticeId: String(notice.id || notice.alert_id || ''),
+                alertId: String(notice.alert_id || ''),
+                documentId: String(notice.document_id || ''),
+                recipient: String(notice.recipient_address || ''),
                 timestamp: notice.alert_delivered_at ? new Date(notice.alert_delivered_at).getTime() : Date.now(),
-                caseNumber: notice.case_number || 'Unknown',
-                noticeType: notice.notice_type || 'Legal Notice',
+                caseNumber: String(notice.case_number || 'Unknown'),
+                noticeType: String(notice.notice_type || 'Legal Notice'),
                 status: notice.is_acknowledged ? 'acknowledged' : 'pending',
-                acknowledged: notice.is_acknowledged || false,
-                acknowledgedAt: notice.acknowledged_at,
-                alertThumbnailUrl: notice.alert_thumbnail_url,
-                documentUnencryptedUrl: notice.document_unencrypted_url,
-                viewCount: notice.view_count || 0,
+                acknowledged: Boolean(notice.is_acknowledged),
+                acknowledgedAt: notice.acknowledged_at || null,
+                alertThumbnailUrl: notice.alert_thumbnail_url || null,
+                documentUnencryptedUrl: notice.document_unencrypted_url || null,
+                viewCount: Number(notice.view_count) || 0,
                 isBackendData: true,
                 lastVerified: null
             }));
         } catch (error) {
-            console.error('Backend fetch error:', error);
+            if (error.name === 'AbortError') {
+                console.error('Backend fetch timeout after', this.requestTimeout, 'ms');
+            } else {
+                console.error('Backend fetch error:', error);
+            }
             return null;
         }
     }
 
-    // Fetch from blockchain (with caching)
+    // Fetch from blockchain (with caching and deduplication)
     async fetchFromBlockchain(serverAddress) {
         // Check cache first
-        const cachedStats = window.sessionCache.getCachedServerStats(serverAddress);
+        const cachedStats = window.sessionCache?.getCachedServerStats(serverAddress);
         if (cachedStats && cachedStats.notices) {
             console.log('Using cached blockchain data');
             return cachedStats.notices;
         }
+        
+        // Check for pending blockchain request
+        const requestKey = `blockchain-${serverAddress}`;
+        if (this.pendingRequests.has(requestKey)) {
+            console.log('Reusing pending blockchain request for:', serverAddress);
+            return this.pendingRequests.get(requestKey);
+        }
+        
+        // Create new request
+        const requestPromise = this.doBlockchainFetch(serverAddress);
+        this.pendingRequests.set(requestKey, requestPromise);
+        
+        try {
+            const result = await requestPromise;
+            return result;
+        } finally {
+            this.pendingRequests.delete(requestKey);
+        }
+    }
+    
+    async doBlockchainFetch(serverAddress) {
 
         console.log('=== BLOCKCHAIN FETCH START ===');
         console.log('Fetching from blockchain for:', serverAddress);
@@ -144,45 +203,72 @@ class HybridDataService {
         const notices = [];
         
         try {
-            // Direct contract query approach (avoids rate limiting)
-            console.log('Checking first 20 alert IDs directly...');
-            for (let i = 1; i <= 20; i++) {
-                try {
-                    const alertData = await window.legalContract.alertNotices(i).call();
-                    console.log(`Alert ${i} raw data:`, alertData);
-                    
-                    if (alertData && alertData[1]) {
-                        const alertServer = window.tronWeb.address.fromHex(alertData[1]);
-                        console.log(`Alert ${i} server:`, alertServer, 'Looking for:', serverAddress);
+            // Direct contract query approach with batching to reduce calls
+            console.log('Checking first 20 alert IDs...');
+            const batchSize = 5;
+            const batches = [];
+            
+            for (let i = 1; i <= 20; i += batchSize) {
+                const batch = [];
+                for (let j = i; j < Math.min(i + batchSize, 21); j++) {
+                    batch.push(j);
+                }
+                batches.push(batch);
+            }
+            
+            // Process batches sequentially to avoid rate limiting
+            for (const batch of batches) {
+                const batchPromises = batch.map(async (i) => {
+                    try {
+                        const alertData = await window.legalContract.alertNotices(i).call();
                         
-                        if (alertServer === serverAddress) {
-                            console.log(`Alert ${i} belongs to this server!`);
-                            const notice = this.parseAlertData(alertData, i);
-                            notices.push(notice);
-                            console.log(`Added notice:`, notice);
+                        if (alertData && alertData[1]) {
+                            const alertServer = window.tronWeb.address.fromHex(alertData[1]);
                             
-                            // Cache individual notice status
-                            window.sessionCache.cacheNoticeStatus(i, {
-                                acknowledged: notice.acknowledged,
-                                timestamp: notice.timestamp
-                            });
+                            if (alertServer === serverAddress) {
+                                const notice = this.parseAlertData(alertData, i);
+                                
+                                // Cache individual notice status
+                                if (window.sessionCache) {
+                                    window.sessionCache.cacheNoticeStatus(i, {
+                                        acknowledged: notice.acknowledged,
+                                        timestamp: notice.timestamp
+                                    });
+                                }
+                                
+                                return notice;
+                            }
                         }
+                    } catch (e) {
+                        // Alert doesn't exist
+                        return null;
                     }
-                } catch (e) {
-                    // No more notices, break
+                });
+                
+                const batchResults = await Promise.all(batchPromises);
+                const validNotices = batchResults.filter(n => n !== null);
+                notices.push(...validNotices);
+                
+                // If we got fewer results than batch size, we've reached the end
+                if (validNotices.length < batch.length) {
                     break;
                 }
             }
+            }
 
             // Cache the results
-            window.sessionCache.cacheServerStats(serverAddress, {
+            if (window.sessionCache) {
+                window.sessionCache.cacheServerStats(serverAddress, {
                 notices: notices,
                 totalServed: notices.length,
                 timestamp: Date.now()
             });
+            }
 
             // Mark blockchain as verified for this session
-            window.sessionCache.setBlockchainVerified(serverAddress);
+            if (window.sessionCache) {
+                window.sessionCache.setBlockchainVerified(serverAddress);
+            }
 
             console.log('Blockchain data fetched:', notices.length, 'notices');
             return notices;

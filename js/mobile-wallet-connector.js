@@ -11,6 +11,9 @@ class MobileWalletConnector {
         this.connectionMethod = null;
         this.walletConnectBridge = 'https://bridge.walletconnect.org';
         this.deepLinkTimeout = 3000; // 3 seconds to open app before showing QR
+        this.connectionInProgress = false; // Prevent multiple connection attempts
+        this.connectionTimeout = null; // Track timeout for cleanup
+        this.eventListeners = []; // Track event listeners for cleanup
     }
 
     /**
@@ -263,6 +266,50 @@ class MobileWalletConnector {
                     color: var(--accent-blue, #0ea5e9);
                     text-decoration: none;
                 }
+                
+                /* Toast notifications */
+                .wallet-toast {
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    background: white;
+                    padding: 12px 20px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    transform: translateY(100px);
+                    opacity: 0;
+                    transition: all 0.3s ease;
+                    z-index: 10001;
+                    max-width: 90%;
+                }
+                
+                .wallet-toast.show {
+                    transform: translateY(0);
+                    opacity: 1;
+                }
+                
+                .wallet-toast.error {
+                    background: #fee;
+                    color: #dc2626;
+                    border: 1px solid #fca5a5;
+                }
+                
+                .wallet-toast.success {
+                    background: #f0fdf4;
+                    color: #16a34a;
+                    border: 1px solid #86efac;
+                }
+                
+                @media (max-width: 768px) {
+                    .wallet-toast {
+                        right: 10px;
+                        left: 10px;
+                        max-width: calc(100% - 20px);
+                    }
+                }
 
                 .qr-container {
                     padding: 2rem;
@@ -302,78 +349,168 @@ class MobileWalletConnector {
         if (modal) {
             modal.remove();
         }
-    }
-
-    /**
-     * Connect using TronLink mobile app
-     */
-    async connectTronLinkApp() {
-        console.log('Attempting TronLink mobile connection...');
         
-        const deepLink = this.isIOS ? 
-            'tronlinkoutside://open?url=' + encodeURIComponent(window.location.href) :
-            'tronlink://open?url=' + encodeURIComponent(window.location.href);
-        
-        // Try to open the app
-        window.location.href = deepLink;
-        
-        // Set a timeout to check if the app opened
-        setTimeout(() => {
-            // If we're still here, the app didn't open
-            if (document.hasFocus()) {
-                this.showQRCode('TronLink');
-            }
-        }, this.deepLinkTimeout);
-    }
-
-    /**
-     * Connect using WalletConnect protocol
-     */
-    async connectWalletConnect() {
-        console.log('Initiating WalletConnect...');
-        
-        // Generate WalletConnect URI
-        const wcUri = await this.generateWalletConnectURI();
-        
-        if (this.isMobile) {
-            // On mobile, try to open in wallet app
-            window.location.href = 'wc:' + wcUri;
-        } else {
-            // On desktop, show QR code
-            this.showQRCode('WalletConnect', wcUri);
+        // Clean up connection state
+        this.connectionInProgress = false;
+        if (this.connectionTimeout) {
+            clearTimeout(this.connectionTimeout);
+            this.connectionTimeout = null;
         }
     }
 
     /**
-     * Connect using Trust Wallet
+     * Connect using TronLink mobile app with proper DApp connection
+     */
+    async connectTronLinkApp() {
+        console.log('Attempting TronLink mobile connection...');
+        
+        // Prevent multiple simultaneous connection attempts
+        if (this.connectionInProgress) {
+            console.log('Connection already in progress');
+            return;
+        }
+        
+        this.connectionInProgress = true;
+        
+        try {
+            // Prepare DApp connection data
+            const dappData = {
+                name: 'The Block Service',
+                url: window.location.origin,
+                icon: window.location.origin + '/favicon.ico'
+            };
+            
+            // Create proper connection URL
+            const connectionUrl = window.location.origin + window.location.pathname;
+            
+            // Different deep link formats for iOS and Android
+            let deepLink;
+            if (this.isIOS) {
+                // iOS TronLink format
+                deepLink = `tronlinkoutside://dapp/${encodeURIComponent(connectionUrl)}`;
+            } else {
+                // Android TronLink format  
+                deepLink = `tronlink://dapp?url=${encodeURIComponent(connectionUrl)}`;
+            }
+            
+            console.log('Deep link URL:', deepLink);
+            
+            // Try to open the app
+            window.location.href = deepLink;
+            
+            // Clear any existing timeout
+            if (this.connectionTimeout) {
+                clearTimeout(this.connectionTimeout);
+            }
+            
+            // Fallback to alternate method
+            this.connectionTimeout = setTimeout(() => {
+                // If we're still here, try alternate connection method
+                if (document.hasFocus()) {
+                    console.log('Deep link failed, trying alternate method...');
+                    this.tryAlternateConnection();
+                }
+                this.connectionInProgress = false;
+            }, this.deepLinkTimeout);
+            
+        } catch (error) {
+            console.error('Error connecting to TronLink:', error);
+            this.showError('Failed to connect to TronLink. Please make sure the app is installed.');
+            this.connectionInProgress = false;
+        }
+    }
+
+    /**
+     * Connect using WalletConnect protocol or direct connection
+     */
+    async connectWalletConnect() {
+        console.log('Initiating WalletConnect...');
+        
+        try {
+            // Try direct TronWeb injection first
+            if (this.isMobile) {
+                // Check if wallet is injected
+                if (window.tronWeb || window.tronLink) {
+                    console.log('Found injected wallet, connecting...');
+                    await this.connectInjectedWallet();
+                    return;
+                }
+                
+                // Try to trigger wallet browser
+                const connectionUrl = window.location.origin + window.location.pathname;
+                const wcUri = `https://link.trustwallet.com/open_url?url=${encodeURIComponent(connectionUrl)}`;
+                window.location.href = wcUri;
+                
+                setTimeout(() => {
+                    if (document.hasFocus()) {
+                        this.showQRCode('WalletConnect');
+                    }
+                }, this.deepLinkTimeout);
+            } else {
+                // On desktop, show QR code
+                this.showQRCode('WalletConnect');
+            }
+            
+        } catch (error) {
+            console.error('WalletConnect error:', error);
+            this.showError('Failed to initialize WalletConnect.');
+        }
+    }
+
+    /**
+     * Connect using Trust Wallet with proper DApp format
      */
     async connectTrustWallet() {
         console.log('Attempting Trust Wallet connection...');
         
-        const deepLink = 'trust://open_url?url=' + encodeURIComponent(window.location.href);
-        window.location.href = deepLink;
-        
-        setTimeout(() => {
-            if (document.hasFocus()) {
-                this.showQRCode('Trust Wallet');
-            }
-        }, this.deepLinkTimeout);
+        try {
+            const connectionUrl = window.location.origin + window.location.pathname;
+            
+            // Trust Wallet deep link format
+            const deepLink = `trust://browser_enable?url=${encodeURIComponent(connectionUrl)}`;
+            
+            console.log('Trust Wallet deep link:', deepLink);
+            window.location.href = deepLink;
+            
+            setTimeout(() => {
+                if (document.hasFocus()) {
+                    console.log('Trust Wallet deep link failed, showing QR code...');
+                    this.showQRCode('Trust Wallet');
+                }
+            }, this.deepLinkTimeout);
+            
+        } catch (error) {
+            console.error('Error connecting to Trust Wallet:', error);
+            this.showError('Failed to connect to Trust Wallet.');
+        }
     }
 
     /**
-     * Connect using TokenPocket
+     * Connect using TokenPocket with proper DApp format
      */
     async connectTokenPocket() {
         console.log('Attempting TokenPocket connection...');
         
-        const deepLink = 'tpoutside://open?url=' + encodeURIComponent(window.location.href);
-        window.location.href = deepLink;
-        
-        setTimeout(() => {
-            if (document.hasFocus()) {
-                this.showQRCode('TokenPocket');
-            }
-        }, this.deepLinkTimeout);
+        try {
+            const connectionUrl = window.location.origin + window.location.pathname;
+            
+            // TokenPocket deep link format
+            const deepLink = `tpoutside://pull.activity?url=${encodeURIComponent(connectionUrl)}`;
+            
+            console.log('TokenPocket deep link:', deepLink);
+            window.location.href = deepLink;
+            
+            setTimeout(() => {
+                if (document.hasFocus()) {
+                    console.log('TokenPocket deep link failed, showing QR code...');
+                    this.showQRCode('TokenPocket');
+                }
+            }, this.deepLinkTimeout);
+            
+        } catch (error) {
+            console.error('Error connecting to TokenPocket:', error);
+            this.showError('Failed to connect to TokenPocket.');
+        }
     }
 
     /**
@@ -504,30 +641,243 @@ class MobileWalletConnector {
             }
         }
     }
+    
+    /**
+     * Try alternate connection method when deep link fails
+     */
+    async tryAlternateConnection() {
+        console.log('Trying alternate connection method...');
+        
+        // Check if we're in an in-app browser
+        if (this.isInAppBrowser()) {
+            this.showInAppBrowserMessage();
+        } else {
+            // Show QR code as fallback
+            this.showQRCode('TronLink');
+        }
+    }
+    
+    /**
+     * Check if running in an in-app browser
+     */
+    isInAppBrowser() {
+        const ua = navigator.userAgent || navigator.vendor || window.opera;
+        
+        // Check for common in-app browsers
+        return /FBAN|FBAV|Instagram|TikTok|LinkedIn|Snapchat|Twitter/i.test(ua) ||
+               (ua.indexOf('wv') > -1) || // Android WebView
+               (ua.indexOf('Safari') === -1 && ua.indexOf('iPhone') > -1); // iOS WebView
+    }
+    
+    /**
+     * Show message for in-app browser users
+     */
+    showInAppBrowserMessage() {
+        const modal = document.querySelector('.mobile-wallet-content');
+        if (modal) {
+            modal.innerHTML = `
+                <div class="mobile-wallet-header">
+                    <h2>Open in Browser</h2>
+                    <button class="close-btn" onclick="mobileWalletConnector.closeModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div style="padding: 20px; text-align: center;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: #f59e0b; margin-bottom: 20px;"></i>
+                    <h3>In-App Browser Detected</h3>
+                    <p style="margin: 20px 0; color: #666;">
+                        To connect your wallet, please open this page in your default browser 
+                        (Safari, Chrome, etc.) instead of the in-app browser.
+                    </p>
+                    <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                        <p style="margin: 0 0 10px 0; font-weight: bold;">How to open in browser:</p>
+                        <ol style="text-align: left; margin: 0; padding-left: 20px;">
+                            <li>Tap the menu icon (⋯ or ⋮)</li>
+                            <li>Select "Open in Browser" or "Open in Safari/Chrome"</li>
+                            <li>Connect your wallet from there</li>
+                        </ol>
+                    </div>
+                    <button class="btn btn-primary" onclick="mobileWalletConnector.copyLink()">
+                        <i class="fas fa-copy"></i> Copy Link
+                    </button>
+                </div>
+            `;
+        }
+    }
+    
+    /**
+     * Connect to injected wallet (for in-wallet browsers)
+     */
+    async connectInjectedWallet() {
+        console.log('Attempting to connect to injected wallet...');
+        
+        try {
+            if (window.tronLink) {
+                // Request access to TronLink
+                const res = await window.tronLink.request({ method: 'tron_requestAccounts' });
+                console.log('TronLink connection response:', res);
+                
+                if (res.code === 200) {
+                    console.log('Successfully connected to TronLink');
+                    this.closeModal();
+                    window.dispatchEvent(new Event('walletConnected'));
+                    this.updateConnectedUI();
+                } else {
+                    throw new Error(res.message || 'Connection rejected');
+                }
+            } else if (window.tronWeb && window.tronWeb.ready) {
+                // Already connected
+                console.log('Wallet already connected');
+                this.closeModal();
+                window.dispatchEvent(new Event('walletConnected'));
+                this.updateConnectedUI();
+            } else {
+                throw new Error('No wallet detected');
+            }
+        } catch (error) {
+            console.error('Failed to connect to injected wallet:', error);
+            this.showError('Failed to connect wallet: ' + error.message);
+        }
+    }
+    
+    /**
+     * Copy current URL to clipboard
+     */
+    copyLink() {
+        const url = window.location.href;
+        
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(url).then(() => {
+                this.showSuccess('Link copied! Paste it in your browser.');
+            }).catch(() => {
+                this.fallbackCopy(url);
+            });
+        } else {
+            this.fallbackCopy(url);
+        }
+    }
+    
+    /**
+     * Fallback copy method for older browsers
+     */
+    fallbackCopy(text) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            this.showSuccess('Link copied!');
+        } catch (err) {
+            this.showError('Failed to copy link');
+        }
+        document.body.removeChild(textArea);
+    }
+    
+    /**
+     * Show error message
+     */
+    showError(message) {
+        console.error(message);
+        
+        // Create toast notification
+        const toast = document.createElement('div');
+        toast.className = 'wallet-toast error';
+        toast.innerHTML = `
+            <i class="fas fa-exclamation-circle"></i>
+            <span>${message}</span>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 100);
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+    
+    /**
+     * Show success message
+     */
+    showSuccess(message) {
+        const toast = document.createElement('div');
+        toast.className = 'wallet-toast success';
+        toast.innerHTML = `
+            <i class="fas fa-check-circle"></i>
+            <span>${message}</span>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 100);
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
 }
 
 // Initialize mobile wallet connector
 window.mobileWalletConnector = new MobileWalletConnector();
 
-// Auto-initialize on page load
-document.addEventListener('DOMContentLoaded', () => {
+// Auto-initialize on page load with cleanup
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeWalletConnector);
+} else {
+    initializeWalletConnector();
+}
+
+function initializeWalletConnector() {
     window.mobileWalletConnector.init();
     
     // Check for wallet connection on page focus (after returning from wallet app)
-    document.addEventListener('visibilitychange', () => {
+    const visibilityHandler = () => {
         if (!document.hidden) {
             setTimeout(() => {
                 window.mobileWalletConnector.checkConnection();
             }, 500);
         }
-    });
-});
+    };
+    
+    const focusHandler = () => {
+        setTimeout(() => {
+            window.mobileWalletConnector.checkConnection();
+        }, 500);
+    };
+    
+    document.addEventListener('visibilitychange', visibilityHandler);
+    window.addEventListener('focus', focusHandler);
+    
+    // Store handlers for cleanup
+    window.mobileWalletConnector.eventListeners.push(
+        { type: 'visibilitychange', handler: visibilityHandler, target: document },
+        { type: 'focus', handler: focusHandler, target: window }
+    );
+}
 
-// Also check when window regains focus
-window.addEventListener('focus', () => {
-    setTimeout(() => {
-        window.mobileWalletConnector.checkConnection();
-    }, 500);
-});
+// Cleanup function for SPA navigation
+window.cleanupWalletConnector = function() {
+    if (window.mobileWalletConnector) {
+        // Remove all event listeners
+        window.mobileWalletConnector.eventListeners.forEach(({ type, handler, target }) => {
+            target.removeEventListener(type, handler);
+        });
+        window.mobileWalletConnector.eventListeners = [];
+        
+        // Clear timeouts
+        if (window.mobileWalletConnector.connectionTimeout) {
+            clearTimeout(window.mobileWalletConnector.connectionTimeout);
+        }
+    }
+};
 
 console.log('Mobile Wallet Connector loaded');

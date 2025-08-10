@@ -18,17 +18,68 @@ class UnifiedNoticeSystem {
         }; // Complete server profile from blockchain
         this.cases = new Map(); // Organized by case number
         this.pdfMerger = null; // For combining multiple PDFs
+        this.eventHandlers = new Map(); // Track event handlers for cleanup
+        this.fetchAbortController = null; // For cancelling ongoing fetches
+    }
+    
+    /**
+     * Security: HTML escape function to prevent XSS
+     */
+    escapeHtml(unsafe) {
+        if (!unsafe) return '';
+        return String(unsafe)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+    
+    /**
+     * Security: Sanitize user input
+     */
+    sanitizeInput(input) {
+        if (!input) return '';
+        // Remove any script tags and dangerous characters
+        return String(input)
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+            .replace(/javascript:/gi, '')
+            .replace(/on\w+\s*=/gi, '')
+            .trim();
+    }
+    
+    /**
+     * Validate TRON address format
+     */
+    isValidTronAddress(address) {
+        if (!address) return false;
+        // TRON addresses start with T and are 34 characters long
+        return /^T[A-Za-z0-9]{33}$/.test(address);
     }
 
     /**
-     * Initialize the system
+     * Initialize the system with proper cleanup
      */
     async init() {
         console.log('🚀 Initializing Unified Notice System...');
         
+        // Cancel any ongoing operations
+        if (this.fetchAbortController) {
+            this.fetchAbortController.abort();
+        }
+        this.fetchAbortController = new AbortController();
+        
         // Get server address from wallet
         if (window.tronWeb && window.tronWeb.defaultAddress) {
             this.serverAddress = window.tronWeb.defaultAddress.base58;
+            
+            // Validate address format
+            if (!this.isValidTronAddress(this.serverAddress)) {
+                console.error('Invalid server address format');
+                this.showNotification('Invalid wallet address format', 'error');
+                return false;
+            }
+            
             console.log('Server address:', this.serverAddress);
             
             // Fetch server's registered agency
@@ -57,7 +108,7 @@ class UnifiedNoticeSystem {
     }
     
     /**
-     * Set up global event delegation for case clicks
+     * Set up global event delegation for case clicks with multiple fallbacks
      */
     setupGlobalEventDelegation() {
         // Remove any existing listener
@@ -67,18 +118,35 @@ class UnifiedNoticeSystem {
         
         // Create new handler
         this.globalClickHandler = (e) => {
+            // Skip if already handled by inline onclick
+            if (e.defaultPrevented) return;
+            
             // Check if clicked element is within a case header
             const caseHeader = e.target.closest('.case-header');
             if (caseHeader) {
-                const caseCard = caseHeader.closest('.case-card');
-                if (caseCard) {
-                    const caseNumber = caseCard.getAttribute('data-case');
-                    if (caseNumber) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        console.log('Global delegation: Toggling case', caseNumber);
-                        this.toggleCase(caseNumber);
+                // Try multiple ways to get the case number
+                let caseNumber = caseHeader.getAttribute('data-case') || 
+                               caseHeader.getAttribute('data-case-number');
+                
+                if (!caseNumber) {
+                    const caseCard = caseHeader.closest('.case-card');
+                    if (caseCard) {
+                        caseNumber = caseCard.getAttribute('data-case');
                     }
+                }
+                
+                if (!caseNumber) {
+                    const match = caseHeader.textContent.match(/Case[\s#:]+(\S+)/i);
+                    if (match) {
+                        caseNumber = match[1];
+                    }
+                }
+                
+                if (caseNumber) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Global delegation: Toggling case', caseNumber);
+                    this.toggleCase(caseNumber);
                 }
             }
         };
@@ -86,6 +154,52 @@ class UnifiedNoticeSystem {
         // Add listener to document
         document.addEventListener('click', this.globalClickHandler);
         console.log('Global event delegation set up for case expansion');
+        
+        // Setup direct handlers as additional fallback
+        setTimeout(() => this.setupDirectClickHandlers(), 100);
+    }
+    
+    /**
+     * Setup direct click handlers on case headers as fallback
+     */
+    setupDirectClickHandlers() {
+        const headers = document.querySelectorAll('.case-header');
+        console.log(`Setting up direct handlers for ${headers.length} case headers`);
+        
+        headers.forEach(header => {
+            // Skip if already has onclick (inline handler takes precedence)
+            if (header.hasAttribute('onclick')) {
+                return;
+            }
+            
+            // Skip if already processed
+            if (header.hasAttribute('data-has-handler')) return;
+            
+            header.setAttribute('data-has-handler', 'true');
+            header.style.cursor = 'pointer';
+            
+            header.addEventListener('click', (e) => {
+                if (e.defaultPrevented) return;
+                
+                e.preventDefault();
+                e.stopPropagation();
+                
+                let caseNumber = header.getAttribute('data-case') || 
+                               header.getAttribute('data-case-number');
+                               
+                if (!caseNumber) {
+                    const parent = header.closest('.case-card');
+                    if (parent) {
+                        caseNumber = parent.getAttribute('data-case');
+                    }
+                }
+                
+                if (caseNumber) {
+                    console.log('Direct handler: Toggling case', caseNumber);
+                    this.toggleCase(caseNumber);
+                }
+            });
+        });
     }
     
     /**
@@ -703,7 +817,13 @@ class UnifiedNoticeSystem {
         
         return `
             <div class="case-card" data-case="${caseData.caseNumber}">
-                <div class="case-header" style="cursor: pointer;">
+                <div class="case-header" 
+                     data-case="${caseData.caseNumber}" 
+                     data-case-number="${caseData.caseNumber}"
+                     onclick="event.preventDefault(); event.stopPropagation(); window.unifiedSystem.toggleCase('${caseData.caseNumber}'); return false;"
+                     style="cursor: pointer; padding: 10px; border-radius: 5px; transition: background-color 0.2s;"
+                     onmouseover="this.style.backgroundColor='#f0f0f0'" 
+                     onmouseout="this.style.backgroundColor='transparent'">
                     <div class="case-info">
                         <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
                             <h3 style="margin: 0;">Case #${caseData.caseNumber}</h3>
@@ -725,7 +845,7 @@ class UnifiedNoticeSystem {
                     </div>
                 </div>
                 
-                <div class="case-details" id="${caseId}-details" style="display: none;">
+                <div class="case-details" id="${caseId}-details" data-case-details="${caseData.caseNumber}" style="display: none;">
                     <!-- Case Overview -->
                     <div class="case-meta">
                         <div class="meta-item">
@@ -834,56 +954,106 @@ class UnifiedNoticeSystem {
     }
 
     /**
-     * Toggle case expansion (FIXED click handler)
+     * Toggle case expansion with comprehensive fallbacks
      */
     toggleCase(caseNumber) {
-        console.log('toggleCase called for:', caseNumber);
+        console.log('=== toggleCase called for:', caseNumber, '===');
+        
+        // Try multiple methods to find the details element
+        let details = null;
+        let chevron = null;
+        
+        // Method 1: By ID (primary)
         const caseId = `case-${caseNumber.replace(/[^a-zA-Z0-9]/g, '_')}`;
-        const details = document.getElementById(`${caseId}-details`);
-        const chevron = document.getElementById(`${caseId}-chevron`);
-        
-        console.log('Looking for elements:', {
-            caseId,
-            detailsFound: !!details,
-            chevronFound: !!chevron,
-            currentDisplay: details ? details.style.display : 'not found'
-        });
-        
+        details = document.getElementById(`${caseId}-details`);
         if (details) {
-            const isHidden = details.style.display === 'none' || !details.style.display || details.style.display === '';
+            chevron = document.getElementById(`${caseId}-chevron`);
+            console.log('Found via ID method');
+        }
+        
+        // Method 2: By data-case-details attribute
+        if (!details) {
+            details = document.querySelector(`[data-case-details="${caseNumber}"]`);
+            if (details) {
+                const parent = details.closest('.case-card');
+                chevron = parent ? parent.querySelector('.fa-chevron-down, .fa-chevron-up, [id$="-chevron"]') : null;
+                console.log('Found via data-case-details');
+            }
+        }
+        
+        // Method 3: Within case-card
+        if (!details) {
+            const caseCard = document.querySelector(`.case-card[data-case="${caseNumber}"]`);
+            if (caseCard) {
+                details = caseCard.querySelector('.case-details');
+                chevron = caseCard.querySelector('.fa-chevron-down, .fa-chevron-up, [id$="-chevron"]');
+                console.log('Found via case-card');
+            }
+        }
+        
+        // Toggle if found
+        if (details) {
+            const wasHidden = details.style.display === 'none' || 
+                            details.style.display === '' ||
+                            !details.style.display;
             
-            if (isHidden) {
+            if (wasHidden) {
                 // Expand
                 details.style.display = 'block';
+                details.style.visibility = 'visible';
+                
                 if (chevron) {
                     chevron.style.transform = 'rotate(180deg)';
+                    if (chevron.classList.contains('fa-chevron-down')) {
+                        chevron.classList.remove('fa-chevron-down');
+                        chevron.classList.add('fa-chevron-up');
+                    }
                 }
-                console.log('Expanded case:', caseNumber);
+                
+                console.log('✅ Expanded case:', caseNumber);
             } else {
                 // Collapse
                 details.style.display = 'none';
+                
                 if (chevron) {
                     chevron.style.transform = 'rotate(0deg)';
-                }
-                console.log('Collapsed case:', caseNumber);
-            }
-        } else {
-            console.error('Could not find details element for case:', caseNumber);
-            // Try alternative method - look for the case card directly
-            const caseCard = document.querySelector(`[data-case="${caseNumber}"]`);
-            if (caseCard) {
-                const detailsAlt = caseCard.querySelector('.case-details');
-                const chevronAlt = caseCard.querySelector('.fa-chevron-down, .fa-chevron-up');
-                
-                if (detailsAlt) {
-                    const isHidden = detailsAlt.style.display === 'none' || !detailsAlt.style.display;
-                    detailsAlt.style.display = isHidden ? 'block' : 'none';
-                    if (chevronAlt) {
-                        chevronAlt.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+                    if (chevron.classList.contains('fa-chevron-up')) {
+                        chevron.classList.remove('fa-chevron-up');
+                        chevron.classList.add('fa-chevron-down');
                     }
-                    console.log('Used alternative method to toggle case');
                 }
+                
+                console.log('✅ Collapsed case:', caseNumber);
             }
+            
+            // Save state
+            try {
+                const states = JSON.parse(sessionStorage.getItem('caseExpansionStates') || '{}');
+                states[caseNumber] = wasHidden;
+                sessionStorage.setItem('caseExpansionStates', JSON.stringify(states));
+            } catch (e) {
+                console.error('Error saving state:', e);
+            }
+            
+            // Dispatch event
+            window.dispatchEvent(new CustomEvent('caseToggled', {
+                detail: { caseNumber, expanded: wasHidden }
+            }));
+        } else {
+            console.error('❌ Could not find case details for:', caseNumber);
+            
+            // Only log debug info in development
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                console.log('Debug info:');
+                console.log('- Case cards found:', document.querySelectorAll('.case-card').length);
+                console.log('- Case details found:', document.querySelectorAll('.case-details').length);
+                console.log('- Looking for ID:', `${caseId}-details`);
+            }
+            
+            // Try refreshing handlers
+            setTimeout(() => {
+                this.setupDirectClickHandlers();
+            }, 100);
         }
     }
 
@@ -973,7 +1143,7 @@ class UnifiedNoticeSystem {
         modal.innerHTML = `
             <div class="modal-content large">
                 <div class="modal-header">
-                    <h2>${receipt.title}</h2>
+                    <h2>${this.escapeHtml(receipt.title)}</h2>
                     <button onclick="this.closest('.modal-overlay').remove()" class="modal-close">
                         <i class="fas fa-times"></i>
                     </button>
@@ -983,7 +1153,7 @@ class UnifiedNoticeSystem {
                     <div class="receipt-container">
                         <!-- Header -->
                         <div class="receipt-header">
-                            <h1>${receipt.title}</h1>
+                            <h1>${this.escapeHtml(receipt.title)}</h1>
                             <p class="receipt-subtitle">Blockchain Legal Service Verification</p>
                         </div>
                         
@@ -993,15 +1163,15 @@ class UnifiedNoticeSystem {
                             <table class="receipt-table">
                                 <tr>
                                     <td><strong>Case Number:</strong></td>
-                                    <td>${receipt.case.number}</td>
+                                    <td>${this.escapeHtml(receipt.case.number)}</td>
                                 </tr>
                                 <tr>
                                     <td><strong>Notice Type:</strong></td>
-                                    <td>${receipt.case.type}</td>
+                                    <td>${this.escapeHtml(receipt.case.type)}</td>
                                 </tr>
                                 <tr>
                                     <td><strong>Issuing Agency:</strong></td>
-                                    <td>${receipt.case.agency}</td>
+                                    <td>${this.escapeHtml(receipt.case.agency)}</td>
                                 </tr>
                                 <tr>
                                     <td><strong>Date Created:</strong></td>
@@ -1295,31 +1465,58 @@ class UnifiedNoticeSystem {
     }
 
     /**
-     * Attach all event handlers
+     * Attach all event handlers - comprehensive approach
      */
     attachCaseHandlers() {
-        // All handlers are inline, but we ensure the functions are available globally
+        console.log('=== Attaching case handlers ===');
+        
+        // Ensure the unified system is globally accessible for inline handlers
         window.unifiedSystem = this;
         
-        // Add explicit event listeners as a fallback
-        document.querySelectorAll('.case-header').forEach(header => {
-            // Remove any existing listeners to prevent duplicates
-            header.replaceWith(header.cloneNode(true));
-        });
+        // Find all case headers
+        const headers = document.querySelectorAll('.case-header');
+        console.log(`Found ${headers.length} case headers to attach handlers to`);
         
-        // Re-query after replacement
-        document.querySelectorAll('.case-header').forEach(header => {
-            header.addEventListener('click', (e) => {
-                e.stopPropagation();
+        headers.forEach((header, index) => {
+            // Check if inline onclick exists and works
+            if (header.hasAttribute('onclick')) {
+                console.log(`Header ${index} has inline onclick handler`);
+                // Just ensure window.unifiedSystem is available
+                return;
+            }
+            
+            // Skip if we already attached a handler
+            if (header.hasAttribute('data-handler-attached')) {
+                return;
+            }
+            
+            // Get case number
+            let caseNumber = header.getAttribute('data-case') || 
+                           header.getAttribute('data-case-number');
+            
+            if (!caseNumber) {
                 const caseCard = header.closest('.case-card');
                 if (caseCard) {
-                    const caseNumber = caseCard.getAttribute('data-case');
-                    if (caseNumber) {
-                        console.log('Click event fired for case:', caseNumber);
-                        this.toggleCase(caseNumber);
-                    }
+                    caseNumber = caseCard.getAttribute('data-case');
                 }
-            });
+            }
+            
+            if (caseNumber) {
+                console.log(`Attaching click handler for case: ${caseNumber}`);
+                
+                header.setAttribute('data-handler-attached', 'true');
+                header.style.cursor = 'pointer';
+                
+                header.addEventListener('click', (e) => {
+                    if (e.defaultPrevented) return;
+                    
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    console.log(`Handler triggered for case: ${caseNumber}`);
+                    this.toggleCase(caseNumber);
+                });
+            }
         });
         
         console.log('Attached click handlers to', document.querySelectorAll('.case-header').length, 'case headers');
@@ -1460,6 +1657,33 @@ window.addEventListener('walletConnected', () => {
         setTimeout(() => {
             window.unifiedSystem.init();
         }, 500);
+    }
+});
+
+// Cleanup function for SPA navigation or page unload
+window.cleanupUnifiedSystem = function() {
+    if (window.unifiedSystem) {
+        // Cancel any ongoing fetches
+        if (window.unifiedSystem.fetchAbortController) {
+            window.unifiedSystem.fetchAbortController.abort();
+        }
+        
+        // Clear event handlers
+        window.unifiedSystem.eventHandlers.forEach((handler, event) => {
+            document.removeEventListener(event, handler);
+        });
+        window.unifiedSystem.eventHandlers.clear();
+        
+        // Clear cases
+        window.unifiedSystem.cases.clear();
+    }
+};
+
+// Add cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    window.cleanupUnifiedSystem();
+    if (window.cleanupWalletConnector) {
+        window.cleanupWalletConnector();
     }
 });
 

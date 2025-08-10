@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LegalNotice - Blockchain Legal Document Service</title>
     <meta name="description" content="Secure multi-chain blockchain legal document service supporting TRON, Ethereum, Polygon, and BSC">
+    <!-- Security Headers -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
     <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACXBIWXMAAAsTAAALEwEAmpwYAAABbElEQVQ4jZ2TvUoDQRSFv5nZzW5iYqKxUBQLC1EQBMHCRrAQfABfwNrGVnyEgI2NhY2FIAiChYWFIAiCYCEKFqKxUBQVf5JNdjOzY7K7iYkRPDAw98w5585czgX/jKqqGmNMEJgAhoE+oAN4AW6Ac+BYKXWnlLL/BYQBzBizsbe3t3J0dCSbzaZsNBqy0WjIZrMpj4+P5fb2tpyamjJABJj7NWBxcXFldnZWFgoFaYyRxhhZKBRkLBaTi4uLEoj5AdFQKLQcj8dlNpuVzWZTtpLNZmU8HpehUEgCUV8gEolEZCqVkrZty1+0bVumUikZiUQkEPEFVlZWZL1el+1Qr9fl6uqqBJZbAdN1XTudzjoJTLQCbHBwcPj29jbpRLAsSweDQemIVoDXdL3v5eUl6UTweDzSdF3XOoHpdDq9VCo9OQmKxaJMp9M6MKPU41nO5XLZ8/PzLw2FYrFYOj09zeVyuQqw+ek7PntzgCwQBKr+0l/wDvc6kKScHd8bAAAAAElFTkSuQmCC">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pica/9.0.1/pica.min.js"></script>
@@ -3111,6 +3116,64 @@
         #lawEnforcementExempt:hover {
             border-color: #3b82f6;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        /* Case header interactive styles for expansion */
+        .case-header {
+            cursor: pointer !important;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .case-header:hover {
+            background-color: #f0f0f0 !important;
+            transform: translateX(2px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .case-header:active {
+            transform: translateX(0);
+        }
+        
+        .case-details {
+            transition: all 0.3s ease;
+            transform-origin: top;
+        }
+        
+        .case-details.expanded {
+            animation: slideDown 0.3s ease;
+        }
+        
+        .case-details.collapsed {
+            animation: slideUp 0.3s ease;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+        }
+        
+        /* Chevron rotation animation */
+        .case-header .fa-chevron-down,
+        .case-header .fa-chevron-up {
+            transition: transform 0.3s ease;
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
