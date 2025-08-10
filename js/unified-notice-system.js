@@ -1786,6 +1786,9 @@ class UnifiedNoticeSystem {
                 </div>
                 
                 <div class="modal-footer">
+                    <button onclick="unifiedSystem.generateCourtReport('${caseNumber}')" class="btn btn-primary" style="background: #28a745;">
+                        <i class="fas fa-gavel"></i> Generate Court Report
+                    </button>
                     <button onclick="unifiedSystem.exportAuditTrail('${caseNumber}')" class="btn btn-primary">
                         <i class="fas fa-download"></i> Export CSV
                     </button>
@@ -1793,7 +1796,7 @@ class UnifiedNoticeSystem {
                         <i class="fas fa-sync"></i> Refresh
                     </button>
                     <button onclick="window.print()" class="btn btn-primary">
-                        <i class="fas fa-print"></i> Print
+                        <i class="fas fa-print"></i> Quick Print
                     </button>
                     <button onclick="this.closest('.modal-overlay').remove()" class="btn btn-secondary">
                         Close
@@ -2174,6 +2177,119 @@ class UnifiedNoticeSystem {
         if (!address) return 'Unknown';
         if (address.length < 20) return address;
         return `${address.substring(0, 8)}...${address.substring(address.length - 6)}`;
+    }
+    
+    /**
+     * Generate comprehensive court report
+     */
+    async generateCourtReport(caseNumber) {
+        const caseData = this.cases.get(caseNumber);
+        if (!caseData) {
+            this.showNotification('Case not found', 'error');
+            return;
+        }
+        
+        try {
+            // Show loading notification
+            this.showNotification('Generating court report...', 'info');
+            
+            // Collect all audit events
+            const noticeIds = [];
+            if (caseData.recipients) {
+                caseData.recipients.forEach(r => {
+                    if (r.alertId) noticeIds.push(r.alertId);
+                    if (r.documentId) noticeIds.push(r.documentId);
+                });
+            }
+            
+            // Fetch fresh audit data
+            const auditPromises = noticeIds.map(id => 
+                fetch(`${this.backend}/api/notices/${id}/audit?serverAddress=${this.serverAddress}`)
+                    .then(r => r.ok ? r.json() : null)
+                    .catch(() => null)
+            );
+            
+            const recipientAddress = caseData.recipients?.[0]?.recipientAddress;
+            const walletPromise = recipientAddress ? 
+                fetch(`${this.backend}/api/wallets/${recipientAddress}/connections`)
+                    .then(r => r.ok ? r.json() : [])
+                    .catch(() => []) : 
+                Promise.resolve([]);
+            
+            const [auditResults, walletConnections] = await Promise.all([
+                Promise.all(auditPromises),
+                walletPromise
+            ]);
+            
+            // Process events
+            const allEvents = [];
+            
+            auditResults.forEach((audit, index) => {
+                if (!audit) return;
+                
+                audit.views?.forEach(view => {
+                    allEvents.push({
+                        timestamp: new Date(view.viewed_at),
+                        type: 'Notice Viewed',
+                        wallet: view.viewer_address,
+                        ip: view.ip_address || view.real_ip,
+                        userAgent: view.user_agent,
+                        location: view.location_data,
+                        details: `Notice #${audit.noticeId} viewed`
+                    });
+                });
+                
+                audit.acceptances?.forEach(acc => {
+                    allEvents.push({
+                        timestamp: new Date(acc.accepted_at),
+                        type: 'Notice Accepted',
+                        wallet: acc.acceptor_address,
+                        ip: acc.ip_address || acc.real_ip,
+                        location: acc.location_data,
+                        transactionHash: acc.transaction_hash,
+                        details: `Notice #${audit.noticeId} accepted`
+                    });
+                });
+            });
+            
+            walletConnections.forEach(conn => {
+                allEvents.push({
+                    timestamp: new Date(conn.connected_at),
+                    type: 'Wallet Connected',
+                    wallet: conn.wallet_address,
+                    ip: conn.ip_address || conn.real_ip,
+                    userAgent: conn.user_agent,
+                    location: conn.location_data,
+                    site: conn.site,
+                    details: `Connection from ${conn.site || 'unknown'}`
+                });
+            });
+            
+            // Sort by timestamp
+            allEvents.sort((a, b) => b.timestamp - a.timestamp);
+            
+            // Generate the court report
+            if (window.courtReportGenerator) {
+                await window.courtReportGenerator.generateCourtReport(caseNumber, caseData, allEvents);
+                this.showNotification('Court report generated - print dialog will open', 'success');
+            } else {
+                // Fallback if court report generator not loaded
+                this.showNotification('Loading court report generator...', 'info');
+                
+                // Load the script dynamically
+                const script = document.createElement('script');
+                script.src = '/js/court-report-generator.js';
+                script.onload = async () => {
+                    await window.courtReportGenerator.generateCourtReport(caseNumber, caseData, allEvents);
+                    this.showNotification('Court report generated - print dialog will open', 'success');
+                };
+                document.head.appendChild(script);
+            }
+            
+        } catch (error) {
+            console.error('Error generating court report:', error);
+            this.showNotification('Failed to generate court report', 'error');
+        }
     }
     
     /**
