@@ -27902,6 +27902,96 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     }
                 }
                 
+                // CRITICAL: Upload documents to backend BEFORE blockchain transaction
+                // This must succeed or we abort the transaction to prevent fund loss
+                if (window.uploadNoticeDocuments && window.uploadedImage) {
+                    showProcessing('Uploading documents to backend server...');
+                    console.log('Uploading documents to backend before transaction...');
+                    
+                    try {
+                        const backendUploadResult = await window.uploadNoticeDocuments({
+                            noticeId: Date.now().toString(), // Temporary ID
+                            alertId: null, // Will be set after transaction
+                            documentId: null, // Will be set after transaction
+                            serverAddress: tronWeb.defaultAddress.base58,
+                            recipient: transactionData.recipient,
+                            recipientAddress: transactionData.recipient,
+                            caseNumber: transactionData.caseNumber || '',
+                            noticeType: transactionData.noticeType === 'Custom' ? transactionData.customType : transactionData.noticeType,
+                            issuingAgency: transactionData.issuingAgency || getCurrentUserAgency() || '',
+                            ipfsHash: encryptedData?.ipfsHash || '',
+                            encryptionKey: encryptedData?.encryptionKey || '',
+                            tokenName: transactionData.tokenName || 'Legal Notice'
+                        });
+                        
+                        if (!backendUploadResult) {
+                            throw new Error('Backend upload returned no result');
+                        }
+                        
+                        console.log('Backend upload successful:', backendUploadResult);
+                        uiManager.showNotification('success', 'Documents uploaded to server successfully');
+                    } catch (uploadError) {
+                        console.error('CRITICAL: Backend document upload failed:', uploadError);
+                        
+                        // Show error to user and STOP the transaction
+                        hideProcessing();
+                        
+                        const errorMessage = `
+                            <div style="color: #dc2626; font-weight: bold;">
+                                ⚠️ CRITICAL ERROR: Document Upload Failed
+                            </div>
+                            <div style="margin-top: 1rem;">
+                                The documents could not be uploaded to the backend server. 
+                                The transaction has been STOPPED to prevent loss of funds.
+                            </div>
+                            <div style="margin-top: 1rem; font-size: 0.9rem;">
+                                <strong>Error details:</strong><br>
+                                ${uploadError.message}
+                            </div>
+                            <div style="margin-top: 1rem; font-size: 0.9rem;">
+                                <strong>What to do:</strong>
+                                <ol style="margin-left: 1.5rem;">
+                                    <li>Check your internet connection</li>
+                                    <li>Try again in a few moments</li>
+                                    <li>If the problem persists, contact support</li>
+                                </ol>
+                            </div>
+                        `;
+                        
+                        uiManager.showNotification('error', 'Document upload failed - Transaction aborted', 10000);
+                        
+                        // Show detailed error modal
+                        const modal = document.createElement('div');
+                        modal.className = 'modal';
+                        modal.style.display = 'block';
+                        modal.innerHTML = `
+                            <div class="modal-content" style="max-width: 500px;">
+                                <div class="modal-header">
+                                    <h2 style="color: #dc2626;">Transaction Aborted</h2>
+                                    <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
+                                </div>
+                                <div class="modal-body">
+                                    ${errorMessage}
+                                </div>
+                                <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
+                                    <button class="btn btn-primary" onclick="this.closest('.modal').remove()">
+                                        OK
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                        document.body.appendChild(modal);
+                        
+                        // Re-enable submit button
+                        if (submitButton) {
+                            setButtonLoading(submitButton, false);
+                        }
+                        
+                        // STOP EXECUTION - DO NOT PROCEED WITH BLOCKCHAIN TRANSACTION
+                        return;
+                    }
+                }
+                
                 // For text-only notices, generate simple metadata
                 let metadataURI = '';
                 if (transactionData.deliveryMethod === 'text' || !encryptedData || !encryptedData.metadataURI) {

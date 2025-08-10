@@ -3,13 +3,17 @@
  * Stores document images in the backend for later retrieval
  */
 
-async function uploadNoticeDocuments(noticeData) {
+async function uploadNoticeDocuments(noticeData, maxRetries = 3) {
     if (!window.BACKEND_API_URL) {
         console.warn('Backend not configured, skipping document upload');
         return null;
     }
 
-    try {
+    // Retry logic for resilience
+    let lastError = null;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            console.log(`Upload attempt ${attempt} of ${maxRetries}...`);
         const formData = new FormData();
         
         // Add notice metadata
@@ -87,16 +91,35 @@ async function uploadNoticeDocuments(noticeData) {
                 // Ignore error reading response
             }
             
-            console.error('Failed to upload documents:', errorDetails);
-            console.warn('Backend document upload failed but continuing with transaction');
+            console.error(`Upload attempt ${attempt} failed:`, errorDetails);
+            lastError = new Error(`Document upload failed! ${errorDetails}`);
             
-            // Return null but don't throw - allow the transaction to continue
-            return null;
+            // If not the last attempt, wait before retrying
+            if (attempt < maxRetries) {
+                console.log(`Retrying in ${attempt * 2} seconds...`);
+                await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+                continue; // Try again
+            }
+            
+            // All attempts failed - throw error to stop transaction
+            throw new Error(`CRITICAL: All ${maxRetries} upload attempts failed! ${errorDetails}. Transaction aborted to prevent fund loss.`);
         }
-    } catch (error) {
-        console.error('Error uploading notice documents:', error);
-        return null;
+        } catch (error) {
+            console.error(`Error on attempt ${attempt}:`, error);
+            lastError = error;
+            
+            // If not the last attempt, wait before retrying
+            if (attempt < maxRetries) {
+                console.log(`Retrying in ${attempt * 2} seconds...`);
+                await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+                continue; // Try again
+            }
+        }
     }
+    
+    // All retries exhausted
+    console.error('All upload attempts failed:', lastError);
+    throw lastError || new Error('Document upload failed after all retries');
 }
 
 /**

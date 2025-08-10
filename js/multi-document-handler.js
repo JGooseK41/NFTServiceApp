@@ -186,7 +186,53 @@ class MultiDocumentHandler {
 
         } catch (error) {
             console.error('Error compiling documents:', error);
-            this.showNotification('error', error.message || 'Failed to compile documents');
+            
+            // Show detailed error message for backend failures
+            if (error.message.includes('upload failed') || error.message.includes('Backend')) {
+                // Show modal with detailed error
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 500px;">
+                        <div class="modal-header">
+                            <h2 style="color: #dc2626;">⚠️ Document Upload Failed</h2>
+                            <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <div style="color: #dc2626; font-weight: bold; margin-bottom: 1rem;">
+                                Documents could not be uploaded to the server
+                            </div>
+                            <div style="margin-bottom: 1rem;">
+                                The compilation process has been stopped to prevent you from losing funds 
+                                on a transaction that would fail.
+                            </div>
+                            <div style="background: var(--bg-secondary); padding: 0.75rem; border-radius: 0.375rem; margin-bottom: 1rem;">
+                                <strong>Error:</strong> ${error.message}
+                            </div>
+                            <div>
+                                <strong>Please try:</strong>
+                                <ol style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                                    <li>Check your internet connection</li>
+                                    <li>Wait a moment and try again</li>
+                                    <li>Refresh the page if the problem persists</li>
+                                </ol>
+                            </div>
+                        </div>
+                        <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
+                            <button class="btn btn-primary" onclick="this.closest('.modal').remove()">
+                                OK
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                
+                this.showNotification('error', 'Upload failed - see details above');
+            } else {
+                this.showNotification('error', error.message || 'Failed to compile documents');
+            }
+            
             return null;
         } finally {
             this.isProcessing = false;
@@ -582,15 +628,19 @@ class MultiDocumentHandler {
     }
 
     /**
-     * Save compiled document to backend
+     * Save compiled document to backend with retry logic
+     * CRITICAL: Must succeed or compilation fails to prevent fund loss
      */
-    async saveToBackend(document, thumbnail) {
+    async saveToBackend(document, thumbnail, maxRetries = 3) {
         if (!window.BACKEND_API_URL) {
-            console.warn('Backend not configured');
-            return null;
+            throw new Error('Backend not configured - cannot proceed without document storage');
         }
 
-        try {
+        let lastError = null;
+        
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                console.log(`Backend upload attempt ${attempt} of ${maxRetries}...`);
             const formData = new FormData();
             
             // Convert data URL to blob
@@ -630,7 +680,17 @@ class MultiDocumentHandler {
             });
 
             if (!response.ok) {
-                throw new Error(`Backend save failed: ${response.statusText}`);
+                // Try to get error details
+                let errorDetails = `Status: ${response.status}`;
+                try {
+                    const errorText = await response.text();
+                    if (errorText) {
+                        errorDetails += ` - ${errorText}`;
+                    }
+                } catch (e) {
+                    // Ignore error reading response
+                }
+                throw new Error(`Backend save failed: ${errorDetails}`);
             }
 
             const result = await response.json();
@@ -641,11 +701,27 @@ class MultiDocumentHandler {
             window.compiledThumbnailUrl = result.thumbnailUrl || result.alertThumbnailUrl;
             window.compiledNoticeId = result.noticeId || uploadId;
             
+            // Success - return immediately
             return result;
+            
         } catch (error) {
-            console.error('Error saving to backend:', error);
-            return null;
+            console.error(`Backend upload attempt ${attempt} failed:`, error);
+            lastError = error;
+            
+            // If not the last attempt, wait before retrying
+            if (attempt < maxRetries) {
+                this.showNotification('warning', `Upload failed, retrying in ${attempt * 2} seconds...`);
+                await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+                continue; // Try again
+            }
         }
+        }
+        
+        // All retries exhausted - throw error to stop compilation
+        const errorMsg = `CRITICAL: Document upload failed after ${maxRetries} attempts! ${lastError?.message || 'Unknown error'}`;
+        console.error(errorMsg);
+        this.showNotification('error', 'Document upload failed - cannot proceed');
+        throw new Error(errorMsg);
     }
 
     /**
