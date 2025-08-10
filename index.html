@@ -18785,11 +18785,21 @@ async function checkUserRoles() {
             const inputs = document.querySelectorAll('.recipient-address');
             
             inputs.forEach(input => {
-                const address = input.value.trim();
-                if (address) {
-                    addresses.push(address);
+                if (input && input.value) {
+                    const address = input.value.trim();
+                    if (address) {
+                        addresses.push(address);
+                    }
                 }
             });
+            
+            // If no addresses found, fallback to the original recipient field
+            if (addresses.length === 0) {
+                const primaryRecipient = document.getElementById('mintRecipient');
+                if (primaryRecipient && primaryRecipient.value) {
+                    addresses.push(primaryRecipient.value.trim());
+                }
+            }
             
             // Remove duplicates
             return [...new Set(addresses)];
