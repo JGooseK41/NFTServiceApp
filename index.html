@@ -19815,7 +19815,7 @@ document.addEventListener('keydown', function(event) {
             }
         }
         
-        // Update the documents list UI
+        // Update the documents list UI with drag-and-drop
         function updateDocumentsList() {
             const listContainer = document.getElementById('uploadedDocumentsList');
             const documentListContainer = document.getElementById('documentListContainer');
@@ -19833,32 +19833,168 @@ document.addEventListener('keydown', function(event) {
             const sortedDocs = [...window.uploadedDocumentsList].sort((a, b) => a.order - b.order);
             
             documentListContainer.innerHTML = sortedDocs.map((doc, index) => `
-                <div class="document-item" style="display: flex; align-items: center; padding: 10px; margin-bottom: 10px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">
+                <div class="document-item" 
+                     data-doc-id="${doc.id}" 
+                     draggable="true"
+                     style="display: flex; align-items: center; padding: 12px; margin-bottom: 10px; background: var(--card-bg); border: 2px solid var(--border-color); border-radius: 8px; cursor: move; transition: all 0.3s ease;">
+                    
+                    <!-- Drag Handle -->
+                    <div style="flex: 0 0 30px; margin-right: 15px; color: var(--text-muted); display: flex; flex-direction: column; align-items: center;">
+                        <i class="fas fa-grip-vertical" style="font-size: 20px;"></i>
+                        <span style="font-size: 0.75rem; margin-top: 5px;">${index + 1}</span>
+                    </div>
+                    
+                    <!-- Thumbnail -->
                     <div style="flex: 0 0 60px; margin-right: 15px;">
                         ${doc.preview ? `<img src="${doc.preview}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px;">` : 
                           `<div style="width: 60px; height: 60px; background: var(--gray-700); border-radius: 4px; display: flex; align-items: center; justify-content: center;">
                             <i class="fas fa-file" style="font-size: 24px; color: var(--text-muted);"></i>
                           </div>`}
                     </div>
+                    
+                    <!-- Document Info -->
                     <div style="flex: 1;">
                         <div style="font-weight: 600; color: var(--text-primary);">${doc.fileName}</div>
                         <div style="font-size: 0.85rem; color: var(--text-muted);">
                             ${formatFileSize(doc.fileSize)} • ${doc.fileType} ${doc.pageCount > 1 ? `• ${doc.pageCount} pages` : ''}
                         </div>
                     </div>
-                    <div style="display: flex; gap: 5px; align-items: center;">
-                        <button class="btn btn-sm" onclick="moveDocument('${doc.id}', 'up')" ${index === 0 ? 'disabled' : ''} style="padding: 5px 10px;">
-                            <i class="fas fa-arrow-up"></i>
-                        </button>
-                        <button class="btn btn-sm" onclick="moveDocument('${doc.id}', 'down')" ${index === sortedDocs.length - 1 ? 'disabled' : ''} style="padding: 5px 10px;">
-                            <i class="fas fa-arrow-down"></i>
-                        </button>
-                        <button class="btn btn-danger btn-sm" onclick="removeDocument('${doc.id}')" style="padding: 5px 10px;">
-                            <i class="fas fa-trash"></i>
+                    
+                    <!-- Actions -->
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button class="btn btn-danger btn-sm" onclick="removeDocument('${doc.id}')" style="padding: 8px 12px;">
+                            <i class="fas fa-trash"></i> Remove
                         </button>
                     </div>
                 </div>
             `).join('');
+            
+            // Add drag and drop event listeners
+            setupDragAndDrop();
+        }
+        
+        // Setup drag and drop functionality
+        function setupDragAndDrop() {
+            const container = document.getElementById('documentListContainer');
+            if (!container) return;
+            
+            let draggedElement = null;
+            let draggedDocId = null;
+            
+            // Add event listeners to all document items
+            const items = container.querySelectorAll('.document-item');
+            
+            items.forEach(item => {
+                // Drag start
+                item.addEventListener('dragstart', function(e) {
+                    draggedElement = this;
+                    draggedDocId = this.getAttribute('data-doc-id');
+                    this.style.opacity = '0.5';
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/html', this.innerHTML);
+                });
+                
+                // Drag end
+                item.addEventListener('dragend', function(e) {
+                    this.style.opacity = '';
+                    this.style.border = '2px solid var(--border-color)';
+                    
+                    // Remove all drop indicators
+                    items.forEach(item => {
+                        item.style.border = '2px solid var(--border-color)';
+                        item.style.transform = '';
+                    });
+                });
+                
+                // Drag over
+                item.addEventListener('dragover', function(e) {
+                    if (e.preventDefault) {
+                        e.preventDefault();
+                    }
+                    e.dataTransfer.dropEffect = 'move';
+                    
+                    if (this !== draggedElement) {
+                        // Visual feedback for drop zone
+                        this.style.border = '2px solid var(--accent-blue)';
+                        
+                        // Show where the item will be inserted
+                        const rect = this.getBoundingClientRect();
+                        const midpoint = rect.top + rect.height / 2;
+                        if (e.clientY < midpoint) {
+                            this.style.transform = 'translateY(5px)';
+                        } else {
+                            this.style.transform = 'translateY(-5px)';
+                        }
+                    }
+                    
+                    return false;
+                });
+                
+                // Drag leave
+                item.addEventListener('dragleave', function(e) {
+                    this.style.border = '2px solid var(--border-color)';
+                    this.style.transform = '';
+                });
+                
+                // Drop
+                item.addEventListener('drop', function(e) {
+                    if (e.stopPropagation) {
+                        e.stopPropagation();
+                    }
+                    
+                    if (draggedElement !== this) {
+                        const targetDocId = this.getAttribute('data-doc-id');
+                        
+                        // Find the documents
+                        const draggedDoc = window.uploadedDocumentsList.find(d => d.id === draggedDocId);
+                        const targetDoc = window.uploadedDocumentsList.find(d => d.id === targetDocId);
+                        
+                        if (draggedDoc && targetDoc) {
+                            // Get the position to insert
+                            const rect = this.getBoundingClientRect();
+                            const midpoint = rect.top + rect.height / 2;
+                            const insertBefore = e.clientY < midpoint;
+                            
+                            // Reorder the documents
+                            reorderDocuments(draggedDoc, targetDoc, insertBefore);
+                        }
+                    }
+                    
+                    return false;
+                });
+            });
+        }
+        
+        // Reorder documents based on drag and drop
+        function reorderDocuments(draggedDoc, targetDoc, insertBefore) {
+            // Remove dragged doc from array
+            const draggedIndex = window.uploadedDocumentsList.indexOf(draggedDoc);
+            window.uploadedDocumentsList.splice(draggedIndex, 1);
+            
+            // Find target position
+            let targetIndex = window.uploadedDocumentsList.indexOf(targetDoc);
+            if (!insertBefore) {
+                targetIndex++;
+            }
+            
+            // Insert at new position
+            window.uploadedDocumentsList.splice(targetIndex, 0, draggedDoc);
+            
+            // Update order property for all documents
+            window.uploadedDocumentsList.forEach((doc, index) => {
+                doc.order = index;
+            });
+            
+            // Update the display
+            updateDocumentsList();
+            
+            // Update backward compatibility
+            if (window.uploadedDocumentsList.length > 0) {
+                uploadedImage = window.uploadedDocumentsList[0];
+                window.uploadedImage = uploadedImage;
+            }
+            
+            uiManager.showNotification('success', 'Document order updated');
         }
         
         // Move document up or down in the order

@@ -207,8 +207,10 @@ class DocumentConverter {
             intent: 'display' // Better quality for display
         }).promise;
         
-        // Add watermark for service
-        this.addServiceWatermark(context, canvas.width, canvas.height, isPreview);
+        // Add watermark ONLY for preview (Alert NFT thumbnail)
+        if (isPreview) {
+            this.addServiceWatermark(context, canvas.width, canvas.height, isPreview);
+        }
         
         // Convert to base64 with quality settings
         if (isPreview) {
@@ -234,18 +236,17 @@ class DocumentConverter {
             backgroundColor: '#ffffff'
         });
         
-        // Add watermark
-        const ctx = canvas.getContext('2d');
-        this.addServiceWatermark(ctx, canvas.width, canvas.height);
+        // No watermark for Word documents converted via html2canvas
+        // Keep documents clean as provided
         
         return canvas.toDataURL('image/png');
     }
     
     /**
-     * Add service watermark to document
+     * Add service watermark to document - ONLY for Alert NFT preview
      */
     addServiceWatermark(ctx, width, height, isPreview = false) {
-        // For preview, add a border and header instead of intrusive watermark
+        // Only add watermark for preview (Alert NFT thumbnail)
         if (isPreview) {
             // Add border
             ctx.save();
@@ -270,28 +271,8 @@ class DocumentConverter {
             const timestamp = new Date().toLocaleString();
             ctx.fillText(`Preview generated: ${timestamp}`, width - 10, height - 10);
             ctx.restore();
-        } else {
-            // For full document, use subtle watermark
-            ctx.save();
-            ctx.globalAlpha = 0.05; // Very subtle
-            ctx.font = 'bold 72px Arial';
-            ctx.fillStyle = '#000000';
-            ctx.textAlign = 'center';
-            ctx.translate(width / 2, height / 2);
-            ctx.rotate(-45 * Math.PI / 180);
-            ctx.fillText('LEGAL SERVICE', 0, 0);
-            ctx.restore();
-            
-            // Add timestamp
-            ctx.save();
-            ctx.globalAlpha = 0.5;
-            ctx.font = '12px Arial';
-            ctx.fillStyle = '#000000';
-            ctx.textAlign = 'right';
-            const timestamp = new Date().toISOString();
-            ctx.fillText(`Generated: ${timestamp}`, width - 10, height - 10);
-            ctx.restore();
         }
+        // No watermark for full documents - keep them clean
     }
     
     /**
@@ -472,26 +453,20 @@ class DocumentConverter {
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // Add border
-        ctx.strokeStyle = '#e74c3c';
-        ctx.lineWidth = 4;
-        ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+        // Simple gray border instead of red
+        ctx.strokeStyle = '#cccccc';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(0, 0, canvas.width, canvas.height);
         
         // Add text
-        ctx.fillStyle = '#333';
-        ctx.font = 'bold 24px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('LEGAL DOCUMENT', canvas.width / 2, 100);
-        
-        ctx.font = '16px Arial';
-        ctx.fillText('Document Preview', canvas.width / 2, 140);
-        ctx.fillText('(Full document stored on blockchain)', canvas.width / 2, 170);
-        
-        // Add timestamp
-        ctx.font = '12px Arial';
         ctx.fillStyle = '#666';
-        const timestamp = new Date().toLocaleString();
-        ctx.fillText(`Generated: ${timestamp}`, canvas.width / 2, canvas.height - 30);
+        ctx.font = 'bold 20px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Document Processing', canvas.width / 2, 100);
+        
+        ctx.font = '14px Arial';
+        ctx.fillText('Placeholder Image', canvas.width / 2, 140);
+        ctx.fillText('(Full document will be uploaded)', canvas.width / 2, 170);
         
         return canvas.toDataURL('image/jpeg', 0.8);
     }
@@ -709,11 +684,6 @@ class DocumentConverter {
                         
                         // Draw image
                         ctx.drawImage(img, 0, 0, width, height);
-                        
-                        // Add border for preview
-                        ctx.strokeStyle = '#e74c3c';
-                        ctx.lineWidth = 3;
-                        ctx.strokeRect(1.5, 1.5, width - 3, height - 3);
                         
                         // Try different quality levels
                         let result = canvas.toDataURL('image/jpeg', quality);
