@@ -667,10 +667,10 @@ class MultiDocumentHandler {
             formData.append('noticeType', 'Legal Notice');
             formData.append('issuingAgency', window.unifiedSystem?.serverInfo?.agency || '');
             
-            // TEMPORARILY COMMENTED OUT - Backend database needs migration for these fields
-            // formData.append('pageCount', thumbnail?.pageCount?.toString() || '1');
-            // formData.append('isCompiled', 'true');
-            // formData.append('documentCount', this.documents.length.toString());
+            // Database migration completed - these fields are now supported
+            formData.append('pageCount', thumbnail?.pageCount?.toString() || '1');
+            formData.append('isCompiled', 'true');
+            formData.append('documentCount', this.documents.length.toString());
             
             // Generate a notice ID for this upload session
             const noticeId = uploadId;
