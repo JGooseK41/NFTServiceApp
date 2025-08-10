@@ -851,8 +851,8 @@ app.get('/api/wallets/:walletAddress/connections', async (req, res) => {
 const documentsRouter = require('./routes/documents');
 app.use('/api/documents', documentsRouter);
 
-// Batch document upload routes
-const batchRouter = require('./routes/batch-documents');
+// Batch document upload routes - using fixed version with better transaction handling
+const batchRouter = require('./routes/batch-documents-fixed');
 app.use('/api/batch', batchRouter);
 
 // Migration routes (for database updates)
