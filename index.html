@@ -60,6 +60,9 @@
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="js/unified-notice-system.js"></script>
     <link href="css/unified-system.css" rel="stylesheet">
+    <!-- Mobile Wallet Connector -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="js/mobile-wallet-connector.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -8409,8 +8412,22 @@ function useConnectedAddressForFeeCollector() {
         async function connectWallet() {
             const connectBtn = document.getElementById('connectBtn');
             
+            // Check if on mobile and no wallet extension is available
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            
             if (currentChainType === 'tron') {
-                await connectTronWallet();
+                // If on mobile and no TronWeb is available, use mobile connector
+                if (isMobile && (!window.tronWeb || !window.tronWeb.ready)) {
+                    console.log('Mobile device detected, using mobile wallet connector');
+                    if (window.mobileWalletConnector) {
+                        window.mobileWalletConnector.showMobileConnectionOptions();
+                    } else {
+                        console.error('Mobile wallet connector not loaded');
+                        await connectTronWallet(); // Fallback to regular connection
+                    }
+                } else {
+                    await connectTronWallet();
+                }
             } else {
                 await connectEVMWallet();
             }
@@ -11181,7 +11198,25 @@ function useConnectedAddressForFeeCollector() {
                 const siteConfig = getSiteConfig();
                 if (siteConfig.showServerFeatures) {
                     updateServerStats();
-                    // Use hybrid refresh instead of grouped
+                    
+                    // Initialize and refresh unified system for process servers
+                    if (window.unifiedSystem) {
+                        console.log('Initializing Unified System for process server...');
+                        // Set the server address if not already set
+                        if (!window.unifiedSystem.serverAddress && tronWeb.defaultAddress) {
+                            window.unifiedSystem.serverAddress = tronWeb.defaultAddress.base58;
+                            console.log('Server address set to:', window.unifiedSystem.serverAddress);
+                        }
+                        // Initialize and render
+                        window.unifiedSystem.init().then(() => {
+                            window.unifiedSystem.renderCases('unifiedCasesContainer');
+                            console.log('Unified system initialized and cases rendered');
+                        }).catch(error => {
+                            console.error('Error initializing unified system:', error);
+                        });
+                    }
+                    
+                    // Also refresh hybrid activities if available
                     if (window.refreshRecentActivitiesHybrid) {
                         refreshRecentActivitiesHybrid();
                     } else {
@@ -18517,6 +18552,11 @@ async function checkUserRoles() {
                 setTimeout(async () => {
                     if (window.unifiedSystem) {
                         console.log('🚀 Initializing Unified Notice System...');
+                        // Ensure server address is set before init
+                        if (!window.unifiedSystem.serverAddress && window.tronWeb.defaultAddress) {
+                            window.unifiedSystem.serverAddress = window.tronWeb.defaultAddress.base58;
+                            console.log('Pre-setting server address:', window.unifiedSystem.serverAddress);
+                        }
                         await window.unifiedSystem.init();
                         // Render cases in the recent activities container
                         window.unifiedSystem.renderCases('unifiedCasesContainer');
@@ -18527,6 +18567,10 @@ async function checkUserRoles() {
             // Listen for wallet connection
             window.addEventListener('walletConnected', async () => {
                 if (window.unifiedSystem) {
+                    // Ensure server address is set
+                    if (!window.unifiedSystem.serverAddress && window.tronWeb && window.tronWeb.defaultAddress) {
+                        window.unifiedSystem.serverAddress = window.tronWeb.defaultAddress.base58;
+                    }
                     await window.unifiedSystem.init();
                     window.unifiedSystem.renderCases('unifiedCasesContainer');
                 }
@@ -25504,19 +25548,35 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 // First check if this is actually an alert notice we need to acknowledge
                 let alertData;
                 try {
-                    alertData = await legalContract.alertNotices(noticeId).call();
-                    if (alertData && Array.isArray(alertData) && alertData.length > 4) {
-                        // This is an alert notice - use acknowledgeAlert
-                        const acknowledged = alertData[4];
-                        if (acknowledged) {
+                    // Use the correct method name: alerts() not alertNotices()
+                    alertData = await legalContract.alerts(noticeId).call();
+                    if (alertData && Array.isArray(alertData)) {
+                        // Check if this alert has been delivered/acknowledged
+                        // alertData structure: [server, recipient, tokenURI, description, thumbnail, jurisdiction, timestamp, delivered, ...]
+                        const delivered = alertData[7]; // delivered flag is at index 7
+                        
+                        if (delivered) {
                             uiManager.showNotification('info', 'You have already accepted this notice');
                             hideProcessing();
+                            
+                            // Try to show the associated document if it exists
+                            try {
+                                const documentId = parseInt(noticeId) + 1; // Documents are usually next ID
+                                const docData = await legalContract.documents(documentId).call();
+                                if (docData && docData[2]) { // Check if IPFS hash exists
+                                    // Automatically show the document viewer
+                                    await viewDocument(documentId);
+                                }
+                            } catch (e) {
+                                console.log('No associated document found');
+                            }
+                            
                             return;
                         }
 
-                        // Call acknowledgeAlert on contract
-                        const result = await legalContract.acknowledgeAlert(noticeId).send({
-                            from: tronWeb.defaultAddress.base58,
+                        // This is an alert - accept it using acceptNotice
+                        const result = await legalContract.acceptNotice(noticeId).send({
+                            feeLimit: 100_000_000,
                             shouldPollResponse: true
                         });
 
@@ -25538,6 +25598,18 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                             console.warn('Failed to log acceptance to backend:', error);
                         }
 
+                        // Check for and display associated document
+                        try {
+                            const documentId = parseInt(noticeId) + 1;
+                            const docData = await legalContract.documents(documentId).call();
+                            if (docData && docData[2]) {
+                                // Automatically show the document viewer after acceptance
+                                await viewDocument(documentId);
+                            }
+                        } catch (e) {
+                            console.log('No associated document to display');
+                        }
+
                         // Refresh the notices list
                         await refreshMyAlerts();
                         hideProcessing();
@@ -25545,29 +25617,33 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                     }
                 } catch (e) {
                     // Not an alert notice, check if it's a document notice
+                    console.log('Not an alert, checking if document...', e);
                 }
 
-                // If we get here, handle as document notice
-                const docData = await legalContract.documentNotices(noticeId).call();
-                if (!docData || !Array.isArray(docData) || docData.length < 5) {
+                // If we get here, handle as document notice using documents() method
+                const docData = await legalContract.documents(noticeId).call();
+                if (!docData || !Array.isArray(docData)) {
                     throw new Error('Invalid document notice data');
                 }
 
-                const [documentId, server, recipient, ipfsHash, accepted] = docData;
+                // Document data structure: [server, recipient, ipfsHash, timestamp, signed]
+                const [server, recipient, ipfsHash, timestamp, signed] = docData;
 
-                if (accepted) {
-                    uiManager.showNotification('info', 'You have already accepted this document');
+                if (signed) {
+                    uiManager.showNotification('info', 'You have already signed this document');
                     hideProcessing();
+                    // Show the document viewer anyway
+                    await viewDocument(noticeId);
                     return;
                 }
 
-                // Call acceptDocumentNotice on contract
-                const result = await legalContract.acceptDocumentNotice(noticeId).send({
-                    from: tronWeb.defaultAddress.base58,
+                // Call acceptNotice on contract (this is the correct function name)
+                const result = await legalContract.acceptNotice(noticeId).send({
+                    feeLimit: 100_000_000,
                     shouldPollResponse: true
                 });
 
-                uiManager.showNotification('success', 'Document notice accepted successfully!');
+                uiManager.showNotification('success', 'Document signed successfully!');
 
                 // Log acceptance to backend
                 try {
@@ -25584,6 +25660,9 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 } catch (error) {
                     console.warn('Failed to log acceptance to backend:', error);
                 }
+
+                // Automatically show the document after signing
+                await viewDocument(noticeId);
 
                 // Refresh the notices list
                 await refreshMyAlerts();
