@@ -851,6 +851,10 @@ app.get('/api/wallets/:walletAddress/connections', async (req, res) => {
 const documentsRouter = require('./routes/documents');
 app.use('/api/documents', documentsRouter);
 
+// Batch document upload routes
+const batchRouter = require('./routes/batch-documents');
+app.use('/api/batch', batchRouter);
+
 // Migration routes (for database updates)
 const migrationsRouter = require('./routes/migrations');
 app.use('/api/migrations', migrationsRouter);
