@@ -859,6 +859,10 @@ app.use('/api/batch', batchRouter);
 const validatorRouter = require('./routes/transaction-validator');
 app.use('/api/validate', validatorRouter);
 
+// Transaction staging routes - backend as single source of truth
+const stagingRouter = require('./routes/transaction-staging');
+app.use('/api/stage', stagingRouter);
+
 // Migration routes (for database updates)
 const migrationsRouter = require('./routes/migrations');
 app.use('/api/migrations', migrationsRouter);
