@@ -11270,10 +11270,9 @@ function useConnectedAddressForFeeCollector() {
                             window.unifiedSystem.serverAddress = tronWeb.defaultAddress.base58;
                             console.log('Server address set to:', window.unifiedSystem.serverAddress);
                         }
-                        // Initialize and render
+                        // Initialize - rendering happens automatically in init now
                         window.unifiedSystem.init().then(() => {
-                            window.unifiedSystem.renderCases('unifiedCasesContainer');
-                            console.log('Unified system initialized and cases rendered');
+                            console.log('Unified system initialized - cases auto-rendered');
                         }).catch(error => {
                             console.error('Error initializing unified system:', error);
                         });

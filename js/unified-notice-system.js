@@ -98,15 +98,15 @@ class UnifiedNoticeSystem {
         // Load PDF merger library
         await this.loadPDFMerger();
         
-        // Try to sync blockchain data but don't let it block backend loading
-        try {
-            await this.syncFromBlockchain();
-        } catch (error) {
-            console.warn('Blockchain sync failed, continuing with backend data:', error);
-        }
-        
-        // Load all cases for this server (from backend or blockchain fallback)
+        // IMMEDIATELY load cases from backend - this should be FAST
         await this.loadServerCases();
+        
+        // Then sync blockchain in background without blocking
+        setTimeout(() => {
+            this.syncFromBlockchain().catch(error => {
+                console.warn('Background blockchain sync failed:', error);
+            });
+        }, 2000); // Do blockchain sync 2 seconds later in background
         
         return true;
     }
@@ -427,10 +427,10 @@ class UnifiedNoticeSystem {
     }
 
     /**
-     * Load all cases for the current server
+     * Load all cases for the current server - FAST VERSION
      */
     async loadServerCases() {
-        console.log('📂 Loading cases for server:', this.serverAddress);
+        console.log('📂 FAST Loading cases for server:', this.serverAddress);
         
         if (!this.serverAddress) {
             console.error('No server address set');
@@ -438,35 +438,44 @@ class UnifiedNoticeSystem {
         }
 
         try {
-            // Skip redundant sync - already done in init()
-            // Just query backend for structured data
+            // Try simple endpoint FIRST (it's faster)
             let response = await fetch(
-                `${this.backend}/api/servers/${this.serverAddress}/cases`
+                `${this.backend}/api/servers/${this.serverAddress}/simple-cases`,
+                { 
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                    // Add timeout to prevent hanging
+                    signal: AbortSignal.timeout(5000)
+                }
             );
             
-            // If first endpoint fails, try simpler endpoint
+            // If simple endpoint fails, try the other one
             if (!response.ok) {
-                console.log('Trying simple cases endpoint...');
+                console.log('Simple endpoint failed, trying cases endpoint...');
                 response = await fetch(
-                    `${this.backend}/api/servers/${this.serverAddress}/simple-cases`
+                    `${this.backend}/api/servers/${this.serverAddress}/cases`,
+                    { 
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' },
+                        signal: AbortSignal.timeout(5000)
+                    }
                 );
             }
             
             if (response.ok) {
                 const data = await response.json();
-                console.log('✅ Loaded cases from backend:', data.cases?.length || 0);
+                console.log('✅ FAST: Loaded cases from backend:', data.cases?.length || 0);
                 this.processCasesData(data.cases || []);
+                // Render immediately after loading
+                this.renderCases('unifiedCasesContainer');
             } else {
-                // If backend fails, use blockchain data directly
-                console.log('Backend not responding (status:', response.status, '), trying blockchain fallback...');
-                await this.loadDirectFromBlockchain();
+                console.log('Backend not responding (status:', response.status, ')');
+                // Don't fall back to blockchain here - let it happen in background
             }
             
         } catch (error) {
             console.error('Error loading cases:', error);
-            // Fall back to blockchain
-            console.log('Network error, attempting blockchain fallback...');
-            await this.loadDirectFromBlockchain();
+            // Don't fall back to blockchain here - let it happen in background
         }
     }
 
