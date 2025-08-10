@@ -152,6 +152,43 @@ router.post('/documents', upload.fields([
                 
                 console.log(`✅ Created notice ${noticeId} for ${recipient}`);
                 
+                // Store document images in notice_components table (if files uploaded)
+                if (thumbnailPath || documentPath) {
+                    await client.query(`
+                        INSERT INTO notice_components (
+                            notice_id, case_number, server_address, recipient_address,
+                            alert_id, alert_thumbnail_url, alert_nft_description,
+                            document_id, document_ipfs_hash, document_encryption_key,
+                            document_unencrypted_url, notice_type, issuing_agency,
+                            served_at, chain_type, page_count, is_compiled, document_count
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), $14, $15, $16, $17)
+                        ON CONFLICT (notice_id, chain_type) DO UPDATE SET
+                            alert_thumbnail_url = EXCLUDED.alert_thumbnail_url,
+                            document_unencrypted_url = EXCLUDED.document_unencrypted_url,
+                            updated_at = NOW()
+                    `, [
+                        noticeId.toString(), // notice_id
+                        caseNumber || '', // case_number
+                        serverAddress.toLowerCase(), // server_address
+                        recipient.toLowerCase(), // recipient_address
+                        alertId.toString(), // alert_id
+                        thumbnailPath ? `/uploads/documents/${thumbnailPath}` : null, // alert_thumbnail_url
+                        'Legal Notice Alert', // alert_nft_description
+                        documentId.toString(), // document_id
+                        ipfsHash || '', // document_ipfs_hash
+                        '', // document_encryption_key
+                        documentPath ? `/uploads/documents/${documentPath}` : null, // document_unencrypted_url
+                        noticeType || 'Legal Notice', // notice_type
+                        issuingAgency || '', // issuing_agency
+                        'TRON', // chain_type
+                        1, // page_count
+                        false, // is_compiled
+                        1 // document_count
+                    ]);
+                    
+                    console.log(`✅ Stored images for notice ${noticeId}`);
+                }
+                
                 // Add to batch items
                 await client.query(`
                     INSERT INTO notice_batch_items
