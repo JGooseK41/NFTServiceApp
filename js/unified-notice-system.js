@@ -875,6 +875,9 @@ class UnifiedNoticeSystem {
         // Re-setup global event delegation to ensure it's active
         this.setupGlobalEventDelegation();
         
+        // Check backend document status for all rendered cases
+        this.checkAllBackendStatuses();
+        
         // Also attach handlers with a small delay for DOM to settle
         setTimeout(() => {
             this.attachCaseHandlers();
@@ -999,6 +1002,9 @@ class UnifiedNoticeSystem {
                                             <span class="nft-label">Alert Notice</span>
                                             <span class="nft-id">NFT ID: ${recipient.alertId || 'Pending'}</span>
                                             <span class="nft-status status-delivered">✓ Delivered</span>
+                                            <span class="backend-status" id="backend-status-alert-${recipient.alertId}" style="margin-left: 10px;">
+                                                <i class="fas fa-circle-notch fa-spin" style="color: #666;"></i>
+                                            </span>
                                         </div>
                                         <div class="nft-actions">
                                             <button onclick="unifiedSystem.viewNotice('${caseData.caseNumber}', 'alert', '${recipient.alertId}')" class="btn btn-small btn-success">
@@ -1020,6 +1026,9 @@ class UnifiedNoticeSystem {
                                             <span class="nft-id">NFT ID: ${recipient.documentId || 'Pending'}</span>
                                             <span class="nft-status ${recipient.documentStatus === 'SIGNED' ? 'status-signed' : 'status-pending'}">
                                                 ${recipient.documentStatus === 'SIGNED' ? '✓ Signed For' : '⏳ Awaiting Signature'}
+                                            </span>
+                                            <span class="backend-status" id="backend-status-doc-${recipient.documentId}" style="margin-left: 10px;">
+                                                <i class="fas fa-circle-notch fa-spin" style="color: #666;"></i>
                                             </span>
                                         </div>
                                         <div class="nft-actions">
@@ -2469,19 +2478,231 @@ class UnifiedNoticeSystem {
                         container.innerHTML = '<p>No images available for requested type</p>';
                     }
                 } else {
-                    container.innerHTML = '<p>No notice images available</p>';
+                    container.innerHTML = this.createManualUploadInterface(caseNumber, noticeIdForBackend, 'No images found');
                 }
             } else {
-                // Fallback: Show placeholder
-                document.getElementById('noticeContainer').innerHTML = `
-                    <p>Notice images not available from backend.</p>
-                    <p>Transaction Hash: ${caseData.transactionHash || 'Pending'}</p>
-                `;
+                // Fallback: Show manual upload option
+                const errorMessage = response.status === 404 ? 'Notice images not found in backend' : 'Notice images not available from backend';
+                document.getElementById('noticeContainer').innerHTML = this.createManualUploadInterface(
+                    caseNumber, 
+                    noticeIdForBackend || noticeId,
+                    errorMessage,
+                    caseData.transactionHash
+                );
             }
         } catch (error) {
             console.error('Error loading notice:', error);
-            document.getElementById('noticeContainer').innerHTML = '<p>Error loading notice images</p>';
+            const noticeIdForBackend = noticeId || (type === 'alert' ? firstRecipient.alertId : type === 'document' ? firstRecipient.documentId : firstRecipient.alertId || firstRecipient.documentId);
+            document.getElementById('noticeContainer').innerHTML = this.createManualUploadInterface(
+                caseNumber,
+                noticeIdForBackend,
+                'Error loading notice images',
+                caseData.transactionHash
+            );
         }
+    }
+
+    /**
+     * Create manual upload interface for missing documents
+     */
+    createManualUploadInterface(caseNumber, noticeId, errorMessage, txHash) {
+        const uploadId = `manualUpload_${Date.now()}`;
+        return `
+            <div style="padding: 20px; text-align: center;">
+                <div style="background: #fee; border: 2px solid #fcc; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h3 style="color: #c00; margin: 0 0 10px 0;">
+                        <i class="fas fa-exclamation-triangle"></i> ${errorMessage}
+                    </h3>
+                    <p style="margin: 5px 0;">Case Number: <strong>${caseNumber}</strong></p>
+                    ${noticeId ? `<p style="margin: 5px 0;">Notice ID: <strong>${noticeId}</strong></p>` : ''}
+                    ${txHash ? `<p style="margin: 5px 0;">Transaction: <strong>${txHash}</strong></p>` : ''}
+                </div>
+                
+                <div style="background: #f0f8ff; border: 2px solid #4a90e2; padding: 20px; border-radius: 8px;">
+                    <h4 style="color: #2c5aa0; margin: 0 0 15px 0;">
+                        <i class="fas fa-upload"></i> Manual Document Upload
+                    </h4>
+                    <p style="margin-bottom: 15px;">
+                        You can manually attach the missing documents to this case:
+                    </p>
+                    
+                    <div style="margin: 20px 0;">
+                        <label style="display: block; margin-bottom: 10px; font-weight: bold;">
+                            Alert Thumbnail (Preview Image):
+                        </label>
+                        <input type="file" 
+                               id="${uploadId}_thumbnail" 
+                               accept="image/*,.pdf"
+                               style="margin-bottom: 10px; padding: 5px; width: 100%; max-width: 400px;">
+                        <small style="display: block; color: #666;">This is the thumbnail shown in the Alert NFT</small>
+                    </div>
+                    
+                    <div style="margin: 20px 0;">
+                        <label style="display: block; margin-bottom: 10px; font-weight: bold;">
+                            Full Document:
+                        </label>
+                        <input type="file" 
+                               id="${uploadId}_document" 
+                               accept="image/*,.pdf"
+                               style="margin-bottom: 10px; padding: 5px; width: 100%; max-width: 400px;">
+                        <small style="display: block; color: #666;">This is the complete legal document</small>
+                    </div>
+                    
+                    <div style="margin-top: 20px;">
+                        <button onclick="unifiedSystem.uploadMissingDocuments('${caseNumber}', '${noticeId}', '${uploadId}')" 
+                                class="btn btn-primary" 
+                                style="padding: 10px 20px; font-size: 16px;">
+                            <i class="fas fa-cloud-upload-alt"></i> Upload Documents to Backend
+                        </button>
+                    </div>
+                    
+                    <div id="${uploadId}_status" style="margin-top: 15px;"></div>
+                </div>
+                
+                <div style="margin-top: 15px; padding: 10px; background: #fffacd; border-radius: 5px;">
+                    <small style="color: #666;">
+                        <i class="fas fa-info-circle"></i> 
+                        These documents will be stored on the backend server and associated with this case.
+                        They will be available for viewing immediately after upload.
+                    </small>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Upload missing documents to backend
+     */
+    async uploadMissingDocuments(caseNumber, noticeId, uploadId) {
+        const statusDiv = document.getElementById(`${uploadId}_status`);
+        const thumbnailInput = document.getElementById(`${uploadId}_thumbnail`);
+        const documentInput = document.getElementById(`${uploadId}_document`);
+        
+        if (!thumbnailInput.files[0] && !documentInput.files[0]) {
+            statusDiv.innerHTML = `
+                <div style="color: #c00; padding: 10px; background: #fee; border-radius: 5px;">
+                    <i class="fas fa-times-circle"></i> Please select at least one file to upload
+                </div>
+            `;
+            return;
+        }
+        
+        statusDiv.innerHTML = `
+            <div style="color: #4a90e2; padding: 10px;">
+                <i class="fas fa-spinner fa-spin"></i> Uploading documents...
+            </div>
+        `;
+        
+        try {
+            const caseData = this.cases.get(caseNumber);
+            const formData = new FormData();
+            
+            // Add metadata
+            formData.append('caseNumber', caseNumber);
+            formData.append('serverAddress', this.serverAddress || window.tronWeb?.defaultAddress?.base58 || '');
+            formData.append('recipientAddress', caseData?.recipients?.[0]?.recipientAddress || '');
+            formData.append('alertId', noticeId || '');
+            formData.append('documentId', noticeId || '');
+            formData.append('nftDescription', 'Manual Upload - Legal Notice');
+            formData.append('noticeType', 'Legal Notice');
+            formData.append('issuingAgency', caseData?.issuingAgency || this.serverInfo?.agency || '');
+            
+            // Add files if selected
+            if (thumbnailInput.files[0]) {
+                formData.append('thumbnail', thumbnailInput.files[0]);
+            }
+            
+            if (documentInput.files[0]) {
+                formData.append('unencryptedDocument', documentInput.files[0]);
+            }
+            
+            // Use the correct notice ID for the endpoint
+            const uploadNoticeId = noticeId || caseNumber || Date.now().toString();
+            
+            const response = await fetch(
+                `${this.backend}/api/documents/notice/${uploadNoticeId}/components`,
+                {
+                    method: 'POST',
+                    body: formData
+                }
+            );
+            
+            if (response.ok) {
+                const result = await response.json();
+                statusDiv.innerHTML = `
+                    <div style="color: #0a0; padding: 10px; background: #efe; border-radius: 5px;">
+                        <i class="fas fa-check-circle"></i> Documents uploaded successfully!
+                    </div>
+                `;
+                
+                // Refresh the view after 2 seconds
+                setTimeout(() => {
+                    // Close and reopen the modal to reload the images
+                    const modal = statusDiv.closest('.modal-overlay');
+                    if (modal) {
+                        modal.remove();
+                        // Reopen with the same parameters
+                        this.viewNotice(caseNumber, 'both', noticeId);
+                    }
+                }, 2000);
+                
+            } else {
+                const errorText = await response.text();
+                throw new Error(`Upload failed: ${errorText}`);
+            }
+            
+        } catch (error) {
+            console.error('Manual upload error:', error);
+            statusDiv.innerHTML = `
+                <div style="color: #c00; padding: 10px; background: #fee; border-radius: 5px;">
+                    <i class="fas fa-times-circle"></i> Upload failed: ${error.message}
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * Check backend document availability for all displayed notices
+     */
+    async checkAllBackendStatuses() {
+        // Get all backend status indicators
+        const statusElements = document.querySelectorAll('.backend-status');
+        
+        statusElements.forEach(async (element) => {
+            const noticeId = element.id.includes('alert') ? 
+                element.id.replace('backend-status-alert-', '') : 
+                element.id.replace('backend-status-doc-', '');
+            
+            if (!noticeId || noticeId === 'undefined' || noticeId === 'Pending') {
+                element.innerHTML = '<i class="fas fa-question-circle" style="color: #999;" title="No NFT ID"></i>';
+                return;
+            }
+            
+            try {
+                // Check if documents exist in backend
+                const response = await fetch(`${this.backend}/api/notices/${noticeId}/images`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.alertThumbnailUrl || data.documentUnencryptedUrl) {
+                        // Documents exist in backend
+                        element.innerHTML = '<i class="fas fa-cloud-check" style="color: #28a745;" title="Documents stored in backend"></i>';
+                    } else {
+                        // No documents found
+                        element.innerHTML = '<i class="fas fa-cloud-slash" style="color: #dc3545;" title="No documents in backend"></i>';
+                    }
+                } else if (response.status === 404) {
+                    // Documents not found
+                    element.innerHTML = '<i class="fas fa-cloud-slash" style="color: #dc3545;" title="Documents not found"></i>';
+                } else {
+                    // Backend error
+                    element.innerHTML = '<i class="fas fa-exclamation-triangle" style="color: #ffc107;" title="Backend error"></i>';
+                }
+            } catch (error) {
+                console.error(`Error checking backend status for ${noticeId}:`, error);
+                element.innerHTML = '<i class="fas fa-times-circle" style="color: #6c757d;" title="Check failed"></i>';
+            }
+        });
     }
 
     /**
