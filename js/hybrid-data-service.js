@@ -427,7 +427,7 @@ class HybridDataService {
         const notices = data.notices;
 
         // Group notices by case or pair Alert+Document as single service events
-        // If notices have both alert_id and document_id, they're paired
+        // Notices with isPaired flag are counted as single service events
         const serviceEvents = new Map();
         
         for (const notice of notices) {
@@ -445,9 +445,9 @@ class HybridDataService {
                 if (notice.acknowledged) {
                     serviceEvents.get(notice.caseNumber).acknowledged = true;
                 }
-            } else if (notice.alert_id && notice.document_id) {
+            } else if (notice.isPaired || (notice.alertId && notice.documentId)) {
                 // This is a paired Alert+Document, count as one service event
-                const eventKey = `alert_${notice.alert_id}`;
+                const eventKey = `paired_${notice.alertId || notice.noticeId}`;
                 if (!serviceEvents.has(eventKey)) {
                     serviceEvents.set(eventKey, {
                         acknowledged: notice.acknowledged || false,
