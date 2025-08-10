@@ -9,7 +9,8 @@
     "init-db": "node init-db.js",
     "migrate:ipfs": "node run-ipfs-migration.js",
     "migrate:server-fields": "node run-server-fields-migration.js",
-    "migrate:all": "npm run migrate:ipfs && npm run migrate:server-fields"
+    "migrate:compiled-fields": "node run-compiled-fields-migration.js",
+    "migrate:all": "npm run migrate:ipfs && npm run migrate:server-fields && npm run migrate:compiled-fields"
   },
   "dependencies": {
     "cors": "^2.8.5",

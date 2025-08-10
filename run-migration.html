@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Migration Tool</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .status-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #218838;
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Database Migration Tool</h1>
+        
+        <div class="warning">
+            <strong>⚠️ Warning:</strong> This tool will modify the production database. 
+            Only run migrations if you understand what they do.
+        </div>
+
+        <div>
+            <label for="backendUrl">Backend URL:</label>
+            <input type="text" id="backendUrl" value="https://nftserviceapp.onrender.com" />
+        </div>
+
+        <div>
+            <label for="migrationKey">Migration Key (from environment):</label>
+            <input type="password" id="migrationKey" placeholder="Enter migration key" />
+        </div>
+
+        <div style="margin: 20px 0;">
+            <button onclick="checkStatus()">Check Migration Status</button>
+            <button onclick="runMigrations()" id="runBtn">Run Migrations</button>
+        </div>
+
+        <div class="status-box" id="status">
+            Click "Check Migration Status" to see current database state...
+        </div>
+    </div>
+
+    <script>
+        const statusBox = document.getElementById('status');
+        const runBtn = document.getElementById('runBtn');
+
+        async function checkStatus() {
+            statusBox.textContent = 'Checking migration status...';
+            
+            const backendUrl = document.getElementById('backendUrl').value;
+            
+            try {
+                const response = await fetch(`${backendUrl}/api/migrations/status`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    let output = 'MIGRATION STATUS\n';
+                    output += '================\n\n';
+                    
+                    if (data.needs_migration) {
+                        output += '❌ Database needs migration!\n\n';
+                        output += 'Missing columns in notice_components table:\n';
+                        const expectedColumns = ['page_count', 'is_compiled', 'document_count'];
+                        const existingColumns = data.notice_components_columns.map(c => c.column_name);
+                        expectedColumns.forEach(col => {
+                            if (!existingColumns.includes(col)) {
+                                output += `  - ${col}\n`;
+                            }
+                        });
+                    } else {
+                        output += '✅ Database is up to date!\n\n';
+                        output += 'Existing columns:\n';
+                        data.notice_components_columns.forEach(col => {
+                            output += `  ✓ ${col.column_name} (${col.data_type})\n`;
+                        });
+                    }
+                    
+                    if (data.executed_migrations.length > 0) {
+                        output += '\n\nExecuted Migrations:\n';
+                        data.executed_migrations.forEach(m => {
+                            output += `  ✓ ${m.filename} - ${new Date(m.executed_at).toLocaleString()}\n`;
+                        });
+                    } else {
+                        output += '\n\nNo migrations have been executed yet.\n';
+                    }
+                    
+                    statusBox.innerHTML = output.replace(/✅/g, '<span class="success">✅</span>')
+                                                 .replace(/❌/g, '<span class="error">❌</span>')
+                                                 .replace(/✓/g, '<span class="success">✓</span>');
+                } else {
+                    statusBox.innerHTML = `<span class="error">Error: ${data.error}</span>`;
+                }
+            } catch (error) {
+                statusBox.innerHTML = `<span class="error">Failed to check status: ${error.message}</span>`;
+            }
+        }
+
+        async function runMigrations() {
+            const migrationKey = document.getElementById('migrationKey').value;
+            const backendUrl = document.getElementById('backendUrl').value;
+            
+            if (!migrationKey) {
+                alert('Please enter the migration key');
+                return;
+            }
+            
+            if (!confirm('Are you sure you want to run database migrations? This will modify the production database.')) {
+                return;
+            }
+            
+            statusBox.textContent = 'Running migrations...';
+            runBtn.disabled = true;
+            
+            try {
+                const response = await fetch(`${backendUrl}/api/migrations/run`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ migrationKey })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    let output = 'MIGRATION RESULTS\n';
+                    output += '=================\n\n';
+                    
+                    data.migrations.forEach(m => {
+                        if (m.status === 'success') {
+                            output += `✅ ${m.file} - Successfully executed\n`;
+                        } else if (m.status === 'already_executed') {
+                            output += `⏭️ ${m.file} - Already executed on ${new Date(m.executed_at).toLocaleString()}\n`;
+                        } else if (m.status === 'failed') {
+                            output += `❌ ${m.file} - FAILED: ${m.error}\n`;
+                        }
+                    });
+                    
+                    statusBox.innerHTML = output.replace(/✅/g, '<span class="success">✅</span>')
+                                                 .replace(/❌/g, '<span class="error">❌</span>');
+                    
+                    // Check status again
+                    setTimeout(checkStatus, 2000);
+                } else {
+                    statusBox.innerHTML = `<span class="error">Migration failed: ${data.error}</span>`;
+                }
+            } catch (error) {
+                statusBox.innerHTML = `<span class="error">Failed to run migrations: ${error.message}</span>`;
+            } finally {
+                runBtn.disabled = false;
+            }
+        }
+
+        // Check status on load
+        checkStatus();
+    </script>
+</body>
+</html>

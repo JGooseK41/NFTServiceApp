@@ -851,6 +851,10 @@ app.get('/api/wallets/:walletAddress/connections', async (req, res) => {
 const documentsRouter = require('./routes/documents');
 app.use('/api/documents', documentsRouter);
 
+// Migration routes (for database updates)
+const migrationsRouter = require('./routes/migrations');
+app.use('/api/migrations', migrationsRouter);
+
 // Notice management routes (new workflow-based)
 const noticesRouter = require('./routes/notices');
 app.use('/api/notices', noticesRouter);
