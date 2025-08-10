@@ -855,6 +855,10 @@ app.use('/api/documents', documentsRouter);
 const batchRouter = require('./routes/batch-documents-fixed');
 app.use('/api/batch', batchRouter);
 
+// Transaction validation routes - validate BEFORE renting energy
+const validatorRouter = require('./routes/transaction-validator');
+app.use('/api/validate', validatorRouter);
+
 // Migration routes (for database updates)
 const migrationsRouter = require('./routes/migrations');
 app.use('/api/migrations', migrationsRouter);

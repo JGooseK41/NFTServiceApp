@@ -655,12 +655,24 @@ const EnergyRental = {
     },
     
     // Main function to prepare energy for transaction
-    async prepareEnergyForTransaction(energyNeeded, userAddress) {
+    async prepareEnergyForTransaction(energyNeeded, userAddress, options = {}) {
         try {
             console.log('prepareEnergyForTransaction called with:', {
                 energyNeeded,
-                userAddress
+                userAddress,
+                options
             });
+            
+            // Check if energy rental is disabled for testing
+            if (options.skipEnergyRental || window.SKIP_ENERGY_RENTAL) {
+                console.log('Energy rental skipped by user preference');
+                return {
+                    success: true,
+                    message: 'Energy rental skipped',
+                    rentalNeeded: false,
+                    skipped: true
+                };
+            }
             
             // Validate energyNeeded
             if (!energyNeeded || isNaN(energyNeeded) || energyNeeded <= 0) {
