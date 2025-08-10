@@ -663,7 +663,10 @@ class UnifiedNoticeSystem {
 
         container.innerHTML = serverProfileHtml + casesToRender.map(caseData => this.renderCase(caseData)).join('');
         
-        // Ensure click handlers work with a small delay for DOM to settle
+        // Re-setup global event delegation to ensure it's active
+        this.setupGlobalEventDelegation();
+        
+        // Also attach handlers with a small delay for DOM to settle
         setTimeout(() => {
             this.attachCaseHandlers();
         }, 100);
@@ -688,18 +691,37 @@ class UnifiedNoticeSystem {
             statusClass = 'status-pending';
         }
         
+        // Format the service date
+        const serviceDate = new Date(caseData.createdAt);
+        const formattedDate = serviceDate.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric', 
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
         return `
             <div class="case-card" data-case="${caseData.caseNumber}">
-                <div class="case-header">
+                <div class="case-header" style="cursor: pointer;">
                     <div class="case-info">
-                        <h3>Case #${caseData.caseNumber}</h3>
-                        <span class="case-type">${caseData.noticeType}</span>
-                        <span class="case-agency">${caseData.issuingAgency || this.serverAgency || 'The Block Audit'}</span>
-                        <span class="recipient-count" style="margin-left: 10px; padding: 2px 8px; background: #e3f2fd; color: #1976d2; border-radius: 12px; font-size: 0.85em; font-weight: 500;">${caseData.recipientCount || 1} Notice${(caseData.recipientCount || 1) > 1 ? 's' : ''} Served</span>
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <h3 style="margin: 0;">Case #${caseData.caseNumber}</h3>
+                            <span style="color: var(--text-secondary); font-size: 0.9rem;">
+                                <i class="fas fa-clock"></i> ${formattedDate}
+                            </span>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <span class="case-type">${caseData.noticeType}</span>
+                            <span class="case-agency">${caseData.issuingAgency || this.serverAgency || 'The Block Audit'}</span>
+                            <span class="recipient-count" style="padding: 2px 8px; background: #e3f2fd; color: #1976d2; border-radius: 12px; font-size: 0.85em; font-weight: 500;">
+                                ${caseData.recipientCount || 1} Notice${(caseData.recipientCount || 1) > 1 ? 's' : ''} Served
+                            </span>
+                        </div>
                     </div>
                     <div class="case-status">
                         <span class="status-badge ${statusClass}">${statusLabel}</span>
-                        <i class="fas fa-chevron-down" id="${caseId}-chevron"></i>
+                        <i class="fas fa-chevron-down" id="${caseId}-chevron" style="transition: transform 0.3s;"></i>
                     </div>
                 </div>
                 
@@ -827,21 +849,41 @@ class UnifiedNoticeSystem {
             currentDisplay: details ? details.style.display : 'not found'
         });
         
-        if (details && chevron) {
-            if (details.style.display === 'none' || !details.style.display) {
+        if (details) {
+            const isHidden = details.style.display === 'none' || !details.style.display || details.style.display === '';
+            
+            if (isHidden) {
+                // Expand
                 details.style.display = 'block';
-                chevron.className = 'fas fa-chevron-up';
+                if (chevron) {
+                    chevron.style.transform = 'rotate(180deg)';
+                }
                 console.log('Expanded case:', caseNumber);
             } else {
+                // Collapse
                 details.style.display = 'none';
-                chevron.className = 'fas fa-chevron-down';
+                if (chevron) {
+                    chevron.style.transform = 'rotate(0deg)';
+                }
                 console.log('Collapsed case:', caseNumber);
             }
         } else {
-            console.error('Could not find elements for case:', caseNumber, {
-                details: details,
-                chevron: chevron
-            });
+            console.error('Could not find details element for case:', caseNumber);
+            // Try alternative method - look for the case card directly
+            const caseCard = document.querySelector(`[data-case="${caseNumber}"]`);
+            if (caseCard) {
+                const detailsAlt = caseCard.querySelector('.case-details');
+                const chevronAlt = caseCard.querySelector('.fa-chevron-down, .fa-chevron-up');
+                
+                if (detailsAlt) {
+                    const isHidden = detailsAlt.style.display === 'none' || !detailsAlt.style.display;
+                    detailsAlt.style.display = isHidden ? 'block' : 'none';
+                    if (chevronAlt) {
+                        chevronAlt.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+                    }
+                    console.log('Used alternative method to toggle case');
+                }
+            }
         }
     }
 
