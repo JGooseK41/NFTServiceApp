@@ -49,14 +49,30 @@ async function uploadNoticeDocuments(noticeData, maxRetries = 3) {
         }
         
         // Upload to backend - use a more robust noticeId
-        // Try to use the actual NFT ID if available, otherwise use a formatted timestamp
+        // Try to use the actual NFT ID if available
         let noticeId = noticeData.noticeId || noticeData.alertId || noticeData.documentId;
         
-        // If no valid ID, create a formatted ID that backend might accept
+        // Use ID manager for safe ID generation
         if (!noticeId || noticeId === 'null' || noticeId === 'undefined') {
-            // Create a notice ID that looks like an NFT token ID
-            noticeId = Math.floor(Date.now() / 1000).toString();
-            console.log('Generated fallback notice ID:', noticeId);
+            // Use ID manager if available, otherwise fallback to safe generation
+            if (window.idManager) {
+                noticeId = window.idManager.generateSafeIntegerId().toString();
+                console.log('Generated managed notice ID:', noticeId);
+            } else {
+                // Fallback: Generate ID that fits in INTEGER range (max 2147483647)
+                const timestamp = Date.now();
+                const truncated = parseInt(timestamp.toString().slice(-6)); // Last 6 digits
+                const random = Math.floor(Math.random() * 999); // Random 3 digits
+                noticeId = `${truncated}${random}`.slice(0, 9); // Ensure max 9 digits
+                console.log('Generated fallback notice ID:', noticeId);
+            }
+        } else {
+            // Validate existing ID and convert if needed
+            if (window.idManager && !window.idManager.isValidIntegerId(noticeId)) {
+                const originalId = noticeId;
+                noticeId = window.idManager.toSafeIntegerId(noticeId).toString();
+                console.log(`Converted ID from ${originalId} to safe ID: ${noticeId}`);
+            }
         }
         
         console.log('Uploading documents for notice ID:', noticeId);

@@ -69,7 +69,9 @@
     <!-- Court Report Generator -->
     <script src="js/court-report-generator.js?v=1"></script>
     <!-- Upload Notice Documents -->
-    <script src="js/upload-notice-documents.js?v=1"></script>
+    <script src="js/id-manager.js?v=1"></script>
+    <script src="js/batch-validator.js?v=1"></script>
+    <script src="js/upload-notice-documents.js?v=2"></script>
     <!-- Sync Server Registration -->
     <script src="js/sync-server-registration.js?v=1"></script>
     <!-- Cleanup Test Cases -->
@@ -27812,6 +27814,22 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     type: isBatch ? 'batch' : 'single',
                     isBatch: isBatch
                 };
+                
+                // Validate batch operation if available
+                if (window.batchValidator && isBatch) {
+                    const validation = window.batchValidator.validateBatch(transactionData);
+                    if (!validation.valid) {
+                        console.error('Batch validation failed:', validation.errors);
+                        uiManager.showNotification('error', 'Validation failed: ' + validation.errors[0]);
+                        return;
+                    }
+                    if (validation.warnings.length > 0) {
+                        console.warn('Batch validation warnings:', validation.warnings);
+                    }
+                    // Enhance with batch metadata
+                    transactionData.batchId = window.idManager ? window.idManager.generateBatchId() : 
+                                             `BATCH_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+                }
             }
             
             // Generate a temporary notice ID for the direct link (will be replaced with actual ID after minting)
