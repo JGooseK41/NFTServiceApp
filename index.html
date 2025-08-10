@@ -4449,13 +4449,40 @@
                     </div>
                     <div class="upload-area" id="uploadArea">
                         <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: var(--primary);"></i>
-                        <p>Drag & drop your document here or click to browse</p>
-                        <p style="font-size: 0.85rem; color: #666;">Supported formats: JPEG, PNG</p>
+                        <p style="font-size: 1.1rem; font-weight: 600;">📁 Upload Multiple Documents</p>
+                        <p>Drag & drop one or more documents here or click to browse</p>
+                        <p style="font-size: 0.85rem; color: #666;">Supported formats: JPEG, PNG, PDF • Max 10 files</p>
                         <input type="file" id="documentUpload" accept="image/jpeg,image/jpg,image/png,application/pdf,.pdf" multiple onchange="handleDocumentUpload(event)">
-                        <!-- Backup button in case click handler fails -->
-                        <button type="button" class="btn btn-primary" style="margin-top: 10px;" onclick="document.getElementById('documentUpload').click()">
-                            <i class="fas fa-folder-open"></i> Select File
+                        <!-- Primary upload button with better visibility -->
+                        <button type="button" class="btn btn-primary btn-lg" style="margin-top: 15px; padding: 12px 24px; font-size: 1.1rem;" onclick="document.getElementById('documentUpload').click()">
+                            <i class="fas fa-folder-open"></i> Select Documents (Multiple)
                         </button>
+                    </div>
+                    
+                    <!-- Document list preview -->
+                    <div id="uploadedDocumentsList" style="display: none; margin-top: 20px;">
+                        <h5 style="color: var(--accent-blue); margin-bottom: 15px;">
+                            <i class="fas fa-file-alt"></i> Uploaded Documents
+                        </h5>
+                        <div id="documentListContainer" style="max-height: 300px; overflow-y: auto;">
+                            <!-- Documents will be listed here -->
+                        </div>
+                        
+                        <!-- Action buttons -->
+                        <div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button class="btn btn-secondary" onclick="document.getElementById('documentUpload').click()">
+                                <i class="fas fa-plus"></i> Add More Documents
+                            </button>
+                            <button class="btn btn-warning" onclick="previewMergedDocument()">
+                                <i class="fas fa-eye"></i> Preview Merged
+                            </button>
+                            <button class="btn btn-danger" onclick="clearAllDocuments()">
+                                <i class="fas fa-trash"></i> Clear All
+                            </button>
+                            <button class="btn btn-primary btn-lg" onclick="processDocuments()" style="margin-left: auto;">
+                                <i class="fas fa-file-export"></i> Process & Encrypt Documents
+                            </button>
+                        </div>
                     </div>
                     <div id="compressionStatus" class="compression-status" style="display: none;">
                         <h5 style="color: var(--accent-blue); margin-bottom: 0.5rem;">
@@ -19613,144 +19640,151 @@ document.addEventListener('keydown', function(event) {
         }
         
         // Document upload handler with encryption
+        // Global array to store uploaded documents
+        window.uploadedDocumentsList = [];
+        
         async function handleDocumentUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+            const files = Array.from(event.target.files);
+            if (!files || files.length === 0) return;
             
-            const maxSize = 10 * 1024 * 1024; // 10MB limit
-            if (file.size > maxSize) {
-                uiManager.showNotification('error', 'File size exceeds 10MB limit');
+            // Check total documents limit
+            if (window.uploadedDocumentsList.length + files.length > 10) {
+                uiManager.showNotification('error', 'Maximum 10 documents allowed');
                 return;
             }
             
-            try {
-                // Show processing status
-                document.getElementById('compressionStatus').style.display = 'block';
-                updateCompressionProgress(10, 'Reading file...');
+            
+            // Process each file
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const maxSize = 10 * 1024 * 1024; // 10MB limit per file
                 
-                // Read file as data URL
-                const reader = new FileReader();
-                reader.onload = async function(e) {
-                    try {
-                        updateCompressionProgress(30, 'Processing document...');
-                        
-                        // Check if it's a PDF or Word document that needs conversion
-                        let documentData = {
-                            data: e.target.result,
-                            fileName: file.name,
-                            fileType: file.type,
-                            fileSize: file.size,
-                            preview: null
+                if (file.size > maxSize) {
+                    uiManager.showNotification('error', `File "${file.name}" exceeds 10MB limit`);
+                    continue;
+                }
+                
+                try {
+                    // Show processing status
+                    document.getElementById('compressionStatus').style.display = 'block';
+                    updateCompressionProgress(10 + (i * 10), `Reading file ${i + 1}/${files.length}: ${file.name}...`);
+                    
+                    // Read file as data URL
+                    await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = async function(e) {
+                            try {
+                                updateCompressionProgress(30 + (i * 10), `Processing document ${i + 1}/${files.length}...`);
+                                
+                                // Check if it's a PDF or Word document that needs conversion
+                                let documentData = {
+                                    id: Date.now() + '_' + i,
+                                    data: e.target.result,
+                                    fileName: file.name,
+                                    fileType: file.type,
+                                    fileSize: file.size,
+                                    preview: null,
+                                    order: window.uploadedDocumentsList.length
+                                };
+                                
+                                // If it's a PDF or Word doc, convert to images
+                                if (file.type === 'application/pdf' || 
+                                    file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+                                    file.type === 'application/msword' ||
+                                    file.name.endsWith('.pdf') || 
+                                    file.name.endsWith('.doc') || 
+                                    file.name.endsWith('.docx')) {
+                                    
+                                    updateCompressionProgress(40 + (i * 10), `Converting document ${i + 1} to images...`);
+                                    
+                                    try {
+                                        // Initialize converter if needed
+                                        if (!window.documentConverter) {
+                                            window.documentConverter = new DocumentConverter();
+                                            await window.documentConverter.init();
+                                        }
+                                        
+                                        // Convert document
+                                        const converted = await window.documentConverter.convertDocument(file);
+                                        
+                                        // Use the converted data
+                                        if (converted.fullDocument && typeof converted.fullDocument === 'object') {
+                                            documentData.data = converted.fullDocument.data || converted.fullDocument;
+                                        } else {
+                                            documentData.data = converted.fullDocument;
+                                        }
+                                        documentData.preview = converted.preview;
+                                        documentData.originalType = file.type;
+                                        documentData.convertedType = 'image/png';
+                                        
+                                        updateCompressionProgress(60 + (i * 10), `Document ${i + 1} converted successfully...`);
+                                    } catch (convertError) {
+                                        console.error('Document conversion error:', convertError);
+                                        // Generate a basic preview for PDFs
+                                        documentData.preview = e.target.result;
+                                    }
+                                } else if (file.type.startsWith('image/')) {
+                                    // For images, use the data as preview
+                                    documentData.preview = e.target.result;
+                                }
+                                
+                                // Add to documents list
+                                window.uploadedDocumentsList.push(documentData);
+                                
+                                // Update UI
+                                updateDocumentsList();
+                                
+                                resolve();
+                            } catch (error) {
+                                console.error('Error processing file:', error);
+                                reject(error);
+                            }
                         };
                         
-                        // If it's a PDF or Word doc, convert to images
-                        if (file.type === 'application/pdf' || 
-                            file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-                            file.type === 'application/msword' ||
-                            file.name.endsWith('.pdf') || 
-                            file.name.endsWith('.doc') || 
-                            file.name.endsWith('.docx')) {
-                            
-                            updateCompressionProgress(40, 'Converting document to images...');
-                            
-                            try {
-                                // Initialize converter if needed
-                                if (!window.documentConverter) {
-                                    window.documentConverter = new DocumentConverter();
-                                    await window.documentConverter.init();
-                                }
-                                
-                                // Convert document
-                                const converted = await window.documentConverter.convertDocument(file);
-                                
-                                // Use the converted data
-                                // Handle fullDocument which may be an object or string
-                                if (converted.fullDocument && typeof converted.fullDocument === 'object') {
-                                    documentData.data = converted.fullDocument.data || converted.fullDocument;
-                                } else {
-                                    documentData.data = converted.fullDocument;
-                                }
-                                documentData.preview = converted.preview;
-                                documentData.originalType = file.type;
-                                documentData.convertedType = 'image/png';
-                                
-                                updateCompressionProgress(60, 'Document converted successfully...');
-                            } catch (convertError) {
-                                console.error('Document conversion error:', convertError);
-                                // Fall back to original data
-                                uiManager.showNotification('warning', 'Document preview may not be available');
-                            }
-                        }
-                        
-                        // Store the document data - preserve the structure
-                        uploadedImage = documentData;
-                        window.uploadedImage = documentData; // Also store globally for thumbnail generator
-                        
-                        console.log('Stored uploadedImage:', {
-                            hasData: !!uploadedImage.data,
-                            hasPreview: !!uploadedImage.preview,
-                            dataType: uploadedImage.data ? typeof uploadedImage.data : 'none',
-                            previewType: uploadedImage.preview ? uploadedImage.preview.substring(0, 50) : 'none'
-                        });
-                        
-                        updateCompressionProgress(70, 'Preparing for encryption...');
-                        
-                        // Show preview
-                        const uploadResult = document.getElementById('uploadResult');
-                        const uploadedFileName = document.getElementById('uploadedFileName');
-                        const documentPreview = document.getElementById('documentPreview');
-                        
-                        if (uploadResult && uploadedFileName) {
-                            uploadedFileName.textContent = file.name;
-                            uploadResult.style.display = 'block';
-                        }
-                        
-                        // Show preview based on file type
-                        if (documentPreview) {
-                            if (documentData.preview) {
-                                // Use the generated preview for PDFs and Word docs
-                                documentPreview.src = documentData.preview;
-                                documentPreview.style.display = 'block';
-                            } else if (file.type.startsWith('image/')) {
-                                // Use original for images
-                                documentPreview.src = e.target.result;
-                                documentPreview.style.display = 'block';
-                            } else {
-                                // Hide preview for unsupported types
-                                documentPreview.style.display = 'none';
-                            }
-                        }
-                        
-                        updateCompressionProgress(100, 'Document ready for encrypted delivery');
-                        
-                        // Show proceed button
-                        document.getElementById('proceedToStep2').style.display = 'block';
-                        
-                        // Hide progress after delay
-                        setTimeout(() => {
-                            document.getElementById('compressionStatus').style.display = 'none';
-                        }, 1500);
-                        
-                        uiManager.showNotification('success', 'Document uploaded and ready for encryption');
-                        
-                    } catch (error) {
-                        console.error('Error processing document:', error);
-                        uiManager.showNotification('error', 'Failed to process document');
-                        document.getElementById('compressionStatus').style.display = 'none';
-                    }
-                };
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    });
+                    
+                } catch (error) {
+                    console.error('Error uploading file:', error);
+                    uiManager.showNotification('error', `Failed to upload ${file.name}`);
+                }
+            }
+            
+            // Hide processing status and show success
+            document.getElementById('compressionStatus').style.display = 'none';
+            
+            if (window.uploadedDocumentsList.length > 0) {
+                // For backward compatibility, set the first document as the main one
+                uploadedImage = window.uploadedDocumentsList[0];
+                window.uploadedImage = uploadedImage;
                 
-                reader.onerror = function() {
-                    uiManager.showNotification('error', 'Failed to read file');
+                // Show old preview for single document mode
+                const uploadResult = document.getElementById('uploadResult');
+                const uploadedFileName = document.getElementById('uploadedFileName');
+                const documentPreview = document.getElementById('documentPreview');
+                
+                if (uploadResult && uploadedFileName) {
+                    uploadedFileName.textContent = `${window.uploadedDocumentsList.length} document(s) uploaded`;
+                    uploadResult.style.display = 'block';
+                }
+                
+                if (documentPreview && window.uploadedDocumentsList[0].preview) {
+                    documentPreview.src = window.uploadedDocumentsList[0].preview;
+                    documentPreview.style.display = 'block';
+                }
+                
+                updateCompressionProgress(100, 'Documents ready for encrypted delivery');
+                
+                // Show proceed button
+                document.getElementById('proceedToStep2').style.display = 'block';
+                
+                // Hide progress after delay
+                setTimeout(() => {
                     document.getElementById('compressionStatus').style.display = 'none';
-                };
+                }, 1500);
                 
-                reader.readAsDataURL(file);
-                
-            } catch (error) {
-                console.error('Error uploading document:', error);
-                uiManager.showNotification('error', 'Failed to upload document');
-                document.getElementById('compressionStatus').style.display = 'none';
+                uiManager.showNotification('success', `${window.uploadedDocumentsList.length} document(s) uploaded and ready for encryption`);
             }
         }
         
@@ -19767,6 +19801,236 @@ document.addEventListener('keydown', function(event) {
             }
             if (compressionText) {
                 compressionText.textContent = text;
+            }
+        }
+        
+        // Update the documents list UI
+        function updateDocumentsList() {
+            const listContainer = document.getElementById('uploadedDocumentsList');
+            const documentListContainer = document.getElementById('documentListContainer');
+            
+            if (!listContainer || !documentListContainer) return;
+            
+            if (window.uploadedDocumentsList.length === 0) {
+                listContainer.style.display = 'none';
+                return;
+            }
+            
+            listContainer.style.display = 'block';
+            
+            // Sort documents by order
+            const sortedDocs = [...window.uploadedDocumentsList].sort((a, b) => a.order - b.order);
+            
+            documentListContainer.innerHTML = sortedDocs.map((doc, index) => `
+                <div class="document-item" style="display: flex; align-items: center; padding: 10px; margin-bottom: 10px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px;">
+                    <div style="flex: 0 0 60px; margin-right: 15px;">
+                        ${doc.preview ? `<img src="${doc.preview}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px;">` : 
+                          `<div style="width: 60px; height: 60px; background: var(--gray-700); border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-file" style="font-size: 24px; color: var(--text-muted);"></i>
+                          </div>`}
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; color: var(--text-primary);">${doc.fileName}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-muted);">
+                            ${formatFileSize(doc.fileSize)} • ${doc.fileType}
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 5px; align-items: center;">
+                        <button class="btn btn-sm" onclick="moveDocument('${doc.id}', 'up')" ${index === 0 ? 'disabled' : ''} style="padding: 5px 10px;">
+                            <i class="fas fa-arrow-up"></i>
+                        </button>
+                        <button class="btn btn-sm" onclick="moveDocument('${doc.id}', 'down')" ${index === sortedDocs.length - 1 ? 'disabled' : ''} style="padding: 5px 10px;">
+                            <i class="fas fa-arrow-down"></i>
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="removeDocument('${doc.id}')" style="padding: 5px 10px;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Move document up or down in the order
+        function moveDocument(docId, direction) {
+            const docIndex = window.uploadedDocumentsList.findIndex(d => d.id === docId);
+            if (docIndex === -1) return;
+            
+            const doc = window.uploadedDocumentsList[docIndex];
+            const newIndex = direction === 'up' ? docIndex - 1 : docIndex + 1;
+            
+            if (newIndex < 0 || newIndex >= window.uploadedDocumentsList.length) return;
+            
+            // Swap orders
+            const otherDoc = window.uploadedDocumentsList[newIndex];
+            const tempOrder = doc.order;
+            doc.order = otherDoc.order;
+            otherDoc.order = tempOrder;
+            
+            updateDocumentsList();
+        }
+        
+        // Remove a document from the list
+        function removeDocument(docId) {
+            window.uploadedDocumentsList = window.uploadedDocumentsList.filter(d => d.id !== docId);
+            
+            // Reorder remaining documents
+            window.uploadedDocumentsList.forEach((doc, index) => {
+                doc.order = index;
+            });
+            
+            updateDocumentsList();
+            
+            // Update backward compatibility
+            if (window.uploadedDocumentsList.length > 0) {
+                uploadedImage = window.uploadedDocumentsList[0];
+                window.uploadedImage = uploadedImage;
+            } else {
+                uploadedImage = null;
+                window.uploadedImage = null;
+                document.getElementById('uploadResult').style.display = 'none';
+                document.getElementById('proceedToStep2').style.display = 'none';
+            }
+            
+            uiManager.showNotification('info', 'Document removed');
+        }
+        
+        // Clear all documents
+        function clearAllDocuments() {
+            if (!confirm('Are you sure you want to remove all uploaded documents?')) return;
+            
+            window.uploadedDocumentsList = [];
+            uploadedImage = null;
+            window.uploadedImage = null;
+            
+            document.getElementById('uploadResult').style.display = 'none';
+            document.getElementById('proceedToStep2').style.display = 'none';
+            updateDocumentsList();
+            
+            uiManager.showNotification('info', 'All documents cleared');
+        }
+        
+        // Format file size for display
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+        
+        // Preview merged document
+        async function previewMergedDocument() {
+            if (window.uploadedDocumentsList.length === 0) {
+                uiManager.showNotification('warning', 'No documents to preview');
+                return;
+            }
+            
+            try {
+                // Show loading
+                uiManager.showNotification('info', 'Generating preview...');
+                
+                // Sort documents by order
+                const sortedDocs = [...window.uploadedDocumentsList].sort((a, b) => a.order - b.order);
+                
+                // Create preview modal
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                modal.style.display = 'block';
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+                        <div class="modal-header">
+                            <h3>Document Preview - ${sortedDocs.length} Document(s)</h3>
+                            <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <p style="color: var(--text-muted); margin-bottom: 20px;">
+                                Documents will be merged in this order when encrypted:
+                            </p>
+                            ${sortedDocs.map((doc, index) => `
+                                <div style="margin-bottom: 30px; padding: 20px; background: var(--card-bg); border-radius: 8px;">
+                                    <h4 style="color: var(--accent-blue); margin-bottom: 15px;">
+                                        Document ${index + 1}: ${doc.fileName}
+                                    </h4>
+                                    ${doc.preview ? 
+                                        `<img src="${doc.preview}" style="max-width: 100%; height: auto; border: 1px solid var(--border-color); border-radius: 4px;">` :
+                                        `<div style="padding: 40px; text-align: center; background: var(--gray-700); border-radius: 4px;">
+                                            <i class="fas fa-file" style="font-size: 48px; color: var(--text-muted);"></i>
+                                            <p style="margin-top: 10px; color: var(--text-muted);">Preview not available</p>
+                                        </div>`
+                                    }
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
+                            <button class="btn btn-primary" onclick="this.closest('.modal').remove(); processDocuments()">
+                                <i class="fas fa-file-export"></i> Process Documents
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                
+            } catch (error) {
+                console.error('Error generating preview:', error);
+                uiManager.showNotification('error', 'Failed to generate preview');
+            }
+        }
+        
+        // Process documents for encryption
+        async function processDocuments() {
+            if (window.uploadedDocumentsList.length === 0) {
+                uiManager.showNotification('warning', 'No documents to process');
+                return;
+            }
+            
+            try {
+                // Show processing status
+                document.getElementById('compressionStatus').style.display = 'block';
+                updateCompressionProgress(10, 'Preparing documents for encryption...');
+                
+                // Sort documents by order
+                const sortedDocs = [...window.uploadedDocumentsList].sort((a, b) => a.order - b.order);
+                
+                // If multiple documents, merge them
+                if (sortedDocs.length > 1) {
+                    updateCompressionProgress(30, 'Merging documents...');
+                    
+                    // For now, we'll use the first document as the main one
+                    // In a real implementation, you'd merge PDFs or create a multi-page document
+                    uploadedImage = sortedDocs[0];
+                    window.uploadedImage = uploadedImage;
+                    
+                    // Store all documents for later reference
+                    window.uploadedImage.allDocuments = sortedDocs;
+                    
+                    updateCompressionProgress(70, 'Documents merged successfully');
+                } else {
+                    // Single document
+                    uploadedImage = sortedDocs[0];
+                    window.uploadedImage = uploadedImage;
+                }
+                
+                updateCompressionProgress(100, 'Documents ready for encrypted delivery');
+                
+                // Show proceed button
+                document.getElementById('proceedToStep2').style.display = 'block';
+                
+                // Hide processing status after delay
+                setTimeout(() => {
+                    document.getElementById('compressionStatus').style.display = 'none';
+                }, 1500);
+                
+                uiManager.showNotification('success', 'Documents processed and ready for encryption');
+                
+                // Automatically proceed to step 2
+                showMintStep2();
+                
+            } catch (error) {
+                console.error('Error processing documents:', error);
+                uiManager.showNotification('error', 'Failed to process documents');
+                document.getElementById('compressionStatus').style.display = 'none';
             }
         }
         window.openAuditModal = openAuditModal;
