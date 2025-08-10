@@ -71,6 +71,8 @@
     <script src="js/upload-notice-documents.js?v=1"></script>
     <!-- Sync Server Registration -->
     <script src="js/sync-server-registration.js?v=1"></script>
+    <!-- Cleanup Test Cases -->
+    <script src="js/cleanup-test-cases.js?v=1"></script>
     <script src="js/unified-notice-system.js?v=5"></script>
     <link href="css/unified-system.css" rel="stylesheet">
     <!-- Print Styles for Court Reports -->
@@ -3639,8 +3641,8 @@
                     <button class="btn btn-secondary btn-small" onclick="unifiedSystem.refreshData()">
                         <i class="fas fa-sync"></i> Refresh
                     </button>
-                    <button class="btn btn-secondary btn-small" onclick="unifiedSystem.clearTestData()" title="Clear test data">
-                        <i class="fas fa-trash"></i> Clear Test Data
+                    <button class="btn btn-secondary btn-small" onclick="hideTestCases()" title="Hide test cases">
+                        <i class="fas fa-eye-slash"></i> Hide Test Cases
                     </button>
                 </div>
                 <div id="unifiedCasesContainer">
