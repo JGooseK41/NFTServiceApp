@@ -28115,13 +28115,17 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     console.log('Uploading documents to backend before transaction...');
                     
                     try {
+                        // For batch transactions, use the first recipient for document upload
+                        const primaryRecipient = Array.isArray(transactionData.recipient) ? 
+                                                transactionData.recipient[0] : transactionData.recipient;
+                        
                         const backendUploadResult = await window.uploadNoticeDocuments({
                             noticeId: Date.now().toString(), // Temporary ID
                             alertId: null, // Will be set after transaction
                             documentId: null, // Will be set after transaction
                             serverAddress: tronWeb.defaultAddress.base58,
-                            recipient: transactionData.recipient,
-                            recipientAddress: transactionData.recipient,
+                            recipient: primaryRecipient,
+                            recipientAddress: primaryRecipient,
                             caseNumber: transactionData.caseNumber || '',
                             noticeType: transactionData.noticeType === 'Custom' ? transactionData.customType : transactionData.noticeType,
                             issuingAgency: transactionData.issuingAgency || getCurrentUserAgency() || '',
