@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Energy Messaging Test</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            padding: 20px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: #2a2a2a;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #888;
+            border-radius: 12px;
+            position: relative;
+        }
+        
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        
+        .btn:hover {
+            background: #2563eb;
+        }
+        
+        .test-result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #2a2a2a;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+        
+        .success {
+            color: #10b981;
+        }
+        
+        .error {
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <h1>Energy Rental Messaging Test</h1>
+    <p>This page tests the updated energy rental messaging.</p>
+    
+    <button class="btn" onclick="testEnergyModal()">
+        <i class="fas fa-bolt"></i> Test Energy Modal
+    </button>
+    
+    <button class="btn" onclick="testOldVersion()">
+        <i class="fas fa-history"></i> Show Old Version (for comparison)
+    </button>
+    
+    <div id="testResults" class="test-result"></div>
+    
+    <script>
+        // Simulate the enhanced energy rental modal
+        function testEnergyModal() {
+            const existingDialog = document.getElementById('energyRentalProgress');
+            if (existingDialog) {
+                existingDialog.remove();
+            }
+            
+            const dialog = document.createElement('div');
+            dialog.id = 'energyRentalProgress';
+            dialog.className = 'modal';
+            dialog.style.display = 'flex';
+            dialog.innerHTML = `
+                <div class="modal-content" style="max-width: 500px;">
+                    <div class="modal-body" style="text-align: center; padding: 2rem;">
+                        <div class="spinner" style="margin: 0 auto 1rem;">
+                            <i class="fas fa-circle-notch fa-spin fa-3x" style="color: #3b82f6;"></i>
+                        </div>
+                        <h4>Acquiring energy for your transaction...</h4>
+                        <p style="color: #9ca3af; margin-top: 1rem;">
+                            <strong>This may take several minutes</strong>
+                        </p>
+                        <div style="background: #374151; border-radius: 8px; padding: 1rem; margin-top: 1rem; text-align: left;">
+                            <h5 style="margin: 0 0 0.5rem 0; color: #f3f4f6;">
+                                <i class="fas fa-info-circle" style="color: #3b82f6;"></i> What is Energy?
+                            </h5>
+                            <p style="margin: 0.5rem 0; font-size: 0.9em; color: #d1d5db;">
+                                Energy is required to execute transactions on the TRON network. Instead of paying 
+                                high transaction fees, we're automatically renting energy for you at a fraction of the cost.
+                            </p>
+                            <p style="margin: 0; font-size: 0.9em; color: #10b981; font-weight: 600;">
+                                <i class="fas fa-piggy-bank"></i> This saves you up to 90% on transaction costs!
+                            </p>
+                        </div>
+                        <button onclick="this.closest('.modal').remove()" style="margin-top: 1rem; padding: 8px 16px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                            Close Preview
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(dialog);
+            
+            document.getElementById('testResults').innerHTML = `
+                <div class="success">✅ New energy modal displayed successfully!</div>
+                <ul>
+                    <li>✓ Changed to "Acquiring energy for your transaction..."</li>
+                    <li>✓ Updated timing to "several minutes"</li>
+                    <li>✓ Added energy explainer with cost savings info</li>
+                </ul>
+            `;
+        }
+        
+        function testOldVersion() {
+            const existingDialog = document.getElementById('energyRentalProgress');
+            if (existingDialog) {
+                existingDialog.remove();
+            }
+            
+            const dialog = document.createElement('div');
+            dialog.id = 'energyRentalProgress';
+            dialog.className = 'modal';
+            dialog.style.display = 'flex';
+            dialog.innerHTML = `
+                <div class="modal-content" style="max-width: 400px;">
+                    <div class="modal-body" style="text-align: center; padding: 2rem;">
+                        <div class="spinner" style="margin: 0 auto 1rem;">
+                            <i class="fas fa-circle-notch fa-spin fa-3x" style="color: #3b82f6;"></i>
+                        </div>
+                        <h4>Checking energy balance...</h4>
+                        <p style="color: #9ca3af; margin-top: 0.5rem;">
+                            This may take a few seconds...
+                        </p>
+                        <button onclick="this.closest('.modal').remove()" style="margin-top: 1rem; padding: 8px 16px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                            Close Preview
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(dialog);
+            
+            document.getElementById('testResults').innerHTML = `
+                <div class="error">Old version shown for comparison</div>
+                <ul>
+                    <li>❌ Generic "Checking energy balance..." message</li>
+                    <li>❌ Incorrect timing "a few seconds"</li>
+                    <li>❌ No explanation of what energy is or cost savings</li>
+                </ul>
+            `;
+        }
+    </script>
+</body>
+</html>

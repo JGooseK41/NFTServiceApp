@@ -610,7 +610,7 @@ const EnhancedEnergyRental = {
     },
 
     // Show progress dialog during rental
-    showRentalProgress(message = 'Renting energy...') {
+    showRentalProgress(message = 'Acquiring energy...') {
         const existingDialog = document.getElementById('energyRentalProgress');
         if (existingDialog) {
             existingDialog.remove();
@@ -621,15 +621,27 @@ const EnhancedEnergyRental = {
         dialog.className = 'modal';
         dialog.style.display = 'block';
         dialog.innerHTML = `
-            <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-content" style="max-width: 500px;">
                 <div class="modal-body" style="text-align: center; padding: 2rem;">
                     <div class="spinner" style="margin: 0 auto 1rem;">
                         <i class="fas fa-circle-notch fa-spin fa-3x" style="color: #3b82f6;"></i>
                     </div>
                     <h4>${message}</h4>
-                    <p style="color: #6b7280; margin-top: 0.5rem;">
-                        This may take a few seconds...
+                    <p style="color: #6b7280; margin-top: 1rem;">
+                        <strong>This may take several minutes</strong>
                     </p>
+                    <div style="background: #f3f4f6; border-radius: 8px; padding: 1rem; margin-top: 1rem; text-align: left;">
+                        <h5 style="margin: 0 0 0.5rem 0; color: #1f2937;">
+                            <i class="fas fa-info-circle" style="color: #3b82f6;"></i> What is Energy?
+                        </h5>
+                        <p style="margin: 0.5rem 0; font-size: 0.9em; color: #4b5563;">
+                            Energy is required to execute transactions on the TRON network. Instead of paying 
+                            high transaction fees, we're automatically renting energy for you at a fraction of the cost.
+                        </p>
+                        <p style="margin: 0; font-size: 0.9em; color: #059669; font-weight: 600;">
+                            <i class="fas fa-piggy-bank"></i> This saves you up to 90% on transaction costs!
+                        </p>
+                    </div>
                 </div>
             </div>
         `;
@@ -656,7 +668,7 @@ const EnhancedEnergyRental = {
         } = options;
         
         if (showProgress) {
-            this.showRentalProgress('Checking energy balance...');
+            this.showRentalProgress('Acquiring energy for your transaction...');
         }
         
         try {
