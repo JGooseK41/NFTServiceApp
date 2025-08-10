@@ -28384,24 +28384,24 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     // Use batch function for multiple recipients
                     showProcessing(`Sending batch transaction to ${transactionData.recipients.length} recipients...`);
                     
-                    // Build batch notices array
-                    const batchNotices = transactionData.recipients.map(recipient => ({
-                        recipient: recipient,
-                        encryptedIPFS: noticeRequest.encryptedIPFS || '',
-                        encryptionKey: noticeRequest.encryptionKey || '',
-                        issuingAgency: noticeRequest.issuingAgency || '',
-                        noticeType: noticeRequest.noticeType || '',
-                        caseNumber: noticeRequest.caseNumber || '',
-                        caseDetails: noticeRequest.publicText || '',
-                        legalRights: noticeRequest.directLink || '',
-                        sponsorFees: sponsorFees,
-                        metadataURI: noticeRequest.metadataURI || ''
-                    }));
+                    // Build batch notices array - TronWeb requires arrays for struct parameters
+                    const batchNotices = transactionData.recipients.map(recipient => [
+                        recipient,                                      // address recipient
+                        noticeRequest.encryptedIPFS || '',             // string encryptedIPFS
+                        noticeRequest.encryptionKey || '',             // string encryptionKey
+                        noticeRequest.issuingAgency || '',             // string issuingAgency
+                        noticeRequest.noticeType || '',                // string noticeType
+                        noticeRequest.caseNumber || '',                // string caseNumber
+                        noticeRequest.publicText || '',                // string caseDetails
+                        noticeRequest.directLink || '',                // string legalRights
+                        sponsorFees,                                    // bool sponsorFees
+                        noticeRequest.metadataURI || ''                // string metadataURI
+                    ]);
                     
-                    console.log('Batch notices to send:', batchNotices);
+                    console.log('Batch notices to send (as arrays):', batchNotices);
                     
                     try {
-                        // Call the batch function
+                        // Call the batch function with array of arrays
                         const txPromise = legalContract.serveNoticeBatch(batchNotices).send({
                             feeLimit: 500_000_000,  // Higher limit for batch
                             callValue: totalFee,     // Use total fee for all recipients
