@@ -800,7 +800,9 @@ class UnifiedNoticeSystem {
 
         // Build the server profile header
         let serverProfileHtml = '';
-        if (this.serverInfo.serverId && this.serverInfo.serverId !== '0') {
+        // Only show header if we have valid server data (not the weird "9" name)
+        if (this.serverInfo.serverId && this.serverInfo.serverId !== '0' && 
+            this.serverInfo.name && this.serverInfo.name !== '9' && this.serverInfo.name !== '0') {
             const registrationDate = this.serverInfo.registeredDate ? 
                 new Date(Number(this.serverInfo.registeredDate) * 1000).toLocaleDateString() : 'Not available';
             
@@ -888,9 +890,9 @@ class UnifiedNoticeSystem {
                      data-case="${caseData.caseNumber}" 
                      data-case-number="${caseData.caseNumber}"
                      onclick="event.preventDefault(); event.stopPropagation(); window.unifiedSystem.toggleCase('${caseData.caseNumber}'); return false;"
-                     style="cursor: pointer; padding: 10px; border-radius: 5px; transition: background-color 0.2s;"
-                     onmouseover="this.style.backgroundColor='#f0f0f0'" 
-                     onmouseout="this.style.backgroundColor='transparent'">
+                     style="cursor: pointer; padding: 10px; border-radius: 5px; transition: all 0.2s; background-color: transparent;"
+                     onmouseover="this.style.backgroundColor='#f0f0f0'; this.style.color='#333333';" 
+                     onmouseout="this.style.backgroundColor='transparent'; this.style.color='inherit';">
                     <div class="case-info">
                         <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
                             <h3 style="margin: 0;">Case #${caseData.caseNumber}</h3>
