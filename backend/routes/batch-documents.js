@@ -9,6 +9,13 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const crypto = require('crypto');
+const { Pool } = require('pg');
+
+// Initialize database connection
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || 'postgresql://nftservice:nftservice123@localhost:5432/nftservice_db',
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -50,7 +57,6 @@ router.post('/documents', upload.fields([
     { name: 'thumbnail', maxCount: 1 },
     { name: 'document', maxCount: 1 }
 ]), async (req, res) => {
-    const pool = req.app.get('db');
     const client = await pool.connect();
     
     try {
@@ -277,7 +283,6 @@ router.post('/documents', upload.fields([
  * Get status of a batch upload
  */
 router.get('/:batchId/status', async (req, res) => {
-    const pool = req.app.get('db');
     
     try {
         const { batchId } = req.params;
