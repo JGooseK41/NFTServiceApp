@@ -24,51 +24,72 @@ router.get('/api/notices/:noticeId/images', async (req, res) => {
         
         client = await pool.connect();
         
-        // Query for notice images from served_notices table
-        // Check if columns exist first
-        const columnCheckQuery = `
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name = 'served_notices' 
-            AND column_name IN ('alert_thumbnail_url', 'document_unencrypted_url')
+        // First try notice_components table which has the uploaded images
+        let query = `
+            SELECT 
+                alert_thumbnail_url,
+                document_unencrypted_url,
+                server_address,
+                case_number,
+                recipient_address,
+                alert_id,
+                document_id,
+                document_ipfs_hash as ipfs_hash
+            FROM notice_components
+            WHERE (alert_id = $1 OR document_id = $1 OR notice_id = $1)
+            LIMIT 1
         `;
         
-        const columnCheck = await client.query(columnCheckQuery);
-        const hasImageColumns = columnCheck.rows.length === 2;
+        let result = await client.query(query, [noticeId]);
         
-        // Build query based on available columns
-        let query;
-        if (hasImageColumns) {
-            query = `
-                SELECT 
-                    alert_thumbnail_url,
-                    document_unencrypted_url,
-                    server_address,
-                    case_number,
-                    recipient_address,
-                    alert_id,
-                    document_id
-                FROM served_notices
-                WHERE (alert_id = $1 OR document_id = $1 OR notice_id = $1)
-                LIMIT 1
+        // If not found in notice_components, try served_notices table
+        if (result.rows.length === 0) {
+            // Check if columns exist in served_notices
+            const columnCheckQuery = `
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'served_notices' 
+                AND column_name IN ('alert_thumbnail_url', 'document_unencrypted_url')
             `;
-        } else {
-            // Fallback query without image columns
-            query = `
-                SELECT 
-                    server_address,
-                    case_number,
-                    recipient_address,
-                    alert_id,
-                    document_id,
-                    ipfs_hash
-                FROM served_notices
-                WHERE (alert_id = $1 OR document_id = $1 OR notice_id = $1)
-                LIMIT 1
-            `;
+            
+            const columnCheck = await client.query(columnCheckQuery);
+            const hasImageColumns = columnCheck.rows.length === 2;
+            
+            if (hasImageColumns) {
+                query = `
+                    SELECT 
+                        alert_thumbnail_url,
+                        document_unencrypted_url,
+                        server_address,
+                        case_number,
+                        recipient_address,
+                        alert_id,
+                        document_id,
+                        ipfs_hash
+                    FROM served_notices
+                    WHERE (alert_id = $1 OR document_id = $1 OR notice_id = $1)
+                    LIMIT 1
+                `;
+            } else {
+                // Fallback query without image columns
+                query = `
+                    SELECT 
+                        server_address,
+                        case_number,
+                        recipient_address,
+                        alert_id,
+                        document_id,
+                        ipfs_hash,
+                        NULL as alert_thumbnail_url,
+                        NULL as document_unencrypted_url
+                    FROM served_notices
+                    WHERE (alert_id = $1 OR document_id = $1 OR notice_id = $1)
+                    LIMIT 1
+                `;
+            }
+            
+            result = await client.query(query, [noticeId]);
         }
-        
-        const result = await client.query(query, [noticeId]);
         
         if (result.rows.length === 0) {
             return res.status(404).json({ 
@@ -90,32 +111,33 @@ router.get('/api/notices/:noticeId/images', async (req, res) => {
         }
         */
         
-        // Return the image URLs or placeholder message
-        if (hasImageColumns) {
-            res.json({
-                success: true,
-                alertThumbnailUrl: notice.alert_thumbnail_url || null,
-                documentUnencryptedUrl: notice.document_unencrypted_url || null,
-                caseNumber: notice.case_number,
-                recipientAddress: notice.recipient_address,
-                message: (!notice.alert_thumbnail_url && !notice.document_unencrypted_url) 
-                    ? 'Notice found but images not yet uploaded' 
-                    : null
-            });
-        } else {
-            // Return a message indicating images are not available
-            res.json({
-                success: true,
-                alertThumbnailUrl: null,
-                documentUnencryptedUrl: null,
-                caseNumber: notice.case_number,
-                recipientAddress: notice.recipient_address,
-                alertId: notice.alert_id,
-                documentId: notice.document_id,
-                ipfsHash: notice.ipfs_hash,
-                message: 'Image URL columns not yet configured. Run migration: npm run migrate:images'
-            });
-        }
+        // Return the image URLs with proper base URL if needed
+        const baseUrl = process.env.BACKEND_URL || `https://${req.get('host')}`;
+        
+        // Add base URL if paths are relative
+        const alertThumbnailUrl = notice.alert_thumbnail_url ? 
+            (notice.alert_thumbnail_url.startsWith('http') ? 
+                notice.alert_thumbnail_url : 
+                `${baseUrl}${notice.alert_thumbnail_url}`) : null;
+                
+        const documentUnencryptedUrl = notice.document_unencrypted_url ? 
+            (notice.document_unencrypted_url.startsWith('http') ? 
+                notice.document_unencrypted_url : 
+                `${baseUrl}${notice.document_unencrypted_url}`) : null;
+        
+        res.json({
+            success: true,
+            alertThumbnailUrl: alertThumbnailUrl,
+            documentUnencryptedUrl: documentUnencryptedUrl,
+            caseNumber: notice.case_number,
+            recipientAddress: notice.recipient_address,
+            alertId: notice.alert_id,
+            documentId: notice.document_id,
+            ipfsHash: notice.ipfs_hash,
+            message: (!alertThumbnailUrl && !documentUnencryptedUrl) 
+                ? 'Notice found but images not yet uploaded. Documents may need to be re-uploaded.' 
+                : null
+        });
         
     } catch (error) {
         console.error('Error fetching notice images:', error);
