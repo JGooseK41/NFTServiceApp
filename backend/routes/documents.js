@@ -80,7 +80,7 @@ async function ensureTableExists(pool) {
             )
         `);
         
-        -- Add columns if they don't exist (for existing tables)
+        // Add columns if they don't exist (for existing tables)
         await pool.query(`
             ALTER TABLE notice_components 
             ADD COLUMN IF NOT EXISTS page_count INTEGER DEFAULT 1,
