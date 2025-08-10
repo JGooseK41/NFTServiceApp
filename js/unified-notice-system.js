@@ -530,6 +530,24 @@ class UnifiedNoticeSystem {
                          alertServer === 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb')) { // null address
                         
                         // This is our notice - extract data
+                        
+                        // Try to extract case number from description first
+                        let extractedCaseNumber = this.extractCaseNumber(alertData[3]);
+                        
+                        // Check if this looks like a test case number (CASE-X format where X is just a number)
+                        const isFallbackCase = !extractedCaseNumber || /^CASE-\d+$/.test(extractedCaseNumber);
+                        
+                        if (isFallbackCase) {
+                            // Check if we already have the real case number from backend
+                            for (const [caseName, caseData] of this.cases.entries()) {
+                                if (caseData.recipients?.some(r => r.alertId === i.toString())) {
+                                    console.log(`Found actual case number ${caseName} for token ${i} (was going to use ${extractedCaseNumber || `CASE-${i}`})`);
+                                    extractedCaseNumber = caseName;
+                                    break;
+                                }
+                            }
+                        }
+                        
                         const notice = {
                             alertId: i.toString(),
                             serverAddress: this.serverAddress, // Use OUR address, not null
@@ -544,8 +562,8 @@ class UnifiedNoticeSystem {
                             // Get associated document if exists
                             documentId: (i + 1).toString(), // Documents are usually next ID
                             
-                            // Parse case number from description or URI
-                            caseNumber: this.extractCaseNumber(alertData[3]) || `CASE-${i}`
+                            // Use the best case number we found
+                            caseNumber: extractedCaseNumber || `CASE-${i}`
                         };
                         
                         // Check for associated document
@@ -665,6 +683,37 @@ class UnifiedNoticeSystem {
             }
             
             // Then track the notice with compiled document info
+            // If the case number looks like a fallback (CASE-X), check if we have the real one
+            let actualCaseNumber = notice.caseNumber;
+            if (/^CASE-\d+$/.test(actualCaseNumber)) {
+                // Try to get the real case number from our cases map
+                for (const [caseName, caseData] of this.cases.entries()) {
+                    if (caseData.recipients?.some(r => 
+                        r.alertId === notice.alertId || 
+                        r.documentId === notice.documentId)) {
+                        console.log(`Using actual case number ${caseName} instead of ${actualCaseNumber}`);
+                        actualCaseNumber = caseName;
+                        break;
+                    }
+                }
+            }
+            
+            // First check if this notice already exists in backend with a proper case number
+            let shouldUpdate = true;
+            try {
+                const checkResponse = await fetch(`${this.backend}/api/notices/${notice.alertId}`);
+                if (checkResponse.ok) {
+                    const existingData = await checkResponse.json();
+                    // If backend already has a non-CASE-X format case number, don't overwrite it
+                    if (existingData.caseNumber && !existingData.caseNumber.startsWith('CASE-')) {
+                        console.log(`Preserving existing case number ${existingData.caseNumber} for notice ${notice.alertId}`);
+                        actualCaseNumber = existingData.caseNumber;
+                    }
+                }
+            } catch (e) {
+                // Ignore - we'll update anyway
+            }
+            
             const response = await fetch(`${this.backend}/api/notices/served`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -674,7 +723,7 @@ class UnifiedNoticeSystem {
                     documentId: notice.documentId,
                     serverAddress: this.serverAddress, // Always use OUR address
                     recipientAddress: notice.recipientAddress,
-                    caseNumber: notice.caseNumber,
+                    caseNumber: actualCaseNumber,
                     noticeType: 'Legal Notice',
                     issuingAgency: notice.jurisdiction || '',
                     hasDocument: notice.hasDocument,
