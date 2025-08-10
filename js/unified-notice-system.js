@@ -2327,6 +2327,7 @@ class UnifiedNoticeSystem {
             console.error('Error exporting audit trail:', error);
             this.showNotification('Failed to export audit trail', 'error');
         }
+    }
 
     /**
      * View Notice - Display unencrypted notice images for process server

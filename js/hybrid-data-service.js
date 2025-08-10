@@ -99,8 +99,8 @@ class HybridDataService {
             // Create AbortController for timeout
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), this.requestTimeout);
-            // Use the new workflow-based endpoint
-            const url = `${this.backendUrl}/api/notices/server/${serverAddress}?limit=100`;
+            // Use the simple-cases endpoint for grouped cases
+            const url = `${this.backendUrl}/api/servers/${serverAddress}/simple-cases`;
             console.log('Fetching from backend URL:', url);
             
             const response = await fetch(url, {
@@ -126,36 +126,63 @@ class HybridDataService {
             console.log('=== BACKEND DATA RECEIVED ===');
             console.log('Full response:', JSON.stringify(data, null, 2));
             
-            // Handle the response structure from /api/servers/{address}/notices
-            const notices = data.notices || data;
+            // Handle the response structure from simple-cases endpoint
+            const cases = data.cases || [];
             
-            if (!Array.isArray(notices)) {
-                console.log('Backend response is not an array, returning null');
-                return null;
+            if (!Array.isArray(cases)) {
+                console.log('Backend response is not an array, returning empty array');
+                return [];
             }
             
-            console.log('Processing', notices.length, 'notices from backend');
-            console.log('First notice example:', notices[0]);
+            console.log('Processing', cases.length, 'cases from backend');
             
-            // Transform backend data to match our format
-            // New structure from active_notices table
-            return notices.map(notice => ({
-                noticeId: String(notice.id || notice.alert_id || ''),
-                alertId: String(notice.alert_id || ''),
-                documentId: String(notice.document_id || ''),
-                recipient: String(notice.recipient_address || ''),
-                timestamp: notice.alert_delivered_at ? new Date(notice.alert_delivered_at).getTime() : Date.now(),
-                caseNumber: String(notice.case_number || 'Unknown'),
-                noticeType: String(notice.notice_type || 'Legal Notice'),
-                status: notice.is_acknowledged ? 'acknowledged' : 'pending',
-                acknowledged: Boolean(notice.is_acknowledged),
-                acknowledgedAt: notice.acknowledged_at || null,
-                alertThumbnailUrl: notice.alert_thumbnail_url || null,
-                documentUnencryptedUrl: notice.document_unencrypted_url || null,
-                viewCount: Number(notice.view_count) || 0,
-                isBackendData: true,
-                lastVerified: null
-            }));
+            // Transform cases into individual notices for compatibility
+            // But track that they are paired for counting
+            const notices = [];
+            
+            cases.forEach(caseData => {
+                // Each case can have multiple recipients
+                if (caseData.recipients && caseData.recipients.length > 0) {
+                    caseData.recipients.forEach(recipient => {
+                        // For paired Alert+Document, create a single notice entry
+                        if (recipient.alertId && recipient.documentId) {
+                            notices.push({
+                                noticeId: `${caseData.caseNumber}_paired`,
+                                alertId: String(recipient.alertId || ''),
+                                documentId: String(recipient.documentId || ''),
+                                recipient: String(recipient.recipientAddress || ''),
+                                timestamp: new Date(caseData.createdAt).getTime(),
+                                caseNumber: String(caseData.caseNumber || 'Unknown'),
+                                noticeType: String(caseData.noticeType || 'Legal Notice'),
+                                status: recipient.documentStatus === 'SIGNED' ? 'acknowledged' : 'pending',
+                                acknowledged: recipient.documentStatus === 'SIGNED',
+                                isPaired: true, // Mark as paired for counting
+                                isBackendData: true,
+                                lastVerified: null
+                            });
+                        } else {
+                            // Single notice (not paired)
+                            notices.push({
+                                noticeId: recipient.alertId || recipient.documentId || `${caseData.caseNumber}_single`,
+                                alertId: String(recipient.alertId || ''),
+                                documentId: String(recipient.documentId || ''),
+                                recipient: String(recipient.recipientAddress || ''),
+                                timestamp: new Date(caseData.createdAt).getTime(),
+                                caseNumber: String(caseData.caseNumber || 'Unknown'),
+                                noticeType: String(caseData.noticeType || 'Legal Notice'),
+                                status: recipient.documentStatus === 'SIGNED' ? 'acknowledged' : 'pending',
+                                acknowledged: recipient.documentStatus === 'SIGNED',
+                                isPaired: false,
+                                isBackendData: true,
+                                lastVerified: null
+                            });
+                        }
+                    });
+                }
+            });
+            
+            console.log('Converted to', notices.length, 'service events (paired notices count as 1)');
+            return notices;
         } catch (error) {
             if (error.name === 'AbortError') {
                 console.error('Backend fetch timeout after', this.requestTimeout, 'ms');
