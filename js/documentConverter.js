@@ -87,17 +87,19 @@ class DocumentConverter {
             if (pdf.numPages === 1) {
                 // Single page - just use higher res version
                 fullDocument = await this.renderPDFPage(pdf, 1, 1000, false);
-                allPagePreviews.push(previewImage);
+                // For single page, create a clean preview without watermark
+                const cleanPreview = await this.renderPDFPage(pdf, 1, 600, false);
+                allPagePreviews.push(cleanPreview);
             } else {
                 // Multiple pages - combine them into one tall image
                 const fullPages = [];
                 for (let i = 1; i <= pdf.numPages; i++) {
                     console.log(`Rendering page ${i} of ${pdf.numPages}`);
-                    const pageImage = await this.renderPDFPage(pdf, i, 800); // Reduced res for manageable size
+                    const pageImage = await this.renderPDFPage(pdf, i, 800, false); // Clean page without watermark
                     fullPages.push(pageImage);
                     
-                    // Also create a preview version for display
-                    const pagePreview = await this.renderPDFPage(pdf, i, 600, true);
+                    // Also create a preview version for display (no watermark except first page)
+                    const pagePreview = await this.renderPDFPage(pdf, i, 600, false); // No watermark on any page
                     allPagePreviews.push(pagePreview);
                 }
                 
