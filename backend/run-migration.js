@@ -1,171 +1,157 @@
 /**
- * Run database migration to convert ID columns to TEXT
- * This fixes the integer overflow issue permanently
+ * Standalone migration runner for process_servers table
+ * Run this directly on Render to create the necessary database tables
  */
 
 const { Pool } = require('pg');
-const fs = require('fs').promises;
-const path = require('path');
+
+// Use DATABASE_URL from environment
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+});
 
 async function runMigration() {
-    const pool = new Pool({
-        connectionString: process.env.DATABASE_URL || 'postgresql://nftservice:nftservice123@localhost:5432/nftservice_db',
-        ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
-    });
-
     let client;
     
     try {
-        console.log('🔧 Connecting to database...');
+        console.log('Connecting to database...');
         client = await pool.connect();
         
-        // First, check current column types
-        console.log('\n📊 Checking current column types...');
-        const checkQuery = `
-            SELECT 
-                table_name,
-                column_name, 
-                data_type,
-                character_maximum_length
-            FROM information_schema.columns
-            WHERE table_name IN ('served_notices', 'notice_components', 'notice_batch_items')
-            AND column_name IN ('notice_id', 'alert_id', 'document_id')
-            ORDER BY table_name, column_name;
-        `;
+        console.log('Creating process_servers table...');
         
-        const currentTypes = await client.query(checkQuery);
-        console.log('Current column types:');
-        currentTypes.rows.forEach(row => {
-            console.log(`  ${row.table_name}.${row.column_name}: ${row.data_type}`);
-        });
+        // Create process_servers table
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS process_servers (
+                id SERIAL PRIMARY KEY,
+                wallet_address VARCHAR(255) UNIQUE NOT NULL,
+                name VARCHAR(255),
+                agency VARCHAR(255),
+                email VARCHAR(255),
+                phone VARCHAR(50),
+                server_id VARCHAR(100) UNIQUE,
+                status VARCHAR(50) DEFAULT 'pending',
+                jurisdiction VARCHAR(255),
+                license_number VARCHAR(100),
+                notes TEXT,
+                registration_data JSONB,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW(),
+                approved_at TIMESTAMP,
+                approved_by VARCHAR(255)
+            )
+        `);
         
-        // Check if migration is needed
-        const needsMigration = currentTypes.rows.some(row => 
-            row.data_type === 'integer' || row.data_type === 'bigint'
-        );
-        
-        if (!needsMigration) {
-            console.log('\n✅ Columns are already TEXT type. No migration needed.');
-            return;
-        }
-        
-        console.log('\n🚀 Starting migration...');
-        await client.query('BEGIN');
-        
-        // Run migration for each table separately to handle errors better
-        const tables = [
-            { name: 'served_notices', columns: ['notice_id', 'alert_id', 'document_id'] },
-            { name: 'notice_components', columns: ['notice_id', 'alert_id', 'document_id'] },
-            { name: 'notice_batch_items', columns: ['notice_id'] }
-        ];
-        
-        for (const table of tables) {
-            console.log(`\n📝 Migrating table: ${table.name}`);
-            
-            for (const column of table.columns) {
-                try {
-                    // Check if column exists
-                    const columnExists = await client.query(`
-                        SELECT 1 FROM information_schema.columns 
-                        WHERE table_name = $1 AND column_name = $2
-                    `, [table.name, column]);
-                    
-                    if (columnExists.rows.length === 0) {
-                        console.log(`  ⚠️  Column ${column} does not exist in ${table.name}, skipping...`);
-                        continue;
-                    }
-                    
-                    // Check current type
-                    const typeCheck = await client.query(`
-                        SELECT data_type FROM information_schema.columns 
-                        WHERE table_name = $1 AND column_name = $2
-                    `, [table.name, column]);
-                    
-                    if (typeCheck.rows[0].data_type === 'text' || 
-                        typeCheck.rows[0].data_type === 'character varying') {
-                        console.log(`  ✓ ${column} is already TEXT type`);
-                        continue;
-                    }
-                    
-                    // Convert column
-                    const alterQuery = `
-                        ALTER TABLE ${table.name} 
-                        ALTER COLUMN ${column} TYPE TEXT USING ${column}::TEXT
-                    `;
-                    
-                    console.log(`  Converting ${column} to TEXT...`);
-                    await client.query(alterQuery);
-                    console.log(`  ✓ ${column} converted successfully`);
-                    
-                } catch (error) {
-                    console.error(`  ❌ Error converting ${column}:`, error.message);
-                    throw error;
-                }
-            }
-        }
+        console.log('Creating indexes...');
         
         // Create indexes
-        console.log('\n📑 Creating indexes...');
-        const indexes = [
-            'CREATE INDEX IF NOT EXISTS idx_served_notices_notice_id_text ON served_notices(notice_id)',
-            'CREATE INDEX IF NOT EXISTS idx_served_notices_alert_id_text ON served_notices(alert_id)',
-            'CREATE INDEX IF NOT EXISTS idx_served_notices_document_id_text ON served_notices(document_id)',
-            'CREATE INDEX IF NOT EXISTS idx_notice_components_notice_id_text ON notice_components(notice_id)',
-            'CREATE INDEX IF NOT EXISTS idx_notice_batch_items_notice_id_text ON notice_batch_items(notice_id)'
-        ];
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_process_servers_wallet ON process_servers(wallet_address)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_process_servers_status ON process_servers(status)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_process_servers_agency ON process_servers(agency)`);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_process_servers_created ON process_servers(created_at DESC)`);
         
-        for (const indexQuery of indexes) {
-            try {
-                await client.query(indexQuery);
-                const indexName = indexQuery.match(/idx_\w+/)[0];
-                console.log(`  ✓ Index ${indexName} created`);
-            } catch (error) {
-                if (error.message.includes('already exists')) {
-                    console.log(`  ⚠️  Index already exists, skipping...`);
-                } else {
-                    console.error(`  ❌ Error creating index:`, error.message);
+        console.log('Creating update trigger...');
+        
+        // Create update trigger
+        await client.query(`
+            CREATE OR REPLACE FUNCTION update_updated_at_column()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                NEW.updated_at = NOW();
+                RETURN NEW;
+            END;
+            $$ language 'plpgsql'
+        `);
+        
+        // Check if trigger exists before creating
+        const triggerExists = await client.query(`
+            SELECT 1 FROM pg_trigger WHERE tgname = 'update_process_servers_updated_at'
+        `);
+        
+        if (triggerExists.rows.length === 0) {
+            await client.query(`
+                CREATE TRIGGER update_process_servers_updated_at 
+                BEFORE UPDATE ON process_servers 
+                FOR EACH ROW 
+                EXECUTE PROCEDURE update_updated_at_column()
+            `);
+            console.log('Trigger created successfully');
+        } else {
+            console.log('Trigger already exists');
+        }
+        
+        // Check if we need to migrate existing registration data
+        console.log('Checking for existing registrations to migrate...');
+        
+        const existingRegistrations = await client.query(`
+            SELECT DISTINCT 
+                server_address as wallet_address,
+                server_name as name,
+                issuing_agency as agency
+            FROM served_notices
+            WHERE server_address IS NOT NULL
+        `);
+        
+        if (existingRegistrations.rows.length > 0) {
+            console.log(`Found ${existingRegistrations.rows.length} existing registrations to migrate`);
+            
+            for (const registration of existingRegistrations.rows) {
+                if (registration.wallet_address) {
+                    // Check if already exists
+                    const exists = await client.query(
+                        'SELECT id FROM process_servers WHERE wallet_address = $1',
+                        [registration.wallet_address]
+                    );
+                    
+                    if (exists.rows.length === 0 && registration.wallet_address) {
+                        // Insert new process server from existing data
+                        await client.query(`
+                            INSERT INTO process_servers (wallet_address, name, agency, status, server_id)
+                            VALUES ($1, $2, $3, 'approved', $4)
+                            ON CONFLICT (wallet_address) DO NOTHING
+                        `, [
+                            registration.wallet_address,
+                            registration.name || 'Unknown Server',
+                            registration.agency || 'Unknown Agency',
+                            `PS-${Date.now().toString(36).toUpperCase()}`
+                        ]);
+                        console.log(`Migrated: ${registration.wallet_address}`);
+                    }
                 }
             }
         }
         
-        await client.query('COMMIT');
+        // Verify table creation
+        const tableCheck = await client.query(`
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_name = 'process_servers'
+        `);
+        
+        console.log('\n=== Table Structure Created ===');
+        console.log('Columns:', tableCheck.rows.map(r => `${r.column_name} (${r.data_type})`).join(', '));
+        
+        // Get count
+        const countResult = await client.query('SELECT COUNT(*) FROM process_servers');
+        console.log(`Total process servers in table: ${countResult.rows[0].count}`);
+        
         console.log('\n✅ Migration completed successfully!');
         
-        // Verify the changes
-        console.log('\n📊 Verifying new column types...');
-        const newTypes = await client.query(checkQuery);
-        console.log('New column types:');
-        newTypes.rows.forEach(row => {
-            console.log(`  ${row.table_name}.${row.column_name}: ${row.data_type}`);
-        });
-        
     } catch (error) {
-        if (client) {
-            await client.query('ROLLBACK');
-            console.log('\n⚠️  Transaction rolled back due to error');
-        }
-        console.error('\n❌ Migration failed:', error.message);
-        console.error('Details:', error);
-        process.exit(1);
+        console.error('❌ Migration failed:', error);
+        console.error('Error details:', error.detail);
+        throw error;
     } finally {
-        if (client) {
-            client.release();
-        }
+        if (client) client.release();
         await pool.end();
     }
 }
 
 // Run the migration
-console.log('=================================');
-console.log('ID Column Type Migration Script');
-console.log('=================================');
-console.log('Environment:', process.env.NODE_ENV || 'development');
-console.log('Database:', process.env.DATABASE_URL ? 'Production' : 'Local');
-
 runMigration().then(() => {
-    console.log('\n✨ All done!');
+    console.log('Migration script finished');
     process.exit(0);
-}).catch(error => {
-    console.error('\n💥 Unexpected error:', error);
+}).catch((error) => {
+    console.error('Migration script failed:', error);
     process.exit(1);
 });

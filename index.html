@@ -25713,8 +25713,20 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             const adminTabButton = document.getElementById('adminTabButton');
             if (adminTabButton) {
                 adminTabButton.style.display = 'inline-flex';
+                isAdmin = true; // Force admin status
                 console.log('Admin tab manually shown');
             }
+        };
+        
+        // Function to force admin access for testing
+        window.forceAdminAccess = function() {
+            isAdmin = true;
+            const adminTabButton = document.getElementById('adminTabButton');
+            if (adminTabButton) {
+                adminTabButton.style.display = 'inline-flex';
+            }
+            console.log('Admin access forced - tab should be visible now');
+            console.log('You can now click on Admin Panel tab');
         };
         window.copyWalletAddress = copyWalletAddress;
         window.toggleTokenVisibility = toggleTokenVisibility;
