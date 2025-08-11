@@ -64,6 +64,7 @@
     <script src="js/force-modal-edit.js"></script>
     <script src="js/process-server-deactivation.js"></script>
     <script src="js/refresh-server-data.js"></script>
+    <script src="js/fix-agency-field.js"></script>
     <script src="js/rate-limiter.js?v=1"></script>
     <script src="js/tron-rate-limiter.js?v=1"></script>
     <script src="js/hybrid-data-service.js?v=3"></script>
@@ -4850,12 +4851,12 @@
                                 <div class="form-group">
                                     <label class="form-label">Issuing Agency</label>
                                     <input type="text" id="issuingAgency" class="form-input" 
-                                           placeholder="Agency from your registration" 
+                                           placeholder="Loading agency from your registration..." 
                                            maxlength="100" 
                                            readonly
-                                           value="Process Server"
+                                           value=""
                                            style="background: var(--gray-800); cursor: not-allowed; color: var(--text-secondary);">
-                                    <p class="form-help">This is set from your server registration (or defaults to 'Process Server')</p>
+                                    <p class="form-help">This is automatically populated from your process server registration</p>
                                     <script>
                                         // Hard-code issuing agency from server registration
                                         function setIssuingAgency() {
@@ -4864,7 +4865,7 @@
                                             
                                             if (window.tronWeb && window.tronWeb.defaultAddress) {
                                                 const walletAddress = window.tronWeb.defaultAddress.base58;
-                                                const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+                                                const serverRegistrations = JSON.parse(localStorage.getItem('processServerRegistrations') || '{}');
                                                 
                                                 // Debug logging
                                                 console.log('Wallet address:', walletAddress);
