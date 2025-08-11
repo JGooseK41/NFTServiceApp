@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Storage Test</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1e1e1e;
+            color: #0f0;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .test-section {
+            background: #2a2a2a;
+            border: 1px solid #0f0;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        h1, h2 {
+            color: #0ff;
+            text-shadow: 0 0 10px #0ff;
+        }
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 3px;
+        }
+        button:hover {
+            background: #0ff;
+            box-shadow: 0 0 10px #0ff;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+        }
+        .success { 
+            background: #1a4d1a; 
+            border: 1px solid #0f0;
+        }
+        .error { 
+            background: #4d1a1a; 
+            border: 1px solid #f00;
+            color: #ff6666;
+        }
+        .warning { 
+            background: #4d4d1a; 
+            border: 1px solid #ff0;
+            color: #ffff66;
+        }
+        .info {
+            background: #1a1a4d;
+            border: 1px solid #66f;
+            color: #9999ff;
+        }
+        #results {
+            background: #000;
+            padding: 15px;
+            border: 1px solid #444;
+            white-space: pre-wrap;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .document-preview {
+            display: inline-block;
+            margin: 10px;
+            padding: 10px;
+            border: 1px solid #666;
+            text-align: center;
+        }
+        .document-preview img {
+            max-width: 200px;
+            max-height: 200px;
+            border: 1px solid #0f0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Document Storage Test System</h1>
+        
+        <div class="test-section">
+            <h2>📊 Current Status</h2>
+            <div id="status" class="status info">Ready to test document storage...</div>
+            <div>
+                <strong>Pending Documents:</strong> <span id="pendingCount">0</span><br>
+                <strong>Uploaded Documents:</strong> <span id="uploadedCount">0</span><br>
+                <strong>Failed Uploads:</strong> <span id="failedCount">0</span>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>🧪 Test Actions</h2>
+            <button onclick="testCaptureDocument()">Test Document Capture</button>
+            <button onclick="testUploadDocument()">Test Document Upload</button>
+            <button onclick="checkPendingDocuments()">Check Pending Documents</button>
+            <button onclick="forceUploadAll()">Force Upload All Pending</button>
+            <button onclick="testFullFlow()">Test Full NFT + Document Flow</button>
+            <button onclick="clearResults()">Clear Results</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>📁 Upload Test File</h2>
+            <input type="file" id="testFileInput" accept="image/*,application/pdf">
+            <button onclick="uploadTestFile()">Upload Selected File</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>🖼️ Captured Documents</h2>
+            <div id="documentPreviews"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>📝 Test Results</h2>
+            <div id="results"></div>
+        </div>
+    </div>
+    
+    <script>
+        const resultsDiv = document.getElementById('results');
+        const statusDiv = document.getElementById('status');
+        const pendingCountSpan = document.getElementById('pendingCount');
+        const uploadedCountSpan = document.getElementById('uploadedCount');
+        const failedCountSpan = document.getElementById('failedCount');
+        
+        let uploadedCount = 0;
+        let failedCount = 0;
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const typeSymbol = {
+                'success': '✅',
+                'error': '❌',
+                'warning': '⚠️',
+                'info': 'ℹ️'
+            }[type] || '📝';
+            
+            resultsDiv.innerHTML += `[${timestamp}] ${typeSymbol} ${message}\n`;
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+        
+        function updateStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+        
+        function updateCounts() {
+            if (window.DocumentStorageAssurance) {
+                pendingCountSpan.textContent = window.DocumentStorageAssurance.pendingDocuments.size;
+            }
+            uploadedCountSpan.textContent = uploadedCount;
+            failedCountSpan.textContent = failedCount;
+        }
+        
+        function clearResults() {
+            resultsDiv.innerHTML = '';
+            document.getElementById('documentPreviews').innerHTML = '';
+            uploadedCount = 0;
+            failedCount = 0;
+            updateCounts();
+            updateStatus('Results cleared', 'info');
+        }
+        
+        async function testCaptureDocument() {
+            updateStatus('Testing document capture...', 'info');
+            
+            if (!window.DocumentStorageAssurance) {
+                log('DocumentStorageAssurance not loaded!', 'error');
+                updateStatus('System not loaded', 'error');
+                return;
+            }
+            
+            // Create test document data
+            const testData = {
+                preview: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+                data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==',
+                fileName: 'test-document.png',
+                fileType: 'image/png',
+                fileSize: 1234
+            };
+            
+            const docId = window.DocumentStorageAssurance.captureDocument('test', testData);
+            log(`Document captured with ID: ${docId}`, 'success');
+            
+            // Show preview
+            const previewDiv = document.getElementById('documentPreviews');
+            const preview = document.createElement('div');
+            preview.className = 'document-preview';
+            preview.innerHTML = `
+                <img src="${testData.preview}" alt="Test Document">
+                <div>ID: ${docId}</div>
+                <div>Size: ${testData.fileSize} bytes</div>
+            `;
+            previewDiv.appendChild(preview);
+            
+            updateCounts();
+            updateStatus('Document captured successfully', 'success');
+        }
+        
+        async function testUploadDocument() {
+            updateStatus('Testing document upload...', 'info');
+            
+            if (!window.DocumentStorageAssurance) {
+                log('DocumentStorageAssurance not loaded!', 'error');
+                updateStatus('System not loaded', 'error');
+                return;
+            }
+            
+            if (window.DocumentStorageAssurance.pendingDocuments.size === 0) {
+                log('No pending documents to upload', 'warning');
+                updateStatus('No documents to upload', 'warning');
+                return;
+            }
+            
+            try {
+                const testNoticeData = {
+                    alertId: 'test-' + Date.now(),
+                    documentId: 'doc-' + Date.now(),
+                    caseNumber: 'TEST-CASE-001',
+                    recipientAddress: 'TTestAddress123',
+                    serverAddress: window.tronWeb?.defaultAddress?.base58 || 'TServerTest'
+                };
+                
+                log('Uploading with notice data: ' + JSON.stringify(testNoticeData), 'info');
+                
+                const results = await window.DocumentStorageAssurance.uploadPendingDocuments(testNoticeData);
+                
+                if (results && results.length > 0) {
+                    log(`Successfully uploaded ${results.length} document(s)`, 'success');
+                    uploadedCount += results.length;
+                    updateStatus('Upload successful', 'success');
+                } else {
+                    log('Upload returned no results', 'warning');
+                    updateStatus('Upload completed with warnings', 'warning');
+                }
+            } catch (error) {
+                log('Upload failed: ' + error.message, 'error');
+                failedCount++;
+                updateStatus('Upload failed', 'error');
+            }
+            
+            updateCounts();
+        }
+        
+        function checkPendingDocuments() {
+            if (!window.DocumentStorageAssurance) {
+                log('DocumentStorageAssurance not loaded!', 'error');
+                return;
+            }
+            
+            const pending = window.DocumentStorageAssurance.pendingDocuments;
+            log(`Pending documents: ${pending.size}`, 'info');
+            
+            if (pending.size > 0) {
+                for (const [id, doc] of pending) {
+                    log(`  - Document ${id}: ${doc.source}, has thumbnail: ${!!doc.thumbnail}, has full: ${!!doc.fullDocument}`, 'info');
+                }
+            }
+            
+            updateCounts();
+        }
+        
+        async function forceUploadAll() {
+            updateStatus('Force uploading all pending documents...', 'info');
+            
+            if (!window.DocumentStorageAssurance) {
+                log('DocumentStorageAssurance not loaded!', 'error');
+                updateStatus('System not loaded', 'error');
+                return;
+            }
+            
+            const genericNoticeData = {
+                alertId: 'forced-' + Date.now(),
+                caseNumber: 'FORCED-UPLOAD',
+                serverAddress: window.tronWeb?.defaultAddress?.base58 || 'unknown'
+            };
+            
+            try {
+                const results = await window.DocumentStorageAssurance.uploadPendingDocuments(genericNoticeData);
+                log('Force upload completed', 'success');
+                updateStatus('Force upload completed', 'success');
+            } catch (error) {
+                log('Force upload failed: ' + error.message, 'error');
+                updateStatus('Force upload failed', 'error');
+            }
+            
+            updateCounts();
+        }
+        
+        async function uploadTestFile() {
+            const fileInput = document.getElementById('testFileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                log('No file selected', 'warning');
+                return;
+            }
+            
+            updateStatus('Processing file...', 'info');
+            
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const data = {
+                    data: e.target.result,
+                    fileName: file.name,
+                    fileType: file.type,
+                    fileSize: file.size
+                };
+                
+                // Set as uploadedImage to trigger capture
+                window.uploadedImage = data;
+                
+                log(`File loaded: ${file.name} (${file.size} bytes)`, 'success');
+                updateStatus('File captured', 'success');
+                
+                // Show preview
+                if (file.type.startsWith('image/')) {
+                    const previewDiv = document.getElementById('documentPreviews');
+                    const preview = document.createElement('div');
+                    preview.className = 'document-preview';
+                    preview.innerHTML = `
+                        <img src="${e.target.result}" alt="${file.name}">
+                        <div>${file.name}</div>
+                        <div>${(file.size / 1024).toFixed(1)} KB</div>
+                    `;
+                    previewDiv.appendChild(preview);
+                }
+                
+                updateCounts();
+            };
+            
+            reader.readAsDataURL(file);
+        }
+        
+        async function testFullFlow() {
+            updateStatus('Testing full NFT + Document flow...', 'info');
+            log('Starting full flow test...', 'info');
+            
+            // Step 1: Capture a document
+            await testCaptureDocument();
+            await new Promise(r => setTimeout(r, 1000));
+            
+            // Step 2: Check pending
+            checkPendingDocuments();
+            await new Promise(r => setTimeout(r, 1000));
+            
+            // Step 3: Upload
+            await testUploadDocument();
+            
+            log('Full flow test completed', 'success');
+            updateStatus('Full flow test completed', 'success');
+        }
+        
+        // Check system status on load
+        window.addEventListener('load', () => {
+            if (window.DocumentStorageAssurance) {
+                log('Document Storage Assurance System is loaded', 'success');
+                updateStatus('System ready', 'success');
+            } else {
+                log('Document Storage Assurance System NOT loaded', 'error');
+                updateStatus('System not loaded - check parent window', 'error');
+            }
+            
+            updateCounts();
+        });
+        
+        // Update counts periodically
+        setInterval(updateCounts, 2000);
+    </script>
+</body>
+</html>
