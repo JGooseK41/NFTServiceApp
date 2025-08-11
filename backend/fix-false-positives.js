@@ -5,7 +5,7 @@
  */
 
 const { Pool } = require('pg');
-const TronWeb = require('tronweb');
+const TronWeb = require('tronweb').default || require('tronweb');
 require('dotenv').config();
 
 const pool = new Pool({

@@ -5,7 +5,19 @@
  * Flow: Frontend → Backend (validation) → Smart Contract → Events → Backend (confirmation)
  */
 
-const TronWeb = require('tronweb');
+let TronWeb;
+try {
+    TronWeb = require('tronweb');
+} catch (err) {
+    console.warn('⚠️ TronWeb not available, blockchain features disabled');
+    // Create a mock TronWeb for basic functionality
+    TronWeb = class MockTronWeb {
+        constructor() {}
+        isAddress() { return false; }
+        sha3() { return '0x'; }
+        contract() { return null; }
+    };
+}
 const { Pool } = require('pg');
 
 // Database connection
@@ -34,6 +46,17 @@ class BlockchainSyncService {
 
     async initialize() {
         try {
+            if (!CONTRACT_ADDRESS) {
+                console.warn('⚠️ CONTRACT_ADDRESS not set, blockchain sync disabled');
+                return;
+            }
+            
+            // Check if TronWeb is available
+            if (!tronWeb || !tronWeb.contract) {
+                console.warn('⚠️ TronWeb not properly initialized, blockchain sync disabled');
+                return;
+            }
+            
             // Load contract ABI
             const contractABI = require('../../contracts/LegalNoticeNFT_v5_Enumerable.abi');
             this.contract = await tronWeb.contract(contractABI, CONTRACT_ADDRESS);
@@ -53,7 +76,8 @@ class BlockchainSyncService {
             
         } catch (error) {
             console.error('❌ Failed to initialize blockchain sync:', error);
-            throw error;
+            // Don't throw, just disable blockchain features
+            console.warn('⚠️ Blockchain features disabled due to initialization error');
         }
     }
 
@@ -78,8 +102,10 @@ class BlockchainSyncService {
         }
         
         // 2. Validate recipient address format
-        if (!tronWeb.isAddress(noticeData.recipient_address)) {
+        if (tronWeb && tronWeb.isAddress && !tronWeb.isAddress(noticeData.recipient_address)) {
             errors.push('Invalid recipient address format');
+        } else if (!noticeData.recipient_address || noticeData.recipient_address.length < 10) {
+            errors.push('Invalid recipient address');
         }
         
         // 3. Check required fields
