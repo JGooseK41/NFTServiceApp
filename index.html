@@ -4724,42 +4724,54 @@
                                 <div class="form-group">
                                     <label class="form-label">Issuing Agency</label>
                                     <input type="text" id="issuingAgency" class="form-input" 
-                                           placeholder="e.g., U.S. Department of Justice, IRS, SEC" 
-                                           maxlength="100" required>
-                                    <p class="form-help">Government agency or court issuing this notice</p>
+                                           placeholder="Agency from your registration" 
+                                           maxlength="100" 
+                                           readonly
+                                           style="background: var(--gray-800); cursor: not-allowed; color: var(--text-secondary);">
+                                    <p class="form-help">This is set from your server registration and cannot be changed</p>
                                     <script>
-                                        // Auto-fill issuing agency from server registration
-                                        function autoFillIssuingAgency() {
+                                        // Hard-code issuing agency from server registration
+                                        function setIssuingAgency() {
+                                            const agencyField = document.getElementById('issuingAgency');
+                                            if (!agencyField) return;
+                                            
                                             if (window.tronWeb && window.tronWeb.defaultAddress) {
                                                 const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
                                                 const serverData = serverRegistrations[window.tronWeb.defaultAddress.base58];
                                                 if (serverData && serverData.agencyName) {
-                                                    const agencyField = document.getElementById('issuingAgency');
-                                                    if (agencyField && !agencyField.value) {
-                                                        agencyField.value = serverData.agencyName;
-                                                    }
+                                                    agencyField.value = serverData.agencyName;
+                                                    agencyField.style.color = 'var(--text-primary)';
+                                                } else {
+                                                    agencyField.value = 'No registration found - Please register first';
+                                                    agencyField.style.color = 'var(--danger)';
                                                 }
+                                            } else {
+                                                agencyField.value = 'Connect wallet to load agency';
+                                                agencyField.style.color = 'var(--warning)';
                                             }
                                         }
                                         
-                                        // Try to fill immediately
-                                        autoFillIssuingAgency();
+                                        // Set immediately
+                                        setIssuingAgency();
                                         
-                                        // Also try when DOM is loaded
-                                        document.addEventListener('DOMContentLoaded', autoFillIssuingAgency);
+                                        // Update when DOM is loaded
+                                        document.addEventListener('DOMContentLoaded', setIssuingAgency);
                                         
-                                        // Try when wallet connects
-                                        window.addEventListener('walletConnected', autoFillIssuingAgency);
-                                        window.addEventListener('walletChanged', autoFillIssuingAgency);
+                                        // Update when wallet connects or changes
+                                        window.addEventListener('walletConnected', setIssuingAgency);
+                                        window.addEventListener('walletChanged', setIssuingAgency);
                                         
-                                        // Also try when modal is shown (when user clicks "Create Legal Notice")
+                                        // Update when modal is shown
                                         document.addEventListener('click', function(e) {
                                             if (e.target && (e.target.id === 'navCreateNotice' || 
                                                 e.target.closest('#navCreateNotice') ||
                                                 e.target.textContent.includes('Create Legal Notice'))) {
-                                                setTimeout(autoFillIssuingAgency, 100);
+                                                setTimeout(setIssuingAgency, 100);
                                             }
                                         });
+                                        
+                                        // Make function globally available
+                                        window.setIssuingAgency = setIssuingAgency;
                                     </script>
                                 </div>
                                 
@@ -19751,9 +19763,11 @@ document.addEventListener('keydown', function(event) {
             document.getElementById('mintStep1').style.display = 'none';
             document.getElementById('mintStep2').style.display = 'block';
             
-            // Auto-fill issuing agency when showing step 2
-            if (typeof autoFillIssuingAgency === 'function') {
-                autoFillIssuingAgency();
+            // Set issuing agency when showing step 2
+            if (typeof setIssuingAgency === 'function') {
+                setIssuingAgency();
+            } else if (window.setIssuingAgency) {
+                window.setIssuingAgency();
             }
             
             // Update document preview if available
