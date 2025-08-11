@@ -393,10 +393,22 @@ app.get('/api/process-servers', async (req, res) => {
   try {
     const { status = 'approved' } = req.query;
     
+    // Check which column exists to avoid errors
+    const columnCheck = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'process_servers' 
+      AND column_name IN ('agency', 'agency_name')
+    `);
+    
+    const columns = columnCheck.rows.map(r => r.column_name);
+    const agencyColumn = columns.includes('agency_name') ? 'agency_name' : 
+                        columns.includes('agency') ? 'agency' : 'NULL';
+    
     const query = `
       SELECT 
         wallet_address,
-        agency_name,
+        ${agencyColumn} as agency_name,
         contact_email,
         phone_number,
         website,

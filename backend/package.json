@@ -10,7 +10,9 @@
     "migrate:ipfs": "node run-ipfs-migration.js",
     "migrate:server-fields": "node run-server-fields-migration.js",
     "migrate:compiled-fields": "node run-compiled-fields-migration.js",
-    "migrate:all": "npm run migrate:ipfs && npm run migrate:server-fields && npm run migrate:compiled-fields"
+    "migrate:agency": "node ensure-agency-columns.js",
+    "migrate:all": "npm run migrate:ipfs && npm run migrate:server-fields && npm run migrate:compiled-fields && npm run migrate:agency",
+    "fix-agency": "node fix-agency-column.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
