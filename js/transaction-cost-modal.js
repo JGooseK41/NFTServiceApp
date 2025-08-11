@@ -115,8 +115,23 @@ function createCostModal() {
     document.body.appendChild(modal);
 }
 
-// Initialize modal
-createCostModal();
+// Initialize modal when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', createCostModal);
+} else {
+    createCostModal();
+}
+
+// Verify modal exists
+setTimeout(() => {
+    const modal = document.getElementById('transaction-cost-modal');
+    if (!modal) {
+        console.error('❌ Cost modal failed to load! Creating now...');
+        createCostModal();
+    } else {
+        console.log('✅ Cost modal loaded successfully');
+    }
+}, 1000);
 
 // Current TRX price for USD conversion
 const TRX_PRICE_USD = 0.24;
