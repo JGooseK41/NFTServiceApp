@@ -9466,25 +9466,35 @@ function useConnectedAddressForFeeCollector() {
                     .replace(/>/g, '&gt;');
             }
             
-            container.innerHTML = servers.map(server => `
-                <div class="server-card" style="padding: 1.5rem; border-bottom: 1px solid var(--gray-700);" id="server-${server.wallet_address}">
+            // Create server cards with proper DOM manipulation to avoid template literal issues
+            container.innerHTML = '';
+            
+            servers.forEach(server => {
+                const serverCard = document.createElement('div');
+                serverCard.className = 'server-card';
+                serverCard.style.padding = '1.5rem';
+                serverCard.style.borderBottom = '1px solid var(--gray-700)';
+                serverCard.id = `server-${server.wallet_address}`;
+                
+                // Create the main content
+                const mainContent = `
                     <div style="display: flex; justify-content: space-between; align-items: start;">
                         <div style="flex: 1;">
                             <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
                                 <h3 style="margin: 0; color: var(--text-primary);">
-                                    <span id="name-${server.wallet_address}">${server.name || 'Unnamed Server'}</span>
+                                    <span id="name-${server.wallet_address}">${escapeHtml(server.name) || 'Unnamed Server'}</span>
                                 </h3>
                                 <span class="badge badge-${getStatusColor(server.status)}">
                                     ${server.status || 'pending'}
                                 </span>
-                                ${server.server_id ? `<code style="font-size: 0.85rem;">${server.server_id}</code>` : ''}
+                                ${server.server_id ? `<code style="font-size: 0.85rem;">${escapeHtml(server.server_id)}</code>` : ''}
                             </div>
                             <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-top: 0.5rem;">
-                                <div><strong>Agency:</strong> <span id="agency-${server.wallet_address}">${server.agency || 'Not specified'}</span></div>
-                                <div><strong>Email:</strong> <span id="email-${server.wallet_address}">${server.email || 'Not provided'}</span></div>
-                                <div><strong>Phone:</strong> <span id="phone-${server.wallet_address}">${server.phone || 'Not provided'}</span></div>
-                                <div><strong>Jurisdiction:</strong> <span id="jurisdiction-${server.wallet_address}">${server.jurisdiction || 'Not specified'}</span></div>
-                                <div><strong>License:</strong> <span id="license-${server.wallet_address}">${server.license_number || 'Not provided'}</span></div>
+                                <div><strong>Agency:</strong> <span id="agency-${server.wallet_address}">${escapeHtml(server.agency) || 'Not specified'}</span></div>
+                                <div><strong>Email:</strong> <span id="email-${server.wallet_address}">${escapeHtml(server.email) || 'Not provided'}</span></div>
+                                <div><strong>Phone:</strong> <span id="phone-${server.wallet_address}">${escapeHtml(server.phone) || 'Not provided'}</span></div>
+                                <div><strong>Jurisdiction:</strong> <span id="jurisdiction-${server.wallet_address}">${escapeHtml(server.jurisdiction) || 'Not specified'}</span></div>
+                                <div><strong>License:</strong> <span id="license-${server.wallet_address}">${escapeHtml(server.license_number) || 'Not provided'}</span></div>
                                 <div><strong>Created:</strong> ${server.created_at ? new Date(server.created_at).toLocaleDateString() : 'Unknown'}</div>
                             </div>
                             <div style="margin-top: 0.5rem;">
@@ -9494,7 +9504,7 @@ function useConnectedAddressForFeeCollector() {
                             </div>
                         </div>
                         <div style="display: flex; gap: 0.5rem;">
-                            <button class="btn btn-primary btn-small" onclick="showInlineEdit('${server.wallet_address}')">
+                            <button class="btn btn-primary btn-small" data-wallet="${server.wallet_address}" onclick="showInlineEdit('${server.wallet_address}')">
                                 <i class="fas fa-edit"></i> Edit
                             </button>
                             <button class="btn btn-${server.status === 'approved' ? 'warning' : 'success'} btn-small" 
@@ -9507,46 +9517,86 @@ function useConnectedAddressForFeeCollector() {
                             </button>
                         </div>
                     </div>
-                    <!-- Inline edit form (hidden by default) -->
-                    <div id="edit-${server.wallet_address}" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--gray-800); border-radius: 8px;">
-                        <h4>Edit Process Server</h4>
-                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
-                            <div>
-                                <label style="display: block; margin-bottom: 0.25rem; color: var(--text-secondary);">Name</label>
-                                <input type="text" class="form-input" id="edit-name-${server.wallet_address}" value="${escapeHtml(server.name || '')}" style="width: 100%; padding: 0.5rem; background: var(--gray-700); border: 1px solid var(--gray-600); border-radius: 4px; color: var(--text-primary);">
-                            </div>
-                            <div>
-                                <label style="display: block; margin-bottom: 0.25rem; color: var(--text-secondary);">Agency</label>
-                                <input type="text" class="form-input" id="edit-agency-${server.wallet_address}" value="${escapeHtml(server.agency || '')}" style="width: 100%; padding: 0.5rem; background: var(--gray-700); border: 1px solid var(--gray-600); border-radius: 4px; color: var(--text-primary);">
-                            </div>
-                            <div>
-                                <label style="display: block; margin-bottom: 0.25rem; color: var(--text-secondary);">Email</label>
-                                <input type="email" class="form-input" id="edit-email-${server.wallet_address}" value="${escapeHtml(server.email || '')}" style="width: 100%; padding: 0.5rem; background: var(--gray-700); border: 1px solid var(--gray-600); border-radius: 4px; color: var(--text-primary);">
-                            </div>
-                            <div>
-                                <label style="display: block; margin-bottom: 0.25rem; color: var(--text-secondary);">Phone</label>
-                                <input type="text" class="form-input" id="edit-phone-${server.wallet_address}" value="${escapeHtml(server.phone || '')}" style="width: 100%; padding: 0.5rem; background: var(--gray-700); border: 1px solid var(--gray-600); border-radius: 4px; color: var(--text-primary);">
-                            </div>
-                            <div>
-                                <label style="display: block; margin-bottom: 0.25rem; color: var(--text-secondary);">License Number</label>
-                                <input type="text" class="form-input" id="edit-license-${server.wallet_address}" value="${escapeHtml(server.license_number || '')}" style="width: 100%; padding: 0.5rem; background: var(--gray-700); border: 1px solid var(--gray-600); border-radius: 4px; color: var(--text-primary);">
-                            </div>
-                            <div>
-                                <label style="display: block; margin-bottom: 0.25rem; color: var(--text-secondary);">Jurisdiction</label>
-                                <input type="text" class="form-input" id="edit-jurisdiction-${server.wallet_address}" value="${escapeHtml(server.jurisdiction || '')}" style="width: 100%; padding: 0.5rem; background: var(--gray-700); border: 1px solid var(--gray-600); border-radius: 4px; color: var(--text-primary);">
-                            </div>
+                `;
+                
+                serverCard.innerHTML = mainContent;
+                
+                // Create edit form separately to avoid nested template literal issues
+                const editForm = document.createElement('div');
+                editForm.id = `edit-${server.wallet_address}`;
+                editForm.style.display = 'none';
+                editForm.style.marginTop = '1rem';
+                editForm.style.padding = '1rem';
+                editForm.style.background = 'var(--gray-800)';
+                editForm.style.borderRadius = '8px';
+                
+                // Create form HTML with proper input elements
+                const formHTML = `
+                    <h4>Edit Process Server</h4>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                        <div>
+                            <label style="display: block; margin-bottom: 0.25rem; color: var(--text-secondary);">Name</label>
+                            <input type="text" 
+                                   class="form-input edit-input" 
+                                   id="edit-name-${server.wallet_address}" 
+                                   value="${escapeHtml(server.name || '')}" 
+                                   style="width: 100%; padding: 0.5rem; background: var(--gray-700); border: 1px solid var(--gray-600); border-radius: 4px; color: var(--text-primary);">
                         </div>
-                        <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
-                            <button class="btn btn-success" onclick="saveProcessServer('${server.wallet_address}')">
-                                <i class="fas fa-save"></i> Save Changes
-                            </button>
-                            <button class="btn btn-secondary" onclick="cancelInlineEdit('${server.wallet_address}')">
-                                <i class="fas fa-times"></i> Cancel
-                            </button>
+                        <div>
+                            <label style="display: block; margin-bottom: 0.25rem; color: var(--text-secondary);">Agency</label>
+                            <input type="text" 
+                                   class="form-input edit-input" 
+                                   id="edit-agency-${server.wallet_address}" 
+                                   value="${escapeHtml(server.agency || '')}" 
+                                   style="width: 100%; padding: 0.5rem; background: var(--gray-700); border: 1px solid var(--gray-600); border-radius: 4px; color: var(--text-primary);">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 0.25rem; color: var(--text-secondary);">Email</label>
+                            <input type="email" 
+                                   class="form-input edit-input" 
+                                   id="edit-email-${server.wallet_address}" 
+                                   value="${escapeHtml(server.email || '')}" 
+                                   style="width: 100%; padding: 0.5rem; background: var(--gray-700); border: 1px solid var(--gray-600); border-radius: 4px; color: var(--text-primary);">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 0.25rem; color: var(--text-secondary);">Phone</label>
+                            <input type="text" 
+                                   class="form-input edit-input" 
+                                   id="edit-phone-${server.wallet_address}" 
+                                   value="${escapeHtml(server.phone || '')}" 
+                                   style="width: 100%; padding: 0.5rem; background: var(--gray-700); border: 1px solid var(--gray-600); border-radius: 4px; color: var(--text-primary);">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 0.25rem; color: var(--text-secondary);">License Number</label>
+                            <input type="text" 
+                                   class="form-input edit-input" 
+                                   id="edit-license-${server.wallet_address}" 
+                                   value="${escapeHtml(server.license_number || '')}" 
+                                   style="width: 100%; padding: 0.5rem; background: var(--gray-700); border: 1px solid var(--gray-600); border-radius: 4px; color: var(--text-primary);">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 0.25rem; color: var(--text-secondary);">Jurisdiction</label>
+                            <input type="text" 
+                                   class="form-input edit-input" 
+                                   id="edit-jurisdiction-${server.wallet_address}" 
+                                   value="${escapeHtml(server.jurisdiction || '')}" 
+                                   style="width: 100%; padding: 0.5rem; background: var(--gray-700); border: 1px solid var(--gray-600); border-radius: 4px; color: var(--text-primary);">
                         </div>
                     </div>
-                </div>
-            `).join('');
+                    <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                        <button class="btn btn-success" onclick="saveProcessServer('${server.wallet_address}')">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                        <button class="btn btn-secondary" onclick="cancelInlineEdit('${server.wallet_address}')">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </div>
+                `;
+                
+                editForm.innerHTML = formHTML;
+                serverCard.appendChild(editForm);
+                container.appendChild(serverCard);
+            });
         }
         
         function getStatusColor(status) {
