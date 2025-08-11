@@ -168,7 +168,140 @@ if (window.loadProcessServers) {
     };
 }
 
-// Fix 5: Ensure edit form inputs are properly initialized
+// Fix 5: Override displayProcessServers to properly create edit forms
+const originalDisplayProcessServers = window.displayProcessServers;
+window.displayProcessServers = function(servers) {
+    const container = document.getElementById('processServersList');
+    
+    if (!servers || servers.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-users"></i>
+                <h3>No process servers registered</h3>
+                <p>Add servers using the "Add Server" button</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Clear container
+    container.innerHTML = '';
+    
+    servers.forEach(server => {
+        const serverCard = document.createElement('div');
+        serverCard.className = 'server-card';
+        
+        // Create main server info
+        const mainInfo = document.createElement('div');
+        mainInfo.innerHTML = `
+            <div class="server-header">
+                <h3>${server.name || 'Unnamed Server'}</h3>
+                <span class="status-badge ${server.status || 'pending'}">${server.status || 'pending'}</span>
+            </div>
+            <div class="server-details">
+                <div><strong>Server ID:</strong> ${server.server_id || server.display_server_id || 'Pending'}</div>
+                <div><strong>Wallet:</strong> ${server.wallet_address}</div>
+                <div><strong>Agency:</strong> ${server.agency || 'N/A'}</div>
+                <div><strong>Email:</strong> ${server.email || 'N/A'}</div>
+                <div><strong>Phone:</strong> ${server.phone || 'N/A'}</div>
+                <div><strong>License:</strong> ${server.license_number || 'N/A'}</div>
+                <div><strong>Jurisdiction:</strong> ${server.jurisdiction || 'N/A'}</div>
+                <div><strong>Total Notices:</strong> ${server.total_notices_served || 0}</div>
+            </div>
+            <div class="server-actions">
+                <button onclick="showInlineEdit('${server.wallet_address}')" class="btn btn-primary">
+                    <i class="fas fa-edit"></i> Edit
+                </button>
+                <button onclick="deleteProcessServer('${server.wallet_address}')" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+            </div>
+        `;
+        serverCard.appendChild(mainInfo);
+        
+        // Create edit form using DOM manipulation
+        const editForm = document.createElement('div');
+        editForm.id = `edit-${server.wallet_address}`;
+        editForm.style.display = 'none';
+        editForm.style.marginTop = '1rem';
+        editForm.style.padding = '1rem';
+        editForm.style.background = 'var(--gray-800)';
+        editForm.style.borderRadius = '8px';
+        
+        // Create form content using DOM
+        const formTitle = document.createElement('h4');
+        formTitle.textContent = 'Edit Process Server';
+        editForm.appendChild(formTitle);
+        
+        const formGrid = document.createElement('div');
+        formGrid.style.display = 'grid';
+        formGrid.style.gridTemplateColumns = 'repeat(2, 1fr)';
+        formGrid.style.gap = '1rem';
+        
+        // Create input fields
+        const fields = [
+            { name: 'name', label: 'Name', value: server.name || '' },
+            { name: 'agency', label: 'Agency', value: server.agency || '' },
+            { name: 'email', label: 'Email', value: server.email || '' },
+            { name: 'phone', label: 'Phone', value: server.phone || '' },
+            { name: 'license', label: 'License Number', value: server.license_number || '' },
+            { name: 'jurisdiction', label: 'Jurisdiction', value: server.jurisdiction || '' }
+        ];
+        
+        fields.forEach(field => {
+            const fieldDiv = document.createElement('div');
+            
+            const label = document.createElement('label');
+            label.style.display = 'block';
+            label.style.marginBottom = '0.25rem';
+            label.style.color = 'var(--text-secondary)';
+            label.textContent = field.label;
+            fieldDiv.appendChild(label);
+            
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'form-input edit-input';
+            input.id = `edit-${field.name}-${server.wallet_address}`;
+            input.value = field.value;
+            input.style.width = '100%';
+            input.style.padding = '0.5rem';
+            input.style.background = 'var(--gray-700)';
+            input.style.border = '1px solid var(--gray-600)';
+            input.style.borderRadius = '4px';
+            input.style.color = 'var(--text-primary)';
+            fieldDiv.appendChild(input);
+            
+            formGrid.appendChild(fieldDiv);
+        });
+        
+        editForm.appendChild(formGrid);
+        
+        // Create buttons
+        const buttonDiv = document.createElement('div');
+        buttonDiv.style.marginTop = '1rem';
+        buttonDiv.style.display = 'flex';
+        buttonDiv.style.gap = '0.5rem';
+        
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'btn btn-success';
+        saveBtn.innerHTML = '<i class="fas fa-save"></i> Save';
+        saveBtn.onclick = () => saveProcessServer(server.wallet_address);
+        buttonDiv.appendChild(saveBtn);
+        
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'btn btn-secondary';
+        cancelBtn.innerHTML = '<i class="fas fa-times"></i> Cancel';
+        cancelBtn.onclick = () => cancelInlineEdit(server.wallet_address);
+        buttonDiv.appendChild(cancelBtn);
+        
+        editForm.appendChild(buttonDiv);
+        serverCard.appendChild(editForm);
+        
+        container.appendChild(serverCard);
+    });
+};
+
+// Fix showInlineEdit to work with properly created forms
 window.showInlineEdit = function(walletAddress) {
     console.log(`📝 Opening edit form for: ${walletAddress}`);
     
