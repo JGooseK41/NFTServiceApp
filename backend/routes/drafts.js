@@ -11,6 +11,34 @@ const fs = require('fs').promises;
 const crypto = require('crypto');
 const { Pool } = require('pg');
 
+// CORS middleware for all drafts routes
+router.use((req, res, next) => {
+    const origin = req.headers.origin;
+    const allowedOrigins = [
+        'https://theblockservice.com',
+        'https://www.theblockservice.com',
+        'https://blockserved.com',
+        'https://www.blockserved.com',
+        'https://nft-legal-service.netlify.app',
+        'http://localhost:8080',
+        'http://localhost:3000'
+    ];
+    
+    if (allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    }
+    
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    
+    next();
+});
+
 // Database connection
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL || 'postgresql://nftservice:nftservice123@localhost:5432/nftservice_db',
@@ -96,7 +124,8 @@ async function initializeTables() {
         console.log('✅ Draft tables initialized');
         
     } catch (error) {
-        console.error('Error initializing draft tables:', error);
+        console.error('❌ Error initializing draft tables:', error);
+        console.error('Stack trace:', error.stack);
     } finally {
         if (client) {
             client.release();
@@ -106,6 +135,15 @@ async function initializeTables() {
 
 // Initialize tables on startup
 initializeTables();
+
+// Test endpoint to verify drafts router is working
+router.get('/test', (req, res) => {
+    res.json({
+        success: true,
+        message: 'Drafts router is working',
+        timestamp: new Date().toISOString()
+    });
+});
 
 /**
  * POST /api/drafts/save
@@ -118,6 +156,10 @@ router.post('/save',
         { name: 'encryptedDocument', maxCount: 1 }
     ]),
     async (req, res) => {
+        console.log('POST /api/drafts/save - Request received from:', req.headers.origin);
+        console.log('Server address:', req.body.serverAddress);
+        console.log('Draft name:', req.body.draftName);
+        
         let client;
         
         try {
@@ -300,6 +342,9 @@ router.post('/save',
  * Get all drafts for a server address
  */
 router.get('/list', async (req, res) => {
+    console.log('GET /api/drafts/list - Request from:', req.headers.origin);
+    console.log('Server address:', req.query.serverAddress);
+    
     let client;
     
     try {
@@ -346,9 +391,13 @@ router.get('/list', async (req, res) => {
         
     } catch (error) {
         console.error('Error listing drafts:', error);
+        console.error('Stack trace:', error.stack);
+        
+        // Always return JSON even on error
         res.status(500).json({
             success: false,
-            error: error.message
+            error: error.message || 'Failed to list drafts',
+            drafts: []
         });
         
     } finally {
