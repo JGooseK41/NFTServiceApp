@@ -9455,6 +9455,17 @@ function useConnectedAddressForFeeCollector() {
                 return;
             }
             
+            // Helper function to escape values for HTML attributes
+            function escapeHtml(str) {
+                if (!str) return '';
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+            }
+            
             container.innerHTML = servers.map(server => `
                 <div class="server-card" style="padding: 1.5rem; border-bottom: 1px solid var(--gray-700);" id="server-${server.wallet_address}">
                     <div style="display: flex; justify-content: space-between; align-items: start;">
@@ -9501,28 +9512,28 @@ function useConnectedAddressForFeeCollector() {
                         <h4>Edit Process Server</h4>
                         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
                             <div>
-                                <label>Name</label>
-                                <input type="text" class="form-input" id="edit-name-${server.wallet_address}" value="${server.name || ''}">
+                                <label style="display: block; margin-bottom: 0.25rem; color: var(--text-secondary);">Name</label>
+                                <input type="text" class="form-input" id="edit-name-${server.wallet_address}" value="${escapeHtml(server.name || '')}" style="width: 100%; padding: 0.5rem; background: var(--gray-700); border: 1px solid var(--gray-600); border-radius: 4px; color: var(--text-primary);">
                             </div>
                             <div>
-                                <label>Agency</label>
-                                <input type="text" class="form-input" id="edit-agency-${server.wallet_address}" value="${server.agency || ''}">
+                                <label style="display: block; margin-bottom: 0.25rem; color: var(--text-secondary);">Agency</label>
+                                <input type="text" class="form-input" id="edit-agency-${server.wallet_address}" value="${escapeHtml(server.agency || '')}" style="width: 100%; padding: 0.5rem; background: var(--gray-700); border: 1px solid var(--gray-600); border-radius: 4px; color: var(--text-primary);">
                             </div>
                             <div>
-                                <label>Email</label>
-                                <input type="email" class="form-input" id="edit-email-${server.wallet_address}" value="${server.email || ''}">
+                                <label style="display: block; margin-bottom: 0.25rem; color: var(--text-secondary);">Email</label>
+                                <input type="email" class="form-input" id="edit-email-${server.wallet_address}" value="${escapeHtml(server.email || '')}" style="width: 100%; padding: 0.5rem; background: var(--gray-700); border: 1px solid var(--gray-600); border-radius: 4px; color: var(--text-primary);">
                             </div>
                             <div>
-                                <label>Phone</label>
-                                <input type="text" class="form-input" id="edit-phone-${server.wallet_address}" value="${server.phone || ''}">
+                                <label style="display: block; margin-bottom: 0.25rem; color: var(--text-secondary);">Phone</label>
+                                <input type="text" class="form-input" id="edit-phone-${server.wallet_address}" value="${escapeHtml(server.phone || '')}" style="width: 100%; padding: 0.5rem; background: var(--gray-700); border: 1px solid var(--gray-600); border-radius: 4px; color: var(--text-primary);">
                             </div>
                             <div>
-                                <label>License Number</label>
-                                <input type="text" class="form-input" id="edit-license-${server.wallet_address}" value="${server.license_number || ''}">
+                                <label style="display: block; margin-bottom: 0.25rem; color: var(--text-secondary);">License Number</label>
+                                <input type="text" class="form-input" id="edit-license-${server.wallet_address}" value="${escapeHtml(server.license_number || '')}" style="width: 100%; padding: 0.5rem; background: var(--gray-700); border: 1px solid var(--gray-600); border-radius: 4px; color: var(--text-primary);">
                             </div>
                             <div>
-                                <label>Jurisdiction</label>
-                                <input type="text" class="form-input" id="edit-jurisdiction-${server.wallet_address}" value="${server.jurisdiction || ''}">
+                                <label style="display: block; margin-bottom: 0.25rem; color: var(--text-secondary);">Jurisdiction</label>
+                                <input type="text" class="form-input" id="edit-jurisdiction-${server.wallet_address}" value="${escapeHtml(server.jurisdiction || '')}" style="width: 100%; padding: 0.5rem; background: var(--gray-700); border: 1px solid var(--gray-600); border-radius: 4px; color: var(--text-primary);">
                             </div>
                         </div>
                         <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
