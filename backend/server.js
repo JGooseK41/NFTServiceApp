@@ -884,16 +884,20 @@ app.use('/api/stage', stagingRouter);
 
 // Quick CORS test endpoint at server level
 app.get('/api/cors-test', (req, res) => {
+    console.log('CORS test endpoint hit from:', req.headers.origin);
     const origin = req.headers.origin;
     if (origin) {
         res.setHeader('Access-Control-Allow-Origin', origin);
         res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Server-Address');
     }
     res.json({ 
         success: true, 
         message: 'Server-level CORS test',
         origin: origin,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        version: '2024.08.11.01'
     });
 });
 
