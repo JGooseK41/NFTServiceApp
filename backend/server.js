@@ -879,8 +879,15 @@ const validatorRouter = require('./routes/transaction-validator');
 app.use('/api/validate', validatorRouter);
 
 // Transaction staging routes - backend as single source of truth
-const stagingRouter = require('./routes/transaction-staging');
-app.use('/api/stage', stagingRouter);
+console.log('Loading staging router...');
+try {
+    const stagingRouter = require('./routes/transaction-staging');
+    app.use('/api/stage', stagingRouter);
+    console.log('✅ Staging router loaded successfully');
+} catch (error) {
+    console.error('❌ Failed to load staging router:', error.message);
+    console.error('Stack:', error.stack);
+}
 
 // Quick CORS test endpoint at server level
 app.get('/api/cors-test', (req, res) => {
@@ -1139,10 +1146,22 @@ async function initializeDatabase() {
   }
 }
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: 'healthy',
+        version: '2024.08.11.02',
+        timestamp: new Date().toISOString(),
+        port: PORT,
+        env: process.env.NODE_ENV || 'development'
+    });
+});
+
 // Start server
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log('Server version: 2024.08.11.02');
   
   // Initialize database tables
   await initializeDatabase();
