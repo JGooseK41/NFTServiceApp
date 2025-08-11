@@ -4569,16 +4569,53 @@
                                 </p>
                             </div>
                             
-                            <div class="form-group">
-                                <label class="form-label">Token Name</label>
+                            <div class="form-group" style="display: none;">
+                                <!-- Token name is auto-generated from case number and notice type -->
+                                <label class="form-label">Token Name (Auto-generated)</label>
                                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                                     <span id="tokenPrefix" style="background: #374151; padding: 0.75rem; border-radius: 0.375rem 0 0 0.375rem; border: 1px solid #4b5563; border-right: none; color: #9ca3af; font-family: monospace;">PS#?-</span>
                                     <input type="text" class="form-input" id="mintTokenName" 
-                                           placeholder="Legal Notice" 
-                                           style="border-radius: 0 0.375rem 0.375rem 0; flex: 1;">
+                                           placeholder="Auto-generated" 
+                                           style="border-radius: 0 0.375rem 0.375rem 0; flex: 1;"
+                                           readonly>
                                 </div>
-                                <p class="form-help">Token name (will be prepended with your server ID, e.g., PS#1-Legal Notice)</p>
+                                <p class="form-help">Auto-generated from case number and notice type</p>
                             </div>
+                            
+                            <script>
+                                // Auto-generate token name from case number and notice type
+                                function updateTokenName() {
+                                    const caseNumber = document.getElementById('mintCaseNumber')?.value || '';
+                                    const noticeType = document.getElementById('noticeType')?.value || 'Legal Notice';
+                                    const customType = document.getElementById('customNoticeType')?.value || '';
+                                    
+                                    // Use custom type if "Other" is selected
+                                    const finalType = (noticeType === 'Other' && customType) ? customType : noticeType;
+                                    
+                                    // Generate token name
+                                    let tokenName = 'Legal Notice';
+                                    if (caseNumber) {
+                                        tokenName = `${caseNumber.substring(0, 20)} - ${finalType}`;
+                                    } else {
+                                        tokenName = finalType;
+                                    }
+                                    
+                                    const tokenField = document.getElementById('mintTokenName');
+                                    if (tokenField) {
+                                        tokenField.value = tokenName;
+                                    }
+                                }
+                                
+                                // Listen for changes to auto-update token name
+                                document.addEventListener('DOMContentLoaded', function() {
+                                    document.getElementById('mintCaseNumber')?.addEventListener('input', updateTokenName);
+                                    document.getElementById('noticeType')?.addEventListener('change', updateTokenName);
+                                    document.getElementById('customNoticeType')?.addEventListener('input', updateTokenName);
+                                    
+                                    // Initial update
+                                    updateTokenName();
+                                });
+                            </script>
                             
                             <div class="form-group">
                                 <label class="form-label">Case Number</label>
@@ -4680,6 +4717,31 @@
                                            placeholder="e.g., U.S. Department of Justice, IRS, SEC" 
                                            maxlength="100" required>
                                     <p class="form-help">Government agency or court issuing this notice</p>
+                                    <script>
+                                        // Auto-fill issuing agency from server registration
+                                        (function() {
+                                            if (window.tronWeb && window.tronWeb.defaultAddress) {
+                                                const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+                                                const serverData = serverRegistrations[window.tronWeb.defaultAddress.base58];
+                                                if (serverData && serverData.agencyName) {
+                                                    document.getElementById('issuingAgency').value = serverData.agencyName;
+                                                }
+                                            }
+                                            // Also listen for wallet changes
+                                            window.addEventListener('walletChanged', function() {
+                                                if (window.tronWeb && window.tronWeb.defaultAddress) {
+                                                    const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+                                                    const serverData = serverRegistrations[window.tronWeb.defaultAddress.base58];
+                                                    if (serverData && serverData.agencyName) {
+                                                        const agencyField = document.getElementById('issuingAgency');
+                                                        if (agencyField && !agencyField.value) {
+                                                            agencyField.value = serverData.agencyName;
+                                                        }
+                                                    }
+                                                }
+                                            });
+                                        })();
+                                    </script>
                                 </div>
                                 
                                 <div class="form-group">

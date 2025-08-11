@@ -308,7 +308,7 @@ window.TransactionStatus = {
     startUpdates() {
         let messageIndex = 0;
         
-        // Update message every 3 seconds
+        // Update message every 6 seconds (slower for better readability)
         this.statusInterval = setInterval(() => {
             const phaseData = this.phases[this.currentPhase];
             if (!phaseData) return;
@@ -336,7 +336,7 @@ window.TransactionStatus = {
                     }, 300);
                 }
             }
-        }, 3000);
+        }, 6000); // Changed from 3000ms to 6000ms for slower, more readable tips
         
         // Trigger first update immediately
         const phaseData = this.phases[this.currentPhase];
