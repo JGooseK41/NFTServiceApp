@@ -6,6 +6,34 @@
 
 const express = require('express');
 const router = express.Router();
+
+// Test endpoint to verify CORS
+router.get('/test', (req, res) => {
+    const origin = req.headers.origin;
+    const allowedOrigins = [
+        'https://theblockservice.com',
+        'https://www.theblockservice.com',
+        'https://blockserved.com',
+        'https://www.blockserved.com',
+        'https://nft-legal-service.netlify.app',
+        'http://localhost:8080',
+        'http://localhost:3000'
+    ];
+    
+    if (allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Server-Address');
+    }
+    
+    res.json({
+        success: true,
+        message: 'CORS test successful',
+        origin: origin,
+        allowed: allowedOrigins.includes(origin)
+    });
+});
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
@@ -64,6 +92,25 @@ router.post('/transaction',
         { name: 'encryptedDocument', maxCount: 1 }
     ]),
     async (req, res) => {
+        // Set CORS headers immediately
+        const origin = req.headers.origin;
+        const allowedOrigins = [
+            'https://theblockservice.com',
+            'https://www.theblockservice.com',
+            'https://blockserved.com',
+            'https://www.blockserved.com',
+            'https://nft-legal-service.netlify.app',
+            'http://localhost:8080',
+            'http://localhost:3000'
+        ];
+        
+        if (allowedOrigins.includes(origin)) {
+            res.setHeader('Access-Control-Allow-Origin', origin);
+            res.setHeader('Access-Control-Allow-Credentials', 'true');
+            res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+            res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Server-Address');
+        }
+        
         console.log('POST /api/stage/transaction - Request received from:', req.headers.origin);
         console.log('Request body keys:', Object.keys(req.body));
         console.log('Request files:', req.files ? Object.keys(req.files) : 'No files');
@@ -313,6 +360,23 @@ router.post('/transaction',
                         await fs.unlink(file.path).catch(() => {});
                     }
                 }
+            }
+            
+            // Ensure CORS headers are set even on error
+            const origin = req.headers.origin;
+            const allowedOrigins = [
+                'https://theblockservice.com',
+                'https://www.theblockservice.com',
+                'https://blockserved.com',
+                'https://www.blockserved.com',
+                'https://nft-legal-service.netlify.app',
+                'http://localhost:8080',
+                'http://localhost:3000'
+            ];
+            
+            if (allowedOrigins.includes(origin)) {
+                res.setHeader('Access-Control-Allow-Origin', origin);
+                res.setHeader('Access-Control-Allow-Credentials', 'true');
             }
             
             res.status(500).json({
