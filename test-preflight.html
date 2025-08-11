@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Preflight System</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+        }
+        .test-section {
+            border: 1px solid #00ff00;
+            padding: 15px;
+            margin: 10px 0;
+            background: #0a0a0a;
+        }
+        .error { color: #ff4444; }
+        .success { color: #44ff44; }
+        .warning { color: #ffaa44; }
+        button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-family: monospace;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #44ff44;
+        }
+        #results {
+            white-space: pre-wrap;
+            background: #000;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #333;
+            min-height: 200px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Transaction Preflight Test System</h1>
+    
+    <div class="test-section">
+        <h2>Test Scenarios</h2>
+        <button onclick="testValidTransaction()">Test Valid Transaction</button>
+        <button onclick="testInvalidFees()">Test Invalid Fees (NaN)</button>
+        <button onclick="testStringFees()">Test String Fees</button>
+        <button onclick="testMissingData()">Test Missing Data</button>
+        <button onclick="testInvalidAddress()">Test Invalid Address</button>
+        <button onclick="testCurrentStaged()">Test Current Staged Transaction</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test Results</h2>
+        <div id="results">Ready for testing...</div>
+    </div>
+    
+    <script>
+        const resultsDiv = document.getElementById('results');
+        
+        function log(message, type = '') {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type ? ` class="${type}"` : '';
+            resultsDiv.innerHTML += `<div${className}>[${timestamp}] ${message}</div>`;
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+        
+        function clearLog() {
+            resultsDiv.innerHTML = '';
+        }
+        
+        async function testValidTransaction() {
+            clearLog();
+            log('Testing VALID transaction...', 'success');
+            
+            const testData = {
+                recipients: [
+                    { recipient_address: 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY' }
+                ],
+                data: {
+                    creationFee: 25,
+                    sponsorshipFee: 10,
+                    sponsorFees: false,
+                    encryptedIPFS: 'QmTestHash123456789',
+                    encryptionKey: 'testkey123'
+                },
+                notice: {
+                    case_number: 'TEST-2024-001',
+                    issuing_agency: 'Test Agency',
+                    notice_type: 'Test Notice',
+                    public_text: 'Test public text',
+                    legal_rights: 'Test rights'
+                }
+            };
+            
+            try {
+                if (window.EnhancedPreflightSystem) {
+                    const result = await window.EnhancedPreflightSystem.simulateTransaction(testData);
+                    log('Simulation complete!');
+                    log('Valid: ' + result.valid, result.valid ? 'success' : 'error');
+                    log('Errors: ' + (result.errors.length || 'None'));
+                    result.errors.forEach(e => log('  - ' + e, 'error'));
+                    log('Warnings: ' + (result.warnings.length || 'None'));
+                    result.warnings.forEach(w => log('  - ' + w, 'warning'));
+                    if (result.correctedData?.fees) {
+                        log('Fee calculation:');
+                        log('  Creation: ' + result.correctedData.fees.creationFee + ' TRX');
+                        log('  Total: ' + result.correctedData.fees.totalFeeTRX + ' TRX');
+                    }
+                } else {
+                    log('Enhanced Preflight System not loaded!', 'error');
+                }
+            } catch (error) {
+                log('Test error: ' + error.message, 'error');
+            }
+        }
+        
+        async function testInvalidFees() {
+            clearLog();
+            log('Testing INVALID fees (NaN)...', 'warning');
+            
+            const testData = {
+                recipients: [
+                    { recipient_address: 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY' }
+                ],
+                data: {
+                    creationFee: NaN,  // This will cause the error!
+                    sponsorshipFee: undefined,  // This too!
+                    sponsorFees: true
+                },
+                notice: {
+                    case_number: 'TEST-2024-002'
+                }
+            };
+            
+            try {
+                if (window.EnhancedPreflightSystem) {
+                    const result = await window.EnhancedPreflightSystem.simulateTransaction(testData);
+                    log('Simulation complete!');
+                    log('Valid: ' + result.valid, result.valid ? 'success' : 'error');
+                    log('Should have caught NaN fees!', result.valid ? 'error' : 'success');
+                    result.errors.forEach(e => log('  ✓ ' + e, 'success'));
+                    if (result.correctedData?.fees) {
+                        log('Corrected fees:');
+                        log('  Creation: ' + result.correctedData.fees.creationFee + ' TRX');
+                        log('  Sponsorship: ' + result.correctedData.fees.sponsorshipFee + ' TRX');
+                    }
+                } else {
+                    log('Enhanced Preflight System not loaded!', 'error');
+                }
+            } catch (error) {
+                log('Test error: ' + error.message, 'error');
+            }
+        }
+        
+        async function testStringFees() {
+            clearLog();
+            log('Testing STRING fees (need conversion)...', 'warning');
+            
+            const testData = {
+                recipients: [
+                    { recipient_address: 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY' }
+                ],
+                data: {
+                    creationFee: "25",  // String that needs parsing
+                    sponsorshipFee: "10",  // String that needs parsing
+                    sponsorFees: "true"  // String boolean
+                },
+                notice: {
+                    case_number: 'TEST-2024-003'
+                }
+            };
+            
+            try {
+                if (window.EnhancedPreflightSystem) {
+                    const result = await window.EnhancedPreflightSystem.simulateTransaction(testData);
+                    log('Simulation complete!');
+                    log('Valid: ' + result.valid, result.valid ? 'success' : 'error');
+                    log('String conversion successful!', 'success');
+                    if (result.correctedData?.fees) {
+                        log('Converted fees:');
+                        log('  Creation: ' + result.correctedData.fees.creationFee + ' TRX (from "25")');
+                        log('  Sponsorship: ' + result.correctedData.fees.sponsorshipFee + ' TRX (from "10")');
+                        log('  Total: ' + result.correctedData.fees.totalFeeTRX + ' TRX');
+                    }
+                } else {
+                    log('Enhanced Preflight System not loaded!', 'error');
+                }
+            } catch (error) {
+                log('Test error: ' + error.message, 'error');
+            }
+        }
+        
+        async function testMissingData() {
+            clearLog();
+            log('Testing MISSING required data...', 'warning');
+            
+            const testData = {
+                recipients: [],  // No recipients!
+                data: {},  // Empty data!
+                notice: {}  // No case number!
+            };
+            
+            try {
+                if (window.EnhancedPreflightSystem) {
+                    const result = await window.EnhancedPreflightSystem.simulateTransaction(testData);
+                    log('Simulation complete!');
+                    log('Valid: ' + result.valid, result.valid ? 'success' : 'error');
+                    log('Should have caught missing data!', result.valid ? 'error' : 'success');
+                    result.errors.forEach(e => log('  ✓ ' + e, 'success'));
+                } else {
+                    log('Enhanced Preflight System not loaded!', 'error');
+                }
+            } catch (error) {
+                log('Test error: ' + error.message, 'error');
+            }
+        }
+        
+        async function testInvalidAddress() {
+            clearLog();
+            log('Testing INVALID recipient address...', 'warning');
+            
+            const testData = {
+                recipients: [
+                    { recipient_address: 'not-a-valid-tron-address' }
+                ],
+                data: {
+                    creationFee: 25,
+                    sponsorshipFee: 10
+                },
+                notice: {
+                    case_number: 'TEST-2024-004'
+                }
+            };
+            
+            try {
+                if (window.EnhancedPreflightSystem) {
+                    const result = await window.EnhancedPreflightSystem.simulateTransaction(testData);
+                    log('Simulation complete!');
+                    log('Valid: ' + result.valid, result.valid ? 'success' : 'error');
+                    log('Should have caught invalid address!', result.valid ? 'error' : 'success');
+                    result.errors.forEach(e => log('  ✓ ' + e, 'success'));
+                } else {
+                    log('Enhanced Preflight System not loaded!', 'error');
+                }
+            } catch (error) {
+                log('Test error: ' + error.message, 'error');
+            }
+        }
+        
+        async function testCurrentStaged() {
+            clearLog();
+            log('Testing current staged transaction (if any)...', 'warning');
+            
+            try {
+                if (window.parent.testPreflight) {
+                    const result = await window.parent.testPreflight();
+                    if (result) {
+                        log('Found staged transaction!', 'success');
+                        log('Valid: ' + result.valid, result.valid ? 'success' : 'error');
+                        result.errors.forEach(e => log('  Error: ' + e, 'error'));
+                        result.warnings.forEach(w => log('  Warning: ' + w, 'warning'));
+                    } else {
+                        log('No staged transactions found', 'warning');
+                    }
+                } else {
+                    log('Test function not available in parent window', 'error');
+                }
+            } catch (error) {
+                log('Test error: ' + error.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

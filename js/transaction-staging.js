@@ -288,11 +288,13 @@ window.TransactionStaging = {
                 
                 console.log('Executing batch transaction with backend data:', batchNotices);
                 
-                // Calculate the total fee in TRX
-                const totalFeeTRX = data.creationFee + (data.sponsorFees ? data.sponsorshipFee * recipients.length : 0);
+                // Calculate the total fee in TRX - ENSURE NUMBERS NOT STRINGS
+                const creationFee = parseFloat(data.creationFee) || 25;
+                const sponsorshipFee = parseFloat(data.sponsorshipFee) || 10;
+                const totalFeeTRX = creationFee + (data.sponsorFees ? sponsorshipFee * recipients.length : 0);
                 console.log('Total fee calculation:', {
-                    creationFee: data.creationFee,
-                    sponsorshipFee: data.sponsorshipFee,
+                    creationFee: creationFee,
+                    sponsorshipFee: sponsorshipFee,
                     recipientCount: recipients.length,
                     sponsorFees: data.sponsorFees,
                     totalFeeTRX: totalFeeTRX,
@@ -319,11 +321,13 @@ window.TransactionStaging = {
                 
                 console.log('Executing single transaction with backend data');
                 
-                // Calculate the total fee in TRX
-                const totalFeeTRX = data.creationFee + (data.sponsorFees ? data.sponsorshipFee : 0);
+                // Calculate the total fee in TRX - ENSURE NUMBERS NOT STRINGS
+                const creationFee = parseFloat(data.creationFee) || 25;
+                const sponsorshipFee = parseFloat(data.sponsorshipFee) || 10;
+                const totalFeeTRX = creationFee + (data.sponsorFees ? sponsorshipFee : 0);
                 console.log('Single transaction fee calculation:', {
-                    creationFee: data.creationFee,
-                    sponsorshipFee: data.sponsorshipFee,
+                    creationFee: creationFee,
+                    sponsorshipFee: sponsorshipFee,
                     sponsorFees: data.sponsorFees,
                     totalFeeTRX: totalFeeTRX,
                     totalFeeSUN: totalFeeTRX * 1_000_000
