@@ -959,6 +959,24 @@ try {
     console.error('❌ Failed to load process servers router:', error.message);
 }
 
+// Admin process servers routes (simple version for dashboard)
+try {
+    const adminProcessServers = require('./routes/admin-process-servers');
+    app.use('/api/admin/process-servers', adminProcessServers);
+    console.log('✅ Admin process servers router loaded');
+} catch (error) {
+    console.warn('⚠️ Could not load admin process servers router:', error.message);
+}
+
+// Notice staging routes (for blockchain data flow)
+try {
+    const noticeStagingRouter = require('./routes/notice-staging');
+    app.use('/api/notices', noticeStagingRouter);
+    console.log('✅ Notice staging router loaded');
+} catch (error) {
+    console.warn('⚠️ Could not load notice staging router:', error.message);
+}
+
 // Migration route for process servers table
 try {
     const migrateProcessServers = require('./routes/migrate-process-servers');
@@ -1185,6 +1203,22 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// Initialize blockchain sync service
+let blockchainSync;
+async function initializeBlockchainSync() {
+  try {
+    if (process.env.CONTRACT_ADDRESS) {
+      blockchainSync = require('./services/blockchain-sync');
+      await blockchainSync.initialize();
+      console.log('✅ Blockchain sync service initialized');
+    } else {
+      console.log('⚠️ CONTRACT_ADDRESS not set, blockchain sync disabled');
+    }
+  } catch (error) {
+    console.error('Failed to initialize blockchain sync:', error);
+  }
+}
+
 // Start server
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
@@ -1193,6 +1227,9 @@ app.listen(PORT, async () => {
   
   // Initialize database tables
   await initializeDatabase();
+  
+  // Initialize blockchain sync
+  await initializeBlockchainSync();
 });
 
 module.exports = app;
