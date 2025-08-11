@@ -8,8 +8,6 @@ console.log('🚨 EMERGENCY FEE FIX LOADING...');
 
 // Current TRX price (update as needed)
 const TRX_PRICE_USD = 0.24; // Approximate current price
-const MAX_ALLOWED_USD = 10; // Maximum allowed transaction in USD
-const MAX_ALLOWED_TRX = MAX_ALLOWED_USD / TRX_PRICE_USD; // About 41 TRX
 
 // CORRECT fee structure (from smart contract)
 const CORRECT_FEES = {
@@ -47,25 +45,10 @@ if (window.tronWeb) {
                         console.log(`   Call Value: ${callValueTRX} TRX ($${callValueUSD.toFixed(2)} USD)`);
                         console.log(`   Fee Limit: ${(options.feeLimit / 1_000_000).toFixed(2)} TRX`);
                         
-                        // BLOCK if too expensive
-                        if (callValueTRX > MAX_ALLOWED_TRX) {
-                            const errorMsg = `
-🚫 TRANSACTION BLOCKED - TOO EXPENSIVE!
-
-Requested: ${callValueTRX.toFixed(2)} TRX ($${callValueUSD.toFixed(2)} USD)
-Maximum allowed: ${MAX_ALLOWED_TRX.toFixed(2)} TRX ($${MAX_ALLOWED_USD} USD)
-
-This appears to be an error. The correct fees should be:
-- Creation fee: 25 TRX
-- Sponsorship fee: 10 TRX per recipient (if enabled)
-- Total should be around $5-10 USD, NOT $${callValueUSD.toFixed(2)}!
-
-TRANSACTION CANCELLED TO PROTECT YOUR FUNDS.
-                            `.trim();
-                            
-                            alert(errorMsg);
-                            console.error(errorMsg);
-                            throw new Error('Transaction blocked - excessive fee detected');
+                        // Just warn if fee seems high but don't block
+                        if (callValueTRX > 200) {
+                            console.warn(`⚠️ HIGH FEE WARNING: ${callValueTRX.toFixed(2)} TRX ($${callValueUSD.toFixed(2)} USD)`);
+                            console.warn('Expected fees: 25 TRX creation + 10 TRX per recipient if sponsoring');
                         }
                         
                         // Fix incorrect fees
@@ -191,14 +174,12 @@ function addFeeDisplay() {
             💰 FEE PROTECTION ACTIVE
         </div>
         <div style="font-size: 12px;">
-            ✅ Max transaction: $${MAX_ALLOWED_USD} USD<br>
             ✅ Creation fee: 25 TRX (~$6)<br>
             ✅ Energy rental: 88 TRX (~$21)<br>
-            ❌ Blocking fees over ${MAX_ALLOWED_TRX.toFixed(0)} TRX<br>
+            ⚠️ Will warn about high fees<br>
             <br>
             <span style="color: yellow;">
-                ⚠️ If asked for $200+, it's an ERROR!<br>
-                This system will block it.
+                ⚠️ If asked for $200+, check the breakdown!
             </span>
         </div>
     `;
@@ -219,7 +200,7 @@ if (document.readyState === 'loading') {
 }
 
 console.log('✅ EMERGENCY FEE FIX ACTIVE!');
-console.log('   🛡️ Blocking transactions over $10 USD');
+console.log('   💰 Shows transparent costs');
 console.log('   💰 Correct fees: 25 TRX creation + 10 TRX/recipient sponsorship');
 console.log('   ⚡ Energy rental: 88 TRX');
-console.log('   🚫 Will prevent $200+ transactions (those are ERRORS)');
+console.log('   ⚠️ Warns about unusually high fees');
