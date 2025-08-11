@@ -6,7 +6,7 @@
 window.TransactionStaging = {
     API_BASE: window.location.hostname === 'localhost' 
         ? 'http://localhost:3001/api/stage'
-        : 'https://nftservice-backend.onrender.com/api/stage',
+        : 'https://nftserviceapp.onrender.com/api/stage',
     
     currentTransactionId: null,
     
