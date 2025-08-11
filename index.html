@@ -4861,16 +4861,25 @@
                                                 console.log('Your registration:', serverRegistrations[walletAddress]);
                                                 
                                                 const serverData = serverRegistrations[walletAddress];
-                                                // Check both 'agency' and 'agencyName' fields for compatibility
-                                                const agencyName = serverData?.agency || serverData?.agencyName || serverData?.name;
+                                                // STANDARD COLUMN NAMES:
+                                                // - agency: The agency/company name
+                                                // - name: The person's name  
+                                                // - email: Contact email
+                                                // Check multiple possible field names for backward compatibility
+                                                const agencyName = serverData?.agency || serverData?.agency_name || serverData?.agencyName;
+                                                const personName = serverData?.name || serverData?.server_name || serverData?.serverName;
                                                 
                                                 if (serverData && agencyName) {
                                                     agencyField.value = agencyName;
                                                     agencyField.style.color = 'var(--text-primary)';
-                                                } else if (serverData) {
-                                                    // Has registration but no agency name - might be a different role
+                                                } else if (serverData && personName) {
+                                                    // Has registration with person name but no agency
                                                     console.log('Registration found but no agency:', serverData);
-                                                    agencyField.value = serverData.name || 'User (No agency specified)';
+                                                    agencyField.value = `${personName} (Individual)`;
+                                                    agencyField.style.color = 'var(--text-primary)';
+                                                } else if (serverData) {
+                                                    // Has registration but no identifiable info
+                                                    agencyField.value = 'Registered User (No agency specified)';
                                                     agencyField.style.color = 'var(--text-primary)';
                                                 } else {
                                                     agencyField.value = 'No registration found - Please register first';

@@ -41,21 +41,26 @@ async function runMigration() {
             console.log('Existing columns:', columnNames.join(', '));
             
             // Add missing columns if needed
+            // Map to standardize column names
             const requiredColumns = {
-                'agency': 'VARCHAR(255)',
+                'name': 'VARCHAR(255)',
                 'email': 'VARCHAR(255)',
                 'phone': 'VARCHAR(50)',
-                'server_id': 'VARCHAR(100) UNIQUE',
-                'status': "VARCHAR(50) DEFAULT 'pending'",
-                'jurisdiction': 'VARCHAR(255)',
-                'license_number': 'VARCHAR(100)',
                 'notes': 'TEXT',
-                'registration_data': 'JSONB',
-                'created_at': 'TIMESTAMP DEFAULT NOW()',
-                'updated_at': 'TIMESTAMP DEFAULT NOW()',
-                'approved_at': 'TIMESTAMP',
-                'approved_by': 'VARCHAR(255)'
+                'registration_data': 'JSONB'
             };
+            
+            // Also add an 'agency' column that maps to 'agency_name' for consistency
+            if (!columnNames.includes('agency') && columnNames.includes('agency_name')) {
+                // We have agency_name but need agency for consistency
+                console.log('Adding agency column to match agency_name');
+                try {
+                    await client.query(`ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS agency VARCHAR(255)`);
+                    await client.query(`UPDATE process_servers SET agency = agency_name WHERE agency IS NULL`);
+                } catch (err) {
+                    console.log(`Could not add agency column: ${err.message}`);
+                }
+            }
             
             for (const [column, type] of Object.entries(requiredColumns)) {
                 if (!columnNames.includes(column)) {
@@ -145,10 +150,19 @@ async function runMigration() {
         // Check if we need to migrate existing registration data
         console.log('Checking for existing registrations to migrate...');
         
+        // First check what columns exist in served_notices
+        const servedNoticesCols = await client.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'served_notices'
+        `);
+        
+        console.log('served_notices columns:', servedNoticesCols.rows.map(r => r.column_name).join(', '));
+        
+        // Use the correct column names based on what exists
         const existingRegistrations = await client.query(`
             SELECT DISTINCT 
                 server_address as wallet_address,
-                server_name as name,
                 issuing_agency as agency
             FROM served_notices
             WHERE server_address IS NOT NULL
@@ -167,13 +181,22 @@ async function runMigration() {
                     
                     if (exists.rows.length === 0 && registration.wallet_address) {
                         // Insert new process server from existing data
+                        // Check which columns exist in process_servers
+                        const psColumns = await client.query(`
+                            SELECT column_name FROM information_schema.columns 
+                            WHERE table_name = 'process_servers'
+                        `);
+                        const psColNames = psColumns.rows.map(r => r.column_name);
+                        
+                        // Use the right column name (agency or agency_name)
+                        const agencyCol = psColNames.includes('agency') ? 'agency' : 'agency_name';
+                        
                         await client.query(`
-                            INSERT INTO process_servers (wallet_address, name, agency, status, server_id)
-                            VALUES ($1, $2, $3, 'approved', $4)
+                            INSERT INTO process_servers (wallet_address, ${agencyCol}, status, server_id)
+                            VALUES ($1, $2, 'approved', $3)
                             ON CONFLICT (wallet_address) DO NOTHING
                         `, [
                             registration.wallet_address,
-                            registration.name || 'Unknown Server',
                             registration.agency || 'Unknown Agency',
                             `PS-${Date.now().toString(36).toUpperCase()}`
                         ]);
