@@ -4428,6 +4428,10 @@
                     Create Legal Notice
                 </h3>
                 <div style="display: flex; gap: 10px; align-items: center;">
+                    <button class="btn btn-info" onclick="DraftsManager.showDraftsDialog()" style="font-size: 0.9rem;" title="Load a saved draft">
+                        <i class="fas fa-folder-open"></i>
+                        Load Draft
+                    </button>
                     <button class="btn btn-secondary" onclick="clearAllFormData()" style="font-size: 0.9rem;" title="Clear all form data">
                         <i class="fas fa-eraser"></i>
                         Clear All
@@ -4779,6 +4783,10 @@
                         <button class="btn btn-secondary" onclick="showMintStep(1)">
                             <i class="fas fa-arrow-left"></i>
                             Back
+                        </button>
+                        <button class="btn btn-success" onclick="saveDraftWithPrompt()" title="Save current form as draft">
+                            <i class="fas fa-save"></i>
+                            Save Draft
                         </button>
                         <button class="btn btn-secondary" onclick="previewNFT()">
                             <i class="fas fa-eye"></i>
@@ -9903,6 +9911,43 @@ function useConnectedAddressForFeeCollector() {
         }
         
         // Clear all form data function
+        // Save current form as draft with custom name
+        async function saveDraftWithPrompt() {
+            try {
+                // Prompt for draft name
+                const draftName = prompt('Enter a name for this draft:', 
+                    `${document.getElementById('mintCaseNumber')?.value || 'Untitled'} - ${new Date().toLocaleString()}`);
+                
+                if (!draftName) {
+                    return; // User cancelled
+                }
+                
+                // Show saving indicator
+                const btn = event.target.closest('button');
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+                btn.disabled = true;
+                
+                // Save the draft
+                const result = await window.DraftsManager.saveDraft(draftName);
+                
+                // Restore button
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+                
+                // Show success
+                if (window.uiManager) {
+                    window.uiManager.showNotification('success', `Draft saved: ${result.draftName}`);
+                }
+                
+            } catch (error) {
+                console.error('Error saving draft:', error);
+                if (window.uiManager) {
+                    window.uiManager.showNotification('error', 'Failed to save draft: ' + error.message);
+                }
+            }
+        }
+        
         function clearAllFormData() {
             // Confirm with user
             if (!confirm('Are you sure you want to clear all form data? This will reset everything including uploaded documents.')) {
@@ -29057,6 +29102,9 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
 
 <!-- Transaction Staging Module - Backend as single source of truth -->
 <script src="js/transaction-staging.js"></script>
+
+<!-- Drafts Manager Module - Save and resume NFT creation -->
+<script src="js/drafts-manager.js"></script>
 
 <script>
 // Enable the new staging flow by default

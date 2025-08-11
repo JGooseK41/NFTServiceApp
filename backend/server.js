@@ -889,6 +889,16 @@ try {
     console.error('Stack:', error.stack);
 }
 
+// Drafts routes - save and resume NFT creation
+console.log('Loading drafts router...');
+try {
+    const draftsRouter = require('./routes/drafts');
+    app.use('/api/drafts', draftsRouter);
+    console.log('✅ Drafts router loaded successfully');
+} catch (error) {
+    console.error('❌ Failed to load drafts router:', error.message);
+}
+
 // Quick CORS test endpoint at server level
 app.get('/api/cors-test', (req, res) => {
     console.log('CORS test endpoint hit from:', req.headers.origin);
