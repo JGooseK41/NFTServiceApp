@@ -950,6 +950,15 @@ app.use('/', noticeImagesRouter);
 const serverRegistrationRouter = require('./routes/server-registration');
 app.use('/', serverRegistrationRouter);
 
+// Process servers management routes (admin dashboard)
+try {
+    const processServersRouter = require('./routes/process-servers');
+    app.use('/api/process-servers', processServersRouter);
+    console.log('✅ Process servers router loaded successfully');
+} catch (error) {
+    console.error('❌ Failed to load process servers router:', error.message);
+}
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);

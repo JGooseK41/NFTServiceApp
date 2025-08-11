@@ -3770,10 +3770,53 @@
                     </div>
                 </div>
 
-                <!-- All Registrations Viewer -->
+                <!-- Process Server Management Dashboard -->
+                <div class="card" style="margin-bottom: 2rem;">
+                    <div class="card-header">
+                        <h2><i class="fas fa-users-cog"></i> Process Server Management</h2>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-primary btn-small" onclick="loadProcessServers()">
+                                <i class="fas fa-sync"></i> Refresh
+                            </button>
+                            <button class="btn btn-success btn-small" onclick="showAddServerModal()">
+                                <i class="fas fa-plus"></i> Add Server
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Search and Filters -->
+                    <div style="padding: 1rem; background: var(--gray-800); border-bottom: 1px solid var(--gray-700);">
+                        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1rem;">
+                            <input type="text" id="serverSearchInput" class="form-input" 
+                                   placeholder="Search by name, agency, email, or wallet..." 
+                                   onkeyup="filterProcessServers()">
+                            <select id="serverStatusFilter" class="form-input" onchange="filterProcessServers()">
+                                <option value="">All Status</option>
+                                <option value="pending">Pending</option>
+                                <option value="approved">Approved</option>
+                                <option value="rejected">Rejected</option>
+                                <option value="deactivated">Deactivated</option>
+                            </select>
+                            <button class="btn btn-secondary" onclick="exportProcessServers()">
+                                <i class="fas fa-download"></i> Export CSV
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Process Servers List -->
+                    <div id="processServersList" style="max-height: 600px; overflow-y: auto;">
+                        <div class="empty-state">
+                            <i class="fas fa-users"></i>
+                            <h3>Loading process servers...</h3>
+                            <p>Fetching data from backend</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- All Registrations Viewer (Legacy) -->
                 <div class="card">
                     <div class="card-header">
-                        <h2><i class="fas fa-database"></i> All Process Server Registrations</h2>
+                        <h2><i class="fas fa-database"></i> Local Storage Registrations</h2>
                         <div style="display: flex; gap: 0.5rem;">
                             <button class="btn btn-secondary btn-small" onclick="fetchAllRegistrations()">
                                 <i class="fas fa-sync"></i> Load All
@@ -4367,6 +4410,75 @@
         </div>
     </div>
 
+    <!-- Process Server Edit Modal -->
+    <div id="processServerModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2 id="serverModalTitle">Edit Process Server</h2>
+                <button class="modal-close" onclick="closeServerModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="serverWalletAddress">
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Name *</label>
+                        <input type="text" id="serverName" class="form-input" placeholder="John Doe" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Agency *</label>
+                        <input type="text" id="serverAgency" class="form-input" placeholder="ABC Process Serving" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email *</label>
+                        <input type="email" id="serverEmail" class="form-input" placeholder="server@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Phone</label>
+                        <input type="tel" id="serverPhone" class="form-input" placeholder="(555) 123-4567">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Wallet Address *</label>
+                        <input type="text" id="serverWallet" class="form-input" placeholder="T..." required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Server ID</label>
+                        <input type="text" id="serverServerId" class="form-input" placeholder="PS-XXX" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">License Number</label>
+                        <input type="text" id="serverLicense" class="form-input" placeholder="License #">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Jurisdiction</label>
+                        <input type="text" id="serverJurisdiction" class="form-input" placeholder="State/Region">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Status</label>
+                        <select id="serverStatus" class="form-input">
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                            <option value="deactivated">Deactivated</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <textarea id="serverNotes" class="form-input" rows="3" placeholder="Additional notes..."></textarea>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+                    <button class="btn btn-secondary" onclick="closeServerModal()">Cancel</button>
+                    <button class="btn btn-primary" onclick="saveProcessServer()">
+                        <i class="fas fa-save"></i> Save Server
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Registration Success Modal -->
     <div id="registrationSuccessModal" class="modal">
         <div class="modal-content" style="max-width: 500px;">
@@ -4727,8 +4839,9 @@
                                            placeholder="Agency from your registration" 
                                            maxlength="100" 
                                            readonly
+                                           value="Process Server"
                                            style="background: var(--gray-800); cursor: not-allowed; color: var(--text-secondary);">
-                                    <p class="form-help">This is set from your server registration and cannot be changed</p>
+                                    <p class="form-help">This is set from your server registration (or defaults to 'Process Server')</p>
                                     <script>
                                         // Hard-code issuing agency from server registration
                                         function setIssuingAgency() {
@@ -4736,12 +4849,25 @@
                                             if (!agencyField) return;
                                             
                                             if (window.tronWeb && window.tronWeb.defaultAddress) {
+                                                const walletAddress = window.tronWeb.defaultAddress.base58;
                                                 const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
-                                                const serverData = serverRegistrations[window.tronWeb.defaultAddress.base58];
+                                                
+                                                // Debug logging
+                                                console.log('Wallet address:', walletAddress);
+                                                console.log('All registrations:', serverRegistrations);
+                                                console.log('Your registration:', serverRegistrations[walletAddress]);
+                                                
+                                                const serverData = serverRegistrations[walletAddress];
                                                 // Check both 'agency' and 'agencyName' fields for compatibility
-                                                const agencyName = serverData?.agency || serverData?.agencyName;
+                                                const agencyName = serverData?.agency || serverData?.agencyName || serverData?.name;
+                                                
                                                 if (serverData && agencyName) {
                                                     agencyField.value = agencyName;
+                                                    agencyField.style.color = 'var(--text-primary)';
+                                                } else if (serverData) {
+                                                    // Has registration but no agency name - might be a different role
+                                                    console.log('Registration found but no agency:', serverData);
+                                                    agencyField.value = serverData.name || 'User (No agency specified)';
                                                     agencyField.style.color = 'var(--text-primary)';
                                                 } else {
                                                     agencyField.value = 'No registration found - Please register first';
@@ -9216,9 +9342,325 @@ function useConnectedAddressForFeeCollector() {
                 adminContent.style.display = 'block';
                 refreshPendingRegistrations();
                 loadGitHubSettings();
+                loadProcessServers(); // Load process servers from backend
             } else {
                 adminAccessDenied.style.display = 'block';
                 adminContent.style.display = 'none';
+            }
+        }
+        
+        // Process Server Management Functions
+        let allProcessServers = [];
+        
+        async function loadProcessServers() {
+            try {
+                const apiUrl = window.location.hostname === 'localhost' 
+                    ? 'http://localhost:3001/api/process-servers'
+                    : 'https://nftserviceapp.onrender.com/api/process-servers';
+                
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+                
+                if (data.success) {
+                    allProcessServers = data.servers;
+                    displayProcessServers(data.servers);
+                    
+                    // Also update localStorage with agency data for the issuing agency field
+                    data.servers.forEach(server => {
+                        if (server.wallet_address && server.agency) {
+                            const registrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+                            if (!registrations[server.wallet_address] || !registrations[server.wallet_address].agency) {
+                                registrations[server.wallet_address] = {
+                                    ...registrations[server.wallet_address],
+                                    agency: server.agency,
+                                    name: server.name,
+                                    email: server.email,
+                                    phone: server.phone,
+                                    status: server.status
+                                };
+                                localStorage.setItem('serverRegistrations', JSON.stringify(registrations));
+                            }
+                        }
+                    });
+                } else {
+                    console.error('Failed to load process servers:', data.error);
+                }
+            } catch (error) {
+                console.error('Error loading process servers:', error);
+                document.getElementById('processServersList').innerHTML = `
+                    <div class="alert alert-error">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Failed to load process servers: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        function displayProcessServers(servers) {
+            const container = document.getElementById('processServersList');
+            
+            if (!servers || servers.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-users"></i>
+                        <h3>No process servers registered</h3>
+                        <p>Add servers using the "Add Server" button</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = servers.map(server => `
+                <div class="server-card" style="padding: 1.5rem; border-bottom: 1px solid var(--gray-700);">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                                <h3 style="margin: 0; color: var(--text-primary);">
+                                    ${server.name || 'Unnamed Server'}
+                                </h3>
+                                <span class="badge badge-${getStatusColor(server.status)}">
+                                    ${server.status || 'pending'}
+                                </span>
+                                ${server.server_id ? `<code style="font-size: 0.85rem;">${server.server_id}</code>` : ''}
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-top: 0.5rem;">
+                                <div><strong>Agency:</strong> ${server.agency || 'Not specified'}</div>
+                                <div><strong>Email:</strong> ${server.email || 'Not provided'}</div>
+                                <div><strong>Phone:</strong> ${server.phone || 'Not provided'}</div>
+                                <div><strong>Jurisdiction:</strong> ${server.jurisdiction || 'Not specified'}</div>
+                                <div><strong>License:</strong> ${server.license_number || 'Not provided'}</div>
+                                <div><strong>Notices Served:</strong> ${server.total_notices_served || 0}</div>
+                            </div>
+                            <div style="margin-top: 0.5rem;">
+                                <code style="font-size: 0.85rem; color: var(--text-muted);">
+                                    ${server.wallet_address}
+                                </code>
+                            </div>
+                            ${server.notes ? `
+                                <div style="margin-top: 0.5rem; padding: 0.5rem; background: var(--gray-800); border-radius: 4px;">
+                                    <small><strong>Notes:</strong> ${server.notes}</small>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-primary btn-small" onclick="editProcessServer('${server.wallet_address}')">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button class="btn btn-${server.status === 'approved' ? 'warning' : 'success'} btn-small" 
+                                    onclick="toggleServerStatus('${server.wallet_address}', '${server.status}')">
+                                <i class="fas fa-${server.status === 'approved' ? 'pause' : 'check'}"></i>
+                                ${server.status === 'approved' ? 'Deactivate' : 'Approve'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function getStatusColor(status) {
+            switch(status) {
+                case 'approved': return 'success';
+                case 'pending': return 'warning';
+                case 'rejected': return 'danger';
+                case 'deactivated': return 'secondary';
+                default: return 'primary';
+            }
+        }
+        
+        function filterProcessServers() {
+            const searchTerm = document.getElementById('serverSearchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('serverStatusFilter').value;
+            
+            let filtered = allProcessServers;
+            
+            if (searchTerm) {
+                filtered = filtered.filter(server => 
+                    (server.name && server.name.toLowerCase().includes(searchTerm)) ||
+                    (server.agency && server.agency.toLowerCase().includes(searchTerm)) ||
+                    (server.email && server.email.toLowerCase().includes(searchTerm)) ||
+                    (server.wallet_address && server.wallet_address.toLowerCase().includes(searchTerm))
+                );
+            }
+            
+            if (statusFilter) {
+                filtered = filtered.filter(server => server.status === statusFilter);
+            }
+            
+            displayProcessServers(filtered);
+        }
+        
+        async function editProcessServer(walletAddress) {
+            const server = allProcessServers.find(s => s.wallet_address === walletAddress);
+            if (!server) return;
+            
+            // Show edit modal with server data
+            showEditServerModal(server);
+        }
+        
+        async function toggleServerStatus(walletAddress, currentStatus) {
+            const newStatus = currentStatus === 'approved' ? 'deactivated' : 'approved';
+            const action = newStatus === 'approved' ? 'approve' : 'deactivate';
+            
+            if (!confirm(`Are you sure you want to ${action} this server?`)) return;
+            
+            try {
+                const apiUrl = window.location.hostname === 'localhost' 
+                    ? `http://localhost:3001/api/process-servers/${walletAddress}`
+                    : `https://nftserviceapp.onrender.com/api/process-servers/${walletAddress}`;
+                
+                const response = await fetch(apiUrl, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    uiManager.showNotification('success', `Server ${action}d successfully`);
+                    loadProcessServers(); // Reload list
+                } else {
+                    throw new Error(data.error || 'Failed to update status');
+                }
+            } catch (error) {
+                console.error('Error updating server status:', error);
+                uiManager.showNotification('error', 'Failed to update server status: ' + error.message);
+            }
+        }
+        
+        function exportProcessServers() {
+            if (!allProcessServers || allProcessServers.length === 0) {
+                uiManager.showNotification('warning', 'No servers to export');
+                return;
+            }
+            
+            // Convert to CSV
+            const headers = ['Name', 'Agency', 'Email', 'Phone', 'Wallet Address', 'Status', 'Server ID', 'License', 'Jurisdiction', 'Notices Served'];
+            const rows = allProcessServers.map(s => [
+                s.name || '',
+                s.agency || '',
+                s.email || '',
+                s.phone || '',
+                s.wallet_address || '',
+                s.status || '',
+                s.server_id || '',
+                s.license_number || '',
+                s.jurisdiction || '',
+                s.total_notices_served || '0'
+            ]);
+            
+            const csvContent = [headers, ...rows]
+                .map(row => row.map(cell => `"${cell}"`).join(','))
+                .join('\n');
+            
+            // Download CSV
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `process_servers_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            uiManager.showNotification('success', 'Process servers exported to CSV');
+        }
+        
+        function showAddServerModal() {
+            document.getElementById('serverModalTitle').textContent = 'Add Process Server';
+            document.getElementById('processServerModal').style.display = 'block';
+            
+            // Clear all fields
+            document.getElementById('serverWalletAddress').value = '';
+            document.getElementById('serverName').value = '';
+            document.getElementById('serverAgency').value = '';
+            document.getElementById('serverEmail').value = '';
+            document.getElementById('serverPhone').value = '';
+            document.getElementById('serverWallet').value = '';
+            document.getElementById('serverServerId').value = `PS-${Date.now().toString(36).toUpperCase()}`;
+            document.getElementById('serverLicense').value = '';
+            document.getElementById('serverJurisdiction').value = '';
+            document.getElementById('serverStatus').value = 'pending';
+            document.getElementById('serverNotes').value = '';
+        }
+        
+        function showEditServerModal(server) {
+            document.getElementById('serverModalTitle').textContent = 'Edit Process Server';
+            document.getElementById('processServerModal').style.display = 'block';
+            
+            // Fill fields with server data
+            document.getElementById('serverWalletAddress').value = server.wallet_address;
+            document.getElementById('serverName').value = server.name || '';
+            document.getElementById('serverAgency').value = server.agency || '';
+            document.getElementById('serverEmail').value = server.email || '';
+            document.getElementById('serverPhone').value = server.phone || '';
+            document.getElementById('serverWallet').value = server.wallet_address;
+            document.getElementById('serverServerId').value = server.server_id || '';
+            document.getElementById('serverLicense').value = server.license_number || '';
+            document.getElementById('serverJurisdiction').value = server.jurisdiction || '';
+            document.getElementById('serverStatus').value = server.status || 'pending';
+            document.getElementById('serverNotes').value = server.notes || '';
+        }
+        
+        function closeServerModal() {
+            document.getElementById('processServerModal').style.display = 'none';
+        }
+        
+        async function saveProcessServer() {
+            const walletAddress = document.getElementById('serverWallet').value.trim();
+            const name = document.getElementById('serverName').value.trim();
+            const agency = document.getElementById('serverAgency').value.trim();
+            const email = document.getElementById('serverEmail').value.trim();
+            
+            if (!walletAddress || !name || !agency || !email) {
+                uiManager.showNotification('error', 'Please fill in all required fields');
+                return;
+            }
+            
+            const serverData = {
+                wallet_address: walletAddress,
+                name: name,
+                agency: agency,
+                email: email,
+                phone: document.getElementById('serverPhone').value.trim(),
+                server_id: document.getElementById('serverServerId').value.trim(),
+                license_number: document.getElementById('serverLicense').value.trim(),
+                jurisdiction: document.getElementById('serverJurisdiction').value.trim(),
+                status: document.getElementById('serverStatus').value,
+                notes: document.getElementById('serverNotes').value.trim()
+            };
+            
+            try {
+                const isEdit = document.getElementById('serverWalletAddress').value;
+                const apiUrl = window.location.hostname === 'localhost' 
+                    ? 'http://localhost:3001/api/process-servers'
+                    : 'https://nftserviceapp.onrender.com/api/process-servers';
+                
+                const response = await fetch(isEdit ? `${apiUrl}/${walletAddress}` : apiUrl, {
+                    method: isEdit ? 'PUT' : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(serverData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    uiManager.showNotification('success', `Process server ${isEdit ? 'updated' : 'added'} successfully`);
+                    closeServerModal();
+                    loadProcessServers(); // Reload list
+                    
+                    // Update localStorage for issuing agency
+                    const registrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+                    registrations[walletAddress] = {
+                        ...registrations[walletAddress],
+                        ...serverData
+                    };
+                    localStorage.setItem('serverRegistrations', JSON.stringify(registrations));
+                } else {
+                    throw new Error(data.error || 'Failed to save server');
+                }
+            } catch (error) {
+                console.error('Error saving server:', error);
+                uiManager.showNotification('error', 'Failed to save server: ' + error.message);
             }
         }
 
