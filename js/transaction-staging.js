@@ -134,7 +134,7 @@ window.TransactionStaging = {
      * Execute blockchain transaction using staged data
      * Backend is the source of all transaction parameters
      */
-    async executeTransaction(transactionId) {
+    async executeTransaction(transactionId, skipSimulation = false) {
         try {
             console.log('Executing transaction from staged data:', transactionId);
             
@@ -152,32 +152,111 @@ window.TransactionStaging = {
             
             console.log('Executing with backend data:', txData);
             
-            // Try to rent energy but don't fail if it doesn't work
-            if (window.EnergyRental && !window.SKIP_ENERGY_RENTAL) {
+            // First, simulate the transaction to get actual energy requirements
+            if (!skipSimulation && window.TransactionEstimator && !window.SKIP_ENERGY_ESTIMATION) {
                 try {
-                    // Update status to energy phase
-                    if (window.TransactionStatus) {
-                        window.TransactionStatus.updatePhase('energy');
+                    console.log('Simulating transaction to estimate energy requirements...');
+                    
+                    // Build the contract call for simulation
+                    let contractCall;
+                    if (recipients.length > 1) {
+                        // Batch transaction
+                        const batchNotices = recipients.map(r => [
+                            r.recipient_address,
+                            data.encryptedIPFS || '',
+                            data.encryptionKey || '',
+                            notice.issuing_agency || '',
+                            notice.notice_type || '',
+                            notice.case_number || '',
+                            notice.public_text || '',
+                            notice.legal_rights || '',
+                            data.sponsorFees || false,
+                            data.metadataURI || ''
+                        ]);
+                        contractCall = window.legalContract.serveNoticeBatch(batchNotices);
+                    } else {
+                        // Single transaction
+                        const recipient = recipients[0];
+                        contractCall = window.legalContract.serveNotice(
+                            recipient.recipient_address,
+                            data.encryptedIPFS || '',
+                            data.encryptionKey || '',
+                            notice.issuing_agency || '',
+                            notice.notice_type || '',
+                            notice.case_number || '',
+                            notice.public_text || '',
+                            notice.legal_rights || '',
+                            data.sponsorFees || false,
+                            data.metadataURI || ''
+                        );
                     }
                     
-                    const energy = txData.energy;
-                    const energyResult = await window.EnergyRental.prepareEnergyForTransaction(
-                        energy.estimated_energy || 1500000,
-                        window.tronWeb.defaultAddress.base58
-                    );
+                    // Estimate energy
+                    const estimation = await window.TransactionEstimator.estimateTransactionEnergy(contractCall);
+                    console.log('Energy estimation result:', estimation);
                     
-                    if (!energyResult.success && !energyResult.skipped) {
-                        console.warn('Energy rental failed, proceeding without rental');
-                        // Ask user if they want to continue
-                        if (!confirm('Energy rental failed. You may pay higher fees (burning TRX for energy). Continue anyway?')) {
-                            throw new Error('Transaction cancelled - energy rental failed');
+                    // Show energy options dialog and wait for user choice
+                    const userChoice = await new Promise((resolve) => {
+                        window.TransactionEstimator.showEnergyOptionsDialog(estimation, resolve);
+                    });
+                    
+                    if (userChoice === 'cancel') {
+                        throw new Error('Transaction cancelled by user');
+                    }
+                    
+                    // Proceed based on user choice
+                    if (userChoice === 'rent' && window.EnergyRental) {
+                        try {
+                            // Update status to energy phase
+                            if (window.TransactionStatus) {
+                                window.TransactionStatus.updatePhase('energy');
+                            }
+                            
+                            // Use the actual estimated energy from simulation
+                            const energyNeeded = estimation.estimatedEnergy;
+                            console.log('Renting energy based on simulation:', energyNeeded, 'units');
+                            
+                            const energyResult = await window.EnergyRental.prepareEnergyForTransaction(
+                                energyNeeded,
+                                window.tronWeb.defaultAddress.base58
+                            );
+                            
+                            if (!energyResult.success && !energyResult.skipped) {
+                                console.warn('Energy rental failed');
+                                if (!confirm('Energy rental failed. Proceed with burning TRX instead?')) {
+                                    throw new Error('Transaction cancelled - energy rental failed');
+                                }
+                            }
+                        } catch (energyError) {
+                            console.error('Energy rental error:', energyError);
+                            if (!confirm('Energy rental failed. Proceed with burning TRX instead?')) {
+                                throw new Error('Transaction cancelled - energy rental failed');
+                            }
                         }
                     }
-                } catch (energyError) {
-                    console.error('Energy rental error:', energyError);
-                    // Ask user if they want to continue
-                    if (!confirm('Energy rental failed. You may pay higher fees (burning TRX for energy). Continue anyway?')) {
-                        throw new Error('Transaction cancelled - energy rental failed');
+                    // If user chose 'burn', we just proceed without rental
+                    
+                } catch (simError) {
+                    console.error('Simulation error:', simError);
+                    // If simulation fails, fall back to old behavior with default estimates
+                    if (window.EnergyRental && !window.SKIP_ENERGY_RENTAL) {
+                        const energy = txData.energy;
+                        const energyNeeded = energy.estimated_energy || 400000;
+                        
+                        if (confirm(`Could not simulate transaction. Estimate ${energyNeeded} energy needed. Proceed with rental?`)) {
+                            try {
+                                const energyResult = await window.EnergyRental.prepareEnergyForTransaction(
+                                    energyNeeded,
+                                    window.tronWeb.defaultAddress.base58
+                                );
+                                
+                                if (!energyResult.success && !energyResult.skipped) {
+                                    console.warn('Energy rental failed');
+                                }
+                            } catch (energyError) {
+                                console.error('Energy rental error:', energyError);
+                            }
+                        }
                     }
                 }
             }

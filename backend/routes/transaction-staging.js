@@ -300,10 +300,14 @@ router.post('/transaction',
             }
             
             // Calculate energy requirements - more accurate estimation
-            const baseEnergy = 1000000; // Base energy for contract call
-            const documentEnergy = data.hasDocument ? 200000 : 0; // Extra for document storage
-            const perRecipientEnergy = 100000; // Energy per recipient
-            const totalEnergy = baseEnergy + documentEnergy + (perRecipientEnergy * data.recipients.length);
+            // Based on actual transaction analysis:
+            // - Simple notice: ~300,000 energy
+            // - With document: ~400,000 energy
+            // - Each additional recipient: ~50,000 energy
+            const baseEnergy = 300000; // Base energy for contract call (reduced from 1M)
+            const documentEnergy = data.hasDocument ? 100000 : 0; // Extra for document storage
+            const perRecipientEnergy = 50000; // Energy per recipient
+            const totalEnergy = baseEnergy + documentEnergy + (perRecipientEnergy * Math.max(0, data.recipients.length - 1));
             
             // Calculate rental cost - using current market rates
             // Energy rental is approximately 0.00003 TRX per energy unit
