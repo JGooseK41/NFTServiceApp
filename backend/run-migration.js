@@ -18,37 +18,99 @@ async function runMigration() {
         console.log('Connecting to database...');
         client = await pool.connect();
         
-        console.log('Creating process_servers table...');
-        
-        // Create process_servers table
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS process_servers (
-                id SERIAL PRIMARY KEY,
-                wallet_address VARCHAR(255) UNIQUE NOT NULL,
-                name VARCHAR(255),
-                agency VARCHAR(255),
-                email VARCHAR(255),
-                phone VARCHAR(50),
-                server_id VARCHAR(100) UNIQUE,
-                status VARCHAR(50) DEFAULT 'pending',
-                jurisdiction VARCHAR(255),
-                license_number VARCHAR(100),
-                notes TEXT,
-                registration_data JSONB,
-                created_at TIMESTAMP DEFAULT NOW(),
-                updated_at TIMESTAMP DEFAULT NOW(),
-                approved_at TIMESTAMP,
-                approved_by VARCHAR(255)
+        // First check if table exists and what columns it has
+        console.log('Checking existing table structure...');
+        const tableExists = await client.query(`
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'process_servers'
             )
         `);
         
+        if (tableExists.rows[0].exists) {
+            console.log('Table process_servers already exists. Checking columns...');
+            
+            // Get existing columns
+            const existingColumns = await client.query(`
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'process_servers'
+            `);
+            
+            const columnNames = existingColumns.rows.map(r => r.column_name);
+            console.log('Existing columns:', columnNames.join(', '));
+            
+            // Add missing columns if needed
+            const requiredColumns = {
+                'agency': 'VARCHAR(255)',
+                'email': 'VARCHAR(255)',
+                'phone': 'VARCHAR(50)',
+                'server_id': 'VARCHAR(100) UNIQUE',
+                'status': "VARCHAR(50) DEFAULT 'pending'",
+                'jurisdiction': 'VARCHAR(255)',
+                'license_number': 'VARCHAR(100)',
+                'notes': 'TEXT',
+                'registration_data': 'JSONB',
+                'created_at': 'TIMESTAMP DEFAULT NOW()',
+                'updated_at': 'TIMESTAMP DEFAULT NOW()',
+                'approved_at': 'TIMESTAMP',
+                'approved_by': 'VARCHAR(255)'
+            };
+            
+            for (const [column, type] of Object.entries(requiredColumns)) {
+                if (!columnNames.includes(column)) {
+                    console.log(`Adding missing column: ${column}`);
+                    try {
+                        await client.query(`ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS ${column} ${type}`);
+                    } catch (err) {
+                        console.log(`Column ${column} might already exist or has conflict: ${err.message}`);
+                    }
+                }
+            }
+        } else {
+            console.log('Creating process_servers table...');
+            
+            // Create process_servers table
+            await client.query(`
+                CREATE TABLE process_servers (
+                    id SERIAL PRIMARY KEY,
+                    wallet_address VARCHAR(255) UNIQUE NOT NULL,
+                    name VARCHAR(255),
+                    agency VARCHAR(255),
+                    email VARCHAR(255),
+                    phone VARCHAR(50),
+                    server_id VARCHAR(100) UNIQUE,
+                    status VARCHAR(50) DEFAULT 'pending',
+                    jurisdiction VARCHAR(255),
+                    license_number VARCHAR(100),
+                    notes TEXT,
+                    registration_data JSONB,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW(),
+                    approved_at TIMESTAMP,
+                    approved_by VARCHAR(255)
+                )
+            `);
+        }
+        
         console.log('Creating indexes...');
         
-        // Create indexes
-        await client.query(`CREATE INDEX IF NOT EXISTS idx_process_servers_wallet ON process_servers(wallet_address)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS idx_process_servers_status ON process_servers(status)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS idx_process_servers_agency ON process_servers(agency)`);
-        await client.query(`CREATE INDEX IF NOT EXISTS idx_process_servers_created ON process_servers(created_at DESC)`);
+        // Create indexes (these won't error if they already exist)
+        try {
+            await client.query(`CREATE INDEX IF NOT EXISTS idx_process_servers_wallet ON process_servers(wallet_address)`);
+        } catch (e) { console.log('Index idx_process_servers_wallet exists'); }
+        
+        try {
+            await client.query(`CREATE INDEX IF NOT EXISTS idx_process_servers_status ON process_servers(status)`);
+        } catch (e) { console.log('Index idx_process_servers_status exists'); }
+        
+        try {
+            await client.query(`CREATE INDEX IF NOT EXISTS idx_process_servers_agency ON process_servers(agency)`);
+        } catch (e) { console.log('Index idx_process_servers_agency exists or column missing'); }
+        
+        try {
+            await client.query(`CREATE INDEX IF NOT EXISTS idx_process_servers_created ON process_servers(created_at DESC)`);
+        } catch (e) { console.log('Index idx_process_servers_created exists'); }
         
         console.log('Creating update trigger...');
         
