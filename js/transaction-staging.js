@@ -656,6 +656,29 @@ window.createLegalNoticeWithStaging = async function() {
             return;
         }
         
+        // CHECK ENERGY FIRST before staging
+        if (window.IntegratedEnergyWorkflow) {
+            // Calculate document size
+            const documentInput = document.getElementById('documentUploadInput');
+            const documentSizeMB = documentInput?.files?.[0] ? 
+                (documentInput.files[0].size / (1024 * 1024)) : 0;
+            
+            // Get recipient count
+            const recipients = window.getAllRecipients ? window.getAllRecipients() : 
+                              [document.getElementById('mintRecipient')?.value.trim() || ''];
+            
+            // Check energy requirements FIRST
+            const energyResult = await window.IntegratedEnergyWorkflow.checkAndPrepareEnergy(
+                documentSizeMB,
+                recipients.length
+            );
+            
+            if (!energyResult.proceed) {
+                console.log('Transaction cancelled - energy preparation needed');
+                return;
+            }
+        }
+        
         // Stage transaction on backend
         const stagingResult = await window.TransactionStaging.stageTransaction();
         

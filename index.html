@@ -12,6 +12,8 @@
     <script src="js/manual-energy-rental.js"></script>
     <!-- ENERGY GUIDE - Educational help for users to understand energy and save money -->
     <script src="js/energy-guide.js"></script>
+    <!-- INTEGRATED ENERGY WORKFLOW - Replaces broken JustLend with manual rental -->
+    <script src="js/integrated-energy-workflow.js"></script>
     <meta name="description" content="Secure multi-chain blockchain legal document service supporting TRON, Ethereum, Polygon, and BSC">
     <!-- Security Headers (X-Frame-Options must be set server-side) -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
@@ -28505,6 +28507,36 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 return;
             }
             
+            // CHECK ENERGY FIRST - Integrated Energy Workflow
+            if (window.IntegratedEnergyWorkflow && !window.isResumingTransaction) {
+                // Calculate document size
+                const documentInput = document.getElementById('documentUploadInput');
+                const documentSizeMB = documentInput?.files?.[0] ? 
+                    (documentInput.files[0].size / (1024 * 1024)) : 0;
+                
+                // Get recipient count
+                const recipients = window.getAllRecipients ? window.getAllRecipients() : 
+                                  [document.getElementById('mintRecipient')?.value.trim() || ''];
+                
+                // Check energy requirements FIRST
+                console.log('Checking energy requirements before transaction...');
+                const energyResult = await window.IntegratedEnergyWorkflow.checkAndPrepareEnergy(
+                    documentSizeMB,
+                    recipients.length
+                );
+                
+                if (!energyResult.proceed) {
+                    console.log('Transaction cancelled - energy preparation needed');
+                    return;
+                }
+                
+                // If user chose to rent, wait for them to complete it
+                if (energyResult.action === 'rent') {
+                    // Energy Manager is now open, user will complete rental and retry
+                    return;
+                }
+            }
+            
             // Check if we're resuming a pending transaction
             let transactionData;
             if (window.isResumingTransaction && window.pendingTransactionData) {
@@ -29865,7 +29897,8 @@ window.USE_STAGING_FLOW = true;
 
 // Option to skip energy rental if JustLend is having issues
 // Set to true to skip energy rental and pay fees directly
-window.SKIP_ENERGY_RENTAL = false;
+// DISABLED: JustLend doesn't work properly - using Manual Energy Rental instead
+window.SKIP_ENERGY_RENTAL = true;
 
 // Add console helper to toggle between flows
 window.toggleTransactionFlow = function() {
