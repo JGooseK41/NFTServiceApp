@@ -187,7 +187,7 @@ router.post('/', async (req, res) => {
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                 RETURNING *
             `, [wallet_address, name, agency, email, phone, 
-                server_id || `PS-${Date.now().toString(36).toUpperCase()}`, 
+                server_id || null,  // Don't generate random IDs - use blockchain IDs
                 status || 'pending', jurisdiction, license_number, notes]);
         }
         
