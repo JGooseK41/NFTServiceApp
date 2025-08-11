@@ -4358,7 +4358,7 @@
     </div>
 
     <!-- Registration Modal -->
-    <div id="registrationModal" class="modal">
+    <div id="serverRegistrationModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h3 class="modal-title">
@@ -4437,7 +4437,7 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                     <div class="form-group">
                         <label class="form-label">Name *</label>
-                        <input type="text" id="serverName" class="form-input" placeholder="John Doe" required>
+                        <input type="text" id="registerServerName" class="form-input" placeholder="John Doe" required>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Agency *</label>
@@ -4445,11 +4445,11 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">Email *</label>
-                        <input type="email" id="serverEmail" class="form-input" placeholder="server@example.com" required>
+                        <input type="email" id="registerServerEmail" class="form-input" placeholder="server@example.com" required>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Phone</label>
-                        <input type="tel" id="serverPhone" class="form-input" placeholder="(555) 123-4567">
+                        <input type="tel" id="registerServerPhone" class="form-input" placeholder="(555) 123-4567">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Wallet Address *</label>
@@ -4587,7 +4587,7 @@
                         <p style="font-size: 1.1rem; font-weight: 600;">📁 Upload Multiple Documents</p>
                         <p>Drag & drop one or more documents here or click to browse</p>
                         <p style="font-size: 0.85rem; color: #666;">Supported formats: JPEG, PNG, PDF • Max 10 files</p>
-                        <input type="file" id="documentUpload" accept="image/jpeg,image/jpg,image/png,application/pdf,.pdf" multiple onchange="handleDocumentUpload(event)">
+                        <input type="file" id="createDocumentUpload" accept="image/jpeg,image/jpg,image/png,application/pdf,.pdf" multiple onchange="handleDocumentUpload(event)">
                         <!-- Primary upload button with better visibility -->
                         <button type="button" class="btn btn-primary btn-lg" style="margin-top: 15px; padding: 12px 24px; font-size: 1.1rem;" onclick="document.getElementById('documentUpload').click()">
                             <i class="fas fa-folder-open"></i> Select Documents (Multiple)
@@ -5222,7 +5222,7 @@
     </div>
 
     <!-- Process Server Registration Modal -->
-    <div id="registrationModal" class="modal">
+    <div id="processServerRegistrationModal" class="modal">
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">
                 <h2><i class="fas fa-user-tie"></i> Process Server Registration</h2>
@@ -8433,7 +8433,7 @@ function parsePackedData(packedData) {
         }
         
         function closeRegistrationModal() {
-            const modal = document.getElementById('registrationModal');
+            const modal = document.getElementById('serverRegistrationModal');
             if (modal) modal.style.display = 'none';
         }
         
@@ -8449,7 +8449,7 @@ function parsePackedData(packedData) {
         
         // Open registration modal
         function openRegistrationModal() {
-            const modal = document.getElementById('registrationModal');
+            const modal = document.getElementById('serverRegistrationModal');
             if (modal) {
                 modal.style.display = 'flex';
                 // Pre-fill wallet address if connected
@@ -9830,10 +9830,10 @@ function useConnectedAddressForFeeCollector() {
             
             // Clear all fields
             document.getElementById('serverWalletAddress').value = '';
-            document.getElementById('serverName').value = '';
+            document.getElementById('registerServerName').value = '';
             document.getElementById('serverAgency').value = '';
-            document.getElementById('serverEmail').value = '';
-            document.getElementById('serverPhone').value = '';
+            document.getElementById('registerServerEmail').value = '';
+            document.getElementById('registerServerPhone').value = '';
             document.getElementById('serverWallet').value = '';
             document.getElementById('serverServerId').value = `PS-${Date.now().toString(36).toUpperCase()}`;
             document.getElementById('serverLicense').value = '';
@@ -9848,10 +9848,10 @@ function useConnectedAddressForFeeCollector() {
             
             // Fill fields with server data
             document.getElementById('serverWalletAddress').value = server.wallet_address;
-            document.getElementById('serverName').value = server.name || '';
+            document.getElementById('registerServerName').value = server.name || '';
             document.getElementById('serverAgency').value = server.agency || '';
-            document.getElementById('serverEmail').value = server.email || '';
-            document.getElementById('serverPhone').value = server.phone || '';
+            document.getElementById('registerServerEmail').value = server.email || '';
+            document.getElementById('registerServerPhone').value = server.phone || '';
             document.getElementById('serverWallet').value = server.wallet_address;
             document.getElementById('serverServerId').value = server.server_id || '';
             document.getElementById('serverLicense').value = server.license_number || '';
@@ -9866,9 +9866,9 @@ function useConnectedAddressForFeeCollector() {
         
         async function saveProcessServer() {
             const walletAddress = document.getElementById('serverWallet').value.trim();
-            const name = document.getElementById('serverName').value.trim();
+            const name = document.getElementById('registerServerName').value.trim();
             const agency = document.getElementById('serverAgency').value.trim();
-            const email = document.getElementById('serverEmail').value.trim();
+            const email = document.getElementById('registerServerEmail').value.trim();
             
             if (!walletAddress || !name || !agency || !email) {
                 uiManager.showNotification('error', 'Please fill in all required fields');
@@ -9880,7 +9880,7 @@ function useConnectedAddressForFeeCollector() {
                 name: name,
                 agency: agency,
                 email: email,
-                phone: document.getElementById('serverPhone').value.trim(),
+                phone: document.getElementById('registerServerPhone').value.trim(),
                 server_id: document.getElementById('serverServerId').value.trim(),
                 license_number: document.getElementById('serverLicense').value.trim(),
                 jurisdiction: document.getElementById('serverJurisdiction').value.trim(),
@@ -9925,7 +9925,7 @@ function useConnectedAddressForFeeCollector() {
 
         // Modal functions
         function openRegistrationModal() {
-            const modal = document.getElementById('registrationModal');
+            const modal = document.getElementById('serverRegistrationModal');
             modal.style.display = 'block';
             
             // Auto-fill wallet address if connected
@@ -9935,7 +9935,7 @@ function useConnectedAddressForFeeCollector() {
         }
 
         function closeRegistrationModal() {
-            document.getElementById('registrationModal').style.display = 'none';
+            document.getElementById('serverRegistrationModal').style.display = 'none';
             clearRegistrationForm();
         }
 
@@ -10565,7 +10565,7 @@ function useConnectedAddressForFeeCollector() {
                     <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: var(--primary);"></i>
                     <p>Drag & drop your document here or click to browse</p>
                     <p style="font-size: 0.85rem; color: #666;">Supported formats: JPEG, PNG</p>
-                    <input type="file" id="documentUpload" accept="image/jpeg,image/jpg,image/png,application/pdf,.pdf" onchange="handleDocumentUpload(event)">
+                    <input type="file" id="stampDocumentUpload" accept="image/jpeg,image/jpg,image/png,application/pdf,.pdf" onchange="handleDocumentUpload(event)">
                     <!-- Backup button in case click handler fails -->
                     <button type="button" class="btn btn-primary" style="margin-top: 10px;" onclick="document.getElementById('documentUpload').click()">
                         <i class="fas fa-folder-open"></i> Select File
@@ -10669,7 +10669,7 @@ function useConnectedAddressForFeeCollector() {
                     <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: var(--primary);"></i>
                     <p>Drag & drop your document here or click to browse</p>
                     <p style="font-size: 0.85rem; color: #666;">Supported formats: JPEG, PNG, PDF</p>
-                    <input type="file" id="documentUpload" accept="image/jpeg,image/jpg,image/png,application/pdf,.pdf" onchange="handleDocumentUpload(event)">
+                    <input type="file" id="batchDocumentUpload" accept="image/jpeg,image/jpg,image/png,application/pdf,.pdf" onchange="handleDocumentUpload(event)">
                     <!-- Backup button in case click handler fails -->
                     <button type="button" class="btn btn-primary" style="margin-top: 10px;" onclick="document.getElementById('documentUpload').click()">
                         <i class="fas fa-folder-open"></i> Select File
@@ -11625,7 +11625,7 @@ function useConnectedAddressForFeeCollector() {
                 }
             }
             
-            document.getElementById('registrationModal').style.display = 'none';
+            document.getElementById('serverRegistrationModal').style.display = 'none';
             // Clear form
             document.getElementById('modalAgencyName').value = '';
             document.getElementById('modalAgencyEmail').value = '';
@@ -11779,7 +11779,7 @@ function useConnectedAddressForFeeCollector() {
                 window.pendingFullFeeExempt = false;
                 
                 // Show the registration modal
-                document.getElementById('registrationModal').style.display = 'flex';
+                document.getElementById('serverRegistrationModal').style.display = 'flex';
             });
         }
         
@@ -12522,8 +12522,8 @@ function useConnectedAddressForFeeCollector() {
                 
                 // If process server, save registration info
                 if (roleSelect === 'process_server') {
-                    const name = document.getElementById('serverName').value.trim() || 'Unknown';
-                    const phone = document.getElementById('serverPhone').value.trim() || '';
+                    const name = document.getElementById('registerServerName').value.trim() || 'Unknown';
+                    const phone = document.getElementById('registerServerPhone').value.trim() || '';
                     
                     const registration = {
                         name,
@@ -12542,8 +12542,8 @@ function useConnectedAddressForFeeCollector() {
                 
                 // Clear form
                 document.getElementById('roleAddress').value = '';
-                document.getElementById('serverName').value = '';
-                document.getElementById('serverPhone').value = '';
+                document.getElementById('registerServerName').value = '';
+                document.getElementById('registerServerPhone').value = '';
                 
             } catch (error) {
                 hideProcessing();
@@ -17845,7 +17845,7 @@ async function checkUserRoles() {
         function setupModalProtection() {
             // Remove any inline onclick handlers and use event listeners
             const mintModal = document.getElementById('mintModal');
-            const registrationModal = document.getElementById('registrationModal');
+            const registrationModal = document.getElementById('serverRegistrationModal');
             
             if (mintModal) {
                 // Remove inline onclick
@@ -18012,7 +18012,7 @@ async function checkUserRoles() {
                 if (tabNav) tabNav.style.display = 'none';
                 
                 // Hide any registration forms
-                const registrationModal = document.getElementById('registrationModal');
+                const registrationModal = document.getElementById('serverRegistrationModal');
                 if (registrationModal) registrationModal.style.display = 'none';
                 
                 // Hide registration notice for recipients
