@@ -12,6 +12,15 @@ const fs = require('fs').promises;
 const crypto = require('crypto');
 const { Pool } = require('pg');
 
+// Handle CORS preflight requests
+router.options('*', (req, res) => {
+    res.header('Access-Control-Allow-Origin', req.headers.origin);
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.sendStatus(204);
+});
+
 // Database connection
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL || 'postgresql://nftservice:nftservice123@localhost:5432/nftservice_db',
@@ -21,9 +30,14 @@ const pool = new Pool({
 // Configure multer for file uploads
 const storage = multer.diskStorage({
     destination: async (req, file, cb) => {
-        const uploadDir = path.join(__dirname, '../uploads/staged');
-        await fs.mkdir(uploadDir, { recursive: true });
-        cb(null, uploadDir);
+        try {
+            const uploadDir = path.join(__dirname, '../uploads/staged');
+            await fs.mkdir(uploadDir, { recursive: true });
+            cb(null, uploadDir);
+        } catch (error) {
+            console.error('Error creating upload directory:', error);
+            cb(error, null);
+        }
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + crypto.randomBytes(8).toString('hex');
@@ -59,6 +73,10 @@ router.post('/transaction',
         { name: 'encryptedDocument', maxCount: 1 }
     ]),
     async (req, res) => {
+        console.log('POST /api/stage/transaction - Request received from:', req.headers.origin);
+        console.log('Request body keys:', Object.keys(req.body));
+        console.log('Request files:', req.files ? Object.keys(req.files) : 'No files');
+        
         let client;
         
         try {
