@@ -4738,8 +4738,10 @@
                                             if (window.tronWeb && window.tronWeb.defaultAddress) {
                                                 const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
                                                 const serverData = serverRegistrations[window.tronWeb.defaultAddress.base58];
-                                                if (serverData && serverData.agencyName) {
-                                                    agencyField.value = serverData.agencyName;
+                                                // Check both 'agency' and 'agencyName' fields for compatibility
+                                                const agencyName = serverData?.agency || serverData?.agencyName;
+                                                if (serverData && agencyName) {
+                                                    agencyField.value = agencyName;
                                                     agencyField.style.color = 'var(--text-primary)';
                                                 } else {
                                                     agencyField.value = 'No registration found - Please register first';
