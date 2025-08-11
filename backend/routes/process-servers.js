@@ -290,8 +290,62 @@ router.put('/:walletAddress', async (req, res) => {
 });
 
 /**
+ * PUT /api/process-servers/:walletAddress/status
+ * Update process server status (approved, suspended, rejected)
+ */
+router.put('/:walletAddress/status', async (req, res) => {
+    let client;
+    
+    try {
+        const { walletAddress } = req.params;
+        const { status } = req.body;
+        
+        // Validate status
+        const validStatuses = ['pending', 'approved', 'rejected', 'suspended'];
+        if (!status || !validStatuses.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+            });
+        }
+        
+        client = await pool.connect();
+        
+        // Update status
+        const result = await client.query(`
+            UPDATE process_servers 
+            SET status = $2, updated_at = NOW()
+            WHERE wallet_address = $1
+            RETURNING *
+        `, [walletAddress, status]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Process server not found'
+            });
+        }
+        
+        res.json({
+            success: true,
+            server: result.rows[0],
+            message: `Process server status updated to ${status}`
+        });
+        
+    } catch (error) {
+        console.error('Error updating process server status:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    } finally {
+        if (client) client.release();
+    }
+});
+
+/**
  * DELETE /api/process-servers/:walletAddress
- * Delete process server (soft delete - sets status to 'deactivated')
+ * Delete process server (soft delete - sets status to 'suspended')
  */
 router.delete('/:walletAddress', async (req, res) => {
     let client;
