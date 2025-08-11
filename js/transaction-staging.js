@@ -151,17 +151,39 @@ window.TransactionStaging = {
             
             console.log('Executing with backend data:', txData);
             
-            // Check if we have energy
+            // Try to rent energy but don't fail if it doesn't work
             if (window.EnergyRental && !window.SKIP_ENERGY_RENTAL) {
-                const energy = txData.energy;
-                const energyResult = await window.EnergyRental.prepareEnergyForTransaction(
-                    energy.estimated_energy || 1500000,
-                    window.tronWeb.defaultAddress.base58
-                );
-                
-                if (!energyResult.success && !energyResult.skipped) {
-                    throw new Error('Energy preparation failed');
+                try {
+                    // Update status to energy phase
+                    if (window.TransactionStatus) {
+                        window.TransactionStatus.updatePhase('energy');
+                    }
+                    
+                    const energy = txData.energy;
+                    const energyResult = await window.EnergyRental.prepareEnergyForTransaction(
+                        energy.estimated_energy || 1500000,
+                        window.tronWeb.defaultAddress.base58
+                    );
+                    
+                    if (!energyResult.success && !energyResult.skipped) {
+                        console.warn('Energy rental failed, proceeding without rental');
+                        // Ask user if they want to continue
+                        if (!confirm('Energy rental failed. You may pay higher fees (burning TRX for energy). Continue anyway?')) {
+                            throw new Error('Transaction cancelled - energy rental failed');
+                        }
+                    }
+                } catch (energyError) {
+                    console.error('Energy rental error:', energyError);
+                    // Ask user if they want to continue
+                    if (!confirm('Energy rental failed. You may pay higher fees (burning TRX for energy). Continue anyway?')) {
+                        throw new Error('Transaction cancelled - energy rental failed');
+                    }
                 }
+            }
+            
+            // Update status to transaction phase
+            if (window.TransactionStatus) {
+                window.TransactionStatus.updatePhase('transaction');
             }
             
             // Prepare blockchain transaction parameters from backend data
@@ -231,6 +253,11 @@ window.TransactionStaging = {
             }
             
             const txHash = typeof blockchainTx === 'string' ? blockchainTx : blockchainTx.txid || blockchainTx.transactionHash;
+            
+            // Update status to confirmation phase
+            if (window.TransactionStatus) {
+                window.TransactionStatus.updatePhase('confirmation');
+            }
             
             // Notify backend of execution
             const executeResponse = await fetch(`${this.API_BASE}/execute/${transactionId}`, {
@@ -458,8 +485,10 @@ window.TransactionStaging = {
             // Close dialog
             document.querySelector('.staging-dialog-overlay')?.remove();
             
-            // Show processing
-            if (window.showProcessing) {
+            // Show status modal with staging phase
+            if (window.TransactionStatus) {
+                window.TransactionStatus.show('staging');
+            } else if (window.showProcessing) {
                 window.showProcessing('Executing blockchain transaction...');
             }
             
@@ -467,14 +496,19 @@ window.TransactionStaging = {
             const result = await this.executeTransaction(transactionId);
             
             if (result.success) {
-                if (window.uiManager) {
-                    window.uiManager.showNotification('success', 
-                        `Transaction successful! Hash: ${result.blockchainTxHash}`);
-                }
-                
-                // Show success UI
-                if (window.showTransactionSuccess) {
-                    window.showTransactionSuccess(result);
+                // Show success in status modal
+                if (window.TransactionStatus) {
+                    window.TransactionStatus.showSuccess(result);
+                } else {
+                    if (window.uiManager) {
+                        window.uiManager.showNotification('success', 
+                            `Transaction successful! Hash: ${result.blockchainTxHash}`);
+                    }
+                    
+                    // Show success UI
+                    if (window.showTransactionSuccess) {
+                        window.showTransactionSuccess(result);
+                    }
                 }
             }
             
@@ -487,13 +521,18 @@ window.TransactionStaging = {
         } catch (error) {
             console.error('Execution error:', error);
             
-            if (window.hideProcessing) {
-                window.hideProcessing();
-            }
-            
-            if (window.uiManager) {
-                window.uiManager.showNotification('error', 
-                    'Transaction failed: ' + error.message);
+            // Show error in status modal
+            if (window.TransactionStatus) {
+                window.TransactionStatus.showError(error.message);
+            } else {
+                if (window.hideProcessing) {
+                    window.hideProcessing();
+                }
+                
+                if (window.uiManager) {
+                    window.uiManager.showNotification('error', 
+                        'Transaction failed: ' + error.message);
+                }
             }
             
             throw error;

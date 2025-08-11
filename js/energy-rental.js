@@ -278,6 +278,11 @@ const EnergyRental = {
             // Add liquidation fee (minimum fee)
             const liquidationFee = 10 * 1_000_000; // 10 TRX liquidation fee
             
+            // Check current energy before rental
+            const accountBefore = await window.tronWeb.trx.getAccountResources(receiverAddress);
+            const energyBefore = accountBefore.EnergyLimit || 0;
+            console.log('Energy before rental:', energyBefore);
+            
             // Calculate total prepayment (rent + security deposit + liquidation fee)
             const totalPrepayment = rentalCost + securityDeposit + liquidationFee;
             
@@ -354,9 +359,33 @@ const EnergyRental = {
                     }
                     
                     // Check if transaction is valid
+                    // Sometimes JustLend returns empty array but transaction succeeds
                     if (!tx || (Array.isArray(tx) && tx.length === 0)) {
-                        console.error('JustLend transaction failed - empty result returned');
-                        throw new Error('JustLend transaction failed - no transaction ID returned');
+                        console.warn('JustLend returned empty result - checking transaction status...');
+                        
+                        // Wait a moment for transaction to propagate
+                        await new Promise(resolve => setTimeout(resolve, 3000));
+                        
+                        // Check if we actually have energy now
+                        const accountAfter = await window.tronWeb.trx.getAccountResources(receiverAddress);
+                        const energyAfter = accountAfter.EnergyLimit || 0;
+                        
+                        if (energyAfter > energyBefore) {
+                            console.log('Energy rental succeeded despite empty result!');
+                            console.log(`Energy increased from ${energyBefore} to ${energyAfter}`);
+                            
+                            // Transaction succeeded even though result was empty
+                            return {
+                                success: true,
+                                transactionId: 'JUSTLEND_EMPTY_RESULT',
+                                energyRented: energyAfter - energyBefore,
+                                cost: totalPrepayment / 1_000_000,
+                                message: 'Energy rental successful (verified by balance check)'
+                            };
+                        } else {
+                            console.error('JustLend transaction failed - no energy received');
+                            throw new Error('JustLend transaction failed - no energy received after payment');
+                        }
                     }
                 } else if (contract.order) {
                     console.log('Using order method as fallback');

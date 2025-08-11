@@ -28982,9 +28982,16 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
 <!-- Drafts Manager Module - Save and resume NFT creation -->
 <script src="js/drafts-manager.js"></script>
 
+<!-- Transaction Status Manager - Dynamic status updates during processing -->
+<script src="js/transaction-status.js"></script>
+
 <script>
 // Enable the new staging flow by default
 window.USE_STAGING_FLOW = true;
+
+// Option to skip energy rental if JustLend is having issues
+// Set to true to skip energy rental and pay fees directly
+window.SKIP_ENERGY_RENTAL = false;
 
 // Add console helper to toggle between flows
 window.toggleTransactionFlow = function() {
