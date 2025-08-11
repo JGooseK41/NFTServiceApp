@@ -882,6 +882,21 @@ app.use('/api/validate', validatorRouter);
 const stagingRouter = require('./routes/transaction-staging');
 app.use('/api/stage', stagingRouter);
 
+// Quick CORS test endpoint at server level
+app.get('/api/cors-test', (req, res) => {
+    const origin = req.headers.origin;
+    if (origin) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
+    res.json({ 
+        success: true, 
+        message: 'Server-level CORS test',
+        origin: origin,
+        timestamp: new Date().toISOString()
+    });
+});
+
 // Migration routes (for database updates)
 const migrationsRouter = require('./routes/migrations');
 app.use('/api/migrations', migrationsRouter);

@@ -6,6 +6,11 @@
 
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs').promises;
+const crypto = require('crypto');
+const { Pool } = require('pg');
 
 // Test endpoint to verify CORS
 router.get('/test', (req, res) => {
@@ -34,11 +39,6 @@ router.get('/test', (req, res) => {
         allowed: allowedOrigins.includes(origin)
     });
 });
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs').promises;
-const crypto = require('crypto');
-const { Pool } = require('pg');
 
 // Database connection
 const pool = new Pool({
