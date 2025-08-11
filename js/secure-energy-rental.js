@@ -9,25 +9,8 @@ console.log('🔒 Loading Secure Energy Rental Module...');
 window.SecureEnergyRental = {
     
     // VERIFIED legitimate energy rental services (as of 2024)
+    // NOTE: TokenGoodies excluded - not available to US residents
     VERIFIED_SERVICES: {
-        TOKEN_GOODIES: {
-            name: 'Token Goodies',
-            url: 'https://www.tokengoodies.com',
-            description: 'Established TRON energy marketplace with active user base',
-            verified: true,
-            trustScore: 'HIGH',
-            minOrder: 100000,
-            durations: ['1 day', '3 days', '7 days', '14 days', '28 days'],
-            pricing: {
-                '1d': 0.000028,
-                '3d': 0.000032,
-                '7d': 0.000038,
-                '14d': 0.000045,
-                '28d': 0.000055
-            },
-            note: 'High demand - orders fill quickly',
-            warnings: []
-        },
         TRON_ENERGY_MARKET: {
             name: 'Tron Energy Market',
             url: 'https://tronenergy.market',

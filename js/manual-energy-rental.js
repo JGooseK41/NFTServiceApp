@@ -11,22 +11,6 @@ window.ManualEnergyRental = {
     // VERIFIED legitimate energy rental services (updated 2024)
     // WARNING: Only use these verified services - others may try to steal wallet permissions
     RENTAL_SERVICES: {
-        TOKEN_GOODIES: {
-            name: 'Token Goodies ✅',
-            url: 'https://www.tokengoodies.com',
-            verified: true,
-            trustScore: 'HIGH',
-            minOrder: 100000,
-            durations: ['1 day', '3 days', '7 days', '14 days', '28 days'],
-            pricing: {
-                '1d': 0.000028,
-                '3d': 0.000032,
-                '7d': 0.000038,
-                '14d': 0.000045,
-                '28d': 0.000055
-            },
-            note: '✅ Verified legitimate - High demand, orders fill quickly'
-        },
         TRON_ENERGY_MARKET: {
             name: 'Tron Energy Market ✅',
             url: 'https://tronenergy.market',
@@ -155,44 +139,46 @@ window.ManualEnergyRental = {
     
     // Calculate how much energy is needed for transaction with detailed breakdown
     calculateEnergyNeeded(documentSizeMB = 0, recipientCount = 1, includeBreakdown = false) {
-        // More accurate energy calculations based on real-world data
+        // ACCURATE energy calculations based on actual usage (2.5M for 2.5MB doc)
         const calculations = {
             // Base contract interaction
-            baseContract: 65000,
+            baseContract: 350000,  // Increased from 65k
             
             // NFT minting energy
-            nftMinting: 90000,
+            nftMinting: 450000,    // Increased from 90k
             
             // Document storage energy (varies by size)
             documentStorage: 0,
             
             // String storage (metadata)
-            metadataStorage: 50000,
+            metadataStorage: 150000,  // Increased from 50k
             
-            // Per recipient in batch (more efficient)
-            perRecipient: recipientCount > 1 ? 45000 : 0,
+            // Per recipient in batch
+            perRecipient: recipientCount > 1 ? 150000 : 0,  // Increased from 45k
             
             // IPFS hash storage if documents exist
-            ipfsStorage: documentSizeMB > 0 ? 30000 : 0,
+            ipfsStorage: documentSizeMB > 0 ? 100000 : 0,  // Increased from 30k
             
             // Event emission
-            eventCost: 20000,
+            eventCost: 80000,  // Increased from 20k
             
             // Network overhead
-            networkOverhead: 25000
+            networkOverhead: 120000  // Increased from 25k
         };
         
         // Calculate document storage energy more accurately
+        // Based on actual: 2.5MB = ~2.5M energy, so roughly 1M per MB
         if (documentSizeMB > 0) {
             const documentBytes = documentSizeMB * 1024 * 1024;
             
-            // Energy scales with document size
+            // Much higher energy cost for document storage
+            // Approximately 1 energy per byte for on-chain storage
             if (documentSizeMB < 0.5) {
-                calculations.documentStorage = documentBytes * 2.0; // Small docs
+                calculations.documentStorage = documentBytes * 0.8; // Small docs
             } else if (documentSizeMB < 2) {
-                calculations.documentStorage = documentBytes * 2.5; // Medium docs
+                calculations.documentStorage = documentBytes * 1.0; // Medium docs
             } else {
-                calculations.documentStorage = documentBytes * 3.0; // Large docs
+                calculations.documentStorage = documentBytes * 1.2; // Large docs (2.5MB = 3M bytes * 1.2 = 3.6M energy)
             }
         }
         
