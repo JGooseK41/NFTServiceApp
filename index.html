@@ -4488,9 +4488,6 @@
                             <button class="btn btn-danger" onclick="clearAllDocuments()">
                                 <i class="fas fa-trash"></i> Clear All
                             </button>
-                            <button class="btn btn-primary btn-lg" onclick="processDocuments()" style="margin-left: auto;">
-                                <i class="fas fa-file-export"></i> Process & Encrypt Documents
-                            </button>
                         </div>
                     </div>
                     <div id="compressionStatus" class="compression-status" style="display: none;">
@@ -4509,11 +4506,24 @@
                     
                     <!-- Next button to proceed to step 2 -->
                     <div id="proceedToStep2" style="display: none; margin-top: 30px; text-align: center;">
-                        <button class="btn btn-primary btn-lg" onclick="showMintStep2()" style="padding: 1rem 2rem; font-size: 1.1rem;">
+                        <button class="btn btn-primary btn-lg" onclick="processAndProceed()" style="padding: 1rem 2rem; font-size: 1.1rem;">
                             <i class="fas fa-arrow-right"></i>
                             Next: Enter Notice Details
                         </button>
                     </div>
+                    
+                    <script>
+                        // Combined function to process documents and proceed to next step
+                        async function processAndProceed() {
+                            // If documents haven't been processed yet, process them first
+                            if (window.uploadedDocumentsList && window.uploadedDocumentsList.length > 0 && !window.documentsProcessed) {
+                                await processDocuments();
+                            } else {
+                                // Documents already processed or no documents, just proceed
+                                showMintStep2();
+                            }
+                        }
+                    </script>
                 </div>
 
                 <!-- Step 2: Details -->
@@ -4719,28 +4729,37 @@
                                     <p class="form-help">Government agency or court issuing this notice</p>
                                     <script>
                                         // Auto-fill issuing agency from server registration
-                                        (function() {
+                                        function autoFillIssuingAgency() {
                                             if (window.tronWeb && window.tronWeb.defaultAddress) {
                                                 const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
                                                 const serverData = serverRegistrations[window.tronWeb.defaultAddress.base58];
                                                 if (serverData && serverData.agencyName) {
-                                                    document.getElementById('issuingAgency').value = serverData.agencyName;
-                                                }
-                                            }
-                                            // Also listen for wallet changes
-                                            window.addEventListener('walletChanged', function() {
-                                                if (window.tronWeb && window.tronWeb.defaultAddress) {
-                                                    const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
-                                                    const serverData = serverRegistrations[window.tronWeb.defaultAddress.base58];
-                                                    if (serverData && serverData.agencyName) {
-                                                        const agencyField = document.getElementById('issuingAgency');
-                                                        if (agencyField && !agencyField.value) {
-                                                            agencyField.value = serverData.agencyName;
-                                                        }
+                                                    const agencyField = document.getElementById('issuingAgency');
+                                                    if (agencyField && !agencyField.value) {
+                                                        agencyField.value = serverData.agencyName;
                                                     }
                                                 }
-                                            });
-                                        })();
+                                            }
+                                        }
+                                        
+                                        // Try to fill immediately
+                                        autoFillIssuingAgency();
+                                        
+                                        // Also try when DOM is loaded
+                                        document.addEventListener('DOMContentLoaded', autoFillIssuingAgency);
+                                        
+                                        // Try when wallet connects
+                                        window.addEventListener('walletConnected', autoFillIssuingAgency);
+                                        window.addEventListener('walletChanged', autoFillIssuingAgency);
+                                        
+                                        // Also try when modal is shown (when user clicks "Create Legal Notice")
+                                        document.addEventListener('click', function(e) {
+                                            if (e.target && (e.target.id === 'navCreateNotice' || 
+                                                e.target.closest('#navCreateNotice') ||
+                                                e.target.textContent.includes('Create Legal Notice'))) {
+                                                setTimeout(autoFillIssuingAgency, 100);
+                                            }
+                                        });
                                     </script>
                                 </div>
                                 
@@ -19732,6 +19751,11 @@ document.addEventListener('keydown', function(event) {
             document.getElementById('mintStep1').style.display = 'none';
             document.getElementById('mintStep2').style.display = 'block';
             
+            // Auto-fill issuing agency when showing step 2
+            if (typeof autoFillIssuingAgency === 'function') {
+                autoFillIssuingAgency();
+            }
+            
             // Update document preview if available
             if (uploadedImage && uploadedImage.data) {
                 const preview = document.getElementById('documentPreview');
@@ -20226,6 +20250,7 @@ document.addEventListener('keydown', function(event) {
             window.uploadedDocumentsList = [];
             uploadedImage = null;
             window.uploadedImage = null;
+            window.documentsProcessed = false;
             
             // Reset the file input
             const fileInput = document.getElementById('documentUpload');
@@ -20540,6 +20565,9 @@ document.addEventListener('keydown', function(event) {
                 }
                 
                 updateCompressionProgress(100, 'Documents ready for encrypted delivery');
+                
+                // Mark documents as processed
+                window.documentsProcessed = true;
                 
                 // Show proceed button
                 document.getElementById('proceedToStep2').style.display = 'block';
