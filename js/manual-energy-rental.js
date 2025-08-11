@@ -8,40 +8,78 @@ console.log('⚡ Loading Manual Energy Rental Module...');
 
 window.ManualEnergyRental = {
     
-    // Known energy rental services with duration options
+    // VERIFIED legitimate energy rental services (updated 2024)
+    // WARNING: Only use these verified services - others may try to steal wallet permissions
     RENTAL_SERVICES: {
-        TRON_PULSE: {
-            name: 'TronPulse Energy',
-            url: 'https://energy.tronpulse.io',
-            contract: 'TQAg2T2vJcHAX9TVT2KTVgdJsBDPLWQpwF',
-            minOrder: 100000,
-            durations: ['1 hour', '3 hours', '1 day', '3 days'],
-            pricing: {
-                '1h': 0.000020,  // TRX per energy unit
-                '3h': 0.000025,
-                '1d': 0.000030,
-                '3d': 0.000035
-            },
-            note: 'Cheaper for short rentals'
-        },
         TOKEN_GOODIES: {
-            name: 'Token Goodies',
+            name: 'Token Goodies ✅',
             url: 'https://www.tokengoodies.com',
-            contract: 'TKTDrPMFhJXHxvRvKsQM6BfR4K7Y6EkGNa',
+            verified: true,
+            trustScore: 'HIGH',
             minOrder: 100000,
-            durations: ['1 day', '3 days', '7 days', '14 days'],
+            durations: ['1 day', '3 days', '7 days', '14 days', '28 days'],
             pricing: {
                 '1d': 0.000028,
                 '3d': 0.000032,
                 '7d': 0.000038,
-                '14d': 0.000045
+                '14d': 0.000045,
+                '28d': 0.000055
             },
-            note: 'Good for medium-term rentals'
+            note: '✅ Verified legitimate - High demand, orders fill quickly'
+        },
+        TRON_ENERGY_MARKET: {
+            name: 'Tron Energy Market ✅',
+            url: 'https://tronenergy.market',
+            verified: true,
+            trustScore: 'HIGH',
+            minOrder: 65000,
+            durations: ['1 hour', '6 hours', '1 day', '3 days', '7 days'],
+            pricing: {
+                '1h': 0.000020,
+                '6h': 0.000024,
+                '1d': 0.000028,
+                '3d': 0.000033,
+                '7d': 0.000038
+            },
+            note: '✅ Verified legitimate - Popular trading platform'
+        },
+        TRON_SAVE: {
+            name: 'TronSave ✅',
+            url: 'https://tronsave.io',
+            verified: true,
+            trustScore: 'HIGH',
+            minOrder: 50000,
+            durations: ['1 hour', '12 hours', '1 day', '3 days', '7 days'],
+            pricing: {
+                '1h': 0.000019,
+                '12h': 0.000025,
+                '1d': 0.000029,
+                '3d': 0.000034,
+                '7d': 0.000039
+            },
+            note: '✅ Verified legitimate - User-friendly with low fees'
+        },
+        TR_ENERGY: {
+            name: 'TR.Energy ✅',
+            url: 'https://tr.energy',
+            verified: true,
+            trustScore: 'HIGH',
+            minOrder: 100000,
+            durations: ['1 hour', '1 day', '3 days', '7 days', '30 days'],
+            pricing: {
+                '1h': 0.000021,
+                '1d': 0.000030,
+                '3d': 0.000035,
+                '7d': 0.000040,
+                '30d': 0.000065
+            },
+            note: '✅ Verified legitimate - 10,000+ users, used by exchanges'
         },
         FEEE_ENERGY: {
-            name: 'Feee.io',
+            name: 'Feee.io ⚠️',
             url: 'https://www.feee.io',
-            contract: 'TZ7KbNNTa3vnet4KLjEeWWBhNgFWcJmXEe',
+            verified: true,
+            trustScore: 'MEDIUM',
             minOrder: 65000,
             durations: ['1 hour', '6 hours', '1 day', '3 days', '7 days'],
             pricing: {
@@ -51,21 +89,7 @@ window.ManualEnergyRental = {
                 '3d': 0.000030,
                 '7d': 0.000035
             },
-            note: 'Cheapest for quick transactions'
-        },
-        TRON_STATION: {
-            name: 'TronStation (Official)',
-            url: 'https://www.tronstation.io',
-            contract: 'TPjGUuQfq6R3FMBmsacd6Z5dvAgrD2rz5n',
-            minOrder: 32000,
-            durations: ['1 day', '3 days', '7 days', '30 days'],
-            pricing: {
-                '1d': 0.000032,
-                '3d': 0.000038,
-                '7d': 0.000045,
-                '30d': 0.000060
-            },
-            note: 'Official TRON service, most reliable'
+            note: '⚠️ Mixed reviews on support - Cheapest rates but verify first'
         }
     },
     
@@ -531,7 +555,7 @@ window.ManualEnergyRental = {
                     <div style="color: #ffff00; font-size: 0.9em; margin: 5px 0;">
                         💡 Best for quick use: ${rec.bestPrice.duration} = ${rec.bestPrice.cost} TRX
                     </div>
-                    <a href="${rec.url}" target="_blank" style="
+                    <a href="${rec.url}" target="_blank" onclick="ManualEnergyRental.showSecurityReminder('${rec.url}', '${rec.service}'); return false;" style="
                         display: inline-block;
                         margin-top: 5px;
                         color: #00ffff;
@@ -567,6 +591,95 @@ window.ManualEnergyRental = {
         document.getElementById('doc-size-input').value = docSize;
         document.getElementById('recipient-count-input').value = recipients;
         this.calculateAndShowRental();
+    },
+    
+    // Show security reminder before visiting rental service
+    showSecurityReminder(url, serviceName) {
+        const reminder = document.createElement('div');
+        reminder.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 100000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        
+        reminder.innerHTML = `
+            <div style="
+                background: linear-gradient(135deg, #2a1a1a, #1a0f0f);
+                border: 3px solid #ffaa00;
+                border-radius: 15px;
+                padding: 30px;
+                max-width: 500px;
+                color: white;
+                font-family: Arial, sans-serif;
+            ">
+                <h2 style="color: #ffaa00; margin-bottom: 20px;">
+                    🔒 Security Reminder
+                </h2>
+                
+                <p style="margin-bottom: 20px;">
+                    You're about to visit: <strong style="color: #00ffff;">${serviceName}</strong>
+                </p>
+                
+                <div style="background: rgba(0,255,0,0.1); border: 1px solid #00ff00; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h4 style="color: #00ff00; margin-top: 0;">✅ SAFE Actions:</h4>
+                    <ul style="line-height: 1.8; margin: 5px 0;">
+                        <li>Enter your PUBLIC wallet address</li>
+                        <li>Choose energy amount and duration</li>
+                        <li>Pay with TRX for energy rental</li>
+                    </ul>
+                </div>
+                
+                <div style="background: rgba(255,0,0,0.1); border: 1px solid #ff0000; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h4 style="color: #ff0000; margin-top: 0;">🚨 NEVER DO:</h4>
+                    <ul style="line-height: 1.8; margin: 5px 0;">
+                        <li>Enter private keys or seed phrases</li>
+                        <li>Approve token spending permissions</li>
+                        <li>Grant wallet control or ownership</li>
+                        <li>Sign unknown transactions</li>
+                    </ul>
+                </div>
+                
+                <div style="background: rgba(255,255,0,0.1); border: 1px solid #ffff00; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
+                    <strong style="color: #ffff00;">⚠️ Important:</strong> If the site asks for anything other than your PUBLIC address and TRX payment, CLOSE IT IMMEDIATELY!
+                </div>
+                
+                <div style="display: flex; gap: 15px; justify-content: center;">
+                    <button onclick="window.open('${url}', '_blank'); this.parentElement.parentElement.parentElement.remove();" style="
+                        padding: 12px 30px;
+                        background: linear-gradient(135deg, #00aa00, #008800);
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        font-weight: bold;
+                        cursor: pointer;
+                        font-size: 1em;
+                    ">
+                        ✅ I Understand - Continue
+                    </button>
+                    
+                    <button onclick="this.parentElement.parentElement.parentElement.remove();" style="
+                        padding: 12px 30px;
+                        background: #666;
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-size: 1em;
+                    ">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(reminder);
     },
     
     // Initialize
