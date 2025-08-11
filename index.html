@@ -5388,7 +5388,9 @@
         let currentCreationFee = 0.1; // Default value in TRX
         
         // Document upload vars
-        let uploadedImage = null;
+        // Note: uploadedImage is defined as window.uploadedImage by ensure-document-storage.js
+        // let uploadedImage = null;  // Commented out to avoid conflict
+        window.uploadedImage = null;  // Use window property instead
         let uploadedFileInfo = null;
         let currentNoticeId = null;
         

@@ -193,21 +193,19 @@ window.DocumentStorageAssurance = {
     }
 };
 
-// Intercept window.uploadedImage setter to capture documents
-Object.defineProperty(window, 'uploadedImage', {
-    get() {
-        return window._uploadedImage;
-    },
-    set(value) {
-        console.log('🎯 Document data intercepted!');
-        window._uploadedImage = value;
-        
-        // Capture the document
-        if (value) {
-            window.DocumentStorageAssurance.captureDocument('uploadedImage', value);
+// Monitor window.uploadedImage changes
+// Since uploadedImage is already defined in index.html, we'll use a different approach
+if (!window._uploadedImageMonitor) {
+    window._uploadedImageMonitor = setInterval(() => {
+        if (window.uploadedImage && !window._lastUploadedImage) {
+            console.log('🎯 New document detected!');
+            window.DocumentStorageAssurance.captureDocument('uploadedImage', window.uploadedImage);
+            window._lastUploadedImage = window.uploadedImage;
+        } else if (!window.uploadedImage && window._lastUploadedImage) {
+            window._lastUploadedImage = null;
         }
-    }
-});
+    }, 500); // Check every 500ms
+}
 
 // Hook into the NFT creation process
 const originalServeNotice = window.legalContract?.serveNotice;
