@@ -69,6 +69,10 @@
     <script src="js/auto-register-server.js"></script>
     <script src="js/force-agency-update.js"></script>
     <script src="js/fix-transaction-fees.js"></script>
+    <!-- Emergency fee fix - MUST load first to prevent excessive charges -->
+    <script src="js/emergency-fee-fix.js"></script>
+    <!-- Fix transaction order - calculate energy THEN rent THEN execute -->
+    <script src="js/fix-transaction-order.js"></script>
     <!-- Fully automatic transaction system - zero user interaction -->
     <script src="js/fully-automatic-transaction.js"></script>
     <script src="js/rate-limiter.js?v=1"></script>
