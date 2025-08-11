@@ -35,8 +35,8 @@ window.autoRegisterServer = async function() {
     // Prepare registration data
     const registrationData = {
         wallet_address: walletAddress,
-        name: existingData.name || 'Process Server',
-        agency: existingData.agency || 'The Block Service', // Use your actual agency name
+        name: existingData.name || 'Jesse',
+        agency: existingData.agency === 'Unknown Agency' ? 'The Block Service' : (existingData.agency || 'The Block Service'),
         email: existingData.email || 'service@theblockservice.com',
         phone: existingData.phone || '',
         status: 'approved', // Auto-approve since you're the admin
@@ -48,14 +48,37 @@ window.autoRegisterServer = async function() {
     console.log('Registration data:', registrationData);
     
     try {
-        // Register the server
-        const response = await fetch('https://nftserviceapp.onrender.com/api/process-servers', {
+        // Try the routes endpoint first (correct one)
+        let response = await fetch('https://nftserviceapp.onrender.com/api/process-servers', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(registrationData)
         });
+        
+        // If that fails, try with old field names
+        if (!response.ok) {
+            console.log('First attempt failed, trying with alternate field names...');
+            const altData = {
+                walletAddress: walletAddress,  // camelCase version
+                agencyName: registrationData.agency,
+                contactEmail: registrationData.email,
+                phoneNumber: registrationData.phone,
+                licenseNumber: registrationData.license_number,
+                jurisdictions: [registrationData.jurisdiction],
+                website: '',
+                verificationDocuments: []
+            };
+            
+            response = await fetch('https://nftserviceapp.onrender.com/api/process-servers', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(altData)
+            });
+        }
         
         const result = await response.json();
         
