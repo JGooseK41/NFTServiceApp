@@ -148,56 +148,7 @@ Proceed with energy rental?
     };
 }
 
-// Add fee display to the UI
-function addFeeDisplay() {
-    const existingDisplay = document.getElementById('emergency-fee-display');
-    if (existingDisplay) return;
-    
-    const display = document.createElement('div');
-    display.id = 'emergency-fee-display';
-    display.style.cssText = `
-        position: fixed;
-        top: 10px;
-        right: 10px;
-        background: #1a1a1a;
-        border: 2px solid #00ff00;
-        color: #00ff00;
-        padding: 15px;
-        border-radius: 5px;
-        font-family: monospace;
-        z-index: 100000;
-        max-width: 300px;
-    `;
-    
-    display.innerHTML = `
-        <div style="font-weight: bold; margin-bottom: 10px;">
-            💰 FEE PROTECTION ACTIVE
-        </div>
-        <div style="font-size: 12px;">
-            ✅ Creation fee: 25 TRX (~$6)<br>
-            ✅ Energy rental: 88 TRX (~$21)<br>
-            ⚠️ Will warn about high fees<br>
-            <br>
-            <span style="color: yellow;">
-                ⚠️ If asked for $200+, check the breakdown!
-            </span>
-        </div>
-    `;
-    
-    document.body.appendChild(display);
-    
-    // Auto-hide after 10 seconds
-    setTimeout(() => {
-        display.style.opacity = '0.3';
-    }, 10000);
-}
-
-// Initialize fee display when page loads
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', addFeeDisplay);
-} else {
-    addFeeDisplay();
-}
+// Removed fee display box as requested
 
 console.log('✅ EMERGENCY FEE FIX ACTIVE!');
 console.log('   💰 Shows transparent costs');
