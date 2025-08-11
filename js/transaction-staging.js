@@ -51,9 +51,10 @@ window.TransactionStaging = {
             uploadData.append('network', window.currentNetwork || 'mainnet');
             uploadData.append('contractAddress', window.legalContract?.address || '');
             
-            // Add fees - Updated to correct amounts
-            uploadData.append('creationFee', '90');
-            uploadData.append('sponsorshipFee', '5');
+            // Add fees - Match what the contract actually expects
+            // serviceFee is 20 TRX, creationFee is 0 TRX, sponsorshipFee is 2 TRX
+            uploadData.append('creationFee', '20');  // This is actually the service fee
+            uploadData.append('sponsorshipFee', '2'); // 2 TRX per recipient for sponsorship
             
             // Handle files
             const thumbnailInput = document.getElementById('uploadInput');
@@ -208,9 +209,20 @@ window.TransactionStaging = {
                 
                 console.log('Executing batch transaction with backend data:', batchNotices);
                 
+                // Calculate the total fee in TRX
+                const totalFeeTRX = data.creationFee + (data.sponsorFees ? data.sponsorshipFee * recipients.length : 0);
+                console.log('Total fee calculation:', {
+                    creationFee: data.creationFee,
+                    sponsorshipFee: data.sponsorshipFee,
+                    recipientCount: recipients.length,
+                    sponsorFees: data.sponsorFees,
+                    totalFeeTRX: totalFeeTRX,
+                    totalFeeSUN: totalFeeTRX * 1_000_000
+                });
+                
                 blockchainTx = await window.legalContract.serveNoticeBatch(batchNotices).send({
                     feeLimit: 500_000_000,
-                    callValue: window.tronWeb.toSun(data.creationFee + (data.sponsorFees ? data.sponsorshipFee * recipients.length : 0)),
+                    callValue: totalFeeTRX * 1_000_000, // Convert TRX to SUN directly (don't use toSun on already TRX values)
                     shouldPollResponse: true
                 });
                 
@@ -228,6 +240,16 @@ window.TransactionStaging = {
                 
                 console.log('Executing single transaction with backend data');
                 
+                // Calculate the total fee in TRX
+                const totalFeeTRX = data.creationFee + (data.sponsorFees ? data.sponsorshipFee : 0);
+                console.log('Single transaction fee calculation:', {
+                    creationFee: data.creationFee,
+                    sponsorshipFee: data.sponsorshipFee,
+                    sponsorFees: data.sponsorFees,
+                    totalFeeTRX: totalFeeTRX,
+                    totalFeeSUN: totalFeeTRX * 1_000_000
+                });
+                
                 blockchainTx = await window.legalContract.serveNotice(
                     recipient.recipient_address,
                     data.encryptedIPFS || '',
@@ -241,7 +263,7 @@ window.TransactionStaging = {
                     data.metadataURI || ''
                 ).send({
                     feeLimit: 100_000_000,
-                    callValue: window.tronWeb.toSun(data.creationFee + (data.sponsorFees ? data.sponsorshipFee : 0)),
+                    callValue: totalFeeTRX * 1_000_000, // Convert TRX to SUN directly (don't use toSun on already TRX values)
                     shouldPollResponse: true
                 });
                 

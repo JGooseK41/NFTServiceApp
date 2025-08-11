@@ -156,10 +156,10 @@ router.post('/transaction',
                 encryptionKey: req.body.encryptionKey || '',
                 encryptedIPFS: req.body.encryptedIPFS || '',
                 
-                // Fee details
+                // Fee details - Match contract values
                 sponsorFees: req.body.sponsorFees === 'true',
-                creationFee: parseFloat(req.body.creationFee || '90'),
-                sponsorshipFee: parseFloat(req.body.sponsorshipFee || '5'),
+                creationFee: parseFloat(req.body.creationFee || '20'),  // serviceFee is 20 TRX
+                sponsorshipFee: parseFloat(req.body.sponsorshipFee || '2'), // sponsorshipFee is 2 TRX
                 
                 // Network details
                 network: req.body.network || 'mainnet',

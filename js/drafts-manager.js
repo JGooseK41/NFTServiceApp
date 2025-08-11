@@ -73,8 +73,8 @@ window.DraftsManager = {
             const customFields = {
                 hasDocument: deliveryMethod === 'document',
                 requiresSignature: deliveryMethod === 'document',
-                creationFee: '90',
-                sponsorshipFee: '5'
+                creationFee: '20',  // Actual contract serviceFee
+                sponsorshipFee: '2'  // Actual contract sponsorshipFee
             };
             formData.append('customFields', JSON.stringify(customFields));
             
