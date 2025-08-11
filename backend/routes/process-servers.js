@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');
+const { formatServerId } = require('../utils/server-id-formatter');
 
 // Database connection
 const pool = new Pool({
@@ -36,10 +37,16 @@ router.get('/', async (req, res) => {
             ORDER BY ps.created_at DESC
         `);
         
+        // Format server IDs for display
+        const formattedServers = result.rows.map(server => ({
+            ...server,
+            display_server_id: server.server_id || 'Pending'
+        }));
+        
         res.json({
             success: true,
-            servers: result.rows,
-            total: result.rows.length
+            servers: formattedServers,
+            total: formattedServers.length
         });
         
     } catch (error) {
@@ -398,10 +405,16 @@ router.get('/search', async (req, res) => {
         
         const result = await client.query(query, params);
         
+        // Format server IDs for display
+        const formattedServers = result.rows.map(server => ({
+            ...server,
+            display_server_id: server.server_id || 'Pending'
+        }));
+        
         res.json({
             success: true,
-            servers: result.rows,
-            total: result.rows.length
+            servers: formattedServers,
+            total: formattedServers.length
         });
         
     } catch (error) {
