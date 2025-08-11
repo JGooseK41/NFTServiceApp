@@ -405,6 +405,28 @@ router.post('/transaction',
  * This is used by the blockchain transaction executor
  */
 router.get('/transaction/:transactionId', async (req, res) => {
+    // Set CORS headers
+    const origin = req.headers.origin;
+    const allowedOrigins = [
+        'https://theblockservice.com',
+        'https://www.theblockservice.com',
+        'https://blockserved.com',
+        'https://www.blockserved.com',
+        'https://nft-legal-service.netlify.app',
+        'http://localhost:8080',
+        'http://localhost:3000'
+    ];
+    
+    if (allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    }
+    
+    console.log('GET /api/stage/transaction/:id - Request for:', req.params.transactionId);
+    console.log('From origin:', origin);
+    
     let client;
     
     try {
@@ -460,6 +482,14 @@ router.get('/transaction/:transactionId', async (req, res) => {
         `, [transactionId]);
         
         // Compile complete transaction data
+        let parsedData = {};
+        try {
+            parsedData = JSON.parse(transaction.data || '{}');
+        } catch (parseError) {
+            console.error('Error parsing transaction data:', parseError);
+            parsedData = {};
+        }
+        
         const completeData = {
             transaction: transaction,
             notice: noticeResult.rows[0] || {},
@@ -467,7 +497,7 @@ router.get('/transaction/:transactionId', async (req, res) => {
             ipfs: ipfsResult.rows[0] || {},
             recipients: recipientsResult.rows,
             energy: energyResult.rows[0] || {},
-            data: JSON.parse(transaction.data || '{}')
+            data: parsedData
         };
         
         res.json({
@@ -480,10 +510,13 @@ router.get('/transaction/:transactionId', async (req, res) => {
         
     } catch (error) {
         console.error('Error retrieving staged transaction:', error);
+        console.error('Stack trace:', error.stack);
         
+        // Always return proper JSON
         res.status(500).json({
             success: false,
-            error: error.message
+            error: error.message || 'Failed to retrieve staged transaction',
+            transactionId: req.params.transactionId
         });
         
     } finally {
