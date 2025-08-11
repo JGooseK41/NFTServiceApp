@@ -12,15 +12,6 @@ const fs = require('fs').promises;
 const crypto = require('crypto');
 const { Pool } = require('pg');
 
-// Handle CORS preflight requests
-router.options('*', (req, res) => {
-    res.header('Access-Control-Allow-Origin', req.headers.origin);
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.sendStatus(204);
-});
-
 // Database connection
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL || 'postgresql://nftservice:nftservice123@localhost:5432/nftservice_db',
