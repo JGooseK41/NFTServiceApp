@@ -27,12 +27,20 @@ const pool = new Pool({
 });
 
 // TronWeb setup
-const tronWeb = new TronWeb({
-    fullHost: process.env.TRON_NETWORK === 'mainnet' 
-        ? 'https://api.trongrid.io'
-        : 'https://nile.trongrid.io',
-    privateKey: process.env.TRON_PRIVATE_KEY || '01' // Dummy key for read-only
-});
+let tronWeb;
+try {
+    if (TronWeb && typeof TronWeb === 'function') {
+        tronWeb = new TronWeb({
+            fullHost: process.env.TRON_NETWORK === 'mainnet' 
+                ? 'https://api.trongrid.io'
+                : 'https://nile.trongrid.io',
+            privateKey: process.env.TRON_PRIVATE_KEY || '01' // Dummy key for read-only
+        });
+    }
+} catch (err) {
+    console.warn('⚠️ Could not initialize TronWeb instance:', err.message);
+    tronWeb = null;
+}
 
 // Contract address from environment
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
