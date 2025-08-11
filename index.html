@@ -3781,6 +3781,9 @@
                             <button class="btn btn-success btn-small" onclick="showAddServerModal()">
                                 <i class="fas fa-plus"></i> Add Server
                             </button>
+                            <button class="btn btn-warning btn-small" onclick="runProcessServerMigration()" title="Create database table if it doesn't exist">
+                                <i class="fas fa-database"></i> Run Migration
+                            </button>
                         </div>
                     </div>
                     
@@ -9351,6 +9354,30 @@ function useConnectedAddressForFeeCollector() {
         
         // Process Server Management Functions
         let allProcessServers = [];
+        
+        async function runProcessServerMigration() {
+            try {
+                const apiUrl = window.location.hostname === 'localhost' 
+                    ? 'http://localhost:3001/api/migrate-process-servers/run'
+                    : 'https://nftserviceapp.onrender.com/api/migrate-process-servers/run';
+                
+                uiManager.showNotification('info', 'Running database migration...');
+                
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+                
+                if (data.success) {
+                    uiManager.showNotification('success', 'Database migration completed successfully');
+                    // Now load process servers
+                    loadProcessServers();
+                } else {
+                    throw new Error(data.error || 'Migration failed');
+                }
+            } catch (error) {
+                console.error('Migration error:', error);
+                uiManager.showNotification('error', 'Migration failed: ' + error.message);
+            }
+        }
         
         async function loadProcessServers() {
             try {

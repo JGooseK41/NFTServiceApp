@@ -959,6 +959,15 @@ try {
     console.error('❌ Failed to load process servers router:', error.message);
 }
 
+// Migration route for process servers table
+try {
+    const migrateProcessServers = require('./routes/migrate-process-servers');
+    app.use('/api/migrate-process-servers', migrateProcessServers);
+    console.log('✅ Process servers migration route loaded');
+} catch (error) {
+    console.error('❌ Failed to load migration route:', error.message);
+}
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
