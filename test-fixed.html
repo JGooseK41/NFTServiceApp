@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fixed System Test</title>
+    <style>
+        body { font-family: monospace; background: #000; color: #0f0; padding: 20px; }
+        .pass { color: #0f0; }
+        .fail { color: #f00; }
+        .info { color: #ff0; }
+        button { background: #0a0; color: #fff; padding: 10px 20px; border: none; cursor: pointer; margin: 5px; }
+        #results { background: #111; padding: 20px; margin: 20px 0; border: 1px solid #333; }
+    </style>
+</head>
+<body>
+    <h1>🔧 FIXED SYSTEM TEST</h1>
+    <button onclick="runTest()">Run Complete Test</button>
+    <button onclick="checkModules()">Check Modules Only</button>
+    <button onclick="location.reload()">Reload Page</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const log = (msg, type = 'info') => {
+            const results = document.getElementById('results');
+            const time = new Date().toLocaleTimeString();
+            const color = type === 'pass' ? '#0f0' : type === 'fail' ? '#f00' : '#ff0';
+            results.innerHTML += `<div style="color: ${color}">[${time}] ${msg}</div>`;
+        };
+
+        async function checkModules() {
+            log('=== MODULE CHECK ===', 'info');
+            
+            // Check each module
+            const modules = {
+                'TronWeb': window.tronWeb,
+                'TronWeb Ready': window.tronWeb?.ready,
+                'Wallet Connected': window.tronWeb?.defaultAddress?.base58,
+                'CONTRACT_ABI': window.CONTRACT_ABI,
+                'legalContract': window.legalContract,
+                'BACKEND_API_URL': window.BACKEND_API_URL,
+                'EnergyRental': window.EnergyRental,
+                'TransactionEstimator': window.TransactionEstimator,
+                'DocumentStorageAssurance': window.DocumentStorageAssurance,
+                'TransactionStaging': window.TransactionStaging
+            };
+            
+            let passed = 0;
+            let failed = 0;
+            
+            for (const [name, value] of Object.entries(modules)) {
+                if (value) {
+                    log(`✅ ${name}: LOADED`, 'pass');
+                    passed++;
+                } else {
+                    log(`❌ ${name}: NOT LOADED`, 'fail');
+                    failed++;
+                }
+            }
+            
+            log(`\nSummary: ${passed} passed, ${failed} failed`, failed > 0 ? 'fail' : 'pass');
+            
+            // If contract exists, test it
+            if (window.legalContract) {
+                try {
+                    const fee = await window.legalContract.creationFee().call();
+                    log(`✅ Contract works! Fee: ${fee / 1_000_000} TRX`, 'pass');
+                } catch (e) {
+                    log(`❌ Contract call failed: ${e.message}`, 'fail');
+                }
+            }
+            
+            // Test backend
+            if (window.BACKEND_API_URL) {
+                try {
+                    const response = await fetch(`${window.BACKEND_API_URL}/api/health`);
+                    log(`✅ Backend responded: ${response.status}`, 'pass');
+                } catch (e) {
+                    log(`❌ Backend failed: ${e.message}`, 'fail');
+                }
+            }
+        }
+
+        async function runTest() {
+            document.getElementById('results').innerHTML = '';
+            log('=== STARTING COMPLETE TEST ===', 'info');
+            
+            // Wait a bit for modules to initialize
+            log('Waiting 2 seconds for modules to initialize...', 'info');
+            await new Promise(r => setTimeout(r, 2000));
+            
+            // Check modules first
+            await checkModules();
+            
+            // Test actual functionality
+            log('\n=== FUNCTIONALITY TESTS ===', 'info');
+            
+            // 1. Test wallet
+            if (window.tronWeb?.defaultAddress?.base58) {
+                const balance = await window.tronWeb.trx.getBalance(window.tronWeb.defaultAddress.base58);
+                log(`✅ Wallet balance: ${balance / 1_000_000} TRX`, 'pass');
+            } else {
+                log('❌ No wallet connected', 'fail');
+            }
+            
+            // 2. Test fee calculation
+            if (window.calculateFee) {
+                const fee = window.calculateFee(3, true);
+                const expectedFee = 55 * 1_000_000; // 55 TRX in SUN
+                if (fee === expectedFee) {
+                    log(`✅ Fee calculation correct: ${fee / 1_000_000} TRX`, 'pass');
+                } else {
+                    log(`❌ Fee calculation wrong: got ${fee / 1_000_000} TRX, expected 55 TRX`, 'fail');
+                }
+            }
+            
+            // 3. Test energy estimation
+            if (window.TransactionEstimator) {
+                const energy = await window.TransactionEstimator.estimateEnergy('serveNotice', {});
+                log(`✅ Energy estimation: ${energy}`, 'pass');
+            }
+            
+            // 4. Test transaction staging
+            if (window.TransactionStaging) {
+                const result = await window.TransactionStaging.stageTransaction({
+                    method: 'serveNotice',
+                    test: true
+                });
+                if (result.success) {
+                    log(`✅ Transaction staging works: ${result.transactionId}`, 'pass');
+                } else {
+                    log('❌ Transaction staging failed', 'fail');
+                }
+            }
+            
+            log('\n=== TEST COMPLETE ===', 'info');
+        }
+        
+        // Auto-check on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                log('Page loaded, checking initial status...', 'info');
+                checkModules();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

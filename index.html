@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LegalNotice - Blockchain Legal Document Service</title>
+    <!-- OPTIMIZED TRANSACTION CORE - Fixes execution while preserving all features -->
+    <script src="js/optimized-transaction-core.js"></script>
     <meta name="description" content="Secure multi-chain blockchain legal document service supporting TRON, Ethereum, Polygon, and BSC">
     <!-- Security Headers (X-Frame-Options must be set server-side) -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
@@ -59,28 +61,31 @@
     <script src="js/direct-admin-fix.js"></script>
     <script src="js/fix-edit-button.js"></script>
     <script src="js/fix-save-function.js"></script>
+    <!-- Commented out due to duplicate declarations
     <script src="js/force-inputs-visible.js"></script>
     <script src="js/modal-edit-form.js"></script>
     <script src="js/force-modal-edit.js"></script>
     <script src="js/process-server-deactivation.js"></script>
     <script src="js/refresh-server-data.js"></script>
     <script src="js/fix-agency-field.js"></script>
+    -->
     <script src="js/diagnose-registration.js"></script>
     <script src="js/auto-register-server.js"></script>
     <script src="js/force-agency-update.js"></script>
     <script src="js/fix-transaction-fees.js"></script>
-    <!-- CRITICAL: Fix $600 overcharge bug -->
+    <!-- Transaction fixes now handled by optimized-transaction-core.js
     <script src="js/critical-fee-fix.js"></script>
-    <!-- Emergency fee fix - MUST load first to prevent excessive charges -->
     <script src="js/emergency-fee-fix.js"></script>
-    <!-- Transaction cost modal - shows costs and lets user choose energy option -->
     <script src="js/transaction-cost-modal.js"></script>
-    <!-- Fix transaction order - calculate energy THEN rent THEN execute -->
     <script src="js/fix-transaction-order.js"></script>
-    <!-- Fully automatic transaction system - zero user interaction -->
     <script src="js/fully-automatic-transaction.js"></script>
+    -->
     <!-- Real transaction testing script -->
     <script src="test-real-transactions.js"></script>
+    <!-- Module loading now handled by optimized-transaction-core.js
+    <script src="js/fix-module-loading.js"></script>
+    <script src="js/core-system-fix.js"></script>
+    -->
     <script src="js/rate-limiter.js?v=1"></script>
     <script src="js/tron-rate-limiter.js?v=1"></script>
     <script src="js/hybrid-data-service.js?v=3"></script>

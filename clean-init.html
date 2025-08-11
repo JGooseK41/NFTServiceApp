@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clean NFT Service - No Conflicts</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #1a1a1a; color: #fff; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .status { padding: 20px; background: #2a2a2a; border-radius: 10px; margin: 20px 0; }
+        .pass { color: #0f0; }
+        .fail { color: #f00; }
+        button { background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #45a049; }
+        #log { background: #000; padding: 15px; border-radius: 5px; max-height: 400px; overflow-y: auto; font-family: monospace; }
+        .section { background: #2a2a2a; padding: 20px; margin: 20px 0; border-radius: 10px; }
+        input { padding: 8px; margin: 5px; width: 300px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Clean NFT Service System</h1>
+        
+        <div class="status" id="status">
+            <h2>System Status</h2>
+            <div id="statusDetails">Initializing...</div>
+        </div>
+        
+        <div class="section">
+            <h2>Quick Actions</h2>
+            <button onclick="testContract()">Test Contract Connection</button>
+            <button onclick="checkBalance()">Check Wallet Balance</button>
+            <button onclick="calculateTestFee()">Calculate Fee (3 recipients)</button>
+            <button onclick="testBackend()">Test Backend</button>
+        </div>
+        
+        <div class="section">
+            <h2>Create Legal Notice NFT</h2>
+            <input type="text" id="recipient" placeholder="Recipient Address" value="TFfagVe1aZpSfYaruY6xJfVPYZBuMj57FH"><br>
+            <input type="text" id="caseNumber" placeholder="Case Number" value="TEST-001"><br>
+            <input type="text" id="lawFirm" placeholder="Law Firm" value="Test Law Firm"><br>
+            <button onclick="createNotice()">Create Notice (5 TRX)</button>
+        </div>
+        
+        <div class="section">
+            <h2>System Log</h2>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        // Simple logging
+        const log = (msg, type = 'info') => {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const color = type === 'pass' ? '#0f0' : type === 'fail' ? '#f00' : '#fff';
+            logDiv.innerHTML += `<div style="color: ${color}">[${time}] ${msg}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        };
+
+        // Global variables
+        let tronWeb = null;
+        let contract = null;
+        const CONTRACT_ADDRESS = 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN';
+        const BACKEND_URL = 'https://nft-legal-service-backend.onrender.com';
+        
+        // Minimal ABI with just what we need
+        const CONTRACT_ABI = [
+            {
+                "outputs": [{"type": "uint256"}],
+                "constant": true,
+                "name": "creationFee",
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"name": "recipient", "type": "address"},
+                    {"name": "caseNumber", "type": "string"},
+                    {"name": "lawFirm", "type": "string"},
+                    {"name": "courtName", "type": "string"},
+                    {"name": "documentHash", "type": "string"},
+                    {"name": "county", "type": "string"},
+                    {"name": "serverId", "type": "address"},
+                    {"name": "recipientInfo", "type": "string"},
+                    {"name": "sponsorFees", "type": "bool"}
+                ],
+                "name": "serveNotice",
+                "outputs": [{"type": "uint256"}],
+                "stateMutability": "payable",
+                "type": "function"
+            }
+        ];
+        
+        // Initialize system
+        async function initializeSystem() {
+            log('🚀 Initializing clean system...');
+            
+            // Wait for TronWeb
+            let attempts = 0;
+            while (!window.tronWeb && attempts < 30) {
+                log(`Waiting for TronWeb... (${attempts}/30)`);
+                await new Promise(r => setTimeout(r, 1000));
+                attempts++;
+            }
+            
+            if (!window.tronWeb) {
+                log('❌ TronWeb not found. Please install TronLink.', 'fail');
+                updateStatus('fail', 'TronLink not installed');
+                return;
+            }
+            
+            tronWeb = window.tronWeb;
+            
+            // Wait for ready
+            attempts = 0;
+            while (!tronWeb.ready && attempts < 10) {
+                await new Promise(r => setTimeout(r, 1000));
+                attempts++;
+            }
+            
+            if (!tronWeb.ready) {
+                log('❌ TronWeb not ready', 'fail');
+                updateStatus('fail', 'TronWeb not ready');
+                return;
+            }
+            
+            log('✅ TronWeb ready', 'pass');
+            
+            // Get wallet info
+            const address = tronWeb.defaultAddress.base58;
+            log(`✅ Wallet connected: ${address}`, 'pass');
+            
+            // Initialize contract
+            try {
+                contract = await tronWeb.contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+                log(`✅ Contract initialized at ${CONTRACT_ADDRESS}`, 'pass');
+                
+                // Test contract
+                const fee = await contract.creationFee().call();
+                const feeNumber = Number(fee.toString());
+                log(`✅ Contract verified! Creation fee: ${feeNumber / 1_000_000} TRX`, 'pass');
+                
+                updateStatus('pass', 'System ready!');
+                
+            } catch (error) {
+                log(`❌ Contract error: ${error.message}`, 'fail');
+                updateStatus('fail', 'Contract connection failed');
+            }
+        }
+        
+        function updateStatus(type, message) {
+            const statusDiv = document.getElementById('statusDetails');
+            const color = type === 'pass' ? '#0f0' : '#f00';
+            statusDiv.innerHTML = `<span style="color: ${color}">${message}</span>`;
+        }
+        
+        async function testContract() {
+            if (!contract) {
+                log('❌ Contract not initialized', 'fail');
+                return;
+            }
+            
+            try {
+                const fee = await contract.creationFee().call();
+                const feeNumber = Number(fee.toString());
+                log(`✅ Contract working! Fee: ${feeNumber / 1_000_000} TRX`, 'pass');
+            } catch (error) {
+                log(`❌ Contract test failed: ${error.message}`, 'fail');
+            }
+        }
+        
+        async function checkBalance() {
+            if (!tronWeb) {
+                log('❌ TronWeb not initialized', 'fail');
+                return;
+            }
+            
+            try {
+                const address = tronWeb.defaultAddress.base58;
+                const balance = await tronWeb.trx.getBalance(address);
+                const balanceNumber = Number(balance.toString());
+                const trxBalance = balanceNumber / 1_000_000;
+                log(`✅ Wallet balance: ${trxBalance.toFixed(2)} TRX`, 'pass');
+                
+                // Check energy
+                const account = await tronWeb.trx.getAccount(address);
+                const energy = account.energy || 0;
+                log(`⚡ Energy: ${energy.toLocaleString()}`, 'info');
+                
+            } catch (error) {
+                log(`❌ Balance check failed: ${error.message}`, 'fail');
+            }
+        }
+        
+        function calculateTestFee() {
+            const recipients = 3;
+            const sponsorFees = true;
+            const creationFee = 5;  // Actual contract fee
+            const sponsorshipFee = sponsorFees ? (2 * recipients) : 0;  // Adjusted for actual contract
+            const total = creationFee + sponsorshipFee;
+            
+            log(`📊 Fee Calculation:`, 'info');
+            log(`  Recipients: ${recipients}`, 'info');
+            log(`  Creation Fee: ${creationFee} TRX`, 'info');
+            log(`  Sponsorship: ${sponsorshipFee} TRX`, 'info');
+            log(`  TOTAL: ${total} TRX`, 'pass');
+            
+            return total * 1_000_000; // Return in SUN
+        }
+        
+        async function testBackend() {
+            try {
+                log(`Testing backend at ${BACKEND_URL}...`, 'info');
+                const response = await fetch(`${BACKEND_URL}/api/health`);
+                
+                if (response.ok || response.status === 404) {
+                    log(`✅ Backend responded: ${response.status}`, 'pass');
+                } else {
+                    log(`❌ Backend error: ${response.status}`, 'fail');
+                }
+            } catch (error) {
+                log(`❌ Backend unreachable: ${error.message}`, 'fail');
+            }
+        }
+        
+        async function createNotice() {
+            if (!contract) {
+                log('❌ Contract not initialized', 'fail');
+                return;
+            }
+            
+            const recipient = document.getElementById('recipient').value;
+            const caseNumber = document.getElementById('caseNumber').value;
+            const lawFirm = document.getElementById('lawFirm').value;
+            
+            if (!recipient || !caseNumber || !lawFirm) {
+                log('❌ Please fill all fields', 'fail');
+                return;
+            }
+            
+            try {
+                log('📝 Creating legal notice NFT...', 'info');
+                
+                // Check balance first
+                const balance = await tronWeb.trx.getBalance(tronWeb.defaultAddress.base58);
+                const balanceNumber = Number(balance.toString());
+                const balanceTRX = balanceNumber / 1_000_000;
+                
+                if (balanceTRX < 5) {
+                    log(`❌ Insufficient balance: ${balanceTRX} TRX (need 5 TRX)`, 'fail');
+                    return;
+                }
+                
+                // Create the notice
+                const result = await contract.serveNotice(
+                    recipient,
+                    caseNumber,
+                    lawFirm,
+                    'Test Court',
+                    'QmTest123', // Document hash
+                    'Test County',
+                    tronWeb.defaultAddress.base58, // Server ID
+                    'Test Recipient Info',
+                    false // No sponsor fees
+                ).send({
+                    callValue: 5 * 1_000_000, // 5 TRX in SUN (actual contract fee)
+                    feeLimit: 100_000_000
+                });
+                
+                log(`✅ Notice created! TX: ${result}`, 'pass');
+                
+            } catch (error) {
+                log(`❌ Failed to create notice: ${error.message}`, 'fail');
+            }
+        }
+        
+        // Initialize on load
+        window.addEventListener('load', () => {
+            initializeSystem();
+        });
+    </script>
+</body>
+</html>

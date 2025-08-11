@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFT Service with Energy Rental</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #1a1a1a; color: #fff; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .status { padding: 20px; background: #2a2a2a; border-radius: 10px; margin: 20px 0; }
+        .pass { color: #0f0; }
+        .fail { color: #f00; }
+        .warn { color: #ff0; }
+        button { background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #45a049; }
+        #log { background: #000; padding: 15px; border-radius: 5px; max-height: 400px; overflow-y: auto; font-family: monospace; }
+        .section { background: #2a2a2a; padding: 20px; margin: 20px 0; border-radius: 10px; }
+        input { padding: 8px; margin: 5px; width: 300px; }
+        .file-input { padding: 10px; background: #333; border-radius: 5px; margin: 10px 0; }
+        .energy-info { background: #1a3a1a; padding: 15px; border-radius: 5px; margin: 10px 0; border: 1px solid #0f0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 NFT Service with Smart Energy Management</h1>
+        
+        <div class="status" id="status">
+            <h2>System Status</h2>
+            <div id="statusDetails">Initializing...</div>
+        </div>
+        
+        <div class="section">
+            <h2>Energy Management</h2>
+            <div class="energy-info">
+                <div>Current Energy: <span id="currentEnergy">0</span></div>
+                <div>Energy Needed: <span id="energyNeeded">~400,000 (no document)</span></div>
+                <div>Rental Cost: <span id="rentalCost">Not needed</span></div>
+                <div>Burn Cost: <span id="burnCost">~10 TRX</span></div>
+            </div>
+            <button onclick="checkEnergy()">Check Energy Status</button>
+            <button onclick="rentEnergy()">Rent Energy (88 TRX)</button>
+        </div>
+        
+        <div class="section">
+            <h2>Create Legal Notice NFT</h2>
+            <input type="text" id="recipient" placeholder="Recipient Address" value="TFfagVe1aZpSfYaruY6xJfVPYZBuMj57FH"><br>
+            <input type="text" id="caseNumber" placeholder="Case Number" value="TEST-001"><br>
+            <input type="text" id="lawFirm" placeholder="Law Firm" value="Test Law Firm"><br>
+            
+            <div class="file-input">
+                <label>📄 Document (Optional):</label><br>
+                <input type="file" id="documentFile" accept="image/*,.pdf" onchange="handleFileSelect()">
+                <div id="fileInfo"></div>
+            </div>
+            
+            <button onclick="estimateTransaction()">📊 Estimate Costs</button>
+            <button onclick="createNoticeWithDocument()">🚀 Create Notice</button>
+        </div>
+        
+        <div class="section">
+            <h2>System Log</h2>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        // Logging
+        const log = (msg, type = 'info') => {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const color = type === 'pass' ? '#0f0' : type === 'fail' ? '#f00' : type === 'warn' ? '#ff0' : '#fff';
+            logDiv.innerHTML += `<div style="color: ${color}">[${time}] ${msg}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        };
+
+        // Global variables
+        let tronWeb = null;
+        let contract = null;
+        let selectedFile = null;
+        let documentHash = '';
+        
+        const CONTRACT_ADDRESS = 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN';
+        const JUSTLEND_ADDRESS = 'TU2MJ5Veik1LRAgjeSzEdvmDYx7mefJZvd';
+        
+        // Minimal ABI
+        const CONTRACT_ABI = [
+            {
+                "outputs": [{"type": "uint256"}],
+                "constant": true,
+                "name": "creationFee",
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {"name": "recipient", "type": "address"},
+                    {"name": "caseNumber", "type": "string"},
+                    {"name": "lawFirm", "type": "string"},
+                    {"name": "courtName", "type": "string"},
+                    {"name": "documentHash", "type": "string"},
+                    {"name": "county", "type": "string"},
+                    {"name": "serverId", "type": "address"},
+                    {"name": "recipientInfo", "type": "string"},
+                    {"name": "sponsorFees", "type": "bool"}
+                ],
+                "name": "serveNotice",
+                "outputs": [{"type": "uint256"}],
+                "stateMutability": "payable",
+                "type": "function"
+            }
+        ];
+        
+        // Initialize
+        async function initializeSystem() {
+            log('🚀 Initializing system with energy management...');
+            
+            // Wait for TronWeb
+            let attempts = 0;
+            while (!window.tronWeb && attempts < 30) {
+                await new Promise(r => setTimeout(r, 1000));
+                attempts++;
+            }
+            
+            if (!window.tronWeb) {
+                log('❌ TronWeb not found', 'fail');
+                return;
+            }
+            
+            tronWeb = window.tronWeb;
+            
+            while (!tronWeb.ready && attempts < 10) {
+                await new Promise(r => setTimeout(r, 1000));
+                attempts++;
+            }
+            
+            log('✅ TronWeb ready', 'pass');
+            log(`✅ Wallet: ${tronWeb.defaultAddress.base58}`, 'pass');
+            
+            // Initialize contract
+            try {
+                contract = await tronWeb.contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+                const fee = await contract.creationFee().call();
+                const feeNumber = Number(fee.toString());
+                log(`✅ Contract ready! Base fee: ${feeNumber / 1_000_000} TRX`, 'pass');
+                
+                document.getElementById('statusDetails').innerHTML = '<span class="pass">System Ready!</span>';
+                
+                // Check initial energy
+                await checkEnergy();
+                
+            } catch (error) {
+                log(`❌ Contract error: ${error.message}`, 'fail');
+            }
+        }
+        
+        // Check energy status
+        async function checkEnergy() {
+            try {
+                const account = await tronWeb.trx.getAccount(tronWeb.defaultAddress.base58);
+                const energy = account.energy || 0;
+                
+                document.getElementById('currentEnergy').textContent = energy.toLocaleString();
+                
+                log(`⚡ Current energy: ${energy.toLocaleString()}`, 'info');
+                
+                if (energy < 400000) {
+                    log('⚠️ Low energy! Consider renting for documents', 'warn');
+                } else {
+                    log('✅ Sufficient energy for basic transactions', 'pass');
+                }
+                
+                return energy;
+                
+            } catch (error) {
+                log(`❌ Energy check failed: ${error.message}`, 'fail');
+                return 0;
+            }
+        }
+        
+        // Handle file selection
+        function handleFileSelect() {
+            const fileInput = document.getElementById('documentFile');
+            selectedFile = fileInput.files[0];
+            
+            if (selectedFile) {
+                const sizeMB = (selectedFile.size / 1024 / 1024).toFixed(2);
+                document.getElementById('fileInfo').innerHTML = 
+                    `📎 ${selectedFile.name} (${sizeMB} MB)`;
+                
+                // Estimate energy based on file size
+                const estimatedEnergy = 400000 + (selectedFile.size * 2);
+                document.getElementById('energyNeeded').textContent = 
+                    `~${estimatedEnergy.toLocaleString()} (with document)`;
+                
+                // Calculate costs
+                const burnCost = Math.ceil(estimatedEnergy * 0.00042);
+                document.getElementById('burnCost').textContent = `~${burnCost} TRX`;
+                
+                if (estimatedEnergy > 1000000) {
+                    document.getElementById('rentalCost').textContent = '88 TRX (recommended)';
+                    log(`⚠️ Large document detected. Energy rental recommended!`, 'warn');
+                }
+                
+                log(`📄 File selected: ${selectedFile.name} (${sizeMB} MB)`, 'info');
+                
+                // Create hash for document
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const arrayBuffer = e.target.result;
+                    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+                    const hashArray = Array.from(new Uint8Array(hashBuffer));
+                    documentHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                    log(`📊 Document hash: ${documentHash.substring(0, 16)}...`, 'info');
+                };
+                reader.readAsArrayBuffer(selectedFile);
+            }
+        }
+        
+        // Estimate transaction costs
+        async function estimateTransaction() {
+            log('📊 Estimating transaction costs...', 'info');
+            
+            const currentEnergy = await checkEnergy();
+            const estimatedEnergy = selectedFile ? 
+                400000 + (selectedFile.size * 2) : 400000;
+            
+            const needsRental = estimatedEnergy > currentEnergy;
+            const burnCost = Math.ceil((estimatedEnergy - currentEnergy) * 0.00042);
+            
+            log(`  Base fee: 5 TRX`, 'info');
+            log(`  Energy needed: ${estimatedEnergy.toLocaleString()}`, 'info');
+            log(`  Current energy: ${currentEnergy.toLocaleString()}`, 'info');
+            
+            if (needsRental) {
+                log(`  ❌ Insufficient energy!`, 'fail');
+                log(`  Option 1: Rent energy for 88 TRX`, 'warn');
+                log(`  Option 2: Burn ~${burnCost} TRX`, 'warn');
+                log(`  💡 Rental saves ${burnCost - 88} TRX!`, 'pass');
+            } else {
+                log(`  ✅ Sufficient energy available!`, 'pass');
+            }
+            
+            log(`  Total cost: ${needsRental ? '5 + 88 = 93 TRX (with rental)' : '5 TRX'}`, 'info');
+        }
+        
+        // Rent energy from JustLend
+        async function rentEnergy() {
+            try {
+                log('⚡ Initiating energy rental from JustLend...', 'info');
+                
+                const justLend = await tronWeb.contract().at(JUSTLEND_ADDRESS);
+                
+                // Rent ~3.2M energy for 88 TRX
+                const rentalAmount = 88 * 1_000_000; // 88 TRX in SUN
+                const energyAmount = 3200000; // ~3.2M energy
+                
+                log(`  Renting ${energyAmount.toLocaleString()} energy for 88 TRX...`, 'info');
+                
+                const result = await justLend.rentResource(
+                    tronWeb.defaultAddress.base58,
+                    1, // Resource type: 1 for energy
+                    energyAmount
+                ).send({
+                    callValue: rentalAmount,
+                    feeLimit: 100_000_000
+                });
+                
+                log(`✅ Energy rented! TX: ${result}`, 'pass');
+                
+                // Wait for energy to be available
+                setTimeout(async () => {
+                    await checkEnergy();
+                }, 3000);
+                
+            } catch (error) {
+                log(`❌ Energy rental failed: ${error.message}`, 'fail');
+                log(`  You may need to rent manually from JustLend`, 'warn');
+            }
+        }
+        
+        // Create notice with optional document
+        async function createNoticeWithDocument() {
+            if (!contract) {
+                log('❌ Contract not initialized', 'fail');
+                return;
+            }
+            
+            const recipient = document.getElementById('recipient').value;
+            const caseNumber = document.getElementById('caseNumber').value;
+            const lawFirm = document.getElementById('lawFirm').value;
+            
+            if (!recipient || !caseNumber || !lawFirm) {
+                log('❌ Please fill all fields', 'fail');
+                return;
+            }
+            
+            try {
+                log('📝 Creating legal notice NFT...', 'info');
+                
+                // Check if we have enough energy
+                const currentEnergy = await checkEnergy();
+                const estimatedEnergy = selectedFile ? 
+                    400000 + (selectedFile.size * 2) : 400000;
+                
+                if (currentEnergy < estimatedEnergy) {
+                    log(`⚠️ Low energy! Have ${currentEnergy}, need ${estimatedEnergy}`, 'warn');
+                    if (!confirm('Insufficient energy. Continue anyway? (Will burn TRX)')) {
+                        return;
+                    }
+                }
+                
+                // Use document hash if file was selected
+                const hash = documentHash || 'NoDocument';
+                
+                log(`  Document hash: ${hash}`, 'info');
+                log(`  Sending transaction...`, 'info');
+                
+                const result = await contract.serveNotice(
+                    recipient,
+                    caseNumber,
+                    lawFirm,
+                    'Test Court',
+                    hash,
+                    'Test County',
+                    tronWeb.defaultAddress.base58,
+                    selectedFile ? `Document: ${selectedFile.name}` : 'No document',
+                    false
+                ).send({
+                    callValue: 5 * 1_000_000, // 5 TRX base fee
+                    feeLimit: 100_000_000
+                });
+                
+                log(`✅ Notice created! TX: ${result}`, 'pass');
+                log(`  View on TronScan: https://tronscan.org/#/transaction/${result}`, 'info');
+                
+            } catch (error) {
+                log(`❌ Transaction failed: ${error.message}`, 'fail');
+            }
+        }
+        
+        // Initialize on load
+        window.addEventListener('load', () => {
+            initializeSystem();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batch NFT Test - Multiple Documents & Recipients</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Courier New', monospace; 
+            background: linear-gradient(135deg, #1a1a2e, #0f0f1e); 
+            color: #fff; 
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { 
+            text-align: center; 
+            color: #0ff; 
+            margin-bottom: 30px;
+            text-shadow: 0 0 10px rgba(0,255,255,0.5);
+        }
+        
+        .grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 20px; 
+            margin-bottom: 20px;
+        }
+        
+        .panel {
+            background: rgba(30,30,50,0.8);
+            border: 1px solid #0ff;
+            border-radius: 10px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .panel h2 {
+            color: #0ff;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+        
+        .recipient-entry {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid rgba(0,255,255,0.3);
+        }
+        
+        .recipient-entry input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(0,255,255,0.5);
+            color: #fff;
+            border-radius: 3px;
+        }
+        
+        .file-info {
+            background: rgba(0,255,0,0.1);
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #00ff88, #0088ff);
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,255,136,0.4);
+        }
+        
+        button:disabled {
+            background: #444;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .add-btn {
+            background: #28a745;
+            color: #fff;
+            padding: 8px 16px;
+        }
+        
+        .remove-btn {
+            background: #dc3545;
+            color: #fff;
+            padding: 5px 10px;
+            font-size: 0.9em;
+        }
+        
+        .cost-panel {
+            background: linear-gradient(135deg, rgba(255,215,0,0.1), rgba(255,0,0,0.1));
+            border: 2px solid #ffd700;
+        }
+        
+        .cost-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .cost-total {
+            font-size: 1.5em;
+            color: #ffd700;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 2px solid #ffd700;
+        }
+        
+        .scenario {
+            background: rgba(0,100,255,0.1);
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .scenario:hover {
+            background: rgba(0,100,255,0.2);
+            transform: translateX(5px);
+        }
+        
+        #log {
+            background: #000;
+            border: 1px solid #0ff;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.9em;
+            border-radius: 5px;
+        }
+        
+        .log-entry { margin: 2px 0; }
+        .log-pass { color: #0f0; }
+        .log-fail { color: #f00; }
+        .log-warn { color: #ff0; }
+        .log-info { color: #0ff; }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0f0, #0ff);
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+            font-weight: bold;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        .stat-box {
+            background: rgba(0,255,255,0.1);
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            color: #0ff;
+            font-weight: bold;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: #888;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Batch NFT Testing Suite - Multi-Document, Multi-Recipient</h1>
+        
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div class="stat-value" id="stat-recipients">0</div>
+                <div class="stat-label">Recipients</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="stat-documents">0</div>
+                <div class="stat-label">Documents</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="stat-size">0 MB</div>
+                <div class="stat-label">Total Size</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="stat-energy">0</div>
+                <div class="stat-label">Energy Needed</div>
+            </div>
+        </div>
+        
+        <div class="grid">
+            <!-- Recipients Panel -->
+            <div class="panel">
+                <h2>📋 Recipients & Documents</h2>
+                <button class="add-btn" onclick="addRecipient()">➕ Add Recipient</button>
+                <button onclick="loadTestScenario()">🎲 Load Test Scenario</button>
+                
+                <div id="recipients-list">
+                    <!-- Recipients will be added here -->
+                </div>
+            </div>
+            
+            <!-- Cost Calculation Panel -->
+            <div class="panel cost-panel">
+                <h2>💰 Cost Breakdown</h2>
+                <div id="cost-breakdown">
+                    <div class="cost-item">
+                        <span>Base Fee (5 TRX × recipients)</span>
+                        <span id="base-fee">0 TRX</span>
+                    </div>
+                    <div class="cost-item">
+                        <span>Sponsorship Fees</span>
+                        <span id="sponsor-fee">0 TRX</span>
+                    </div>
+                    <div class="cost-item">
+                        <span>Energy Required</span>
+                        <span id="energy-required">0</span>
+                    </div>
+                    <div class="cost-item">
+                        <span>Energy Burn Cost</span>
+                        <span id="burn-cost">0 TRX</span>
+                    </div>
+                    <div class="cost-item">
+                        <span>Energy Rental (88 TRX)</span>
+                        <span id="rental-option">Not needed</span>
+                    </div>
+                    <div class="cost-total">
+                        <span>TOTAL (with rental)</span>
+                        <span id="total-with-rental">0 TRX</span>
+                    </div>
+                    <div class="cost-total">
+                        <span>TOTAL (burn TRX)</span>
+                        <span id="total-with-burn">0 TRX</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Test Scenarios -->
+        <div class="panel">
+            <h2>🎯 Quick Test Scenarios</h2>
+            <div class="scenario" onclick="loadScenario('minimal')">
+                <strong>Minimal:</strong> 1 recipient, no document (baseline test)
+            </div>
+            <div class="scenario" onclick="loadScenario('small')">
+                <strong>Small Batch:</strong> 3 recipients, small documents (~100KB each)
+            </div>
+            <div class="scenario" onclick="loadScenario('medium')">
+                <strong>Medium Batch:</strong> 5 recipients, medium documents (~500KB each)
+            </div>
+            <div class="scenario" onclick="loadScenario('large')">
+                <strong>Large Batch:</strong> 10 recipients, large documents (~2MB each)
+            </div>
+            <div class="scenario" onclick="loadScenario('stress')">
+                <strong>Stress Test:</strong> 20 recipients, mixed document sizes
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="panel" style="text-align: center;">
+            <button onclick="calculateCosts()">📊 Calculate Costs</button>
+            <button onclick="checkEnergy()">⚡ Check Energy</button>
+            <button onclick="rentEnergy()">🔋 Rent Energy (88 TRX)</button>
+            <button onclick="runBatchTest(false)">🚀 Run Test (Simulation)</button>
+            <button onclick="runBatchTest(true)" style="background: linear-gradient(135deg, #ff0088, #ff8800);">
+                💸 Run Test (Real Transaction)
+            </button>
+        </div>
+        
+        <!-- Progress Bar -->
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress">0%</div>
+        </div>
+        
+        <!-- Log -->
+        <div class="panel">
+            <h2>📜 Test Log</h2>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let recipients = [];
+        let tronWeb = null;
+        let contract = null;
+        let currentEnergy = 0;
+        
+        const CONTRACT_ADDRESS = 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN';
+        const JUSTLEND_ADDRESS = 'TU2MJ5Veik1LRAgjeSzEdvmDYx7mefJZvd';
+        
+        // Contract ABI
+        const CONTRACT_ABI = [
+            {
+                "outputs": [{"type": "uint256"}],
+                "constant": true,
+                "name": "creationFee",
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [{"name": "batch", "type": "tuple[]", "components": [
+                    {"name": "recipient", "type": "address"},
+                    {"name": "caseNumber", "type": "string"},
+                    {"name": "lawFirm", "type": "string"},
+                    {"name": "courtName", "type": "string"},
+                    {"name": "documentHash", "type": "string"},
+                    {"name": "county", "type": "string"},
+                    {"name": "serverId", "type": "address"},
+                    {"name": "recipientInfo", "type": "string"},
+                    {"name": "sponsorFees", "type": "bool"}
+                ]}],
+                "name": "serveNoticeBatch",
+                "outputs": [],
+                "stateMutability": "payable",
+                "type": "function"
+            }
+        ];
+        
+        // Logging
+        function log(msg, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const className = `log-${type}`;
+            logDiv.innerHTML += `<div class="log-entry ${className}">[${time}] ${msg}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        // Initialize
+        async function init() {
+            log('🚀 Initializing Batch Test System...', 'info');
+            
+            // Wait for TronWeb
+            let attempts = 0;
+            while (!window.tronWeb && attempts < 30) {
+                await new Promise(r => setTimeout(r, 1000));
+                attempts++;
+            }
+            
+            if (!window.tronWeb || !window.tronWeb.ready) {
+                log('❌ TronWeb not ready', 'fail');
+                return;
+            }
+            
+            tronWeb = window.tronWeb;
+            log(`✅ Wallet connected: ${tronWeb.defaultAddress.base58}`, 'pass');
+            
+            // Initialize contract
+            try {
+                contract = await tronWeb.contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+                log('✅ Contract initialized', 'pass');
+                await checkEnergy();
+            } catch (error) {
+                log(`❌ Contract error: ${error.message}`, 'fail');
+            }
+            
+            // Add initial recipient
+            addRecipient();
+        }
+        
+        // Add recipient
+        function addRecipient() {
+            const id = Date.now();
+            const recipientDiv = document.createElement('div');
+            recipientDiv.className = 'recipient-entry';
+            recipientDiv.id = `recipient-${id}`;
+            recipientDiv.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong>Recipient #${recipients.length + 1}</strong>
+                    <button class="remove-btn" onclick="removeRecipient('${id}')">❌ Remove</button>
+                </div>
+                <input type="text" placeholder="Wallet Address" id="address-${id}" 
+                       value="${getRandomAddress()}">
+                <input type="text" placeholder="Case Number" id="case-${id}" 
+                       value="CASE-${Math.floor(Math.random() * 9999)}">
+                <div style="margin-top: 10px;">
+                    <label>📄 Document:</label>
+                    <input type="file" id="file-${id}" onchange="handleFileSelect('${id}')">
+                    <div id="file-info-${id}" class="file-info"></div>
+                </div>
+            `;
+            
+            document.getElementById('recipients-list').appendChild(recipientDiv);
+            recipients.push({
+                id: id,
+                address: '',
+                caseNumber: '',
+                file: null,
+                fileSize: 0,
+                hash: ''
+            });
+            
+            updateStats();
+        }
+        
+        // Remove recipient
+        function removeRecipient(id) {
+            document.getElementById(`recipient-${id}`).remove();
+            recipients = recipients.filter(r => r.id !== parseInt(id));
+            updateStats();
+            calculateCosts();
+        }
+        
+        // Handle file selection
+        function handleFileSelect(id) {
+            const fileInput = document.getElementById(`file-${id}`);
+            const file = fileInput.files[0];
+            const recipient = recipients.find(r => r.id === parseInt(id));
+            
+            if (file && recipient) {
+                recipient.file = file;
+                recipient.fileSize = file.size;
+                
+                const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+                document.getElementById(`file-info-${id}`).innerHTML = 
+                    `📎 ${file.name} (${sizeMB} MB)`;
+                
+                // Generate hash
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const arrayBuffer = e.target.result;
+                    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+                    const hashArray = Array.from(new Uint8Array(hashBuffer));
+                    recipient.hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                };
+                reader.readAsArrayBuffer(file);
+                
+                updateStats();
+                calculateCosts();
+            }
+        }
+        
+        // Update statistics
+        function updateStats() {
+            const totalSize = recipients.reduce((sum, r) => sum + r.fileSize, 0);
+            const totalSizeMB = (totalSize / 1024 / 1024).toFixed(2);
+            const estimatedEnergy = calculateEnergyNeeded();
+            
+            document.getElementById('stat-recipients').textContent = recipients.length;
+            document.getElementById('stat-documents').textContent = 
+                recipients.filter(r => r.file).length;
+            document.getElementById('stat-size').textContent = `${totalSizeMB} MB`;
+            document.getElementById('stat-energy').textContent = estimatedEnergy.toLocaleString();
+        }
+        
+        // Calculate energy needed
+        function calculateEnergyNeeded() {
+            let totalEnergy = 0;
+            
+            for (const recipient of recipients) {
+                // Base energy per transaction
+                let energy = 400000;
+                
+                // Add energy for document size
+                if (recipient.fileSize > 0) {
+                    energy += recipient.fileSize * 2; // 2 energy per byte (estimated)
+                }
+                
+                totalEnergy += energy;
+            }
+            
+            // Batch transactions are more efficient
+            if (recipients.length > 1) {
+                totalEnergy = Math.floor(totalEnergy * 0.75);
+            }
+            
+            return totalEnergy;
+        }
+        
+        // Calculate costs
+        function calculateCosts() {
+            const baseFee = 5 * recipients.length;
+            const sponsorFee = 2 * recipients.length; // If sponsoring
+            const totalEnergy = calculateEnergyNeeded();
+            const burnCost = Math.ceil((totalEnergy - currentEnergy) * 0.00042);
+            
+            document.getElementById('base-fee').textContent = `${baseFee} TRX`;
+            document.getElementById('sponsor-fee').textContent = `${sponsorFee} TRX`;
+            document.getElementById('energy-required').textContent = totalEnergy.toLocaleString();
+            document.getElementById('burn-cost').textContent = `~${burnCost} TRX`;
+            
+            const needsRental = totalEnergy > 1000000;
+            document.getElementById('rental-option').textContent = 
+                needsRental ? 'Recommended' : 'Not needed';
+            
+            const totalWithRental = baseFee + sponsorFee + (needsRental ? 88 : 0);
+            const totalWithBurn = baseFee + sponsorFee + burnCost;
+            
+            document.getElementById('total-with-rental').textContent = `${totalWithRental} TRX`;
+            document.getElementById('total-with-burn').textContent = `${totalWithBurn} TRX`;
+            
+            log(`📊 Costs updated: ${totalWithRental} TRX (rental) / ${totalWithBurn} TRX (burn)`, 'info');
+            
+            return { baseFee, sponsorFee, totalEnergy, burnCost, totalWithRental, totalWithBurn };
+        }
+        
+        // Check energy
+        async function checkEnergy() {
+            try {
+                const account = await tronWeb.trx.getAccount(tronWeb.defaultAddress.base58);
+                currentEnergy = account.energy || 0;
+                log(`⚡ Current energy: ${currentEnergy.toLocaleString()}`, 'info');
+                return currentEnergy;
+            } catch (error) {
+                log(`❌ Energy check failed: ${error.message}`, 'fail');
+                return 0;
+            }
+        }
+        
+        // Rent energy
+        async function rentEnergy() {
+            try {
+                log('⚡ Renting energy from JustLend...', 'warn');
+                
+                const justLend = await tronWeb.contract().at(JUSTLEND_ADDRESS);
+                const result = await justLend.rentResource(
+                    tronWeb.defaultAddress.base58,
+                    1, // Energy
+                    3200000 // ~3.2M energy
+                ).send({
+                    callValue: 88 * 1_000_000,
+                    feeLimit: 100_000_000
+                });
+                
+                log(`✅ Energy rented! TX: ${result}`, 'pass');
+                setTimeout(checkEnergy, 3000);
+                
+            } catch (error) {
+                log(`❌ Rental failed: ${error.message}`, 'fail');
+            }
+        }
+        
+        // Load test scenario
+        function loadScenario(type) {
+            // Clear existing recipients
+            document.getElementById('recipients-list').innerHTML = '';
+            recipients = [];
+            
+            const scenarios = {
+                minimal: { count: 1, fileSize: 0 },
+                small: { count: 3, fileSize: 100 * 1024 },
+                medium: { count: 5, fileSize: 500 * 1024 },
+                large: { count: 10, fileSize: 2 * 1024 * 1024 },
+                stress: { count: 20, fileSize: 'random' }
+            };
+            
+            const scenario = scenarios[type];
+            
+            for (let i = 0; i < scenario.count; i++) {
+                addRecipient();
+                
+                // Simulate file for testing
+                if (scenario.fileSize > 0 || scenario.fileSize === 'random') {
+                    const size = scenario.fileSize === 'random' ? 
+                        Math.floor(Math.random() * 3 * 1024 * 1024) : scenario.fileSize;
+                    
+                    const recipient = recipients[recipients.length - 1];
+                    recipient.fileSize = size;
+                    recipient.hash = 'TEST_HASH_' + Math.random().toString(36);
+                    
+                    const sizeMB = (size / 1024 / 1024).toFixed(2);
+                    document.getElementById(`file-info-${recipient.id}`).innerHTML = 
+                        `📎 Test Document (${sizeMB} MB)`;
+                }
+            }
+            
+            updateStats();
+            calculateCosts();
+            log(`📋 Loaded ${type} scenario: ${scenario.count} recipients`, 'info');
+        }
+        
+        // Run batch test
+        async function runBatchTest(real = false) {
+            log('🚀 Starting batch test...', 'warn');
+            
+            if (!contract) {
+                log('❌ Contract not initialized', 'fail');
+                return;
+            }
+            
+            // Prepare batch data
+            const batch = [];
+            for (const recipient of recipients) {
+                const address = document.getElementById(`address-${recipient.id}`).value;
+                const caseNumber = document.getElementById(`case-${recipient.id}`).value;
+                
+                batch.push({
+                    recipient: address,
+                    caseNumber: caseNumber,
+                    lawFirm: 'Test Law Firm',
+                    courtName: 'Test Court',
+                    documentHash: recipient.hash || 'NO_DOCUMENT',
+                    county: 'Test County',
+                    serverId: tronWeb.defaultAddress.base58,
+                    recipientInfo: `Size: ${recipient.fileSize} bytes`,
+                    sponsorFees: true
+                });
+            }
+            
+            log(`📦 Batch prepared: ${batch.length} recipients`, 'info');
+            
+            // Calculate costs
+            const costs = calculateCosts();
+            log(`💰 Total cost: ${costs.totalWithRental} TRX (with rental)`, 'info');
+            log(`⚡ Energy needed: ${costs.totalEnergy.toLocaleString()}`, 'info');
+            
+            if (real) {
+                if (!confirm(`This will cost ~${costs.totalWithRental} TRX. Continue?`)) {
+                    log('❌ Transaction cancelled by user', 'fail');
+                    return;
+                }
+                
+                try {
+                    log('📤 Sending real transaction...', 'warn');
+                    
+                    const result = await contract.serveNoticeBatch(batch).send({
+                        callValue: (costs.baseFee + costs.sponsorFee) * 1_000_000,
+                        feeLimit: 500_000_000
+                    });
+                    
+                    log(`✅ Batch transaction successful! TX: ${result}`, 'pass');
+                    log(`View on TronScan: https://tronscan.org/#/transaction/${result}`, 'info');
+                    
+                } catch (error) {
+                    log(`❌ Transaction failed: ${error.message}`, 'fail');
+                }
+            } else {
+                log('🎭 Running simulation...', 'info');
+                
+                // Simulate processing
+                for (let i = 0; i < batch.length; i++) {
+                    await new Promise(r => setTimeout(r, 500));
+                    const progress = ((i + 1) / batch.length * 100).toFixed(0);
+                    document.getElementById('progress').style.width = `${progress}%`;
+                    document.getElementById('progress').textContent = `${progress}%`;
+                    log(`✅ Processed recipient ${i + 1}/${batch.length}`, 'pass');
+                }
+                
+                log('✅ Simulation complete!', 'pass');
+                log(`Estimated gas used: ${costs.totalEnergy.toLocaleString()}`, 'info');
+                log(`Would have cost: ${costs.totalWithRental} TRX`, 'info');
+            }
+        }
+        
+        // Generate random address for testing
+        function getRandomAddress() {
+            const addresses = [
+                'TFfagVe1aZpSfYaruY6xJfVPYZBuMj57FH',
+                'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY',
+                'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb',
+                'TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL',
+                'TAzsQ9Gx8eqFNFSKbeXrbi45CuVPHzA8wr'
+            ];
+            return addresses[Math.floor(Math.random() * addresses.length)];
+        }
+        
+        // Initialize on load
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
