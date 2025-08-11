@@ -4436,12 +4436,6 @@
                         <i class="fas fa-eraser"></i>
                         Clear All
                     </button>
-                    <button class="btn btn-primary" onclick="openBatchMode()" 
-                            style="font-size: 0.9rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;"
-                            title="Send the same notice to multiple wallet addresses in one batch">
-                        <i class="fas fa-layer-group"></i>
-                        Batch Mode (Multiple Recipients)
-                    </button>
                     <button class="modal-close" onclick="closeMintModal()">&times;</button>
                 </div>
             </div>
@@ -4825,93 +4819,6 @@
         </div>
     </div>
 
-    <!-- Batch Mode Modal -->
-    <div id="batchModal" class="modal">
-        <div class="modal-content" style="max-width: 800px;">
-            <div class="modal-header">
-                <h3 class="modal-title">
-                    <i class="fas fa-layer-group"></i>
-                    Batch Legal Notice Creation
-                </h3>
-                <button class="modal-close" onclick="closeBatchModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div id="batchStep1">
-                    <h4>Upload Recipients CSV</h4>
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i>
-                        <div>
-                            <strong>CSV Format Requirements:</strong>
-                            <ul style="margin: 0.5rem 0 0 1.5rem;">
-                                <li>Columns: wallet_address, notice_type, public_text (optional)</li>
-                                <li>Maximum 100 recipients per batch</li>
-                                <li>Example: TXa1b2c3..., Cease and Desist, Public notice text</li>
-                            </ul>
-                        </div>
-                    </div>
-                    
-                    <div class="upload-area" style="margin: 20px 0;" onclick="document.getElementById('csvUpload').click()">
-                        <input type="file" id="csvUpload" accept=".csv" style="display: none;" onchange="handleCSVUpload(event)">
-                        <i class="fas fa-file-csv" style="font-size: 3rem; color: var(--primary);"></i>
-                        <p>Click to upload CSV file</p>
-                    </div>
-                    
-                    <h4 style="margin-top: 30px;">Upload Document (Optional)</h4>
-                    <div class="upload-area" onclick="document.getElementById('batchDocumentUpload').click()">
-                        <input type="file" id="batchDocumentUpload" accept="image/*,.pdf" style="display: none;" onchange="handleBatchDocumentUpload(event)">
-                        <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: var(--primary);"></i>
-                        <p>Click to upload document</p>
-                        <p style="font-size: 0.85rem; color: #666;">Same document will be encrypted individually for each recipient</p>
-                    </div>
-                </div>
-                
-                <div id="batchStep2" style="display: none;">
-                    <h4>Review Batch Recipients</h4>
-                    <div id="batchValidationResults"></div>
-                    
-                    <div style="margin: 20px 0;">
-                        <label>Notice Details</label>
-                        <input type="text" id="batchAgencyName" placeholder="Issuing Agency" class="form-control" style="margin-bottom: 10px;">
-                        <input type="text" id="batchCaseNumber" placeholder="Case Number" class="form-control" style="margin-bottom: 10px;">
-                        <textarea id="batchRightsStatement" placeholder="Access information will be auto-generated for each notice" class="form-control" rows="3" readonly style="background-color: #f8f9fa;"></textarea>
-                    </div>
-                    
-                    <div class="btn-group" style="margin-top: 20px;">
-                        <button class="btn btn-secondary" onclick="batchManager.goBack()">
-                            <i class="fas fa-arrow-left"></i> Back
-                        </button>
-                        <button class="btn btn-primary" onclick="batchManager.startBatch()">
-                            <i class="fas fa-play"></i> Start Batch Processing
-                        </button>
-                    </div>
-                </div>
-                
-                <div id="batchStep3" style="display: none;">
-                    <h4>Processing Batch</h4>
-                    <div class="batch-progress">
-                        <div class="progress-bar">
-                            <div id="batchProgressBar" class="progress-fill" style="width: 0%"></div>
-                        </div>
-                        <p id="batchProgressText" style="text-align: center; margin-top: 10px;">0 / 0 completed</p>
-                    </div>
-                    
-                    <div id="batchResults" style="margin-top: 20px; max-height: 300px; overflow-y: auto;"></div>
-                    
-                    <div class="btn-group" style="margin-top: 20px;">
-                        <button id="pauseBatchBtn" class="btn btn-secondary" onclick="batchManager.pauseBatch()">
-                            <i class="fas fa-pause"></i> Pause
-                        </button>
-                        <button id="resumeBatchBtn" class="btn btn-secondary" onclick="batchManager.resumeBatch()" style="display: none;">
-                            <i class="fas fa-play"></i> Resume
-                        </button>
-                        <button class="btn btn-primary" onclick="batchManager.exportResults()">
-                            <i class="fas fa-download"></i> Export Results
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Service Attempt Modal -->
     <div id="serviceAttemptModal" class="modal">
@@ -9345,37 +9252,6 @@ function useConnectedAddressForFeeCollector() {
             resetMintForm();
         }
         
-        // Open batch mode modal
-        function openBatchMode() {
-            closeMintModal(true); // Force close mint modal
-            document.getElementById('batchModal').style.display = 'flex';
-            document.getElementById('batchStep1').style.display = 'block';
-            document.getElementById('batchStep2').style.display = 'none';
-            document.getElementById('batchStep3').style.display = 'none';
-        }
-        
-        // Close batch modal
-        function closeBatchModal() {
-            document.getElementById('batchModal').style.display = 'none';
-            // Reset batch state if needed
-            if (batchManager) {
-                batchManager.reset();
-            }
-        }
-        
-        // Handle CSV upload
-        function handleCSVUpload(event) {
-            if (batchManager) {
-                batchManager.handleCSVUpload(event);
-            }
-        }
-        
-        // Handle batch document upload
-        function handleBatchDocumentUpload(event) {
-            if (batchManager) {
-                batchManager.handleDocumentUpload(event);
-            }
-        }
         
         // Setup upload area when modal opens
         function setupUploadAreaForModal() {

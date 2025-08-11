@@ -51,9 +51,9 @@ window.TransactionStaging = {
             uploadData.append('network', window.currentNetwork || 'mainnet');
             uploadData.append('contractAddress', window.legalContract?.address || '');
             
-            // Add fees
-            uploadData.append('creationFee', '2');
-            uploadData.append('sponsorshipFee', '10');
+            // Add fees - Updated to correct amounts
+            uploadData.append('creationFee', '90');
+            uploadData.append('sponsorshipFee', '5');
             
             // Handle files
             const thumbnailInput = document.getElementById('uploadInput');
@@ -276,21 +276,33 @@ window.TransactionStaging = {
     showStagingSuccess(stagingResult) {
         const estimates = stagingResult.estimates;
         
-        const dialog = document.createElement('div');
-        dialog.className = 'staging-dialog';
-        dialog.innerHTML = `
+        // Create overlay first
+        const overlay = document.createElement('div');
+        overlay.className = 'staging-dialog-overlay';
+        overlay.innerHTML = `
             <style>
-                .staging-dialog {
+                .staging-dialog-overlay {
                     position: fixed;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    background: var(--gray-900);
-                    border: 1px solid var(--gray-700);
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.8);
+                    z-index: 9999;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                
+                .staging-dialog {
+                    background: #1a1b23;
+                    border: 1px solid #2d2e3f;
                     border-radius: 12px;
                     padding: 24px;
                     max-width: 500px;
-                    z-index: 10000;
+                    width: 90%;
+                    max-height: 90vh;
+                    overflow-y: auto;
                     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
                 }
                 
@@ -426,16 +438,16 @@ window.TransactionStaging = {
             </div>
             
             <div class="staging-actions">
-                <button class="staging-btn staging-btn-secondary" onclick="this.closest('.staging-dialog').remove()">
+                <button class="staging-btn staging-btn-secondary" onclick="this.closest('.staging-dialog-overlay').remove()">
                     Cancel
                 </button>
                 <button class="staging-btn staging-btn-primary" onclick="TransactionStaging.proceedWithExecution('${stagingResult.transactionId}')">
                     Execute on Blockchain
                 </button>
             </div>
-        `;
+        </div>`;
         
-        document.body.appendChild(dialog);
+        document.body.appendChild(overlay);
     },
     
     /**
@@ -444,7 +456,7 @@ window.TransactionStaging = {
     async proceedWithExecution(transactionId) {
         try {
             // Close dialog
-            document.querySelector('.staging-dialog')?.remove();
+            document.querySelector('.staging-dialog-overlay')?.remove();
             
             // Show processing
             if (window.showProcessing) {

@@ -139,7 +139,9 @@ router.post('/save',
                 publicText: req.body.publicText || '',
                 caseDetails: req.body.caseDetails || '',
                 legalRights: req.body.legalRights || '',
-                recipients: JSON.parse(req.body.recipients || '[]'),
+                recipients: typeof req.body.recipients === 'string' 
+                    ? JSON.parse(req.body.recipients || '[]')
+                    : req.body.recipients || [],
                 tokenName: req.body.tokenName || '',
                 deliveryMethod: req.body.deliveryMethod || 'document',
                 sponsorFees: req.body.sponsorFees === 'true',

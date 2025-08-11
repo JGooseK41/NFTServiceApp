@@ -131,7 +131,9 @@ router.post('/transaction',
                 sessionId: req.body.sessionId || crypto.randomBytes(16).toString('hex'),
                 
                 // Recipients (can be single or multiple)
-                recipients: JSON.parse(req.body.recipients || '[]'),
+                recipients: typeof req.body.recipients === 'string' 
+                    ? JSON.parse(req.body.recipients || '[]')
+                    : req.body.recipients || [],
                 
                 // Notice details
                 noticeType: req.body.noticeType || 'Legal Notice',
@@ -156,8 +158,8 @@ router.post('/transaction',
                 
                 // Fee details
                 sponsorFees: req.body.sponsorFees === 'true',
-                creationFee: parseFloat(req.body.creationFee || '2'),
-                sponsorshipFee: parseFloat(req.body.sponsorshipFee || '10'),
+                creationFee: parseFloat(req.body.creationFee || '90'),
+                sponsorshipFee: parseFloat(req.body.sponsorshipFee || '5'),
                 
                 // Network details
                 network: req.body.network || 'mainnet',
@@ -297,11 +299,16 @@ router.post('/transaction',
                 ]);
             }
             
-            // Calculate energy requirements
-            const baseEnergy = 800000;
-            const documentEnergy = data.hasDocument ? 100000 : 0;
-            const perRecipientEnergy = 50000;
+            // Calculate energy requirements - more accurate estimation
+            const baseEnergy = 1000000; // Base energy for contract call
+            const documentEnergy = data.hasDocument ? 200000 : 0; // Extra for document storage
+            const perRecipientEnergy = 100000; // Energy per recipient
             const totalEnergy = baseEnergy + documentEnergy + (perRecipientEnergy * data.recipients.length);
+            
+            // Calculate rental cost - using current market rates
+            // Energy rental is approximately 0.00003 TRX per energy unit
+            const energyRentalRate = 0.00003; // TRX per energy
+            const rentalCostTRX = totalEnergy * energyRentalRate;
             
             // Store energy estimates
             await client.query(`
@@ -315,9 +322,9 @@ router.post('/transaction',
             `, [
                 transactionId,
                 totalEnergy,
-                (totalEnergy * 420) / 1_000_000,
-                (totalEnergy * 30) / 1_000_000,
-                (totalEnergy * 390) / 1_000_000
+                (totalEnergy * 420) / 1_000_000, // Burning cost if no rental
+                rentalCostTRX,
+                ((totalEnergy * 420) / 1_000_000) - rentalCostTRX // Savings from rental
             ]);
             
             await client.query('COMMIT');
@@ -337,8 +344,8 @@ router.post('/transaction',
                 estimates: {
                     energyRequired: totalEnergy,
                     burningCostTRX: (totalEnergy * 420) / 1_000_000,
-                    rentalCostTRX: (totalEnergy * 30) / 1_000_000,
-                    savingsTRX: (totalEnergy * 390) / 1_000_000,
+                    rentalCostTRX: rentalCostTRX,
+                    savingsTRX: ((totalEnergy * 420) / 1_000_000) - rentalCostTRX,
                     totalFeeTRX: data.creationFee + (data.sponsorFees ? data.sponsorshipFee * data.recipients.length : 0)
                 },
                 expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
