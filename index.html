@@ -4784,7 +4784,7 @@
                             <i class="fas fa-eye"></i>
                             Preview NFT
                         </button>
-                        <button class="btn btn-primary" onclick="createLegalNotice()" id="createNoticeBtn">
+                        <button class="btn btn-primary" onclick="window.USE_STAGING_FLOW ? createLegalNoticeWithStaging() : createLegalNotice()" id="createNoticeBtn">
                             <i class="fas fa-rocket"></i>
                             Create Legal Notice
                         </button>
@@ -29057,6 +29057,21 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
 
 <!-- Transaction Staging Module - Backend as single source of truth -->
 <script src="js/transaction-staging.js"></script>
+
+<script>
+// Enable the new staging flow by default
+window.USE_STAGING_FLOW = true;
+
+// Add console helper to toggle between flows
+window.toggleTransactionFlow = function() {
+    window.USE_STAGING_FLOW = !window.USE_STAGING_FLOW;
+    console.log('Transaction flow:', window.USE_STAGING_FLOW ? 'STAGING (Backend First)' : 'DIRECT (Old Flow)');
+    return window.USE_STAGING_FLOW;
+}
+
+console.log('🚀 New staging flow is ENABLED. Backend is source of truth.');
+console.log('To switch to old flow: toggleTransactionFlow()');
+</script>
 
 </body>
 </html>
