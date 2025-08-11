@@ -9349,7 +9349,15 @@ function useConnectedAddressForFeeCollector() {
                 return;
             }
             
-            if (isAdmin) {
+            // Check if this is the owner wallet
+            const ownerWallets = [
+                'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY',
+                'tgdd34rr3rzfuozoqlze9d4tzfbigl4jay'
+            ];
+            const isOwnerWallet = ownerWallets.includes(tronWeb.defaultAddress.base58) || 
+                                  ownerWallets.includes(tronWeb.defaultAddress.base58.toLowerCase());
+            
+            if (isAdmin || isOwnerWallet) {
                 adminAccessDenied.style.display = 'none';
                 adminContent.style.display = 'block';
                 refreshPendingRegistrations();
@@ -12576,10 +12584,20 @@ async function checkUserRoles() {
                 // Check if user has DEFAULT_ADMIN_ROLE or ADMIN_ROLE
                 const hasDefaultAdminRole = await legalContract.hasRole(defaultAdminRole, tronWeb.defaultAddress.base58).call();
                 const hasAdminRole = await legalContract.hasRole(adminRoleBytes, tronWeb.defaultAddress.base58).call();
-                isAdmin = hasDefaultAdminRole || hasAdminRole;
+                
+                // Also check if this is the owner wallet (your wallet)
+                const ownerWallets = [
+                    'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY',
+                    'tgdd34rr3rzfuozoqlze9d4tzfbigl4jay'
+                ];
+                const isOwnerWallet = ownerWallets.includes(tronWeb.defaultAddress.base58) || 
+                                      ownerWallets.includes(tronWeb.defaultAddress.base58.toLowerCase());
+                
+                isAdmin = hasDefaultAdminRole || hasAdminRole || isOwnerWallet;
                 
                 console.log('Has DEFAULT_ADMIN_ROLE:', hasDefaultAdminRole);
                 console.log('Has ADMIN_ROLE:', hasAdminRole);
+                console.log('Is owner wallet:', isOwnerWallet);
                 console.log('isAdmin result:', isAdmin);
                 
                 // Note: getRoleMemberCount and getRoleMember are not available in this implementation
@@ -17085,7 +17103,18 @@ async function checkUserRoles() {
         function updateAdminTabVisibility() {
             const adminTabButton = document.getElementById('adminTabButton');
             if (adminTabButton) {
-                adminTabButton.style.display = isAdmin ? 'inline-flex' : 'none';
+                // Check if this is the owner wallet
+                const ownerWallets = [
+                    'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY',
+                    'tgdd34rr3rzfuozoqlze9d4tzfbigl4jay'
+                ];
+                let isOwnerWallet = false;
+                if (tronWeb && tronWeb.defaultAddress) {
+                    isOwnerWallet = ownerWallets.includes(tronWeb.defaultAddress.base58) || 
+                                    ownerWallets.includes(tronWeb.defaultAddress.base58.toLowerCase());
+                }
+                
+                adminTabButton.style.display = (isAdmin || isOwnerWallet) ? 'inline-flex' : 'none';
             }
         }
 
