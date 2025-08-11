@@ -168,7 +168,117 @@ if (window.loadProcessServers) {
     };
 }
 
-// Fix 5: Override displayProcessServers to properly create edit forms
+// Fix 5: Add styles for server cards first
+if (!document.getElementById('server-card-styles')) {
+    const styleSheet = document.createElement('style');
+    styleSheet.id = 'server-card-styles';
+    styleSheet.textContent = `
+        .server-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            max-height: 600px;
+            overflow-y: auto;
+            position: relative;
+        }
+        
+        .server-card::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .server-card::-webkit-scrollbar-track {
+            background: var(--gray-800);
+            border-radius: 4px;
+        }
+        
+        .server-card::-webkit-scrollbar-thumb {
+            background: var(--gray-600);
+            border-radius: 4px;
+        }
+        
+        .server-card::-webkit-scrollbar-thumb:hover {
+            background: var(--gray-500);
+        }
+        
+        .server-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .server-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        
+        .server-details > div {
+            font-size: 0.875rem;
+        }
+        
+        .server-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .edit-form-container {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: var(--gray-800);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .edit-form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .edit-form-field {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .edit-form-field label {
+            margin-bottom: 0.25rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+        
+        .edit-form-field input {
+            padding: 0.5rem;
+            background: var(--gray-700);
+            border: 1px solid var(--gray-600);
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+        
+        .edit-form-field input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            background: var(--gray-600);
+        }
+        
+        .edit-form-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+    `;
+    document.head.appendChild(styleSheet);
+}
+
+// Override displayProcessServers to properly create edit forms
 const originalDisplayProcessServers = window.displayProcessServers;
 window.displayProcessServers = function(servers) {
     const container = document.getElementById('processServersList');
@@ -222,21 +332,17 @@ window.displayProcessServers = function(servers) {
         // Create edit form using DOM manipulation
         const editForm = document.createElement('div');
         editForm.id = `edit-${server.wallet_address}`;
+        editForm.className = 'edit-form-container';
         editForm.style.display = 'none';
-        editForm.style.marginTop = '1rem';
-        editForm.style.padding = '1rem';
-        editForm.style.background = 'var(--gray-800)';
-        editForm.style.borderRadius = '8px';
         
         // Create form content using DOM
         const formTitle = document.createElement('h4');
         formTitle.textContent = 'Edit Process Server';
+        formTitle.style.marginBottom = '1rem';
         editForm.appendChild(formTitle);
         
         const formGrid = document.createElement('div');
-        formGrid.style.display = 'grid';
-        formGrid.style.gridTemplateColumns = 'repeat(2, 1fr)';
-        formGrid.style.gap = '1rem';
+        formGrid.className = 'edit-form-grid';
         
         // Create input fields
         const fields = [
@@ -250,25 +356,17 @@ window.displayProcessServers = function(servers) {
         
         fields.forEach(field => {
             const fieldDiv = document.createElement('div');
+            fieldDiv.className = 'edit-form-field';
             
             const label = document.createElement('label');
-            label.style.display = 'block';
-            label.style.marginBottom = '0.25rem';
-            label.style.color = 'var(--text-secondary)';
             label.textContent = field.label;
             fieldDiv.appendChild(label);
             
             const input = document.createElement('input');
             input.type = 'text';
-            input.className = 'form-input edit-input';
             input.id = `edit-${field.name}-${server.wallet_address}`;
             input.value = field.value;
-            input.style.width = '100%';
-            input.style.padding = '0.5rem';
-            input.style.background = 'var(--gray-700)';
-            input.style.border = '1px solid var(--gray-600)';
-            input.style.borderRadius = '4px';
-            input.style.color = 'var(--text-primary)';
+            input.placeholder = `Enter ${field.label.toLowerCase()}`;
             fieldDiv.appendChild(input);
             
             formGrid.appendChild(fieldDiv);
@@ -278,9 +376,7 @@ window.displayProcessServers = function(servers) {
         
         // Create buttons
         const buttonDiv = document.createElement('div');
-        buttonDiv.style.marginTop = '1rem';
-        buttonDiv.style.display = 'flex';
-        buttonDiv.style.gap = '0.5rem';
+        buttonDiv.className = 'edit-form-actions';
         
         const saveBtn = document.createElement('button');
         saveBtn.className = 'btn btn-success';
@@ -372,6 +468,21 @@ window.escapeHtml = function(str) {
 };
 
 console.log('✅ All fixes applied successfully!');
+
+// Fix 9: Force re-render of process servers after DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Add a test button to verify inputs are working
+    setTimeout(() => {
+        const adminTab = document.getElementById('adminTab');
+        if (adminTab && adminTab.style.display !== 'none') {
+            // If we're on the admin tab, reload servers with fixed display
+            if (window.allProcessServers && window.allProcessServers.length > 0) {
+                console.log('🔄 Re-rendering process servers with fixes...');
+                window.displayProcessServers(window.allProcessServers);
+            }
+        }
+    }, 1000);
+});
 
 // Auto-reload process servers if admin
 setTimeout(() => {
