@@ -40,9 +40,16 @@ async function createDocumentStorageTable() {
     
     try {
         await pool.query(createTableQuery);
+        
+        // Add updated_at column if it doesn't exist
+        await pool.query(`
+            ALTER TABLE document_storage 
+            ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+        `);
+        
         console.log('✅ Document storage table ready');
     } catch (error) {
-        console.error('Error creating table:', error.message);
+        console.error('Error creating/updating table:', error.message);
     }
 }
 
@@ -60,8 +67,7 @@ async function storeDocument(noticeId, documentType, fileBuffer, fileName, mimeT
             mime_type = EXCLUDED.mime_type,
             file_data = EXCLUDED.file_data,
             file_size = EXCLUDED.file_size,
-            uploaded_by = EXCLUDED.uploaded_by,
-            updated_at = CURRENT_TIMESTAMP
+            uploaded_by = EXCLUDED.uploaded_by
         RETURNING id;
     `;
     
