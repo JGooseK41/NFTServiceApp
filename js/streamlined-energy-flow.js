@@ -1044,14 +1044,8 @@ window.StreamlinedEnergyFlow = {
     }
 };
 
-// Override the mandatory energy check to use streamlined flow
-if (window.MandatoryEnergyCheck) {
-    window.MandatoryEnergyCheck.showMandatoryEnergyDialog = function(params) {
-        // Store params for later use
-        window.StreamlinedEnergyFlow._originalParams = params;
-        window.StreamlinedEnergyFlow.showEnergyModal(params);
-    };
-}
+// DON'T override - let MandatoryEnergyCheck do its job properly
+// It will call StreamlinedEnergyFlow when rental is needed
 
 console.log('✅ Streamlined Energy Flow loaded');
 console.log('   - Clean, themed interface');

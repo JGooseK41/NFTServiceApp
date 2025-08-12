@@ -86,6 +86,8 @@ window.MandatoryEnergyCheck = {
     
     async checkAndProceed(documentSizeMB, recipientCount, originalFunction) {
         console.log('📊 Calculating energy requirements...');
+        console.log('   Document size:', documentSizeMB, 'MB');
+        console.log('   Recipients:', recipientCount);
         
         // Ensure Manual Energy Rental is loaded
         if (!window.ManualEnergyRental) {
@@ -102,6 +104,7 @@ window.MandatoryEnergyCheck = {
         );
         
         console.log('⚡ Energy required:', energyDetails);
+        console.log('   Total energy needed:', energyDetails.total?.toLocaleString() || 'Unknown');
         
         // Check current energy status
         const status = await window.ManualEnergyRental.checkEnergyStatus();
@@ -132,6 +135,12 @@ window.MandatoryEnergyCheck = {
         
         const needsRental = params.currentEnergy < params.energyDetails.total;
         const deficit = Math.max(0, params.energyDetails.total - params.currentEnergy);
+        
+        console.log('🔍 Energy check:');
+        console.log('   Current energy:', params.currentEnergy?.toLocaleString());
+        console.log('   Required energy:', params.energyDetails.total?.toLocaleString());
+        console.log('   Needs rental?', needsRental);
+        console.log('   Deficit:', deficit?.toLocaleString());
         
         const dialog = document.createElement('div');
         dialog.id = 'mandatory-energy-dialog';
