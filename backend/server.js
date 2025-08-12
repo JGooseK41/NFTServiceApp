@@ -880,8 +880,9 @@ app.get('/api/wallets/:walletAddress/connections', async (req, res) => {
 
 // Document management routes - Using persistent database storage
 // This prevents document loss on Render deployments
-const documentsPersistentRouter = require('./routes/documents-persistent');
-app.use('/api/documents', documentsPersistentRouter);
+// Use unified document storage in notice_components table
+const documentsUnifiedRouter = require('./routes/documents-unified');
+app.use('/api/documents', documentsUnifiedRouter);
 
 // Fallback to original documents router for backward compatibility
 // const documentsRouter = require('./routes/documents');
