@@ -206,28 +206,34 @@ router.post('/check-access', async (req, res) => {
  * Create notice_views table if it doesn't exist
  */
 async function createViewsTable() {
-    const createTableQuery = `
-        CREATE TABLE IF NOT EXISTS notice_views (
-            id SERIAL PRIMARY KEY,
-            notice_id VARCHAR(255) NOT NULL,
-            document_id VARCHAR(255),
-            viewer_address VARCHAR(255) NOT NULL,
-            view_type VARCHAR(50) NOT NULL,
-            viewed_at TIMESTAMP NOT NULL,
-            ip_address VARCHAR(45),
-            user_agent TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            INDEX idx_notice_views_notice_id (notice_id),
-            INDEX idx_notice_views_viewer (viewer_address)
-        );
+    try {
+        // Create table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS notice_views (
+                id SERIAL PRIMARY KEY,
+                notice_id VARCHAR(255) NOT NULL,
+                document_id VARCHAR(255),
+                viewer_address VARCHAR(255) NOT NULL,
+                view_type VARCHAR(50) NOT NULL,
+                viewed_at TIMESTAMP NOT NULL,
+                ip_address VARCHAR(45),
+                user_agent TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
         
-        -- Add view tracking columns to notice_components if they don't exist
-        ALTER TABLE notice_components 
-        ADD COLUMN IF NOT EXISTS last_viewed_at TIMESTAMP,
-        ADD COLUMN IF NOT EXISTS view_count INTEGER DEFAULT 0;
-    `;
-    
-    await pool.query(createTableQuery);
+        // Create indexes separately
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_notice_views_notice_id ON notice_views(notice_id)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_notice_views_viewer ON notice_views(viewer_address)`);
+        
+        // Add columns to notice_components
+        await pool.query(`ALTER TABLE notice_components ADD COLUMN IF NOT EXISTS last_viewed_at TIMESTAMP`);
+        await pool.query(`ALTER TABLE notice_components ADD COLUMN IF NOT EXISTS view_count INTEGER DEFAULT 0`);
+        
+        console.log('Notice views table and indexes created successfully');
+    } catch (error) {
+        console.error('Error creating notice_views table:', error);
+    }
 }
 
 // Ensure table exists on startup
