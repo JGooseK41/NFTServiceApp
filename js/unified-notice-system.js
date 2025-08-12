@@ -2846,19 +2846,33 @@ class UnifiedNoticeSystem {
                     
                     // Display based on type requested
                     if (type === 'alert') {
-                        // For alert type, try alert thumbnail first, fallback to document
-                        const imageUrl = data.alertThumbnailUrl || data.documentUnencryptedUrl;
-                        const imageValid = imageUrl ? await this.loadImageWithFallback(imageUrl, 'Alert/Document') : false;
-                        
-                        if (imageValid) {
-                            const imageTitle = data.alertThumbnailUrl ? 'Alert Notice Thumbnail' : 'Document (Alert thumbnail not available)';
+                        // For alert type, only show alert thumbnail
+                        if (data.alertThumbnailUrl && alertImageValid) {
                             container.innerHTML = `
                                 <div style="margin-bottom: 20px;">
-                                    <h3>${imageTitle}</h3>
+                                    <h3>Alert Notice Thumbnail</h3>
                                     <div style="border: 1px solid #ddd; background: white; padding: 10px;">
-                                        <img src="${imageUrl}" 
+                                        <img src="${data.alertThumbnailUrl}" 
                                              style="max-width: 100%; height: auto; display: block;" 
-                                             alt="${imageTitle}" />
+                                             alt="Alert Notice Thumbnail" />
+                                    </div>
+                                    <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
+                                        Notice ID: ${noticeId || 'Unknown'}
+                                    </p>
+                                </div>
+                            `;
+                        } else if (data.documentUnencryptedUrl && documentImageValid) {
+                            // If no alert thumbnail but document exists, show document with note
+                            container.innerHTML = `
+                                <div style="margin-bottom: 20px;">
+                                    <h3>Document Image</h3>
+                                    <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 5px; padding: 10px; margin-bottom: 10px;">
+                                        <small>Note: Alert thumbnail not available, showing document instead</small>
+                                    </div>
+                                    <div style="border: 1px solid #ddd; background: white; padding: 10px;">
+                                        <img src="${data.documentUnencryptedUrl}" 
+                                             style="max-width: 100%; height: auto; display: block;" 
+                                             alt="Document Image" />
                                     </div>
                                     <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
                                         Notice ID: ${noticeId || 'Unknown'}
@@ -2866,14 +2880,11 @@ class UnifiedNoticeSystem {
                                 </div>
                             `;
                         } else {
-                            container.innerHTML = this.createManualUploadInterface(caseNumber, noticeId, `No images available for this notice`, caseData.transactionHash);
+                            container.innerHTML = this.createManualUploadInterface(caseNumber, noticeId, `No alert thumbnail available for this notice`, caseData.transactionHash);
                         }
                     } else if (type === 'document') {
-                        // Show full document for document type, fallback to alert if no document
-                        const imageUrl = data.documentUnencryptedUrl || data.alertThumbnailUrl;
-                        const imageValid = imageUrl ? await this.loadImageWithFallback(imageUrl, 'Document/Alert') : false;
-                        
-                        if (imageValid && data.documentUnencryptedUrl) {
+                        // Show full document for document type
+                        if (data.documentUnencryptedUrl && documentImageValid) {
                             // Add blockchain stamp if possible
                             const txHash = caseData.transactionHash || 'PENDING';
                             const stampedBlob = await this.stampNoticeWithBlockchain(
@@ -2912,23 +2923,8 @@ class UnifiedNoticeSystem {
                                     </div>
                                 `;
                             }
-                        } else if (imageValid && data.alertThumbnailUrl) {
-                            // Fallback to showing alert thumbnail if no document available
-                            container.innerHTML = `
-                                <div>
-                                    <h3>Alert Thumbnail (Document not available)</h3>
-                                    <div style="border: 1px solid #ddd; background: white; padding: 10px;">
-                                        <img src="${data.alertThumbnailUrl}" 
-                                             style="max-width: 100%; height: auto; display: block;" 
-                                             alt="Alert Thumbnail" />
-                                    </div>
-                                    <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
-                                        Notice ID: ${noticeId || 'Unknown'}
-                                    </p>
-                                </div>
-                            `;
                         } else {
-                            container.innerHTML = this.createManualUploadInterface(caseNumber, noticeId, `No images available for this notice`, caseData.transactionHash);
+                            container.innerHTML = this.createManualUploadInterface(caseNumber, noticeId, `No document available for this notice`, caseData.transactionHash);
                         }
                     } else if (type === 'both') {
                         // Show both for the general case
