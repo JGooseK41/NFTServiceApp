@@ -1261,6 +1261,19 @@ window.TronSaveAPI = {
         if (container) {
             container.innerHTML = `
                 <div style="padding: 24px;">
+                    <!-- Close button at top -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h3 style="color: #ef4444; margin: 0;">Purchase Failed</h3>
+                        <button onclick="document.getElementById('streamlined-energy-modal')?.remove(); window.StreamlinedEnergyFlow?.hide()" style="
+                            background: transparent;
+                            border: none;
+                            color: #9ca3af;
+                            cursor: pointer;
+                            font-size: 1.5rem;
+                            padding: 4px;
+                        ">✕</button>
+                    </div>
+                    
                     <div style="
                         background: rgba(239, 68, 68, 0.1);
                         border: 1px solid rgba(239, 68, 68, 0.3);
@@ -1268,9 +1281,6 @@ window.TronSaveAPI = {
                         padding: 16px;
                         margin-bottom: 24px;
                     ">
-                        <h3 style="color: #ef4444; margin-bottom: 8px;">
-                            Purchase Failed
-                        </h3>
                         <div style="color: #d1d5db; font-size: 0.875rem;">
                             ${error}
                         </div>
@@ -1301,6 +1311,21 @@ window.TronSaveAPI = {
                             Use Manual Rental
                         </button>
                     </div>
+                    
+                    <!-- Exit button -->
+                    <button onclick="document.getElementById('streamlined-energy-modal')?.remove(); window.StreamlinedEnergyFlow?.hide()" style="
+                        width: 100%;
+                        margin-top: 12px;
+                        background: transparent;
+                        color: #6b7280;
+                        border: 1px solid #374151;
+                        padding: 10px;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        font-size: 0.875rem;
+                    ">
+                        Cancel & Exit
+                    </button>
                 </div>
             `;
         }
