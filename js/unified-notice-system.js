@@ -2801,8 +2801,18 @@ class UnifiedNoticeSystem {
         const caseData = this.cases.get(caseNumber);
         if (!caseData) return;
 
-        // Get the first recipient's notice URLs from backend
-        const firstRecipient = caseData.recipients?.[0] || {};
+        // Find the correct recipient based on the noticeId if provided
+        let targetRecipient;
+        if (noticeId && caseData.recipients) {
+            // Search for recipient that has this ID as either alertId or documentId
+            targetRecipient = caseData.recipients.find(r => 
+                r.alertId === noticeId || r.documentId === noticeId
+            );
+            console.log(`Found recipient for notice ${noticeId}:`, targetRecipient);
+        }
+        
+        // Fall back to first recipient if not found or not specified
+        const firstRecipient = targetRecipient || caseData.recipients?.[0] || {};
         
         // Create modal to display notice
         const modal = document.createElement('div');
@@ -2837,14 +2847,24 @@ class UnifiedNoticeSystem {
 
         // Try to fetch unencrypted URLs from backend
         try {
-            // IMPORTANT: For alerts, always use alertId; for documents, always use documentId
+            // IMPORTANT: Backend uses alertId as the primary notice identifier
+            // If we're given a documentId, we need to find the corresponding alertId
             let noticeIdForBackend;
+            
             if (noticeId) {
-                noticeIdForBackend = noticeId;
+                // Check if this is a documentId and find the paired alertId
+                if (noticeId === firstRecipient.documentId && firstRecipient.alertId) {
+                    console.log(`Notice ID ${noticeId} is a documentId, using paired alertId ${firstRecipient.alertId} for backend`);
+                    noticeIdForBackend = firstRecipient.alertId;
+                } else {
+                    // Use the provided ID as-is (might be alertId already)
+                    noticeIdForBackend = noticeId;
+                }
             } else if (type === 'alert') {
                 noticeIdForBackend = firstRecipient.alertId;
             } else if (type === 'document') {
-                noticeIdForBackend = firstRecipient.documentId;
+                // For documents, use the alertId since backend indexes by alertId
+                noticeIdForBackend = firstRecipient.alertId || firstRecipient.documentId;
             } else {
                 // For 'both', use alertId as primary
                 noticeIdForBackend = firstRecipient.alertId || firstRecipient.documentId;
@@ -3056,6 +3076,14 @@ class UnifiedNoticeSystem {
             }
         } catch (error) {
             console.error('Error loading notice:', error);
+            console.error('Error details:', {
+                caseNumber,
+                type,
+                noticeId,
+                firstRecipient,
+                error: error.message,
+                stack: error.stack
+            });
             const noticeIdForBackend = noticeId || (type === 'alert' ? firstRecipient.alertId : type === 'document' ? firstRecipient.documentId : firstRecipient.alertId || firstRecipient.documentId);
             document.getElementById('noticeContainer').innerHTML = this.createManualUploadInterface(
                 caseNumber,
