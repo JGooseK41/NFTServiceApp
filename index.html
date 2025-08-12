@@ -8558,7 +8558,7 @@ function parsePackedData(packedData) {
                     tronWeb.sha3('PROCESS_SERVER_ROLE'),
                     address
                 ).send({
-                    feeLimit: 1000_000_000,  // 1000 TRX - increased for large documents
+                    feeLimit: 2000_000_000,  // 1000 TRX - increased for large documents
                     shouldPollResponse: true
                 });
                 
@@ -10353,7 +10353,7 @@ function useConnectedAddressForFeeCollector() {
                     true, // sponsorFees
                     '' // metadataURI - placeholder for batch operations
                 ).send({
-                        feeLimit: 1000_000_000,  // 1000 TRX - increased for large documents
+                        feeLimit: 2000_000_000,  // 1000 TRX - increased for large documents
                         callValue: 0, // Add appropriate fee
                         shouldPollResponse: true
                     });
@@ -10460,7 +10460,7 @@ function useConnectedAddressForFeeCollector() {
                 
                 // Call v4 contract's serveNoticeBatch function
                 const tx = await legalContract.serveNoticeBatch(batchNotices).send({
-                    feeLimit: 500_000_000, // Higher limit for batch
+                    feeLimit: 2000_000_000, // Very high limit - no restrictions
                     callValue: totalFee,
                     shouldPollResponse: true
                 });
@@ -12444,7 +12444,7 @@ function useConnectedAddressForFeeCollector() {
                 // Grant PROCESS_SERVER_ROLE
                 const processServerRole = tronWeb.sha3('PROCESS_SERVER_ROLE');
                 await legalContract.grantRole(processServerRole, walletAddress).send({
-                    feeLimit: 1000_000_000,  // 1000 TRX - increased for large documents
+                    feeLimit: 2000_000_000,  // 1000 TRX - increased for large documents
                     shouldPollResponse: true
                 });
                 
@@ -12562,7 +12562,7 @@ function useConnectedAddressForFeeCollector() {
                 
                 // Grant the role
                 await legalContract.grantRole(roleBytes, address).send({
-                    feeLimit: 1000_000_000,  // 1000 TRX - increased for large documents
+                    feeLimit: 2000_000_000,  // 1000 TRX - increased for large documents
                     shouldPollResponse: true
                 });
                 
@@ -21691,7 +21691,7 @@ document.addEventListener('keydown', function(event) {
                 
                 // Accept notice
                 const result = await legalContract.acceptNotice(noticeId).send({
-                    feeLimit: 1000_000_000,  // 1000 TRX - increased for large documents
+                    feeLimit: 2000_000_000,  // 1000 TRX - increased for large documents
                     shouldPollResponse: true
                 });
                 
@@ -22654,7 +22654,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 fee > 20000000, // sponsorFees if paying more than base fee
                 '' // metadataURI - not implemented for this flow yet
             ).send({
-                feeLimit: 1000_000_000,  // 1000 TRX - increased for large documents
+                feeLimit: 2000_000_000,  // 1000 TRX - increased for large documents
                 callValue: fee,
                 shouldPollResponse: true
             });
@@ -23342,7 +23342,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 showProcessing('Recording service attempt...');
                 
                 const tx = await legalContract.recordServiceAttempt(noticeId, note).send({
-                    feeLimit: 1000_000_000,  // 1000 TRX - increased for large documents
+                    feeLimit: 2000_000_000,  // 1000 TRX - increased for large documents
                     shouldPollResponse: true
                 });
                 
@@ -25661,7 +25661,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 
                 // Complete contract uses setFeeExemption instead
                 const tx = await legalContract.setFeeExemption(address, true, true).send({
-                    feeLimit: 1000_000_000,  // 1000 TRX - increased for large documents
+                    feeLimit: 2000_000_000,  // 1000 TRX - increased for large documents
                     callValue: 0,
                     shouldPollResponse: true
                 });
@@ -25701,7 +25701,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 showProcessing('Removing law enforcement exemption...');
                 
                 const tx = await legalContract.removeLawEnforcementExemption(address).send({
-                    feeLimit: 1000_000_000,  // 1000 TRX - increased for large documents
+                    feeLimit: 2000_000_000,  // 1000 TRX - increased for large documents
                     callValue: 0,
                     shouldPollResponse: true
                 });
@@ -26651,7 +26651,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 
                 // Call acceptNotice - this returns the decryption key for documents
                 const result = await legalContract.acceptNotice(noticeId).send({
-                    feeLimit: 1000_000_000,  // 1000 TRX - increased for large documents
+                    feeLimit: 2000_000_000,  // 1000 TRX - increased for large documents
                     shouldPollResponse: true
                 });
                 
@@ -27220,7 +27220,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
 
                         // This is an alert - accept it using acceptNotice
                         const result = await legalContract.acceptNotice(noticeId).send({
-                            feeLimit: 1000_000_000,  // 1000 TRX - increased for large documents
+                            feeLimit: 2000_000_000,  // 1000 TRX - increased for large documents
                             shouldPollResponse: true
                         });
 
@@ -27283,7 +27283,7 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
 
                 // Call acceptNotice on contract (this is the correct function name)
                 const result = await legalContract.acceptNotice(noticeId).send({
-                    feeLimit: 1000_000_000,  // 1000 TRX - increased for large documents
+                    feeLimit: 2000_000_000,  // 1000 TRX - increased for large documents
                     shouldPollResponse: true
                 });
 
@@ -29195,7 +29195,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     try {
                         // Call the batch function with array of arrays
                         const txPromise = legalContract.serveNoticeBatch(batchNotices).send({
-                            feeLimit: 500_000_000,  // Higher limit for batch
+                            feeLimit: 2000_000_000,  // Very high limit - no restrictions
                             callValue: totalFee,     // Use total fee for all recipients
                             shouldPollResponse: true
                         });

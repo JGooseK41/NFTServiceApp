@@ -146,7 +146,7 @@ window.TransactionPreflightCheck = {
             
             // 11. Build the transaction parameters for final validation
             const txParams = {
-                feeLimit: 500_000_000,
+                feeLimit: 2000_000_000,
                 callValue: totalFeeSUN,
                 shouldPollResponse: true
             };

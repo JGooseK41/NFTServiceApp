@@ -270,7 +270,7 @@ window.OptimizedTransactionManager = {
                 3200000 // ~3.2M energy
             ).send({
                 callValue: 88 * 1_000_000, // 88 TRX
-                feeLimit: 1000_000_000  // 1000 TRX to handle large documents
+                feeLimit: 2000_000_000  // 1000 TRX to handle large documents
             });
             
             console.log('✅ Energy rented! TX:', result);
@@ -351,7 +351,7 @@ window.OptimizedTransactionManager = {
                 noticeData.sponsorFees || false
             ).send({
                 callValue: fees.totalSUN,
-                feeLimit: 1000_000_000  // 1000 TRX to handle large documents
+                feeLimit: 2000_000_000  // 1000 TRX to handle large documents
             });
             
             console.log('✅ Notice created! TX:', result);
