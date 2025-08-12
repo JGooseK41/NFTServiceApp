@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BlockServed - View Your Legal Notices</title>
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        /* Mobile Container */
+        .mobile-container {
+            max-width: 100%;
+            min-height: 100vh;
+            background: white;
+            position: relative;
+        }
+        
+        /* Header */
+        .mobile-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .mobile-header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .mobile-header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        /* Wallet Connection */
+        .wallet-section {
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .wallet-connected {
+            display: none;
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .wallet-address {
+            font-family: monospace;
+            font-size: 12px;
+            color: #2e7d32;
+            word-break: break-all;
+        }
+        
+        .connect-wallet-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: transform 0.2s;
+        }
+        
+        .connect-wallet-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .disconnect-btn {
+            background: #6c757d;
+            padding: 10px;
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        /* Notices Section */
+        .notices-section {
+            padding: 20px;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .notice-count {
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        
+        /* Notice Cards */
+        .notice-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+        }
+        
+        .notice-card:active {
+            transform: translateY(1px);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+        
+        .notice-card.urgent {
+            border-left: 4px solid #f44336;
+        }
+        
+        .notice-card.signed {
+            border-left: 4px solid #4caf50;
+            opacity: 0.8;
+        }
+        
+        .notice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+        
+        .notice-type {
+            font-size: 14px;
+            font-weight: 600;
+            color: #667eea;
+        }
+        
+        .notice-status {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-urgent {
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .status-pending {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        
+        .status-signed {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .notice-details {
+            margin-bottom: 10px;
+        }
+        
+        .notice-detail {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 5px 0;
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .notice-detail i {
+            width: 16px;
+            color: #999;
+        }
+        
+        .notice-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .notice-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+        
+        .notice-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .btn-view {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .btn-sign {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        /* Loading State */
+        .loading-container {
+            display: none;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Empty State */
+        .empty-state {
+            display: none;
+            padding: 40px;
+            text-align: center;
+            color: #999;
+        }
+        
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #ddd;
+        }
+        
+        /* Document Modal */
+        .document-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: white;
+            z-index: 1000;
+            flex-direction: column;
+        }
+        
+        .document-modal.active {
+            display: flex;
+        }
+        
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .modal-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .document-viewer {
+            flex: 1;
+            overflow: auto;
+            padding: 20px;
+            background: #f5f5f5;
+            position: relative;
+        }
+        
+        .document-image {
+            width: 100%;
+            height: auto;
+            display: block;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        /* Pinch to zoom support */
+        .document-viewer.zoomed {
+            overflow: scroll;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .document-controls {
+            position: sticky;
+            top: 0;
+            background: white;
+            padding: 10px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 10;
+            margin-bottom: 10px;
+        }
+        
+        .zoom-btn {
+            padding: 8px 12px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        
+        .modal-footer {
+            background: white;
+            padding: 15px;
+            box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .modal-info {
+            background: #fff3e0;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #e65100;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #666;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        /* Signature Modal */
+        .signature-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .signature-modal.active {
+            display: flex;
+        }
+        
+        .signature-content {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 400px;
+            width: 100%;
+        }
+        
+        .signature-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .signature-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #1565c0;
+        }
+        
+        .signature-warning {
+            background: #ffebee;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #c62828;
+        }
+        
+        /* Success Screen */
+        .success-screen {
+            display: none;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: #4caf50;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 40px;
+            color: white;
+        }
+        
+        .success-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .success-message {
+            color: #666;
+            margin-bottom: 20px;
+        }
+        
+        .certificate-preview {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 375px) {
+            .mobile-header h1 {
+                font-size: 20px;
+            }
+            
+            .notice-card {
+                padding: 12px;
+            }
+        }
+        
+        /* iOS specific fixes */
+        @supports (-webkit-touch-callout: none) {
+            .mobile-container {
+                min-height: -webkit-fill-available;
+            }
+            
+            .document-modal {
+                height: -webkit-fill-available;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-container">
+        <!-- Header -->
+        <div class="mobile-header">
+            <h1>📜 BlockServed</h1>
+            <p>View and Sign Legal Notices</p>
+        </div>
+        
+        <!-- Wallet Connection -->
+        <div class="wallet-section">
+            <div class="wallet-connected" id="walletConnected">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-size: 12px; color: #666; margin-bottom: 4px;">Connected Wallet</div>
+                        <div class="wallet-address" id="walletAddress"></div>
+                    </div>
+                    <i class="fas fa-check-circle" style="color: #4caf50; font-size: 20px;"></i>
+                </div>
+                <button class="connect-wallet-btn disconnect-btn" onclick="disconnectWallet()">
+                    <i class="fas fa-unlink"></i>
+                    Disconnect
+                </button>
+            </div>
+            
+            <button class="connect-wallet-btn" id="connectBtn" onclick="connectWallet()">
+                <i class="fas fa-wallet"></i>
+                Connect TronLink Wallet
+            </button>
+        </div>
+        
+        <!-- Loading State -->
+        <div class="loading-container" id="loadingContainer">
+            <div class="spinner"></div>
+            <p>Loading your notices...</p>
+        </div>
+        
+        <!-- Empty State -->
+        <div class="empty-state" id="emptyState">
+            <i class="fas fa-inbox"></i>
+            <h3>No Legal Notices</h3>
+            <p>You don't have any legal notices at this time.</p>
+        </div>
+        
+        <!-- Notices List -->
+        <div class="notices-section" id="noticesSection" style="display: none;">
+            <div class="section-title">
+                Your Legal Notices
+                <span class="notice-count" id="noticeCount">0</span>
+            </div>
+            
+            <div id="noticesList">
+                <!-- Notices will be dynamically added here -->
+            </div>
+        </div>
+        
+        <!-- Success Screen -->
+        <div class="success-screen" id="successScreen">
+            <div class="success-icon">
+                <i class="fas fa-check"></i>
+            </div>
+            <h2 class="success-title">Document Signed Successfully!</h2>
+            <p class="success-message">Your signature has been recorded on the blockchain.</p>
+            
+            <div class="certificate-preview" id="certificatePreview">
+                <!-- Certificate details will appear here -->
+            </div>
+            
+            <button class="connect-wallet-btn" onclick="downloadCertificate()">
+                <i class="fas fa-download"></i>
+                Download Certificate
+            </button>
+            
+            <button class="connect-wallet-btn disconnect-btn" onclick="location.reload()" style="margin-top: 10px;">
+                <i class="fas fa-arrow-left"></i>
+                Back to Notices
+            </button>
+        </div>
+    </div>
+    
+    <!-- Document Viewer Modal -->
+    <div class="document-modal" id="documentModal">
+        <div class="modal-header">
+            <div class="modal-title" id="modalTitle">Legal Document</div>
+            <button class="modal-close" onclick="closeDocument()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="document-controls">
+            <button class="zoom-btn" onclick="zoomOut()">
+                <i class="fas fa-search-minus"></i>
+            </button>
+            <button class="zoom-btn" onclick="resetZoom()">
+                <i class="fas fa-compress"></i>
+            </button>
+            <button class="zoom-btn" onclick="zoomIn()">
+                <i class="fas fa-search-plus"></i>
+            </button>
+        </div>
+        
+        <div class="document-viewer" id="documentViewer">
+            <img class="document-image" id="documentImage" src="" alt="Legal Document">
+        </div>
+        
+        <div class="modal-footer">
+            <div class="modal-info">
+                <i class="fas fa-info-circle"></i>
+                <span id="modalInfo">This document requires your signature for official acknowledgment.</span>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="modal-btn btn-secondary" onclick="viewWithoutSigning()">
+                    <i class="fas fa-eye"></i>
+                    View Only
+                </button>
+                <button class="modal-btn btn-primary" onclick="proceedToSign()">
+                    <i class="fas fa-signature"></i>
+                    Sign Document
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Signature Confirmation Modal -->
+    <div class="signature-modal" id="signatureModal">
+        <div class="signature-content">
+            <h3 class="signature-title">Sign Legal Document</h3>
+            
+            <div class="signature-info">
+                <strong>By signing, you acknowledge:</strong><br>
+                • You have received this legal notice<br>
+                • The date and time will be recorded<br>
+                • This creates a permanent blockchain record
+            </div>
+            
+            <div class="signature-warning">
+                <strong>⚠️ Important:</strong><br>
+                This action cannot be undone. Your signature will be permanently recorded on the blockchain.
+            </div>
+            
+            <div class="modal-actions">
+                <button class="modal-btn btn-secondary" onclick="cancelSignature()">
+                    Cancel
+                </button>
+                <button class="modal-btn btn-primary" onclick="confirmSignature()">
+                    <i class="fas fa-pen"></i>
+                    Confirm & Sign
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let tronWeb = null;
+        let currentNotice = null;
+        let currentZoom = 1;
+        let notices = [];
+        
+        // Initialize
+        window.addEventListener('load', () => {
+            checkTronLink();
+            setupTouchGestures();
+        });
+        
+        // Check if TronLink is installed
+        function checkTronLink() {
+            if (window.tronWeb && window.tronWeb.ready) {
+                tronWeb = window.tronWeb;
+                autoConnect();
+            } else {
+                setTimeout(checkTronLink, 500);
+            }
+        }
+        
+        // Auto-connect if previously connected
+        async function autoConnect() {
+            if (tronWeb && tronWeb.defaultAddress.base58) {
+                showWalletConnected(tronWeb.defaultAddress.base58);
+                loadNotices();
+            }
+        }
+        
+        // Connect Wallet
+        async function connectWallet() {
+            if (!window.tronWeb) {
+                alert('Please install TronLink wallet app or extension');
+                // For mobile, redirect to app store
+                if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                    if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                        window.location.href = 'https://apps.apple.com/app/tronlink/id1453530188';
+                    } else {
+                        window.location.href = 'https://play.google.com/store/apps/details?id=com.tronlink.wallet';
+                    }
+                }
+                return;
+            }
+            
+            try {
+                // Request account access
+                await window.tronWeb.request({ method: 'tron_requestAccounts' });
+                
+                if (tronWeb.defaultAddress.base58) {
+                    showWalletConnected(tronWeb.defaultAddress.base58);
+                    loadNotices();
+                }
+            } catch (error) {
+                console.error('Connection error:', error);
+                alert('Failed to connect wallet. Please try again.');
+            }
+        }
+        
+        // Disconnect Wallet
+        function disconnectWallet() {
+            document.getElementById('walletConnected').style.display = 'none';
+            document.getElementById('connectBtn').style.display = 'block';
+            document.getElementById('noticesSection').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'none';
+            notices = [];
+        }
+        
+        // Show Connected Wallet
+        function showWalletConnected(address) {
+            document.getElementById('walletAddress').textContent = 
+                address.substring(0, 6) + '...' + address.substring(address.length - 4);
+            document.getElementById('walletConnected').style.display = 'block';
+            document.getElementById('connectBtn').style.display = 'none';
+        }
+        
+        // Load Notices
+        async function loadNotices() {
+            document.getElementById('loadingContainer').style.display = 'block';
+            document.getElementById('noticesSection').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'none';
+            
+            try {
+                // Simulate loading notices from contract
+                // In production, this would query the smart contract
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                
+                // Mock data for demonstration
+                notices = [
+                    {
+                        id: 1,
+                        type: 'Legal Notice',
+                        caseNumber: 'CASE-2024-001',
+                        agency: 'District Court',
+                        date: new Date().toISOString(),
+                        status: 'pending',
+                        urgent: true,
+                        documentUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjYwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgIDxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iNjAwIiBmaWxsPSJ3aGl0ZSIvPgogICAgPHRleHQgeD0iMjAwIiB5PSI1MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSIyMCIgZm9udC13ZWlnaHQ9ImJvbGQiPkxFR0FMIE5PVElDRTwvdGV4dD4KICAgIDx0ZXh0IHg9IjIwMCIgeT0iMTAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE0Ij5DYXNFLU5VTUJFUjogQ0FTRS0yMDI0LTAwMTwvdGV4dD4KICAgIDx0ZXh0IHg9IjUwIiB5PSIxNTAiIGZvbnQtc2l6ZT0iMTIiPllvdSBhcmUgaGVyZWJ5IG5vdGlmaWVkLi4uPC90ZXh0Pgo8L3N2Zz4='
+                    },
+                    {
+                        id: 2,
+                        type: 'Court Summons',
+                        caseNumber: 'CASE-2024-002',
+                        agency: 'Federal Court',
+                        date: new Date(Date.now() - 86400000).toISOString(),
+                        status: 'signed',
+                        urgent: false
+                    }
+                ];
+                
+                displayNotices();
+                
+            } catch (error) {
+                console.error('Error loading notices:', error);
+                document.getElementById('emptyState').style.display = 'block';
+            } finally {
+                document.getElementById('loadingContainer').style.display = 'none';
+            }
+        }
+        
+        // Display Notices
+        function displayNotices() {
+            const noticesList = document.getElementById('noticesList');
+            const noticeCount = document.getElementById('noticeCount');
+            
+            if (notices.length === 0) {
+                document.getElementById('emptyState').style.display = 'block';
+                return;
+            }
+            
+            document.getElementById('noticesSection').style.display = 'block';
+            noticeCount.textContent = notices.length;
+            
+            noticesList.innerHTML = notices.map(notice => `
+                <div class="notice-card ${notice.urgent ? 'urgent' : ''} ${notice.status === 'signed' ? 'signed' : ''}" 
+                     onclick="openNotice(${notice.id})">
+                    <div class="notice-header">
+                        <div class="notice-type">${notice.type}</div>
+                        <div class="notice-status ${notice.urgent ? 'status-urgent' : notice.status === 'signed' ? 'status-signed' : 'status-pending'}">
+                            ${notice.urgent ? 'Action Required' : notice.status === 'signed' ? 'Signed' : 'Pending'}
+                        </div>
+                    </div>
+                    
+                    <div class="notice-details">
+                        <div class="notice-detail">
+                            <i class="fas fa-building"></i>
+                            <span>${notice.agency}</span>
+                        </div>
+                        <div class="notice-detail">
+                            <i class="fas fa-hashtag"></i>
+                            <span>${notice.caseNumber}</span>
+                        </div>
+                        <div class="notice-detail">
+                            <i class="fas fa-calendar"></i>
+                            <span>${new Date(notice.date).toLocaleDateString()}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="notice-actions">
+                        ${notice.status === 'signed' ? 
+                            `<button class="notice-btn btn-view" onclick="event.stopPropagation(); viewCertificate(${notice.id})">
+                                <i class="fas fa-certificate"></i>
+                                View Certificate
+                            </button>` :
+                            `<button class="notice-btn btn-view" onclick="event.stopPropagation(); viewDocument(${notice.id})">
+                                <i class="fas fa-eye"></i>
+                                View
+                            </button>
+                            <button class="notice-btn btn-sign" onclick="event.stopPropagation(); signDocument(${notice.id})">
+                                <i class="fas fa-signature"></i>
+                                Sign
+                            </button>`
+                        }
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Open Notice
+        function openNotice(noticeId) {
+            currentNotice = notices.find(n => n.id === noticeId);
+            if (!currentNotice) return;
+            
+            if (currentNotice.status === 'signed') {
+                viewCertificate(noticeId);
+            } else {
+                viewDocument(noticeId);
+            }
+        }
+        
+        // View Document
+        function viewDocument(noticeId) {
+            currentNotice = notices.find(n => n.id === noticeId);
+            if (!currentNotice) return;
+            
+            document.getElementById('modalTitle').textContent = currentNotice.type;
+            document.getElementById('documentImage').src = currentNotice.documentUrl || '';
+            document.getElementById('documentModal').classList.add('active');
+            
+            // Reset zoom
+            resetZoom();
+        }
+        
+        // Sign Document
+        function signDocument(noticeId) {
+            currentNotice = notices.find(n => n.id === noticeId);
+            if (!currentNotice) return;
+            
+            viewDocument(noticeId);
+            setTimeout(() => proceedToSign(), 100);
+        }
+        
+        // Close Document
+        function closeDocument() {
+            document.getElementById('documentModal').classList.remove('active');
+            currentNotice = null;
+        }
+        
+        // View Without Signing
+        function viewWithoutSigning() {
+            document.getElementById('modalInfo').textContent = 
+                'You are viewing this document without signing. No blockchain record will be created.';
+            
+            // Hide action buttons
+            document.querySelector('.modal-actions').style.display = 'none';
+        }
+        
+        // Proceed to Sign
+        function proceedToSign() {
+            document.getElementById('signatureModal').classList.add('active');
+        }
+        
+        // Cancel Signature
+        function cancelSignature() {
+            document.getElementById('signatureModal').classList.remove('active');
+        }
+        
+        // Confirm Signature
+        async function confirmSignature() {
+            try {
+                // Show loading
+                document.querySelector('.signature-content').innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <div class="spinner"></div>
+                        <p style="margin-top: 20px;">Signing document on blockchain...</p>
+                    </div>
+                `;
+                
+                // Simulate blockchain transaction
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Update notice status
+                if (currentNotice) {
+                    currentNotice.status = 'signed';
+                    currentNotice.signedAt = new Date().toISOString();
+                    currentNotice.txHash = '0x' + Math.random().toString(36).substring(7);
+                }
+                
+                // Show success
+                showSuccess();
+                
+            } catch (error) {
+                alert('Failed to sign document. Please try again.');
+                cancelSignature();
+            }
+        }
+        
+        // Show Success Screen
+        function showSuccess() {
+            document.getElementById('signatureModal').classList.remove('active');
+            document.getElementById('documentModal').classList.remove('active');
+            document.getElementById('successScreen').style.display = 'block';
+            document.getElementById('noticesSection').style.display = 'none';
+            
+            if (currentNotice) {
+                document.getElementById('certificatePreview').innerHTML = `
+                    <div style="font-size: 14px; color: #666;">
+                        <strong>Document:</strong> ${currentNotice.type}<br>
+                        <strong>Case:</strong> ${currentNotice.caseNumber}<br>
+                        <strong>Signed:</strong> ${new Date().toLocaleString()}<br>
+                        <strong>Transaction:</strong> ${currentNotice.txHash}
+                    </div>
+                `;
+            }
+        }
+        
+        // View Certificate
+        function viewCertificate(noticeId) {
+            const notice = notices.find(n => n.id === noticeId);
+            if (!notice || notice.status !== 'signed') return;
+            
+            alert(`Certificate for ${notice.caseNumber}\nSigned: ${new Date(notice.signedAt).toLocaleString()}`);
+        }
+        
+        // Download Certificate
+        function downloadCertificate() {
+            if (!currentNotice) return;
+            
+            // In production, generate actual PDF certificate
+            alert('Certificate download started...');
+        }
+        
+        // Zoom Controls
+        function zoomIn() {
+            currentZoom = Math.min(currentZoom + 0.25, 3);
+            applyZoom();
+        }
+        
+        function zoomOut() {
+            currentZoom = Math.max(currentZoom - 0.25, 0.5);
+            applyZoom();
+        }
+        
+        function resetZoom() {
+            currentZoom = 1;
+            applyZoom();
+        }
+        
+        function applyZoom() {
+            const img = document.getElementById('documentImage');
+            img.style.transform = `scale(${currentZoom})`;
+            img.style.transformOrigin = 'top center';
+            
+            // Enable scrolling when zoomed
+            const viewer = document.getElementById('documentViewer');
+            if (currentZoom > 1) {
+                viewer.classList.add('zoomed');
+            } else {
+                viewer.classList.remove('zoomed');
+            }
+        }
+        
+        // Setup Touch Gestures (Pinch to Zoom)
+        function setupTouchGestures() {
+            const viewer = document.getElementById('documentViewer');
+            let initialDistance = 0;
+            let initialZoom = 1;
+            
+            viewer.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    initialDistance = getDistance(e.touches[0], e.touches[1]);
+                    initialZoom = currentZoom;
+                }
+            });
+            
+            viewer.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 2) {
+                    e.preventDefault();
+                    const currentDistance = getDistance(e.touches[0], e.touches[1]);
+                    const scale = currentDistance / initialDistance;
+                    currentZoom = Math.min(Math.max(initialZoom * scale, 0.5), 3);
+                    applyZoom();
+                }
+            });
+            
+            function getDistance(touch1, touch2) {
+                const dx = touch1.clientX - touch2.clientX;
+                const dy = touch1.clientY - touch2.clientY;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+        }
+    </script>
+</body>
+</html>
