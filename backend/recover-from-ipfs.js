@@ -304,13 +304,13 @@ async function recoverAllDocuments() {
         console.log('Recovery columns may already exist');
     }
     
-    // Find all notices with IPFS hashes
-    // First check if we have encryption keys in served_notices or need to get from another table
+    // Find all notices with IPFS hashes and get encryption keys from notice_components
     const query = `
-        SELECT 
+        SELECT DISTINCT
             sn.notice_id,
             sn.ipfs_hash,
             COALESCE(
+                nc.document_encryption_key,
                 sn.encryption_key,
                 na.encryption_key,
                 nv.document_encryption_key
@@ -320,6 +320,7 @@ async function recoverAllDocuments() {
             sn.recipient_address,
             sn.created_at
         FROM served_notices sn
+        LEFT JOIN notice_components nc ON nc.notice_id = sn.notice_id
         LEFT JOIN notice_acceptances na ON na.notice_id = sn.notice_id
         LEFT JOIN notice_views nv ON nv.notice_id = sn.notice_id
         WHERE 
@@ -388,10 +389,11 @@ async function recoverAllDocuments() {
  */
 async function recoverSingleNotice(noticeId) {
     const query = `
-        SELECT 
+        SELECT DISTINCT
             sn.notice_id,
             sn.ipfs_hash,
             COALESCE(
+                nc.document_encryption_key,
                 sn.encryption_key,
                 na.encryption_key,
                 nv.document_encryption_key
@@ -401,6 +403,7 @@ async function recoverSingleNotice(noticeId) {
             sn.recipient_address,
             sn.created_at
         FROM served_notices sn
+        LEFT JOIN notice_components nc ON nc.notice_id = sn.notice_id
         LEFT JOIN notice_acceptances na ON na.notice_id = sn.notice_id
         LEFT JOIN notice_views nv ON nv.notice_id = sn.notice_id
         WHERE sn.notice_id = $1;
