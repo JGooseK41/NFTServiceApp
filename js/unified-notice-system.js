@@ -2879,7 +2879,7 @@ class UnifiedNoticeSystem {
     }
 
     /**
-     * View Notice - Display unencrypted notice images for process server
+     * View Notice - Display unencrypted notice images with access control
      */
     async viewNotice(caseNumber, type = 'both', noticeId = null) {
         const caseData = this.cases.get(caseNumber);
@@ -2897,6 +2897,29 @@ class UnifiedNoticeSystem {
         
         // Fall back to first recipient if not found or not specified
         const firstRecipient = targetRecipient || caseData.recipients?.[0] || {};
+        
+        // Check access control for documents
+        let isRecipient = false;
+        let accessToken = null;
+        const walletAddress = window.tronWeb?.defaultAddress?.base58;
+        
+        // If viewing a document and wallet is connected, verify recipient status
+        if ((type === 'document' || type === 'both') && walletAddress && window.documentAccessControl) {
+            console.log('🔐 Checking document access for wallet:', walletAddress);
+            const accessResult = await window.documentAccessControl.verifyRecipient(
+                walletAddress,
+                firstRecipient.alertId,
+                firstRecipient.documentId
+            );
+            isRecipient = accessResult.isRecipient;
+            accessToken = accessResult.accessToken;
+            
+            // If not the recipient and trying to view document only, show restricted message
+            if (!isRecipient && type === 'document') {
+                window.documentAccessControl.showAccessRestricted();
+                return;
+            }
+        }
         
         // Create modal to display notice
         const modal = document.createElement('div');
@@ -3100,31 +3123,62 @@ class UnifiedNoticeSystem {
                             container.innerHTML = this.createManualUploadInterface(caseNumber, noticeId, `No document available for this notice`, caseData.transactionHash);
                         }
                     } else if (type === 'both') {
-                        // Show both for the general case
+                        // Show both for the general case (with access control for document)
                         const hasValidImages = alertImageValid || documentImageValid;
                         
                         if (hasValidImages) {
-                            container.innerHTML = `
-                                ${alertImageValid && data.alertThumbnailUrl ? `
+                            // Always show alert (public information)
+                            let htmlContent = '';
+                            if (alertImageValid && data.alertThumbnailUrl) {
+                                htmlContent += `
                                     <div style="margin-bottom: 20px;">
-                                        <h3>Alert Notice</h3>
+                                        <h3>Alert Notice (Public)</h3>
                                         <div style="border: 1px solid #ddd; background: white; padding: 10px;">
                                             <img src="${data.alertThumbnailUrl}" 
                                                  style="max-width: 100%; height: auto; display: block;" 
                                                  alt="Alert Notice" />
                                         </div>
                                     </div>
-                                ` : ''}
-                                ${documentImageValid && data.documentUnencryptedUrl ? `
+                                `;
+                            }
+                            
+                            // Show document based on access control
+                            if (walletAddress && !isRecipient) {
+                                // Wallet connected but not recipient - show restricted message
+                                htmlContent += `
+                                    <div style="margin-bottom: 20px;">
+                                        <h3>Legal Document</h3>
+                                        <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 20px;">
+                                            <h4 style="color: #856404; margin-bottom: 10px;">
+                                                🔒 Document Access Restricted
+                                            </h4>
+                                            <p style="color: #856404; margin-bottom: 15px;">
+                                                The full document is only available to the intended recipient.
+                                            </p>
+                                            <div style="background: white; padding: 10px; border-radius: 4px;">
+                                                <small style="color: #666;">
+                                                    Connected wallet: ${walletAddress.substring(0, 8)}...${walletAddress.slice(-6)}<br>
+                                                    Recipient wallet: ${firstRecipient.recipientAddress?.substring(0, 8)}...${firstRecipient.recipientAddress?.slice(-6)}
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            } else if (documentImageValid && data.documentUnencryptedUrl) {
+                                // Either recipient or no wallet connected - show document
+                                htmlContent += `
                                     <div>
-                                        <h3>Document Notice</h3>
+                                        <h3>Document Notice ${isRecipient ? '(Verified Recipient)' : ''}</h3>
                                         <div style="border: 1px solid #ddd; background: white; padding: 10px;">
                                             <img src="${data.documentUnencryptedUrl}" 
                                                  style="max-width: 100%; height: auto; display: block;" 
                                                  alt="Document Notice" />
                                         </div>
                                     </div>
-                                ` : ''}
+                                `;
+                            }
+                            
+                            container.innerHTML = htmlContent
                                 ${!alertImageValid && data.alertThumbnailUrl ? `
                                     <div style="margin-bottom: 20px; padding: 15px; background: #fee; border: 1px solid #fcc; border-radius: 8px;">
                                         <p style="color: #c00; margin: 0;">⚠️ Alert thumbnail could not be loaded</p>

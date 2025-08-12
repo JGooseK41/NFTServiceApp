@@ -892,6 +892,10 @@ app.use('/api/tokens', tokenRegistryRouter);
 const auditTrackingRouter = require('./routes/audit-tracking');
 app.use('/api/audit', auditTrackingRouter);
 
+// Document Access Control - Ensure only recipients can view documents
+const documentAccessControlRouter = require('./routes/document-access-control');
+app.use('/api/access', documentAccessControlRouter);
+
 // Fallback to original documents router for backward compatibility
 // const documentsRouter = require('./routes/documents');
 // app.use('/api/documents-legacy', documentsRouter);
