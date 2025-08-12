@@ -10409,18 +10409,18 @@ function useConnectedAddressForFeeCollector() {
                         autoApprove: false
                     });
                 } else {
-                    // Fallback to original energy rental
-                    totalEstimatedEnergy = EnergyRental.estimateEnergyNeeded(hasDocument, true, recipients.length);
+                    // Calculate energy using ManualEnergyRental
+                    const docSizeMB = hasDocument && this.document ? this.document.length / (1024 * 1024) : 0;
+                    const energyCalc = window.ManualEnergyRental?.calculateEnergyNeeded(docSizeMB, recipients.length, true);
+                    totalEstimatedEnergy = energyCalc?.total || 400000;
                     
                     console.log(`Checking energy for batch of ${recipients.length} notices:`, {
                         totalEnergy: totalEstimatedEnergy,
                         perNotice: Math.round(totalEstimatedEnergy / recipients.length)
                     });
                     
-                    energyResult = await EnergyRental.prepareEnergyForTransaction(
-                        totalEstimatedEnergy,
-                        tronWeb.defaultAddress.base58
-                    );
+                    // Energy rental removed - using ManualEnergyRental/TronSave instead
+                    energyResult = { success: true, skipped: true };
                 }
                 
                 if (!energyResult.success) {
@@ -19910,11 +19910,15 @@ async function updateFeeEstimate() {
             }
             
             // Add energy cost estimate if available
-            if (window.EnergyRental && tronWeb.defaultAddress) {
+            if (window.ManualEnergyRental && tronWeb.defaultAddress) {
                 try {
                     const hasDocument = selectedMethod === 'document';
-                    const estimatedEnergy = window.EnergyRental.estimateEnergyNeeded(hasDocument);
-                    const currentEnergy = await window.EnergyRental.checkUserEnergy(tronWeb.defaultAddress.base58);
+                    // Use ManualEnergyRental for calculation
+                    const docSizeMB = hasDocument ? 0.1 : 0; // Estimate 100KB for thumbnails
+                    const energyCalc = window.ManualEnergyRental?.calculateEnergyNeeded(docSizeMB, 1, true);
+                    const estimatedEnergy = energyCalc?.total || 400000;
+                    const status = await window.ManualEnergyRental.checkEnergyStatus();
+                    const currentEnergy = status?.energy?.total || 0;
                     
                     if (currentEnergy < estimatedEnergy) {
                         const energyNeeded = estimatedEnergy - currentEnergy;
@@ -20304,8 +20308,9 @@ document.addEventListener('keydown', function(event) {
         async function checkEnergyAndContinue() {
             try {
                 // Check current energy
-                if (window.EnergyRental && window.tronWeb && window.tronWeb.defaultAddress) {
-                    const currentEnergy = await window.EnergyRental.checkUserEnergy(window.tronWeb.defaultAddress.base58);
+                if (window.ManualEnergyRental && window.tronWeb && window.tronWeb.defaultAddress) {
+                    const status = await window.ManualEnergyRental.checkEnergyStatus();
+                    const currentEnergy = status?.energy?.total || 0;
                     
                     if (currentEnergy >= 1000000) { // At least 1M energy
                         // Energy has been rented successfully
@@ -20521,11 +20526,15 @@ document.addEventListener('keydown', function(event) {
                 
                 // Check energy costs
                 let energyCost = 0;
-                if (window.EnergyRental && tronWeb.defaultAddress) {
+                if (window.ManualEnergyRental && tronWeb.defaultAddress) {
                     try {
                         const hasDocument = document.querySelector('input[name="deliveryMethod"]:checked')?.value === 'document' && uploadedImage;
-                        const estimatedEnergy = window.EnergyRental.estimateEnergyNeeded(hasDocument);
-                        const currentEnergy = await window.EnergyRental.checkUserEnergy(tronWeb.defaultAddress.base58);
+                        // Use ManualEnergyRental for calculation
+                        const docSizeMB = hasDocument && uploadedImage ? uploadedImage.data.length / (1024 * 1024) : 0;
+                        const energyCalc = window.ManualEnergyRental?.calculateEnergyNeeded(docSizeMB, 1, true);
+                        const estimatedEnergy = energyCalc?.total || 400000;
+                        const status = await window.ManualEnergyRental.checkEnergyStatus();
+                        const currentEnergy = status?.energy?.total || 0;
                         
                         if (currentEnergy < estimatedEnergy) {
                             const energyNeeded = estimatedEnergy - currentEnergy;
@@ -28230,10 +28239,14 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                 let energyCostEstimate = 0;
                 let energyNote = '';
                 
-                if (window.EnergyRental) {
+                if (window.ManualEnergyRental) {
                     const hasDocument = deliveryMethod === 'document' && uploadedImage;
-                    const estimatedEnergy = window.EnergyRental.estimateEnergyNeeded(hasDocument);
-                    const currentEnergy = await window.EnergyRental.checkUserEnergy(userAddress);
+                    // Use ManualEnergyRental for calculation
+                    const docSizeMB = hasDocument && uploadedImage ? uploadedImage.data.length / (1024 * 1024) : 0;
+                    const energyCalc = window.ManualEnergyRental?.calculateEnergyNeeded(docSizeMB, 1, true);
+                    const estimatedEnergy = energyCalc?.total || 400000;
+                    const status = await window.ManualEnergyRental.checkEnergyStatus();
+                    const currentEnergy = status?.energy?.total || 0;
                     
                     if (currentEnergy < estimatedEnergy) {
                         const energyNeeded = estimatedEnergy - currentEnergy;
@@ -28710,14 +28723,14 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                         };
                     }
                 } else {
-                    // Fallback to original energy rental
-                    estimatedEnergy = EnergyRental.estimateEnergyNeeded(hasDocument);
+                    // Use ManualEnergyRental for calculation
+                    const docSizeMB = hasDocument && uploadedImage ? uploadedImage.data.length / (1024 * 1024) : 0;
+                    const energyCalc = window.ManualEnergyRental?.calculateEnergyNeeded(docSizeMB, 1, true);
+                    estimatedEnergy = energyCalc?.total || 400000;
                     
                     try {
-                        energyResult = await EnergyRental.prepareEnergyForTransaction(
-                            estimatedEnergy,
-                            tronWeb.defaultAddress.base58
-                        );
+                        // Energy rental removed - using ManualEnergyRental/TronSave instead
+                        energyResult = { success: true, skipped: true };
                     } catch (energyError) {
                         console.error('Energy rental error:', energyError);
                         energyResult = { 
