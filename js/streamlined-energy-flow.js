@@ -94,6 +94,11 @@ window.StreamlinedEnergyFlow = {
         const rentalCost = (deficit * 0.000025).toFixed(2);
         const savings = (parseFloat(burnCost) - parseFloat(rentalCost)).toFixed(2);
         
+        // Store the original energy needed for adjustment
+        if (!this.adjustedEnergyNeeded) {
+            this.adjustedEnergyNeeded = params.energyDetails.total;
+        }
+        
         return `
             <!-- Header -->
             <div style="
@@ -134,8 +139,91 @@ window.StreamlinedEnergyFlow = {
                         <span style="color: #ef4444; font-weight: 500;">Insufficient Energy</span>
                     </div>
                     <div style="color: #d1d5db; line-height: 1.6;">
-                        Your transaction requires <strong style="color: #fff;">${params.energyDetails.total.toLocaleString()}</strong> energy, 
-                        but you only have <strong style="color: #fff;">${params.currentEnergy.toLocaleString()}</strong>.
+                        Estimated requirement: <strong style="color: #fff;">${params.energyDetails.total.toLocaleString()}</strong> energy<br>
+                        You currently have: <strong style="color: #fff;">${params.currentEnergy.toLocaleString()}</strong> energy
+                    </div>
+                </div>
+                
+                <!-- Manual Adjustment -->
+                <div style="
+                    background: rgba(14, 165, 233, 0.1);
+                    border: 1px solid rgba(14, 165, 233, 0.3);
+                    border-radius: 8px;
+                    padding: 16px;
+                    margin-bottom: 20px;
+                ">
+                    <div style="color: #0ea5e9; font-weight: 500; margin-bottom: 12px;">
+                        ⚡ Adjust Energy Amount (Optional)
+                    </div>
+                    <div style="color: #9ca3af; font-size: 0.875rem; margin-bottom: 8px;">
+                        If you know the actual requirement differs, you can adjust it here:
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="number" 
+                            id="energy-adjustment-input"
+                            value="${this.adjustedEnergyNeeded}"
+                            min="${params.currentEnergy}"
+                            step="100000"
+                            style="
+                                flex: 1;
+                                padding: 10px;
+                                background: rgba(0, 0, 0, 0.3);
+                                border: 1px solid #0ea5e9;
+                                border-radius: 6px;
+                                color: white;
+                                font-size: 1rem;
+                                font-family: monospace;
+                            "
+                            onchange="StreamlinedEnergyFlow.updateEnergyAmount(this.value)"
+                        />
+                        <div style="color: #9ca3af; padding: 0 8px;">energy</div>
+                    </div>
+                    <div style="margin-top: 8px; display: flex; gap: 8px;">
+                        <button onclick="StreamlinedEnergyFlow.setEnergyAmount(3500000)" style="
+                            padding: 6px 12px;
+                            background: rgba(0, 0, 0, 0.3);
+                            border: 1px solid #333;
+                            border-radius: 4px;
+                            color: #9ca3af;
+                            font-size: 0.75rem;
+                            cursor: pointer;
+                        ">3.5M</button>
+                        <button onclick="StreamlinedEnergyFlow.setEnergyAmount(4000000)" style="
+                            padding: 6px 12px;
+                            background: rgba(0, 0, 0, 0.3);
+                            border: 1px solid #333;
+                            border-radius: 4px;
+                            color: #9ca3af;
+                            font-size: 0.75rem;
+                            cursor: pointer;
+                        ">4M</button>
+                        <button onclick="StreamlinedEnergyFlow.setEnergyAmount(5000000)" style="
+                            padding: 6px 12px;
+                            background: rgba(0, 0, 0, 0.3);
+                            border: 1px solid #333;
+                            border-radius: 4px;
+                            color: #9ca3af;
+                            font-size: 0.75rem;
+                            cursor: pointer;
+                        ">5M</button>
+                        <button onclick="StreamlinedEnergyFlow.addEnergyAmount(500000)" style="
+                            padding: 6px 12px;
+                            background: rgba(0, 0, 0, 0.3);
+                            border: 1px solid #333;
+                            border-radius: 4px;
+                            color: #9ca3af;
+                            font-size: 0.75rem;
+                            cursor: pointer;
+                        ">+500k</button>
+                        <button onclick="StreamlinedEnergyFlow.addEnergyAmount(1000000)" style="
+                            padding: 6px 12px;
+                            background: rgba(0, 0, 0, 0.3);
+                            border: 1px solid #333;
+                            border-radius: 4px;
+                            color: #9ca3af;
+                            font-size: 0.75rem;
+                            cursor: pointer;
+                        ">+1M</button>
                     </div>
                 </div>
                 
@@ -844,6 +932,31 @@ window.StreamlinedEnergyFlow = {
         
         if (window.uiManager) {
             window.uiManager.showNotification('info', 'Transaction cancelled');
+        }
+    },
+    
+    // Helper functions for energy adjustment
+    updateEnergyAmount(value) {
+        this.adjustedEnergyNeeded = parseInt(value) || this.energyNeeded;
+        this.energyNeeded = this.adjustedEnergyNeeded;
+        console.log(`Energy amount updated to: ${this.adjustedEnergyNeeded.toLocaleString()}`);
+    },
+    
+    setEnergyAmount(amount) {
+        const input = document.getElementById('energy-adjustment-input');
+        if (input) {
+            input.value = amount;
+            this.updateEnergyAmount(amount);
+        }
+    },
+    
+    addEnergyAmount(amount) {
+        const input = document.getElementById('energy-adjustment-input');
+        if (input) {
+            const current = parseInt(input.value) || 0;
+            const newAmount = current + amount;
+            input.value = newAmount;
+            this.updateEnergyAmount(newAmount);
         }
     },
     
