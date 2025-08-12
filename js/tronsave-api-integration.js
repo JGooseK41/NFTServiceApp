@@ -9,13 +9,19 @@ console.log('🔌 Loading TronSave API Integration...');
 window.TronSaveAPI = {
     
     // API Configuration
-    API_BASE_URL: 'https://api.tronsave.io/v0',  // Production API
-    API_TEST_URL: 'https://api-dev.tronsave.io/v0',  // Testnet API
+    API_BASE_URL: 'https://api.tronsave.io',  // Production API base
+    API_TEST_URL: 'https://api-dev.tronsave.io',  // Testnet API base
     TESTNET_WEBSITE: 'https://testnet.tronsave.io',  // Testnet website
     MAINNET_WEBSITE: 'https://tronsave.io',  // Mainnet website
+    
+    // TronSave receiver addresses for v2 API
+    MAINNET_RECEIVER: 'TWZEhq5JuUVvGtutNgnRBATbF8BnHGyn4S',
+    TESTNET_RECEIVER: 'TATT1UzHRikft98bRFqApFTsaSw73ycfoS',
+    
     API_KEY: null,
     DEPOSIT_ADDRESS: null,  // Internal account deposit address
-    AUTH_METHOD: 'apikey',  // 'apikey' or 'signtx'
+    AUTH_METHOD: 'apikey',  // 'apikey' or 'signtx' 
+    API_VERSION: 'v0',  // 'v0' for API key, 'v2' for signed transactions
     USE_TESTNET: false,  // Toggle for testing
     
     // Duration mappings for UI display
@@ -132,10 +138,19 @@ window.TronSaveAPI = {
     },
     
     /**
-     * Get current API URL based on network
+     * Get current API URL based on network and version
      */
-    getApiUrl() {
-        return this.USE_TESTNET ? this.API_TEST_URL : this.API_BASE_URL;
+    getApiUrl(version = null) {
+        const baseUrl = this.USE_TESTNET ? this.API_TEST_URL : this.API_BASE_URL;
+        const apiVersion = version || this.API_VERSION;
+        return `${baseUrl}/${apiVersion}`;
+    },
+    
+    /**
+     * Get TronSave receiver address based on network
+     */
+    getReceiverAddress() {
+        return this.USE_TESTNET ? this.TESTNET_RECEIVER : this.MAINNET_RECEIVER;
     },
     
     /**
@@ -299,11 +314,11 @@ window.TronSaveAPI = {
     },
     
     /**
-     * Estimate TRX cost for energy rental
+     * Estimate TRX cost for energy rental (v0 API)
      */
     async estimateTRX(energyAmount, duration = 3600000) {
         try {
-            const response = await fetch(`${this.getApiUrl()}/estimate-trx`, {
+            const response = await fetch(`${this.getApiUrl('v0')}/estimate-trx`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -333,7 +348,147 @@ window.TronSaveAPI = {
     },
     
     /**
-     * Create energy rental order via API (internal-buy-energy endpoint)
+     * Estimate TRX cost using v2 API (more accurate)
+     */
+    async estimateTRXv2(resourceAmount, durationSec = 3600) {
+        try {
+            const response = await fetch(`${this.getApiUrl('v2')}/estimate-buy-resource`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    resourceAmount: resourceAmount,
+                    unitPrice: 'MEDIUM',  // LOW, MEDIUM, HIGH
+                    resourceType: 'ENERGY',
+                    durationSec: durationSec
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to estimate price');
+            }
+            
+            const result = await response.json();
+            
+            if (result.error) {
+                throw new Error(result.message);
+            }
+            
+            return {
+                success: true,
+                unitPrice: result.data.unitPrice,
+                durationSec: result.data.durationSec,
+                estimateTrx: result.data.estimateTrx,
+                availableResource: result.data.availableResource,
+                isFullyAvailable: result.data.availableResource >= resourceAmount
+            };
+            
+        } catch (error) {
+            console.error('V2 price estimation failed:', error);
+            return { success: false, error: error.message };
+        }
+    },
+    
+    /**
+     * Build and sign transaction for v2 API
+     */
+    async buildSignedTransaction(estimateTrx, senderAddress) {
+        try {
+            if (!window.tronWeb || !window.tronWeb.ready) {
+                throw new Error('TronWeb not ready');
+            }
+            
+            const receiverAddress = this.getReceiverAddress();
+            
+            // Build transaction to send TRX to TronSave
+            const transaction = await window.tronWeb.transactionBuilder.sendTrx(
+                receiverAddress,
+                estimateTrx,  // Amount in SUN
+                senderAddress
+            );
+            
+            // Sign the transaction
+            const signedTx = await window.tronWeb.trx.sign(transaction);
+            
+            return signedTx;
+            
+        } catch (error) {
+            console.error('Failed to build signed transaction:', error);
+            throw error;
+        }
+    },
+    
+    /**
+     * Create energy order using v2 API (with signed transaction)
+     */
+    async createEnergyOrderV2(resourceAmount, durationSec = 3600, receiverAddress) {
+        try {
+            // Step 1: Estimate cost
+            const estimate = await this.estimateTRXv2(resourceAmount, durationSec);
+            if (!estimate.success) {
+                throw new Error('Failed to estimate: ' + estimate.error);
+            }
+            
+            if (!estimate.isFullyAvailable) {
+                console.warn(`Only ${estimate.availableResource} energy available, requested ${resourceAmount}`);
+            }
+            
+            // Step 2: Build signed transaction
+            const senderAddress = window.tronWeb?.defaultAddress?.base58;
+            if (!senderAddress) {
+                throw new Error('No wallet connected');
+            }
+            
+            const signedTx = await this.buildSignedTransaction(estimate.estimateTrx, senderAddress);
+            
+            // Step 3: Create order
+            const response = await fetch(`${this.getApiUrl('v2')}/buy-resource`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    resourceType: 'ENERGY',
+                    resourceAmount: resourceAmount,
+                    unitPrice: estimate.unitPrice,
+                    allowPartialFill: true,
+                    receiver: receiverAddress || senderAddress,
+                    durationSec: durationSec,
+                    signedTx: signedTx,
+                    options: {}
+                })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Order creation failed');
+            }
+            
+            const result = await response.json();
+            
+            if (result.error) {
+                throw new Error(result.message);
+            }
+            
+            console.log('✅ V2 Order created:', result);
+            
+            return {
+                success: true,
+                orderId: result.data.orderId,
+                method: 'v2',
+                estimatedTrx: estimate.estimateTrx / 1000000,  // Convert to TRX
+                resourceAmount: resourceAmount
+            };
+            
+        } catch (error) {
+            console.error('V2 order creation failed:', error);
+            return { success: false, error: error.message };
+        }
+    },
+    
+    /**
+     * Create energy rental order via API (internal-buy-energy endpoint) - v0
      */
     async createEnergyOrder(energyAmount, duration = 3600000, recipientAddress) {
         try {
@@ -361,7 +516,7 @@ window.TronSaveAPI = {
             };
             
             const headers = await this.getAuthHeaders();
-            const response = await fetch(`${this.getApiUrl()}/internal-buy-energy`, {
+            const response = await fetch(`${this.getApiUrl('v0')}/internal-buy-energy`, {
                 method: 'POST',
                 headers: headers,
                 body: JSON.stringify(orderData)
