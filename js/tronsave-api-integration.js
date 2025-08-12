@@ -11,7 +11,11 @@ window.TronSaveAPI = {
     // API Configuration
     API_BASE_URL: 'https://api.tronsave.io/v0',  // Production API
     API_TEST_URL: 'https://api-dev.tronsave.io/v0',  // Testnet API
+    TESTNET_WEBSITE: 'https://testnet.tronsave.io',  // Testnet website
+    MAINNET_WEBSITE: 'https://tronsave.io',  // Mainnet website
     API_KEY: null,
+    DEPOSIT_ADDRESS: null,  // Internal account deposit address
+    AUTH_METHOD: 'apikey',  // 'apikey' or 'signtx'
     USE_TESTNET: false,  // Toggle for testing
     
     // Duration mappings for UI display
@@ -25,11 +29,13 @@ window.TronSaveAPI = {
     },
     
     /**
-     * Initialize API with key
+     * Initialize API with key or signature
      */
     async initialize() {
-        // Check if API key is stored
+        // Check stored configuration
         this.API_KEY = localStorage.getItem('tronsave_api_key');
+        this.DEPOSIT_ADDRESS = localStorage.getItem('tronsave_deposit_address');
+        this.AUTH_METHOD = localStorage.getItem('tronsave_auth_method') || 'apikey';
         
         // Check if testnet mode is stored
         const storedTestnet = localStorage.getItem('tronsave_use_testnet');
@@ -37,31 +43,58 @@ window.TronSaveAPI = {
             this.USE_TESTNET = storedTestnet === 'true';
         }
         
-        if (!this.API_KEY) {
+        if (this.AUTH_METHOD === 'apikey' && !this.API_KEY) {
             console.log('TronSave API key not configured');
             return false;
         }
         
-        // Verify API key is valid
-        const isValid = await this.verifyApiKey();
-        if (!isValid) {
-            console.warn('TronSave API key is invalid');
-            this.API_KEY = null;
-            localStorage.removeItem('tronsave_api_key');
+        if (this.AUTH_METHOD === 'signtx' && !window.tronWeb) {
+            console.log('TronWeb not available for signature auth');
             return false;
         }
         
-        console.log(`✅ TronSave API initialized (${this.USE_TESTNET ? 'TESTNET' : 'MAINNET'})`);
+        // Verify configuration is valid
+        const isValid = await this.verifyAuth();
+        if (!isValid) {
+            console.warn('TronSave authentication failed');
+            if (this.AUTH_METHOD === 'apikey') {
+                this.API_KEY = null;
+                localStorage.removeItem('tronsave_api_key');
+            }
+            return false;
+        }
+        
+        console.log(`✅ TronSave API initialized (${this.USE_TESTNET ? 'TESTNET' : 'MAINNET'}, ${this.AUTH_METHOD})`);
         return true;
     },
     
     /**
-     * Set API Key
+     * Set API Key and deposit address
      */
-    setApiKey(apiKey) {
+    setApiKey(apiKey, depositAddress = null) {
         this.API_KEY = apiKey;
         localStorage.setItem('tronsave_api_key', apiKey);
-        console.log('API key saved');
+        
+        if (depositAddress) {
+            this.DEPOSIT_ADDRESS = depositAddress;
+            localStorage.setItem('tronsave_deposit_address', depositAddress);
+        }
+        
+        this.AUTH_METHOD = 'apikey';
+        localStorage.setItem('tronsave_auth_method', 'apikey');
+        
+        console.log('API key and configuration saved');
+    },
+    
+    /**
+     * Set authentication method
+     */
+    setAuthMethod(method) {
+        if (method === 'apikey' || method === 'signtx') {
+            this.AUTH_METHOD = method;
+            localStorage.setItem('tronsave_auth_method', method);
+            console.log(`Authentication method set to: ${method}`);
+        }
     },
     
     /**
@@ -74,10 +107,47 @@ window.TronSaveAPI = {
     },
     
     /**
+     * Get authentication headers based on method
+     */
+    async getAuthHeaders() {
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        
+        if (this.AUTH_METHOD === 'apikey') {
+            headers['apikey'] = this.API_KEY;
+        } else if (this.AUTH_METHOD === 'signtx') {
+            // Generate signature for each request
+            const message = `TronSave Request: ${Date.now()}`;
+            const signature = await this.signMessage(message);
+            
+            if (signature) {
+                headers['address'] = window.tronWeb.defaultAddress.base58;
+                headers['signature'] = signature;
+                headers['message'] = message;
+            }
+        }
+        
+        return headers;
+    },
+    
+    /**
      * Get current API URL based on network
      */
     getApiUrl() {
         return this.USE_TESTNET ? this.API_TEST_URL : this.API_BASE_URL;
+    },
+    
+    /**
+     * Verify authentication (API key or signature)
+     */
+    async verifyAuth() {
+        if (this.AUTH_METHOD === 'apikey') {
+            return await this.verifyApiKey();
+        } else if (this.AUTH_METHOD === 'signtx') {
+            return await this.verifySignature();
+        }
+        return false;
     },
     
     /**
@@ -95,10 +165,71 @@ window.TronSaveAPI = {
                 }
             });
             
-            return response.ok;
+            if (response.ok) {
+                const data = await response.json();
+                // Store deposit address if available
+                if (data.deposit_address) {
+                    this.DEPOSIT_ADDRESS = data.deposit_address;
+                    localStorage.setItem('tronsave_deposit_address', data.deposit_address);
+                }
+                return true;
+            }
+            return false;
         } catch (error) {
             console.error('API verification failed:', error);
             return false;
+        }
+    },
+    
+    /**
+     * Verify signature authentication
+     */
+    async verifySignature() {
+        if (!window.tronWeb || !window.tronWeb.ready) {
+            console.error('TronWeb not ready for signature auth');
+            return false;
+        }
+        
+        try {
+            // Generate signature for authentication
+            const message = `TronSave Auth: ${Date.now()}`;
+            const signature = await this.signMessage(message);
+            
+            if (signature) {
+                // Test with a simple API call using signature
+                const response = await fetch(`${this.getApiUrl()}/user-info`, {
+                    method: 'GET',
+                    headers: {
+                        'address': window.tronWeb.defaultAddress.base58,
+                        'signature': signature,
+                        'message': message,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                return response.ok;
+            }
+            return false;
+        } catch (error) {
+            console.error('Signature verification failed:', error);
+            return false;
+        }
+    },
+    
+    /**
+     * Sign a message with TronWeb
+     */
+    async signMessage(message) {
+        try {
+            if (!window.tronWeb || !window.tronWeb.ready) {
+                throw new Error('TronWeb not ready');
+            }
+            
+            const signature = await window.tronWeb.trx.sign(message);
+            return signature;
+        } catch (error) {
+            console.error('Failed to sign message:', error);
+            return null;
         }
     },
     
@@ -107,12 +238,10 @@ window.TronSaveAPI = {
      */
     async getUserInfo() {
         try {
+            const headers = await this.getAuthHeaders();
             const response = await fetch(`${this.getApiUrl()}/user-info`, {
                 method: 'GET',
-                headers: {
-                    'apikey': this.API_KEY,
-                    'Content-Type': 'application/json'
-                }
+                headers: headers
             });
             
             if (!response.ok) {
@@ -120,9 +249,17 @@ window.TronSaveAPI = {
             }
             
             const data = await response.json();
+            
+            // Update stored deposit address if available
+            if (data.deposit_address) {
+                this.DEPOSIT_ADDRESS = data.deposit_address;
+                localStorage.setItem('tronsave_deposit_address', data.deposit_address);
+            }
+            
             return {
                 success: true,
                 balance: data.balance || 0,
+                depositAddress: data.deposit_address || this.DEPOSIT_ADDRESS,
                 email: data.email,
                 apiKey: data.apiKey
             };
@@ -223,12 +360,10 @@ window.TronSaveAPI = {
                 allow_partial_fill: true
             };
             
+            const headers = await this.getAuthHeaders();
             const response = await fetch(`${this.getApiUrl()}/internal-buy-energy`, {
                 method: 'POST',
-                headers: {
-                    'apikey': this.API_KEY,
-                    'Content-Type': 'application/json'
-                },
+                headers: headers,
                 body: JSON.stringify(orderData)
             });
             
@@ -436,7 +571,7 @@ window.TronSaveAPI = {
                         line-height: 1.5;
                     ">
                         <strong>Direct Energy Rental Available!</strong><br>
-                        Enter your TronSave API key to rent energy directly without leaving this site.
+                        Connect your TronSave internal account to rent energy instantly.
                     </div>
                     
                     <div style="margin-bottom: 20px;">
@@ -459,9 +594,33 @@ window.TronSaveAPI = {
                     </div>
                     
                     <div style="margin-bottom: 20px;">
-                        <h4 style="color: #d1d5db; font-size: 0.875rem; margin-bottom: 12px;">How to get your API key:</h4>
+                        <label style="
+                            display: block;
+                            color: #d1d5db;
+                            font-size: 0.875rem;
+                            margin-bottom: 8px;
+                        ">Deposit Address (Optional)</label>
+                        <input type="text" id="tronsave-deposit-address-input" placeholder="Your TronSave deposit address" style="
+                            width: 100%;
+                            padding: 12px;
+                            background: rgba(0, 0, 0, 0.3);
+                            border: 1px solid #333;
+                            border-radius: 8px;
+                            color: white;
+                            font-family: monospace;
+                            font-size: 0.875rem;
+                        " value="${this.DEPOSIT_ADDRESS || ''}">
+                        <div style="
+                            color: #9ca3af;
+                            font-size: 0.75rem;
+                            margin-top: 4px;
+                        ">You'll get this after connecting on TronSave</div>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="color: #d1d5db; font-size: 0.875rem; margin-bottom: 12px;">Setup Instructions:</h4>
                         <div style="margin-bottom: 15px;">
-                            <h5 style="color: #0ea5e9; font-size: 0.875rem; margin-bottom: 8px;">Option 1: Via Website</h5>
+                            <h5 style="color: #0ea5e9; font-size: 0.875rem; margin-bottom: 8px;">Step 1: Get API Key & Deposit Address</h5>
                             <ol style="
                                 margin: 0 0 10px 0;
                                 padding-left: 20px;
@@ -469,14 +628,17 @@ window.TronSaveAPI = {
                                 font-size: 0.875rem;
                                 line-height: 1.8;
                             ">
-                                <li>Visit <a href="https://tronsave.io" target="_blank" style="color: #0ea5e9;">TronSave.io</a></li>
-                                <li>Create an Internal Account</li>
-                                <li>Generate API key on the website</li>
-                                <li>Copy and paste it here</li>
+                                <li>Visit <a href="${this.USE_TESTNET ? this.TESTNET_WEBSITE : this.MAINNET_WEBSITE}" target="_blank" style="color: #0ea5e9;">
+                                    ${this.USE_TESTNET ? 'testnet.tronsave.io' : 'tronsave.io'}
+                                </a></li>
+                                <li>Click "Connect" and choose your wallet</li>
+                                <li>Go to "Account Info"</li>
+                                <li>Click "Login TRONSAVE" and sign</li>
+                                <li>Copy API key & deposit address</li>
                             </ol>
                         </div>
-                        <div>
-                            <h5 style="color: #0ea5e9; font-size: 0.875rem; margin-bottom: 8px;">Option 2: Via Telegram</h5>
+                        <div style="margin-bottom: 15px;">
+                            <h5 style="color: #0ea5e9; font-size: 0.875rem; margin-bottom: 8px;">Step 2: Fund Your Account</h5>
                             <ol style="
                                 margin: 0;
                                 padding-left: 20px;
@@ -484,10 +646,22 @@ window.TronSaveAPI = {
                                 font-size: 0.875rem;
                                 line-height: 1.8;
                             ">
-                                <li>Open TronSave Telegram bot</li>
-                                <li>Generate API key through bot</li>
-                                <li>Copy and paste it here</li>
+                                <li>Click "Top up" on TronSave</li>
+                                <li>Transfer TRX to deposit address (min 10 TRX)</li>
+                                <li>First deposit: ~1 TRX activation fee</li>
+                                <li>Balance updates in ~3 seconds</li>
                             </ol>
+                        </div>
+                        <div style="
+                            background: rgba(251, 191, 36, 0.1);
+                            border: 1px solid rgba(251, 191, 36, 0.3);
+                            border-radius: 8px;
+                            padding: 8px;
+                            margin-bottom: 10px;
+                            color: #fbbf24;
+                            font-size: 0.75rem;
+                        ">
+                            <strong>Alternative:</strong> Use Telegram bot @BuyEnergyTronsave_bot
                         </div>
                     </div>
                     
@@ -545,15 +719,17 @@ window.TronSaveAPI = {
      * Save API key from modal
      */
     async saveApiKey() {
-        const input = document.getElementById('tronsave-api-key-input');
-        const apiKey = input?.value?.trim();
+        const apiKeyInput = document.getElementById('tronsave-api-key-input');
+        const depositInput = document.getElementById('tronsave-deposit-address-input');
+        const apiKey = apiKeyInput?.value?.trim();
+        const depositAddress = depositInput?.value?.trim();
         
         if (!apiKey) {
             alert('Please enter an API key');
             return;
         }
         
-        this.setApiKey(apiKey);
+        this.setApiKey(apiKey, depositAddress);
         
         // Verify the key
         const isValid = await this.verifyApiKey();
