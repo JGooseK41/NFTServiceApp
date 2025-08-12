@@ -1,23 +1,22 @@
-# Notice Cataloging System Design
+# NFT Token Cataloging System Design
 
 ## Current Issues
-- Notice IDs are confusing (e.g., 943220202 vs blockchain ID 12)
+- Notice IDs are confusing (e.g., 943220202 vs Token ID 12)
 - Difficult to track which alert pairs with which document
 - No clear reference system for legal proceedings
 
-## Proposed Cataloging System
+## Implemented Cataloging System
 
 ### 1. Unified Notice Reference (UNR)
-Format: `CASE#-BLOCKCHAIN#-TYPE`
-- Example: `34-2501-8285700-12-A` (Alert)
-- Example: `34-2501-8285700-13-D` (Document)
+Format: `CASE#-ALERTID-DOCID`
+- Example: `34-2501-8285700-12-13` (Alert Token 12, Document Token 13)
 
 ### 2. Display Format
 ```
 ┌─────────────────────────────────────┐
-│ Notice #12 (Alert)                  │
+│ Token ID: 12 (Alert NFT)            │
 │ Case: 34-2501-8285700               │
-│ Paired with: Document #13           │
+│ Paired with: Document Token 13      │
 │ Status: Delivered                   │
 └─────────────────────────────────────┘
 ```
@@ -25,13 +24,13 @@ Format: `CASE#-BLOCKCHAIN#-TYPE`
 ### 3. Database Structure
 ```sql
 -- Enhanced notice_components table
-ALTER TABLE notice_components ADD COLUMN IF NOT EXISTS blockchain_alert_id INTEGER;
-ALTER TABLE notice_components ADD COLUMN IF NOT EXISTS blockchain_document_id INTEGER;
+ALTER TABLE notice_components ADD COLUMN IF NOT EXISTS alert_token_id INTEGER;
+ALTER TABLE notice_components ADD COLUMN IF NOT EXISTS document_token_id INTEGER;
 ALTER TABLE notice_components ADD COLUMN IF NOT EXISTS unified_reference VARCHAR(100);
 ALTER TABLE notice_components ADD COLUMN IF NOT EXISTS notice_pair_id VARCHAR(50);
 
 -- Create index for faster lookups
-CREATE INDEX idx_blockchain_ids ON notice_components(blockchain_alert_id, blockchain_document_id);
+CREATE INDEX idx_token_ids ON notice_components(alert_token_id, document_token_id);
 CREATE INDEX idx_unified_reference ON notice_components(unified_reference);
 ```
 
@@ -42,7 +41,7 @@ CREATE INDEX idx_unified_reference ON notice_components(unified_reference);
 ┌──────────────────────────────────────────┐
 │ 📋 Case #34-2501-8285700                 │
 │                                          │
-│ 🔔 Alert NFT #12  📄 Document NFT #13   │
+│ 🔔 Alert Token: 12  📄 Document Token: 13 │
 │ Recipient: T9yD14...                    │
 │ Status: ✅ Delivered | ⏳ Awaiting Sig  │
 │                                          │
@@ -51,15 +50,15 @@ CREATE INDEX idx_unified_reference ON notice_components(unified_reference);
 ```
 
 #### Search & Filter
-- Search by blockchain ID: "12" finds Alert #12
+- Search by token ID: "12" finds Alert Token 12
 - Search by case: "34-2501-8285700" 
 - Search by pair: "12-13" finds paired notices
 - Filter by status, date range, recipient
 
 ### 5. API Endpoints
 
-#### GET /api/notices/blockchain/:id
-Returns notice by blockchain ID
+#### GET /api/notices/token/:id
+Returns notice by NFT token ID
 
 #### GET /api/notices/pair/:alertId/:documentId
 Returns paired notice information
