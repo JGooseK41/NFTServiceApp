@@ -165,13 +165,16 @@ router.get('/:noticeId/images', async (req, res) => {
         console.log(`Retrieving images for notice ${noticeId}...`);
         
         // Query notice_components for documents
+        // Explicitly select only the base64 data columns, not the old URL columns
         const query = `
             SELECT 
                 alert_thumbnail_data,
                 alert_thumbnail_mime_type,
                 document_data,
                 document_mime_type,
-                storage_source
+                storage_source,
+                alert_thumbnail_url,
+                document_unencrypted_url
             FROM notice_components
             WHERE notice_id = $1
         `;
@@ -225,15 +228,36 @@ router.get('/:noticeId/images', async (req, res) => {
             documentUnencryptedUrl: null
         };
         
-        // Convert to data URLs
+        // IMPORTANT: Prioritize base64 data over old file URLs
+        // The old URLs point to temporary storage that no longer exists
+        
+        // Convert to data URLs - always use base64 data if available
         if (data.alert_thumbnail_data) {
             response.alertThumbnailUrl = `data:${data.alert_thumbnail_mime_type || 'image/png'};base64,${data.alert_thumbnail_data}`;
-            console.log(`✅ Found thumbnail (source: ${data.storage_source})`);
+            console.log(`✅ Found thumbnail data (base64, source: ${data.storage_source})`);
+        } else if (data.alert_thumbnail_url) {
+            // Log warning about legacy URL
+            console.log(`⚠️ Notice ${noticeId} has legacy thumbnail URL but no base64 data: ${data.alert_thumbnail_url}`);
+            console.log('This file no longer exists in temporary storage. Need to recover from IPFS or re-upload.');
+            // Don't return the broken URL
         }
         
         if (data.document_data) {
             response.documentUnencryptedUrl = `data:${data.document_mime_type || 'image/png'};base64,${data.document_data}`;
-            console.log(`✅ Found document (source: ${data.storage_source})`);
+            console.log(`✅ Found document data (base64, source: ${data.storage_source})`);
+        } else if (data.document_unencrypted_url) {
+            // Log warning about legacy URL
+            console.log(`⚠️ Notice ${noticeId} has legacy document URL but no base64 data: ${data.document_unencrypted_url}`);
+            console.log('This file no longer exists in temporary storage. Need to recover from IPFS or re-upload.');
+            // Don't return the broken URL
+        }
+        
+        // If we have legacy URLs but no base64 data, log it
+        if (!data.alert_thumbnail_data && !data.document_data) {
+            console.log(`❌ Notice ${noticeId} has no base64 image data available`);
+            if (data.alert_thumbnail_url || data.document_unencrypted_url) {
+                console.log('Legacy file URLs exist but files are gone from temporary storage');
+            }
         }
         
         res.json(response);
