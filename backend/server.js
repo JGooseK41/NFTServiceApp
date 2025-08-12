@@ -878,9 +878,14 @@ app.get('/api/wallets/:walletAddress/connections', async (req, res) => {
   }
 });
 
-// Document management routes (includes compiled documents)
-const documentsRouter = require('./routes/documents');
-app.use('/api/documents', documentsRouter);
+// Document management routes - Using persistent database storage
+// This prevents document loss on Render deployments
+const documentsPersistentRouter = require('./routes/documents-persistent');
+app.use('/api/documents', documentsPersistentRouter);
+
+// Fallback to original documents router for backward compatibility
+// const documentsRouter = require('./routes/documents');
+// app.use('/api/documents-legacy', documentsRouter);
 
 // Batch document upload routes - using fixed version with better transaction handling
 const batchRouter = require('./routes/batch-documents-fixed');
