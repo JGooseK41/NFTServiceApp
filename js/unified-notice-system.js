@@ -2810,7 +2810,7 @@ class UnifiedNoticeSystem {
                 </div>
                 
                 <div class="modal-footer">
-                    <button onclick="unifiedSystem.downloadStampedNotice('${caseNumber}')" class="btn btn-primary">
+                    <button onclick="unifiedSystem.downloadStampedNotice('${caseNumber}', '${type}', '${noticeId}')" class="btn btn-primary">
                         <i class="fas fa-download"></i> Download Stamped Version
                     </button>
                     <button onclick="this.closest('.modal-overlay').remove()" class="btn btn-secondary">
@@ -2823,8 +2823,18 @@ class UnifiedNoticeSystem {
 
         // Try to fetch unencrypted URLs from backend
         try {
-            // Use provided noticeId or find from recipients
-            const noticeIdForBackend = noticeId || (type === 'alert' ? firstRecipient.alertId : type === 'document' ? firstRecipient.documentId : firstRecipient.alertId || firstRecipient.documentId);
+            // IMPORTANT: For alerts, always use alertId; for documents, always use documentId
+            let noticeIdForBackend;
+            if (noticeId) {
+                noticeIdForBackend = noticeId;
+            } else if (type === 'alert') {
+                noticeIdForBackend = firstRecipient.alertId;
+            } else if (type === 'document') {
+                noticeIdForBackend = firstRecipient.documentId;
+            } else {
+                // For 'both', use alertId as primary
+                noticeIdForBackend = firstRecipient.alertId || firstRecipient.documentId;
+            }
             
             console.log(`Fetching notice images for ID: ${noticeIdForBackend}, type: ${type}`);
             
@@ -2846,7 +2856,7 @@ class UnifiedNoticeSystem {
                     
                     // Display based on type requested
                     if (type === 'alert') {
-                        // For alert type, only show alert thumbnail
+                        // For alert type, show alert thumbnail ONLY
                         if (data.alertThumbnailUrl && alertImageValid) {
                             container.innerHTML = `
                                 <div style="margin-bottom: 20px;">
@@ -2885,29 +2895,71 @@ class UnifiedNoticeSystem {
                     } else if (type === 'document') {
                         // Show full document for document type
                         if (data.documentUnencryptedUrl && documentImageValid) {
-                            // Add blockchain stamp if possible
-                            const txHash = caseData.transactionHash || 'PENDING';
-                            const stampedBlob = await this.stampNoticeWithBlockchain(
-                                data.documentUnencryptedUrl,
-                                txHash,
-                                1,
-                                1
-                            );
+                            // Get actual transaction hash and blockchain timestamp
+                            const txHash = caseData.transactionHash || firstRecipient.transactionHash || 'PENDING';
+                            const blockchainTimestamp = caseData.createdAt || firstRecipient.timestamp;
+                            const pageCount = firstRecipient.pageCount || 1;
                             
-                            if (stampedBlob) {
-                                const stampedUrl = URL.createObjectURL(stampedBlob);
-                                container.innerHTML = `
-                                    <div>
-                                        <h3>Full Document (Blockchain Stamped)</h3>
+                            // Check if document has multiple pages (base64 data might be a PDF or multi-page image)
+                            let documentContent = '';
+                            
+                            // For multi-page documents, we need to handle them differently
+                            if (data.documentPages && Array.isArray(data.documentPages)) {
+                                // If backend returns multiple pages
+                                documentContent = '<div>';
+                                for (let i = 0; i < data.documentPages.length; i++) {
+                                    const pageUrl = data.documentPages[i];
+                                    const stampedBlob = await this.stampNoticeWithBlockchain(
+                                        pageUrl,
+                                        txHash,
+                                        i + 1,
+                                        data.documentPages.length,
+                                        blockchainTimestamp
+                                    );
+                                    
+                                    if (stampedBlob) {
+                                        const stampedUrl = URL.createObjectURL(stampedBlob);
+                                        documentContent += `
+                                            <div style="margin-bottom: 20px; page-break-after: always;">
+                                                <h4>Page ${i + 1} of ${data.documentPages.length}</h4>
+                                                <img src="${stampedUrl}" style="max-width: 100%; height: auto; display: block; border: 1px solid #ddd;" alt="Page ${i + 1}" />
+                                            </div>
+                                        `;
+                                    }
+                                }
+                                documentContent += '</div>';
+                            } else {
+                                // Single page document
+                                const stampedBlob = await this.stampNoticeWithBlockchain(
+                                    data.documentUnencryptedUrl,
+                                    txHash,
+                                    1,
+                                    pageCount,
+                                    blockchainTimestamp
+                                );
+                                
+                                if (stampedBlob) {
+                                    const stampedUrl = URL.createObjectURL(stampedBlob);
+                                    documentContent = `
                                         <div style="border: 1px solid #ddd; background: white; padding: 10px;">
                                             <img src="${stampedUrl}" style="max-width: 100%; height: auto; display: block;" alt="Stamped Document" />
                                         </div>
-                                        <div style="margin-top: 10px; color: red; font-size: 0.9em;">
-                                            <p>Transaction: ${txHash}</p>
-                                            <p>Stamped: ${new Date().toLocaleString()}</p>
-                                        </div>
+                                    `;
+                                }
+                            }
+                            
+                            container.innerHTML = `
+                                <div>
+                                    <h3>Full Document (Blockchain Verified)</h3>
+                                    ${documentContent}
+                                    <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-left: 3px solid red;">
+                                        <p style="margin: 5px 0;"><strong>Transaction Hash:</strong> ${txHash}</p>
+                                        <p style="margin: 5px 0;"><strong>Blockchain Timestamp:</strong> ${blockchainTimestamp ? new Date(blockchainTimestamp).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : 'Pending'}</p>
+                                        <p style="margin: 5px 0;"><strong>Total Pages:</strong> ${pageCount}</p>
+                                        <p style="margin: 5px 0;"><strong>Network:</strong> TRON Mainnet</p>
                                     </div>
-                                `;
+                                </div>
+                            `;
                             } else {
                                 container.innerHTML = `
                                     <div>
@@ -3324,7 +3376,7 @@ class UnifiedNoticeSystem {
     /**
      * Add blockchain stamp to notice pages
      */
-    async stampNoticeWithBlockchain(imageUrl, transactionHash, pageNum, totalPages) {
+    async stampNoticeWithBlockchain(imageUrl, transactionHash, pageNum, totalPages, blockchainTimestamp) {
         // Create canvas to add stamp
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -3342,35 +3394,83 @@ class UnifiedNoticeSystem {
                 // Draw original image
                 ctx.drawImage(img, 0, 0);
                 
-                // Add red stamp header
-                ctx.fillStyle = 'rgba(255, 0, 0, 0.1)';
-                ctx.fillRect(0, 0, canvas.width, 80);
+                // Calculate stamp dimensions
+                const stampWidth = 400;
+                const stampHeight = 120;
+                const stampX = canvas.width - stampWidth - 20; // 20px from right
+                const stampY = canvas.height - stampHeight - 20; // 20px from bottom
+                
+                // Add semi-transparent red background for stamp (bottom-right)
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+                ctx.fillRect(stampX - 5, stampY - 5, stampWidth + 10, stampHeight + 10);
+                
+                // Add red border around stamp
+                ctx.strokeStyle = 'red';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(stampX - 5, stampY - 5, stampWidth + 10, stampHeight + 10);
                 
                 // Add text stamp
                 ctx.fillStyle = 'red';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'left';
+                
+                // Line 1: Title
                 ctx.font = 'bold 14px Arial';
-                ctx.textAlign = 'center';
+                ctx.fillText('BLOCKCHAIN VERIFIED', stampX + 10, stampY + 20);
                 
-                // Line 1: Blockchain verification
-                ctx.fillText('BLOCKCHAIN VERIFIED LEGAL NOTICE', canvas.width / 2, 20);
+                // Line 2: Full Transaction Hash
+                ctx.font = '11px Courier New';
+                if (transactionHash && transactionHash !== 'PENDING') {
+                    ctx.fillText(`TX: ${transactionHash}`, stampX + 10, stampY + 40);
+                } else {
+                    ctx.fillText('TX: Pending Blockchain Confirmation', stampX + 10, stampY + 40);
+                }
                 
-                // Line 2: Date and time
-                const date = new Date().toLocaleString();
-                ctx.fillText(`Served: ${date}`, canvas.width / 2, 40);
-                
-                // Line 3: Transaction hash
-                const shortHash = transactionHash ? 
-                    `TX: ${transactionHash.substring(0, 8)}...${transactionHash.substring(transactionHash.length - 8)}` : 
-                    'TX: Pending Blockchain Confirmation';
-                ctx.fillText(shortHash, canvas.width / 2, 60);
+                // Line 3: Blockchain timestamp with timezone
+                ctx.font = '11px Arial';
+                let timestampText = 'Timestamp: ';
+                if (blockchainTimestamp) {
+                    // If we have blockchain timestamp, use it
+                    const date = new Date(blockchainTimestamp);
+                    timestampText += date.toLocaleString('en-US', { 
+                        timeZone: 'America/New_York',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: true,
+                        timeZoneName: 'short'
+                    });
+                } else {
+                    // Fallback to current time
+                    timestampText += new Date().toLocaleString('en-US', { 
+                        timeZone: 'America/New_York',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: true,
+                        timeZoneName: 'short'
+                    });
+                }
+                ctx.fillText(timestampText, stampX + 10, stampY + 60);
                 
                 // Line 4: Page number
-                ctx.fillText(`Page ${pageNum} of ${totalPages}`, canvas.width / 2, 75);
+                ctx.font = 'bold 11px Arial';
+                ctx.fillText(`Page ${pageNum} of ${totalPages}`, stampX + 10, stampY + 80);
                 
-                // Add watermark border
-                ctx.strokeStyle = 'red';
+                // Line 5: Network
+                ctx.font = '10px Arial';
+                ctx.fillText('TRON Network - Mainnet', stampX + 10, stampY + 100);
+                
+                // Add watermark border around entire document
+                ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
                 ctx.lineWidth = 2;
-                ctx.setLineDash([5, 5]);
+                ctx.setLineDash([10, 10]);
                 ctx.strokeRect(5, 5, canvas.width - 10, canvas.height - 10);
                 
                 // Convert to blob
@@ -3390,7 +3490,7 @@ class UnifiedNoticeSystem {
     /**
      * Download stamped notice with blockchain header
      */
-    async downloadStampedNotice(caseNumber) {
+    async downloadStampedNotice(caseNumber, type = 'document', noticeId = null) {
         const caseData = this.cases.get(caseNumber);
         if (!caseData) return;
 
@@ -3398,8 +3498,9 @@ class UnifiedNoticeSystem {
             // Show loading
             this.showNotification('Generating stamped notice...', 'info');
             
-            // Get transaction hash (could be from blockchain or backend)
+            // Get transaction hash and timestamp from case data
             const transactionHash = caseData.transactionHash || 'PENDING_CONFIRMATION';
+            const blockchainTimestamp = caseData.createdAt;
             
             // For now, create a sample stamped document
             // In production, this would fetch actual images and stamp them
