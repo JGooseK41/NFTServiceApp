@@ -2962,19 +2962,22 @@ class UnifiedNoticeSystem {
                                 }
                             }
                             
-                            container.innerHTML = `
-                                <div>
-                                    <h3>Full Document (Blockchain Verified)</h3>
-                                    ${documentContent}
-                                    <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-left: 3px solid red;">
-                                        <p style="margin: 5px 0;"><strong>Transaction Hash:</strong> ${txHash}</p>
-                                        <p style="margin: 5px 0;"><strong>Blockchain Timestamp:</strong> ${blockchainTimestamp ? new Date(blockchainTimestamp).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : 'Pending'}</p>
-                                        <p style="margin: 5px 0;"><strong>Total Pages:</strong> ${pageCount}</p>
-                                        <p style="margin: 5px 0;"><strong>Network:</strong> TRON Mainnet</p>
+                            // Display stamped document if we have content
+                            if (documentContent) {
+                                container.innerHTML = `
+                                    <div>
+                                        <h3>Full Document (Blockchain Verified)</h3>
+                                        ${documentContent}
+                                        <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-left: 3px solid red;">
+                                            <p style="margin: 5px 0;"><strong>Transaction Hash:</strong> ${txHash}</p>
+                                            <p style="margin: 5px 0;"><strong>Blockchain Timestamp:</strong> ${blockchainTimestamp ? new Date(blockchainTimestamp).toLocaleString('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' }) : 'Pending'}</p>
+                                            <p style="margin: 5px 0;"><strong>Total Pages:</strong> ${pageCount}</p>
+                                            <p style="margin: 5px 0;"><strong>Network:</strong> TRON Mainnet</p>
+                                        </div>
                                     </div>
-                                </div>
-                            `;
+                                `;
                             } else {
+                                // Fallback to showing unstamped document
                                 container.innerHTML = `
                                     <div>
                                         <h3>Full Document</h3>
@@ -3040,10 +3043,11 @@ class UnifiedNoticeSystem {
                 } else {
                     container.innerHTML = this.createManualUploadInterface(caseNumber, noticeIdForBackend, 'No images found');
                 }
-            } else {
-                // Fallback: Show manual upload option
-                const errorMessage = response.status === 404 ? 'Notice images not found in backend' : 'Notice images not available from backend';
-                document.getElementById('noticeContainer').innerHTML = this.createManualUploadInterface(
+            }
+            // If we reach here and still no content, show fallback
+            if (!container.innerHTML || container.innerHTML.includes('Loading')) {
+                const errorMessage = 'Notice images not available';
+                container.innerHTML = this.createManualUploadInterface(
                     caseNumber, 
                     noticeIdForBackend || noticeId,
                     errorMessage,

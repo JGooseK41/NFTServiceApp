@@ -779,7 +779,7 @@ class NoticeWorkflow {
             ipfsHash: data[4] || '',
             documentHash: data[5] || '',
             hasDocument: !!data[4],
-            createdAt: data[6] ? new Date(parseInt(data[6]) * 1000).toISOString() : null
+            createdAt: data[6] && parseInt(data[6]) > 0 ? new Date(parseInt(data[6]) * 1000).toISOString() : null
         };
     }
 
