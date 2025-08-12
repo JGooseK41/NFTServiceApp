@@ -309,23 +309,17 @@ async function recoverAllDocuments() {
         SELECT DISTINCT
             sn.notice_id,
             sn.ipfs_hash,
-            COALESCE(
-                nc.document_encryption_key,
-                sn.encryption_key,
-                na.encryption_key,
-                nv.document_encryption_key
-            ) as encryption_key,
+            nc.document_encryption_key as encryption_key,
             sn.case_number,
             sn.server_address,
             sn.recipient_address,
             sn.created_at
         FROM served_notices sn
         LEFT JOIN notice_components nc ON nc.notice_id = sn.notice_id
-        LEFT JOIN notice_acceptances na ON na.notice_id = sn.notice_id
-        LEFT JOIN notice_views nv ON nv.notice_id = sn.notice_id
         WHERE 
             sn.ipfs_hash IS NOT NULL 
             AND sn.ipfs_hash != ''
+            AND nc.document_encryption_key IS NOT NULL
             AND (sn.documents_recovered IS NULL OR sn.documents_recovered = false)
         ORDER BY sn.created_at DESC;
     `;
@@ -392,21 +386,15 @@ async function recoverSingleNotice(noticeId) {
         SELECT DISTINCT
             sn.notice_id,
             sn.ipfs_hash,
-            COALESCE(
-                nc.document_encryption_key,
-                sn.encryption_key,
-                na.encryption_key,
-                nv.document_encryption_key
-            ) as encryption_key,
+            nc.document_encryption_key as encryption_key,
             sn.case_number,
             sn.server_address,
             sn.recipient_address,
             sn.created_at
         FROM served_notices sn
         LEFT JOIN notice_components nc ON nc.notice_id = sn.notice_id
-        LEFT JOIN notice_acceptances na ON na.notice_id = sn.notice_id
-        LEFT JOIN notice_views nv ON nv.notice_id = sn.notice_id
-        WHERE sn.notice_id = $1;
+        WHERE sn.notice_id = $1
+        AND nc.document_encryption_key IS NOT NULL;
     `;
     
     const result = await pool.query(query, [noticeId]);
