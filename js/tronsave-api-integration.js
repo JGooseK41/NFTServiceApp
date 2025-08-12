@@ -1318,11 +1318,14 @@ if (window.StreamlinedEnergyFlow) {
             return;
         }
         
-        const estimatedEnergy = this.energyNeeded;  // This is just our initial estimate
+        // Use the adjusted amount if user changed it
+        const estimatedEnergy = this.adjustedEnergyNeeded || this.energyNeeded;
         const duration = 3600; // 1 hour in seconds for v2 API
         
         console.log('🔌 Initiating TronSave direct energy rental...');
-        console.log(`  Initial estimate: ${estimatedEnergy.toLocaleString()}`);
+        console.log(`  Original estimate: ${this.energyNeeded?.toLocaleString() || 'N/A'}`);
+        console.log(`  User adjusted to: ${this.adjustedEnergyNeeded?.toLocaleString() || 'Not adjusted'}`);
+        console.log(`  Using amount: ${estimatedEnergy.toLocaleString()}`);
         
         // IMPORTANT: Based on actual blockchain data
         // Real world test: 2.5MB doc = 3.5M energy

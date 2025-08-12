@@ -937,9 +937,25 @@ window.StreamlinedEnergyFlow = {
     
     // Helper functions for energy adjustment
     updateEnergyAmount(value) {
-        this.adjustedEnergyNeeded = parseInt(value) || this.energyNeeded;
-        this.energyNeeded = this.adjustedEnergyNeeded;
-        console.log(`Energy amount updated to: ${this.adjustedEnergyNeeded.toLocaleString()}`);
+        const newAmount = parseInt(value);
+        if (newAmount && newAmount > 0) {
+            this.adjustedEnergyNeeded = newAmount;
+            this.energyNeeded = newAmount;  // Update both for compatibility
+            console.log(`✅ Energy amount updated to: ${newAmount.toLocaleString()}`);
+            
+            // Update the display if we're on step 1
+            if (this.currentStep === 1) {
+                // Recalculate costs with new amount
+                const params = this._originalParams;
+                if (params) {
+                    params.energyDetails.total = newAmount;
+                    // Update the deficit calculation
+                    const deficit = Math.max(0, newAmount - params.currentEnergy);
+                    const burnCost = (deficit * 0.000071).toFixed(2);  // TronSave rate
+                    console.log(`  New rental cost: ~${burnCost} TRX for ${deficit.toLocaleString()} energy`);
+                }
+            }
+        }
     },
     
     setEnergyAmount(amount) {
