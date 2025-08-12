@@ -164,8 +164,24 @@ async function recoverNotice(notice) {
         if (ipfsData.startsWith('U2FsdGVkX1')) {
             // Encrypted data - decrypt it
             const decryptedString = decryptCryptoJS(ipfsData, encryption_key);
-            data = JSON.parse(decryptedString);
             console.log(`  ✅ Decrypted successfully`);
+            
+            // The decrypted data might be JSON or a direct data URL
+            if (decryptedString.startsWith('data:image')) {
+                // Direct data URL after decryption
+                console.log(`  ℹ️ Decrypted to direct data URL`);
+                data = { document: decryptedString };
+            } else {
+                // Try to parse as JSON
+                try {
+                    data = JSON.parse(decryptedString);
+                    console.log(`  ℹ️ Decrypted to JSON with keys:`, Object.keys(data));
+                } catch (e) {
+                    // If not JSON, treat as document data
+                    console.log(`  ℹ️ Decrypted data is not JSON, treating as document`);
+                    data = { document: decryptedString };
+                }
+            }
         } else if (ipfsData.startsWith('data:image')) {
             // Direct data URL - not encrypted, just use as-is
             console.log(`  ℹ️ Data is not encrypted (direct data URL)`);
