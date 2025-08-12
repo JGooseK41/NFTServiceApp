@@ -884,6 +884,10 @@ app.get('/api/wallets/:walletAddress/connections', async (req, res) => {
 const documentsUnifiedRouter = require('./routes/documents-unified');
 app.use('/api/documents', documentsUnifiedRouter);
 
+// Token Registry - Comprehensive token tracking system
+const tokenRegistryRouter = require('./routes/token-registry');
+app.use('/api/tokens', tokenRegistryRouter);
+
 // Fallback to original documents router for backward compatibility
 // const documentsRouter = require('./routes/documents');
 // app.use('/api/documents-legacy', documentsRouter);
