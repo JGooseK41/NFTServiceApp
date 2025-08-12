@@ -10,8 +10,38 @@
 
 const { Pool } = require('pg');
 const crypto = require('crypto');
-const fetch = require('node-fetch');
 const { storeDocument, createDocumentStorageTable } = require('./document-storage-fix');
+
+// Use built-in fetch if available (Node 18+), otherwise try to use node-fetch
+let fetch;
+if (typeof globalThis.fetch !== 'undefined') {
+    fetch = globalThis.fetch;
+} else {
+    try {
+        fetch = require('node-fetch');
+    } catch (error) {
+        console.error('Warning: node-fetch not installed. Using https module as fallback.');
+        const https = require('https');
+        
+        // Simple fetch polyfill for HTTPS GET requests
+        fetch = function(url, options = {}) {
+            return new Promise((resolve, reject) => {
+                https.get(url, (res) => {
+                    let data = '';
+                    res.on('data', chunk => data += chunk);
+                    res.on('end', () => {
+                        resolve({
+                            ok: res.statusCode >= 200 && res.statusCode < 300,
+                            status: res.statusCode,
+                            text: () => Promise.resolve(data),
+                            json: () => Promise.resolve(JSON.parse(data))
+                        });
+                    });
+                }).on('error', reject);
+            });
+        };
+    }
+}
 
 // Database connection
 const pool = new Pool({

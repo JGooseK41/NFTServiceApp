@@ -12,7 +12,9 @@
     "migrate:compiled-fields": "node run-compiled-fields-migration.js",
     "migrate:agency": "node ensure-agency-columns.js",
     "migrate:all": "npm run migrate:ipfs && npm run migrate:server-fields && npm run migrate:compiled-fields && npm run migrate:agency",
-    "fix-agency": "node fix-agency-column.js"
+    "fix-agency": "node fix-agency-column.js",
+    "recover:ipfs": "node recover-from-ipfs.js",
+    "recover:single": "node recover-from-ipfs.js --single"
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -20,6 +22,7 @@
     "express": "^4.18.2",
     "morgan": "^1.10.0",
     "multer": "^2.0.2",
+    "node-fetch": "^2.6.9",
     "pg": "^8.11.3",
     "tronweb": "^6.0.4"
   },
