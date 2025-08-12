@@ -59,11 +59,16 @@ const IPFS_GATEWAYS = [
 ];
 
 /**
- * Decrypt data using AES-256-GCM
+ * Decrypt data - handles both CryptoJS and AES-GCM formats
  */
 function decryptData(encryptedData, key) {
+    // Check if it's CryptoJS format (starts with U2FsdGVkX1)
+    if (encryptedData.startsWith('U2FsdGVkX1')) {
+        return decryptCryptoJS(encryptedData, key);
+    }
+    
     try {
-        // Parse the encrypted data
+        // Try parsing as JSON (AES-GCM format)
         const data = JSON.parse(encryptedData);
         
         // Extract components
@@ -82,25 +87,63 @@ function decryptData(encryptedData, key) {
         // Parse the decrypted JSON
         return JSON.parse(decrypted.toString());
     } catch (error) {
-        console.error('Decryption error:', error);
+        console.error('Standard decryption failed:', error);
+        throw error;
+    }
+}
+
+/**
+ * Decrypt CryptoJS format (compatible with crypto-js library)
+ */
+function decryptCryptoJS(encryptedData, password) {
+    try {
+        // CryptoJS format: U2FsdGVkX1 + base64(salt + ciphertext)
+        const ciphertext = Buffer.from(encryptedData.substring(10), 'base64');
         
-        // Try alternative decryption method (if data was encrypted differently)
+        // Extract salt (first 8 bytes after 'Salted__')
+        const salt = ciphertext.slice(8, 16);
+        const encrypted = ciphertext.slice(16);
+        
+        // Derive key and IV from password and salt (PBKDF2)
+        const derivedKey = crypto.pbkdf2Sync(password, salt, 1, 48, 'md5');
+        const key = derivedKey.slice(0, 32);
+        const iv = derivedKey.slice(32, 48);
+        
+        // Decrypt using AES-256-CBC
+        const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+        let decrypted = decipher.update(encrypted);
+        decrypted = Buffer.concat([decrypted, decipher.final()]);
+        
+        // Try to parse as JSON
         try {
-            const encrypted = Buffer.from(encryptedData, 'base64');
-            const keyBuffer = Buffer.from(key, 'hex');
-            const iv = encrypted.slice(0, 16);
-            const authTag = encrypted.slice(16, 32);
-            const ciphertext = encrypted.slice(32);
+            return JSON.parse(decrypted.toString());
+        } catch (e) {
+            // If not JSON, return as string
+            return decrypted.toString();
+        }
+    } catch (error) {
+        console.error('CryptoJS decryption failed:', error);
+        
+        // Try using the key directly as a passphrase
+        try {
+            // Sometimes the key is used as a passphrase directly
+            const ciphertext = Buffer.from(encryptedData, 'base64');
             
-            const decipher = crypto.createDecipheriv('aes-256-gcm', keyBuffer, iv);
-            decipher.setAuthTag(authTag);
+            // Try AES-256-CBC with the key as password
+            const hash = crypto.createHash('sha256').update(password).digest();
+            const iv = Buffer.alloc(16, 0); // Zero IV or first 16 bytes of hash
             
+            const decipher = crypto.createDecipheriv('aes-256-cbc', hash, iv);
             let decrypted = decipher.update(ciphertext);
             decrypted = Buffer.concat([decrypted, decipher.final()]);
             
-            return JSON.parse(decrypted.toString());
+            try {
+                return JSON.parse(decrypted.toString());
+            } catch (e) {
+                return decrypted.toString();
+            }
         } catch (altError) {
-            console.error('Alternative decryption also failed:', altError);
+            console.error('Alternative CryptoJS decryption also failed:', altError);
             throw error;
         }
     }
