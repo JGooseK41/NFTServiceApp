@@ -77,18 +77,23 @@ class UnifiedNoticeSystem {
             if (!this.isValidTronAddress(this.serverAddress)) {
                 console.error('Invalid server address format');
                 this.showNotification('Invalid wallet address format', 'error');
-                return false;
-            }
-            
-            console.log('Server address:', this.serverAddress);
-            
-            // Fetch server's registered agency
-            await this.fetchServerAgency();
-            
-            // Check if server is active and show warning if not
-            if (this.serverInfo.serverId && this.serverInfo.serverId !== '0' && !this.serverInfo.active) {
-                console.warn('⚠️ Server account is inactive');
-                this.showNotification('⚠️ Warning: Your server account is currently inactive. Contact The Block Audit to reactivate.', 'warning');
+                // Don't return false - continue with limited functionality
+            } else {
+                console.log('Server address:', this.serverAddress);
+                
+                // Try to fetch server's registered agency (but don't fail if it errors)
+                try {
+                    await this.fetchServerAgency();
+                    
+                    // Check if server is active and show warning if not
+                    if (this.serverInfo.serverId && this.serverInfo.serverId !== '0' && !this.serverInfo.active) {
+                        console.warn('⚠️ Server account is inactive');
+                        this.showNotification('⚠️ Warning: Your server account is currently inactive. Contact The Block Audit to reactivate.', 'warning');
+                    }
+                } catch (error) {
+                    console.warn('Could not fetch server agency:', error);
+                    // Continue anyway - don't block initialization
+                }
             }
         }
 
@@ -441,7 +446,8 @@ class UnifiedNoticeSystem {
         console.log('📂 FAST Loading cases for server:', this.serverAddress);
         
         if (!this.serverAddress) {
-            console.error('No server address set');
+            console.log('No server address set - showing empty state');
+            this.renderCases('unifiedCasesContainer');
             return;
         }
 

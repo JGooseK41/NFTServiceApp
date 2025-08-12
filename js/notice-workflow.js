@@ -299,7 +299,8 @@ class NoticeWorkflow {
             }
 
             // Get total supply
-            const totalSupply = await window.legalContract.totalSupply().call();
+            const totalSupplyBigInt = await window.legalContract.totalSupply().call();
+            const totalSupply = Number(totalSupplyBigInt.toString());
             console.log(`Total notices on blockchain: ${totalSupply}`);
 
             const notices = [];
