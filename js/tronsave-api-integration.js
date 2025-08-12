@@ -35,13 +35,13 @@ window.TronSaveAPI = {
     },
     
     /**
-     * Initialize API with key or signature
+     * Initialize API - check if user has configuration
      */
     async initialize() {
         // Check stored configuration
         this.API_KEY = localStorage.getItem('tronsave_api_key');
         this.DEPOSIT_ADDRESS = localStorage.getItem('tronsave_deposit_address');
-        this.AUTH_METHOD = localStorage.getItem('tronsave_auth_method') || 'apikey';
+        this.AUTH_METHOD = localStorage.getItem('tronsave_auth_method') || 'signtx';  // Default to signed tx
         
         // Check if testnet mode is stored
         const storedTestnet = localStorage.getItem('tronsave_use_testnet');
@@ -49,29 +49,29 @@ window.TronSaveAPI = {
             this.USE_TESTNET = storedTestnet === 'true';
         }
         
-        if (this.AUTH_METHOD === 'apikey' && !this.API_KEY) {
-            console.log('TronSave API key not configured');
-            return false;
-        }
-        
-        if (this.AUTH_METHOD === 'signtx' && !window.tronWeb) {
-            console.log('TronWeb not available for signature auth');
-            return false;
-        }
-        
-        // Verify configuration is valid
-        const isValid = await this.verifyAuth();
-        if (!isValid) {
-            console.warn('TronSave authentication failed');
-            if (this.AUTH_METHOD === 'apikey') {
+        // Check which method is available
+        if (this.AUTH_METHOD === 'apikey' && this.API_KEY) {
+            // User has API key configured
+            const isValid = await this.verifyAuth();
+            if (isValid) {
+                console.log(`✅ TronSave API initialized with user's API key`);
+                return true;
+            } else {
+                console.warn('User API key is invalid, falling back to signed transactions');
+                this.AUTH_METHOD = 'signtx';
                 this.API_KEY = null;
-                localStorage.removeItem('tronsave_api_key');
             }
-            return false;
         }
         
-        console.log(`✅ TronSave API initialized (${this.USE_TESTNET ? 'TESTNET' : 'MAINNET'}, ${this.AUTH_METHOD})`);
-        return true;
+        // Check if wallet is connected for signed transactions
+        if (window.tronWeb && window.tronWeb.ready) {
+            this.AUTH_METHOD = 'signtx';
+            console.log(`✅ TronSave ready with signed transactions (${this.USE_TESTNET ? 'TESTNET' : 'MAINNET'})`);
+            return true;
+        }
+        
+        console.log('TronSave not configured - user needs to set up');
+        return false;
     },
     
     /**
@@ -622,15 +622,27 @@ window.TronSaveAPI = {
     },
     
     /**
-     * Complete energy purchase flow
+     * Complete energy purchase flow - choose method based on configuration
      */
     async purchaseEnergy(energyAmount, duration = '1h') {
         try {
-            // Convert duration to milliseconds
-            const durationMs = this.durationToMilliseconds(duration);
+            // Convert duration to seconds for v2 API
+            const durationSec = duration > 86400 ? duration : 
+                               typeof duration === 'string' ? this.durationToMilliseconds(duration) / 1000 : 
+                               duration;
             
-            // Step 1: Create order
-            const orderResult = await this.createEnergyOrder(energyAmount, durationMs);
+            let orderResult;
+            
+            // Choose method based on configuration
+            if (this.API_KEY && this.AUTH_METHOD === 'apikey') {
+                // Use API key method
+                orderResult = await this.createEnergyOrderV2ApiKey(energyAmount, durationSec);
+            } else if (window.tronWeb && window.tronWeb.ready) {
+                // Use signed transaction method
+                orderResult = await this.createEnergyOrderV2(energyAmount, durationSec);
+            } else {
+                throw new Error('No payment method available. Please configure TronSave.');
+            }
             if (!orderResult.success) {
                 throw new Error(orderResult.error);
             }
@@ -671,9 +683,9 @@ window.TronSaveAPI = {
     },
     
     /**
-     * Show API configuration modal
+     * Show configuration modal with multiple options
      */
-    showApiKeyModal() {
+    showConfigModal() {
         const modal = document.createElement('div');
         modal.id = 'tronsave-api-modal';
         modal.style.cssText = `
@@ -710,24 +722,82 @@ window.TronSaveAPI = {
                         color: #0ea5e9;
                         font-size: 1.5rem;
                         font-weight: 600;
-                    ">Configure TronSave API</h2>
+                    ">Choose Energy Rental Method</h2>
                 </div>
                 
                 <!-- Content -->
                 <div style="padding: 24px;">
-                    <div style="
-                        background: rgba(14, 165, 233, 0.1);
-                        border: 1px solid rgba(14, 165, 233, 0.3);
-                        border-radius: 8px;
-                        padding: 12px;
-                        margin-bottom: 20px;
-                        color: #d1d5db;
-                        font-size: 0.875rem;
-                        line-height: 1.5;
-                    ">
-                        <strong>Direct Energy Rental Available!</strong><br>
-                        Connect your TronSave internal account to rent energy instantly.
+                    <!-- Method Selection -->
+                    <div style="margin-bottom: 20px;">
+                        <label style="
+                            display: block;
+                            color: #d1d5db;
+                            font-size: 0.875rem;
+                            margin-bottom: 8px;
+                        ">Select Method:</label>
+                        <select id="tronsave-method-select" onchange="TronSaveAPI.toggleMethodUI(this.value)" style="
+                            width: 100%;
+                            padding: 12px;
+                            background: rgba(0, 0, 0, 0.3);
+                            border: 1px solid #333;
+                            border-radius: 8px;
+                            color: white;
+                            font-size: 0.875rem;
+                        ">
+                            <option value="signtx">Option 1: Direct Payment (Recommended)</option>
+                            <option value="apikey">Option 2: TronSave Account (Advanced)</option>
+                            <option value="manual">Option 3: Manual External Rental</option>
+                        </select>
                     </div>
+                    
+                    <!-- Method 1: Signed Transaction -->
+                    <div id="signtx-method" style="display: block;">
+                        <div style="
+                            background: rgba(16, 185, 129, 0.1);
+                            border: 1px solid rgba(16, 185, 129, 0.3);
+                            border-radius: 8px;
+                            padding: 12px;
+                            margin-bottom: 20px;
+                            color: #d1d5db;
+                            font-size: 0.875rem;
+                        ">
+                            <strong style="color: #10b981;">✅ Recommended: Direct Payment</strong><br>
+                            • No account needed<br>
+                            • Pay directly from your wallet<br>
+                            • Instant energy delivery<br>
+                            • Works for all users
+                        </div>
+                        <button onclick="TronSaveAPI.selectSignedTx()" style="
+                            width: 100%;
+                            background: linear-gradient(135deg, #10b981, #059669);
+                            color: white;
+                            border: none;
+                            padding: 12px;
+                            border-radius: 8px;
+                            font-weight: 600;
+                            cursor: pointer;
+                        ">
+                            Use Direct Payment Method
+                        </button>
+                    </div>
+                    
+                    <!-- Method 2: API Key -->
+                    <div id="apikey-method" style="display: none;">
+                        <div style="
+                            background: rgba(14, 165, 233, 0.1);
+                            border: 1px solid rgba(14, 165, 233, 0.3);
+                            border-radius: 8px;
+                            padding: 12px;
+                            margin-bottom: 20px;
+                            color: #d1d5db;
+                            font-size: 0.875rem;
+                        ">
+                            <strong style="color: #0ea5e9;">TronSave Internal Account</strong><br>
+                            • Requires TronSave account<br>
+                            • Pre-fund with TRX<br>
+                            • Use your own API key<br>
+                            • For frequent users
+                        </div>
                     
                     <div style="margin-bottom: 20px;">
                         <label style="
@@ -839,9 +909,8 @@ window.TronSaveAPI = {
                         </label>
                     </div>
                     
-                    <div style="display: flex; gap: 12px;">
                         <button onclick="TronSaveAPI.saveApiKey()" style="
-                            flex: 1;
+                            width: 100%;
                             background: linear-gradient(135deg, #0ea5e9, #0284c7);
                             color: white;
                             border: none;
@@ -852,15 +921,49 @@ window.TronSaveAPI = {
                         ">
                             Save API Key
                         </button>
-                        <button onclick="TronSaveAPI.skipApiSetup()" style="
+                    </div>
+                    
+                    <!-- Method 3: Manual -->
+                    <div id="manual-method" style="display: none;">
+                        <div style="
+                            background: rgba(251, 191, 36, 0.1);
+                            border: 1px solid rgba(251, 191, 36, 0.3);
+                            border-radius: 8px;
+                            padding: 12px;
+                            margin-bottom: 20px;
+                            color: #d1d5db;
+                            font-size: 0.875rem;
+                        ">
+                            <strong style="color: #fbbf24;">Manual External Rental</strong><br>
+                            • Use external marketplaces<br>
+                            • TronSave.io, TR.Energy, etc.<br>
+                            • Rent manually, then continue<br>
+                        </div>
+                        <button onclick="TronSaveAPI.useManualRental()" style="
+                            width: 100%;
+                            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+                            color: white;
+                            border: none;
+                            padding: 12px;
+                            border-radius: 8px;
+                            font-weight: 600;
+                            cursor: pointer;
+                        ">
+                            Open External Marketplaces
+                        </button>
+                    </div>
+                    
+                    <div style="display: flex; gap: 12px; margin-top: 20px;">
+                        <button onclick="document.getElementById('tronsave-api-modal')?.remove()" style="
+                            width: 100%;
                             background: transparent;
                             color: #9ca3af;
                             border: 1px solid #333;
-                            padding: 12px 20px;
+                            padding: 12px;
                             border-radius: 8px;
                             cursor: pointer;
                         ">
-                            Skip for Now
+                            Cancel
                         </button>
                     </div>
                 </div>
@@ -905,12 +1008,35 @@ window.TronSaveAPI = {
     },
     
     /**
-     * Skip API setup
+     * Toggle method UI in modal
      */
-    skipApiSetup() {
+    toggleMethodUI(method) {
+        document.getElementById('signtx-method').style.display = method === 'signtx' ? 'block' : 'none';
+        document.getElementById('apikey-method').style.display = method === 'apikey' ? 'block' : 'none';
+        document.getElementById('manual-method').style.display = method === 'manual' ? 'block' : 'none';
+    },
+    
+    /**
+     * Select signed transaction method
+     */
+    selectSignedTx() {
+        this.AUTH_METHOD = 'signtx';
+        localStorage.setItem('tronsave_auth_method', 'signtx');
         document.getElementById('tronsave-api-modal')?.remove();
         
-        // Fall back to manual rental
+        // Continue with energy rental
+        if (window._pendingEnergyPurchase) {
+            this.executePendingPurchase();
+        }
+    },
+    
+    /**
+     * Use manual rental
+     */
+    useManualRental() {
+        document.getElementById('tronsave-api-modal')?.remove();
+        
+        // Open manual rental UI
         if (window.StreamlinedEnergyFlow) {
             window.StreamlinedEnergyFlow.currentStep = 2;
             window.StreamlinedEnergyFlow.updateContent();
@@ -1082,29 +1208,52 @@ if (window.StreamlinedEnergyFlow) {
     const originalProceedToRental = window.StreamlinedEnergyFlow.proceedToRental;
     
     window.StreamlinedEnergyFlow.proceedToRental = async function() {
-        // Check if TronSave API is configured
-        const hasApi = await window.TronSaveAPI.initialize();
+        // Check if wallet is connected
+        if (!window.tronWeb || !window.tronWeb.ready) {
+            alert('Please connect your wallet first to rent energy');
+            return;
+        }
         
-        if (hasApi) {
-            // Use API for direct purchase
-            console.log('Using TronSave API for direct energy purchase');
+        const energyNeeded = this.energyNeeded;
+        const duration = 3600; // 1 hour in seconds for v2 API
+        
+        console.log('🔌 Initiating TronSave direct energy rental...');
+        
+        // Always use signed transaction method for universal compatibility
+        window.TronSaveAPI.AUTH_METHOD = 'signtx';
+        
+        try {
+            // Show loading
+            window.TronSaveAPI.showPurchaseProgress(energyNeeded, '1 hour');
             
-            const energyNeeded = this.energyNeeded;
-            const duration = '1h'; // Default to 1 hour
+            // Execute purchase with signed transaction
+            const result = await window.TronSaveAPI.createEnergyOrderV2(energyNeeded, duration);
             
-            // Store pending purchase
-            window._pendingEnergyPurchase = { energyAmount: energyNeeded, duration };
-            
-            // Execute purchase
-            window.TronSaveAPI.executePendingPurchase();
-        } else {
-            // Show API setup option
-            if (confirm('Would you like to set up TronSave API for instant energy rental?')) {
-                window.TronSaveAPI.showApiKeyModal();
+            if (result.success) {
+                window.TronSaveAPI.showPurchaseSuccess(result);
             } else {
-                // Continue with manual rental
-                originalProceedToRental.call(this);
+                // Handle rejection or error
+                if (result.error && result.error.includes('User rejected')) {
+                    window.TronSaveAPI.showPurchaseError('Transaction cancelled');
+                } else {
+                    window.TronSaveAPI.showPurchaseError(result.error || 'Energy purchase failed');
+                }
+                
+                // Offer manual alternative
+                setTimeout(() => {
+                    if (confirm('Would you like to try manual energy rental instead?')) {
+                        originalProceedToRental.call(this);
+                    }
+                }, 1500);
             }
+        } catch (error) {
+            console.error('Energy rental error:', error);
+            window.TronSaveAPI.showPurchaseError(error.message);
+            
+            // Fallback to manual
+            setTimeout(() => {
+                originalProceedToRental.call(this);
+            }, 2000);
         }
     };
 }
