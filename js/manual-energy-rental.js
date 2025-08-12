@@ -139,46 +139,48 @@ window.ManualEnergyRental = {
     
     // Calculate how much energy is needed for transaction with detailed breakdown
     calculateEnergyNeeded(documentSizeMB = 0, recipientCount = 1, includeBreakdown = false) {
-        // ACCURATE energy calculations based on actual usage (2.5M for 2.5MB doc)
+        // ACTUAL energy calculations based on real transaction data
+        // Real test: 2.5MB doc with 3 recipients = 3.5M energy (250 TRX burn)
         const calculations = {
             // Base contract interaction
-            baseContract: 350000,  // Increased from 65k
+            baseContract: 500000,  // Actual usage is higher
             
             // NFT minting energy
-            nftMinting: 450000,    // Increased from 90k
+            nftMinting: 800000,    // Much higher in practice
             
             // Document storage energy (varies by size)
             documentStorage: 0,
             
             // String storage (metadata)
-            metadataStorage: 150000,  // Increased from 50k
+            metadataStorage: 200000,  // Higher for all metadata
             
             // Per recipient in batch
-            perRecipient: recipientCount > 1 ? 150000 : 0,  // Increased from 45k
+            perRecipient: recipientCount > 1 ? 300000 : 0,  // 300k per additional recipient
             
             // IPFS hash storage if documents exist
-            ipfsStorage: documentSizeMB > 0 ? 100000 : 0,  // Increased from 30k
+            ipfsStorage: documentSizeMB > 0 ? 150000 : 0,  // IPFS operations
             
             // Event emission
-            eventCost: 80000,  // Increased from 20k
+            eventCost: 100000,  // Event logging costs
             
             // Network overhead
-            networkOverhead: 120000  // Increased from 25k
+            networkOverhead: 200000  // Network and computation overhead
         };
         
-        // Calculate document storage energy more accurately
-        // Based on actual: 2.5MB = ~2.5M energy, so roughly 1M per MB
+        // Calculate document storage energy based on actual usage
+        // Even with IPFS, there's significant energy for processing
         if (documentSizeMB > 0) {
-            const documentBytes = documentSizeMB * 1024 * 1024;
+            // Energy scales with document size for processing and validation
+            // Actual test showed 2.5MB needs ~3.5M total energy
             
-            // Much higher energy cost for document storage
-            // Approximately 1 energy per byte for on-chain storage
             if (documentSizeMB < 0.5) {
-                calculations.documentStorage = documentBytes * 0.8; // Small docs
+                calculations.documentStorage = 200000; // Small docs
             } else if (documentSizeMB < 2) {
-                calculations.documentStorage = documentBytes * 1.0; // Medium docs
+                calculations.documentStorage = 400000; // Medium docs
             } else {
-                calculations.documentStorage = documentBytes * 1.2; // Large docs (2.5MB = 3M bytes * 1.2 = 3.6M energy)
+                // Large docs (2.5MB+) need much more energy
+                // Scale based on actual observation: 2.5MB = additional 600k
+                calculations.documentStorage = 600000 + Math.floor((documentSizeMB - 2.5) * 200000);
             }
         }
         
