@@ -771,6 +771,19 @@ class NoticeWorkflow {
      * Helper: Parse notice data from contract
      */
     parseNoticeData(data) {
+        // Safely parse timestamp
+        let createdAt = null;
+        if (data[6]) {
+            try {
+                const timestamp = parseInt(data[6]);
+                if (timestamp > 0 && !isNaN(timestamp)) {
+                    createdAt = new Date(timestamp * 1000).toISOString();
+                }
+            } catch (e) {
+                console.warn('Invalid timestamp in notice data:', data[6]);
+            }
+        }
+        
         return {
             noticeType: data[0] || '',
             issuingAgency: data[1] || '',
@@ -779,7 +792,7 @@ class NoticeWorkflow {
             ipfsHash: data[4] || '',
             documentHash: data[5] || '',
             hasDocument: !!data[4],
-            createdAt: data[6] && parseInt(data[6]) > 0 ? new Date(parseInt(data[6]) * 1000).toISOString() : null
+            createdAt: createdAt
         };
     }
 
