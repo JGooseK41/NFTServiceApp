@@ -3219,7 +3219,8 @@ class UnifiedNoticeSystem {
                 }
             }
             // If we reach here and still no content, show fallback
-            if (!container.innerHTML || container.innerHTML.includes('Loading')) {
+            const container = document.getElementById('noticeContainer');
+            if (container && (!container.innerHTML || container.innerHTML.includes('Loading'))) {
                 const errorMessage = 'Notice images not available';
                 container.innerHTML = this.createManualUploadInterface(
                     caseNumber, 

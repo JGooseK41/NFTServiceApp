@@ -27,25 +27,48 @@ router.post('/verify-recipient', async (req, res) => {
             signature // Optional: signed message for extra verification
         } = req.body;
         
-        // Get the intended recipient from token tracking
-        const result = await pool.query(`
-            SELECT 
-                recipient_address,
-                case_number,
-                notice_type,
-                issuing_agency,
-                server_address,
-                status
-            FROM token_tracking
-            WHERE (token_id = $1 OR token_id = $2)
-            AND token_type = 'alert'
-            LIMIT 1
-        `, [alertTokenId, documentTokenId]);
+        // Get the intended recipient and server from token tracking or notice_components
+        let result;
+        
+        // First try token_tracking table
+        try {
+            result = await pool.query(`
+                SELECT 
+                    recipient_address,
+                    case_number,
+                    notice_type,
+                    issuing_agency,
+                    server_address,
+                    status
+                FROM token_tracking
+                WHERE token_id IN ($1, $2)
+                LIMIT 1
+            `, [alertTokenId, documentTokenId]);
+        } catch (e) {
+            // token_tracking table might not exist
+            result = { rows: [] };
+        }
+        
+        // If not found in token_tracking, try notice_components
+        if (result.rows.length === 0) {
+            result = await pool.query(`
+                SELECT 
+                    recipient_address,
+                    case_number,
+                    notice_type,
+                    issuing_agency,
+                    server_address,
+                    status
+                FROM notice_components
+                WHERE alert_token_id = $1 OR document_token_id = $2 OR alert_token_id = $2 OR document_token_id = $1
+                LIMIT 1
+            `, [alertTokenId, documentTokenId]);
+        }
         
         if (result.rows.length === 0) {
             return res.status(404).json({
                 success: false,
-                error: 'Notice not found'
+                error: 'Notice not found in database'
             });
         }
         
