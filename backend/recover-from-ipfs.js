@@ -94,59 +94,75 @@ function decryptData(encryptedData, key) {
 
 /**
  * Decrypt CryptoJS format (compatible with crypto-js library)
+ * CryptoJS uses OpenSSL's EVP_BytesToKey for key derivation
  */
-function decryptCryptoJS(encryptedData, password) {
+function decryptCryptoJS(encryptedData, passphrase) {
     try {
-        // CryptoJS format: U2FsdGVkX1 + base64(salt + ciphertext)
-        const ciphertext = Buffer.from(encryptedData.substring(10), 'base64');
+        // Remove the 'U2FsdGVkX1' prefix and decode base64
+        const cipherBuffer = Buffer.from(encryptedData.substring(10), 'base64');
         
-        // Extract salt (first 8 bytes after 'Salted__')
-        const salt = ciphertext.slice(8, 16);
-        const encrypted = ciphertext.slice(16);
+        // First 8 bytes are 'Salted__'
+        const salted = cipherBuffer.slice(0, 8).toString();
+        if (salted !== 'Salted__') {
+            throw new Error('Invalid CryptoJS format');
+        }
         
-        // Derive key and IV from password and salt (PBKDF2)
-        const derivedKey = crypto.pbkdf2Sync(password, salt, 1, 48, 'md5');
-        const key = derivedKey.slice(0, 32);
-        const iv = derivedKey.slice(32, 48);
+        // Next 8 bytes are the salt
+        const salt = cipherBuffer.slice(8, 16);
+        
+        // Rest is the encrypted data
+        const encrypted = cipherBuffer.slice(16);
+        
+        // Derive key and IV using EVP_BytesToKey (OpenSSL method)
+        // This is what CryptoJS uses internally
+        const password = Buffer.from(passphrase, 'utf8');
+        const keyAndIv = evpBytesToKey(password, salt, 32, 16); // 32 bytes key, 16 bytes IV
         
         // Decrypt using AES-256-CBC
-        const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+        const decipher = crypto.createDecipheriv('aes-256-cbc', keyAndIv.key, keyAndIv.iv);
         let decrypted = decipher.update(encrypted);
         decrypted = Buffer.concat([decrypted, decipher.final()]);
         
         // Try to parse as JSON
+        const decryptedStr = decrypted.toString('utf8');
         try {
-            return JSON.parse(decrypted.toString());
+            return JSON.parse(decryptedStr);
         } catch (e) {
             // If not JSON, return as string
-            return decrypted.toString();
+            return decryptedStr;
         }
     } catch (error) {
         console.error('CryptoJS decryption failed:', error);
-        
-        // Try using the key directly as a passphrase
-        try {
-            // Sometimes the key is used as a passphrase directly
-            const ciphertext = Buffer.from(encryptedData, 'base64');
-            
-            // Try AES-256-CBC with the key as password
-            const hash = crypto.createHash('sha256').update(password).digest();
-            const iv = Buffer.alloc(16, 0); // Zero IV or first 16 bytes of hash
-            
-            const decipher = crypto.createDecipheriv('aes-256-cbc', hash, iv);
-            let decrypted = decipher.update(ciphertext);
-            decrypted = Buffer.concat([decrypted, decipher.final()]);
-            
-            try {
-                return JSON.parse(decrypted.toString());
-            } catch (e) {
-                return decrypted.toString();
-            }
-        } catch (altError) {
-            console.error('Alternative CryptoJS decryption also failed:', altError);
-            throw error;
-        }
+        throw error;
     }
+}
+
+/**
+ * EVP_BytesToKey implementation
+ * This is the key derivation function used by OpenSSL and CryptoJS
+ */
+function evpBytesToKey(password, salt, keyLen, ivLen) {
+    const m = [];
+    let i = 0;
+    let count = 0;
+    
+    while (count < keyLen + ivLen) {
+        const data = i === 0 ? password : Buffer.concat([m[i - 1], password]);
+        const hash = crypto.createHash('md5');
+        hash.update(data);
+        if (salt) {
+            hash.update(salt);
+        }
+        m[i] = hash.digest();
+        count += m[i].length;
+        i++;
+    }
+    
+    const ms = Buffer.concat(m);
+    const key = ms.slice(0, keyLen);
+    const iv = ms.slice(keyLen, keyLen + ivLen);
+    
+    return { key, iv };
 }
 
 /**
