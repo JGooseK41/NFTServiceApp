@@ -240,7 +240,8 @@ async function main() {
                 sn.notice_id,
                 sn.ipfs_hash,
                 nc.document_encryption_key as encryption_key,
-                sn.case_number
+                sn.case_number,
+                sn.created_at
             FROM served_notices sn
             LEFT JOIN notice_components nc ON nc.notice_id = sn.notice_id
             WHERE 
