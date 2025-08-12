@@ -168,7 +168,7 @@ async function migrateDocuments() {
                 file_data,
                 mime_type,
                 file_name,
-                created_at
+                uploaded_at
             FROM document_storage
             ORDER BY notice_id, document_type;
         `;
@@ -197,12 +197,48 @@ async function migrateDocuments() {
                 const exists = await pool.query(existsQuery, [noticeId]);
                 
                 if (exists.rows.length === 0) {
-                    // Create notice_components entry
+                    // Skip if no existing entry - these are recovered documents
+                    // and should already have entries from the original serving
+                    console.log(`⚠️ No notice_components entry for ${noticeId}, checking served_notices...`);
+                    
+                    // Try to get data from served_notices
+                    const snQuery = `
+                        SELECT case_number, server_address, recipient_address
+                        FROM served_notices
+                        WHERE notice_id = $1
+                    `;
+                    const snResult = await pool.query(snQuery, [noticeId]);
+                    
+                    if (snResult.rows.length === 0) {
+                        console.log(`❌ Skipping ${noticeId} - no served_notices entry found`);
+                        continue;
+                    }
+                    
+                    const sn = snResult.rows[0];
+                    
+                    // Create minimal entry with data from served_notices
                     await pool.query(`
-                        INSERT INTO notice_components (notice_id, created_at)
-                        VALUES ($1, CURRENT_TIMESTAMP)
-                    `, [noticeId]);
-                    console.log(`Created notice_components entry for ${noticeId}`);
+                        INSERT INTO notice_components (
+                            notice_id, 
+                            case_number,
+                            server_address,
+                            recipient_address,
+                            alert_id,
+                            document_id,
+                            served_at,
+                            chain_type
+                        )
+                        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, $7)
+                    `, [
+                        noticeId,
+                        sn.case_number || 'RECOVERED-' + noticeId,
+                        sn.server_address || 'recovery-process',
+                        sn.recipient_address || 'unknown',
+                        noticeId,  // Use notice_id as alert_id
+                        noticeId,  // Use notice_id as document_id
+                        'TRON'
+                    ]);
+                    console.log(`Created notice_components entry for ${noticeId} from served_notices data`);
                 }
                 
                 // Update with document data
