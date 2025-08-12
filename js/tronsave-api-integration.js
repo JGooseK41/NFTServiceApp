@@ -1321,14 +1321,26 @@ if (window.StreamlinedEnergyFlow) {
         const estimatedEnergy = this.energyNeeded;  // This is just our initial estimate
         const duration = 3600; // 1 hour in seconds for v2 API
         
-        // REALITY CHECK: Actual transactions need much more energy than estimates
-        // Real test: 2.5MB doc with 3 recipients = 3.5M energy
-        // Add a multiplier for safety based on actual blockchain requirements
-        const actualEnergyNeeded = Math.max(estimatedEnergy * 1.5, 3500000); // Use at least 3.5M based on real usage
-        
         console.log('🔌 Initiating TronSave direct energy rental...');
         console.log(`  Initial estimate: ${estimatedEnergy.toLocaleString()}`);
-        console.log(`  Adjusted for reality: ${actualEnergyNeeded.toLocaleString()}`);
+        
+        // IMPORTANT: The actual blockchain requirement can be much higher than estimates
+        // Real world data: 2.5MB doc with 3 recipients = 3.5M energy
+        // We use a minimum of 3.5M based on actual transaction data
+        let actualEnergyNeeded = estimatedEnergy;
+        
+        // For documents, use realistic minimums based on actual blockchain usage
+        if (this._originalParams && this._originalParams.documentSizeMB > 0) {
+            // Document transactions need AT LEAST 3.5M energy in practice
+            actualEnergyNeeded = Math.max(estimatedEnergy, 3500000);
+            console.log(`  📄 Document detected - using minimum 3.5M energy based on actual blockchain requirements`);
+        } else if (estimatedEnergy > 1000000) {
+            // For large transactions, add safety buffer
+            actualEnergyNeeded = Math.ceil(estimatedEnergy * 1.3);
+            console.log(`  ⚡ Large transaction - adding 30% safety buffer`);
+        }
+        
+        console.log(`  Final energy requirement: ${actualEnergyNeeded.toLocaleString()}`);
         
         // Always use signed transaction method for universal compatibility
         window.TronSaveAPI.AUTH_METHOD = 'signtx';
@@ -1337,9 +1349,9 @@ if (window.StreamlinedEnergyFlow) {
             // Show loading
             window.TronSaveAPI.showPurchaseProgress(actualEnergyNeeded, '1 hour');
             
-            // Step 1: Ask TronSave API what the ACTUAL energy requirement is
-            console.log('🔍 Getting TronSave estimation for transaction energy requirements...');
-            console.log(`  Requesting: ${actualEnergyNeeded} energy (based on actual blockchain usage)`);
+            // Step 1: Get TronSave pricing for the energy amount we need
+            console.log('🔍 Getting TronSave pricing for energy requirement...');
+            console.log(`  Requesting price for: ${actualEnergyNeeded} energy`);
             
             const estimate = await window.TronSaveAPI.estimateTRXv2(actualEnergyNeeded, duration, 'MEDIUM');
             
