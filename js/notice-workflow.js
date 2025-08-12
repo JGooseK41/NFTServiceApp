@@ -341,12 +341,14 @@ class NoticeWorkflow {
         
         for (let id = startId; id < endId; id++) {
             try {
-                // Check if token exists
-                const exists = await window.legalContract.exists(id).call();
-                if (!exists) continue;
-
-                // Get token owner
-                const owner = await window.legalContract.ownerOf(id).call();
+                // Try to get token owner (will throw if doesn't exist)
+                let owner;
+                try {
+                    owner = await window.legalContract.ownerOf(id).call();
+                } catch (err) {
+                    // Token doesn't exist, skip it
+                    continue;
+                }
                 
                 // Get token metadata
                 const uri = await window.legalContract.tokenURI(id).call();

@@ -119,6 +119,11 @@ class HybridDataService {
                     const errorText = await response.text();
                     console.log('Backend error response:', errorText);
                 } catch (e) {}
+                
+                // If backend is down (500 error), fall back to blockchain
+                if (response.status >= 500) {
+                    console.log('Backend server error, will use blockchain data');
+                }
                 return null;
             }
 

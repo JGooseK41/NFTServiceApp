@@ -8,10 +8,18 @@ const router = express.Router();
 const { Pool } = require('pg');
 const { formatServerId } = require('../utils/server-id-formatter');
 
-// Database connection
+// Database connection with better error handling
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL || 'postgresql://nftservice:nftservice123@localhost:5432/nftservice_db',
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+    connectionTimeoutMillis: 5000,
+    query_timeout: 10000,
+    statement_timeout: 10000
+});
+
+// Test database connection on startup
+pool.on('error', (err) => {
+    console.error('Unexpected database pool error:', err);
 });
 
 /**
@@ -22,7 +30,26 @@ router.get('/', async (req, res) => {
     let client;
     
     try {
-        client = await pool.connect();
+        // Add timeout and retry logic
+        const maxRetries = 2;
+        let lastError;
+        
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                client = await pool.connect();
+                break; // Connection successful
+            } catch (connectErr) {
+                console.error(`Database connection attempt ${i + 1} failed:`, connectErr.message);
+                lastError = connectErr;
+                if (i < maxRetries - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+                }
+            }
+        }
+        
+        if (!client) {
+            throw lastError || new Error('Failed to connect to database');
+        }
         
         // Get all process servers from the database
         const result = await client.query(`
@@ -51,10 +78,23 @@ router.get('/', async (req, res) => {
         
     } catch (error) {
         console.error('Error fetching process servers:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+        
+        // Return empty list instead of error if database is down
+        // This allows the frontend to still function
+        if (error.message.includes('connect') || error.message.includes('timeout')) {
+            console.log('Database unavailable, returning empty server list');
+            res.json({
+                success: true,
+                servers: [],
+                total: 0,
+                warning: 'Database temporarily unavailable'
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
     } finally {
         if (client) client.release();
     }
