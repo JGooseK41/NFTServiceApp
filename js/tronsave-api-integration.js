@@ -1352,27 +1352,33 @@ if (window.StreamlinedEnergyFlow) {
         console.log(`  User adjusted to: ${this.adjustedEnergyNeeded?.toLocaleString() || 'Not adjusted'}`);
         console.log(`  Using amount: ${estimatedEnergy.toLocaleString()}`);
         
-        // IMPORTANT: Based on actual blockchain data
-        // Real world test: 2.5MB doc = 3.5M energy
-        // That's 1,400,000 energy per MB
+        // IMPORTANT: Respect user's manual adjustment
         let actualEnergyNeeded = estimatedEnergy;
         
-        // For documents, calculate based on MB with 10% buffer
-        if (this._originalParams && this._originalParams.documentSizeMB > 0) {
-            const docSizeMB = this._originalParams.documentSizeMB;
-            const ENERGY_PER_MB = 1400000; // Based on actual: 3.5M ÷ 2.5MB
-            
-            // Calculate: (MB × energy_per_mb) × 1.1 buffer
-            const baseEnergy = docSizeMB * ENERGY_PER_MB;
-            actualEnergyNeeded = Math.ceil(baseEnergy * 1.1);
-            
-            console.log(`  📄 Document transaction (${docSizeMB}MB):`);
-            console.log(`     Formula: ${docSizeMB}MB × 1,400,000 energy/MB = ${baseEnergy.toLocaleString()}`);
-            console.log(`     +10% buffer = ${actualEnergyNeeded.toLocaleString()} energy total`);
-        } else if (estimatedEnergy > 1000000) {
-            // For large non-document transactions, add safety buffer
-            actualEnergyNeeded = Math.ceil(estimatedEnergy * 1.3);
-            console.log(`  ⚡ Large transaction - adding 30% safety buffer`);
+        // If user manually adjusted the amount, use their value directly
+        if (this.adjustedEnergyNeeded && this.adjustedEnergyNeeded !== this.energyNeeded) {
+            actualEnergyNeeded = this.adjustedEnergyNeeded;
+            console.log(`  👤 User manually set energy to: ${actualEnergyNeeded.toLocaleString()}`);
+            console.log(`  📝 Respecting user's choice - no additional buffers applied`);
+        } else {
+            // Only apply automatic calculations if user hasn't manually adjusted
+            // For documents, calculate based on MB with 10% buffer
+            if (this._originalParams && this._originalParams.documentSizeMB > 0) {
+                const docSizeMB = this._originalParams.documentSizeMB;
+                const ENERGY_PER_MB = 1400000; // Based on actual: 3.5M ÷ 2.5MB
+                
+                // Calculate: (MB × energy_per_mb) × 1.1 buffer
+                const baseEnergy = docSizeMB * ENERGY_PER_MB;
+                actualEnergyNeeded = Math.ceil(baseEnergy * 1.1);
+                
+                console.log(`  📄 Auto-calculated for document (${docSizeMB}MB):`);
+                console.log(`     Formula: ${docSizeMB}MB × 1,400,000 energy/MB = ${baseEnergy.toLocaleString()}`);
+                console.log(`     +10% buffer = ${actualEnergyNeeded.toLocaleString()} energy total`);
+            } else if (estimatedEnergy > 1000000) {
+                // For large non-document transactions, add safety buffer
+                actualEnergyNeeded = Math.ceil(estimatedEnergy * 1.3);
+                console.log(`  ⚡ Auto-calculated large transaction - adding 30% safety buffer`);
+            }
         }
         
         console.log(`  Final energy requirement: ${actualEnergyNeeded.toLocaleString()}`);
@@ -1428,9 +1434,17 @@ if (window.StreamlinedEnergyFlow) {
             console.log(`  Currently have: ${currentEnergy}`);
             console.log(`  Deficit: ${deficit}`);
             
-            // Step 4: Add 20% buffer to the deficit (not the total)
-            const deficitWithBuffer = Math.ceil(deficit * 1.2);
-            console.log(`  Deficit with 20% buffer: ${deficitWithBuffer}`);
+            // Step 4: Add buffer to the deficit - but respect user's manual adjustment
+            let deficitWithBuffer;
+            if (this.adjustedEnergyNeeded && this.adjustedEnergyNeeded !== this.energyNeeded) {
+                // User manually set amount - use minimal buffer (5%)
+                deficitWithBuffer = Math.ceil(deficit * 1.05);
+                console.log(`  👤 User set manually - deficit with minimal 5% buffer: ${deficitWithBuffer}`);
+            } else {
+                // System calculated - use normal 20% buffer
+                deficitWithBuffer = Math.ceil(deficit * 1.2);
+                console.log(`  🤖 System calculated - deficit with 20% buffer: ${deficitWithBuffer}`);
+            }
             
             // Step 5: Get pricing for just the deficit amount
             console.log('💰 Getting price for deficit amount...');
