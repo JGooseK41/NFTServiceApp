@@ -23,6 +23,50 @@ class UnifiedNoticeSystem {
     }
     
     /**
+     * Find notices by blockchain ID
+     * @param {string|number} blockchainId - The blockchain ID to search for
+     * @returns {Array} Array of matching results with case and recipient info
+     */
+    findByBlockchainId(blockchainId) {
+        const id = String(blockchainId);
+        const results = [];
+        
+        for (const [caseNumber, caseData] of this.cases.entries()) {
+            if (caseData.recipients) {
+                for (const recipient of caseData.recipients) {
+                    if (recipient.alertId === id || recipient.documentId === id) {
+                        results.push({
+                            caseNumber,
+                            caseData,
+                            recipient,
+                            matchedId: id,
+                            matchType: recipient.alertId === id ? 'alert' : 'document',
+                            pairedId: recipient.alertId === id ? recipient.documentId : recipient.alertId
+                        });
+                    }
+                }
+            }
+        }
+        
+        if (results.length > 0) {
+            console.log(`Found ${results.length} match(es) for blockchain ID #${id}:`, results);
+        }
+        
+        return results;
+    }
+    
+    /**
+     * Get unified reference for a notice
+     * @param {string} caseNumber 
+     * @param {string} alertId 
+     * @param {string} documentId 
+     * @returns {string} Unified reference string
+     */
+    getUnifiedReference(caseNumber, alertId, documentId) {
+        return `${caseNumber}-${alertId}-${documentId}`;
+    }
+    
+    /**
      * Security: HTML escape function to prevent XSS
      */
     escapeHtml(unsafe) {
@@ -1051,6 +1095,35 @@ class UnifiedNoticeSystem {
                 </div>
                 
                 <div class="case-details" id="${caseId}-details" data-case-details="${caseData.caseNumber}" style="display: none;">
+                    <!-- Blockchain Notice IDs -->
+                    ${caseData.recipients && caseData.recipients.length > 0 ? `
+                        <div style="padding: 12px; background: linear-gradient(135deg, rgba(0,123,255,0.05), rgba(40,167,69,0.05)); border-radius: 8px; border: 1px solid rgba(0,123,255,0.2); margin-bottom: 15px;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <i class="fas fa-cube" style="color: #007bff; font-size: 1.2em;"></i>
+                                <strong style="color: #333; font-size: 1.1em;">Blockchain Notice Registry</strong>
+                            </div>
+                            <div style="display: grid; gap: 8px;">
+                                ${caseData.recipients.map((r, idx) => `
+                                    <div style="display: flex; align-items: center; gap: 8px; padding: 6px; background: white; border-radius: 4px;">
+                                        <span style="background: #007bff; color: white; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 0.9rem;">
+                                            🔔 #${r.alertId}
+                                        </span>
+                                        <i class="fas fa-arrows-alt-h" style="color: #666;"></i>
+                                        <span style="background: #28a745; color: white; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 0.9rem;">
+                                            📄 #${r.documentId}
+                                        </span>
+                                        <span style="flex: 1; text-align: right; color: #666; font-size: 0.85rem;">
+                                            <i class="fas fa-user"></i> ${r.recipientAddress.substring(0, 8)}...${r.recipientAddress.slice(-6)}
+                                        </span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.1); font-size: 0.85rem; color: #666;">
+                                <i class="fas fa-info-circle"></i> Reference Format: <code style="background: #f4f4f4; padding: 2px 4px; border-radius: 3px;">${caseData.caseNumber}-[AlertID]-[DocID]</code>
+                            </div>
+                        </div>
+                    ` : ''}
+                    
                     <!-- Case Overview -->
                     <div class="case-meta">
                         <div class="meta-item">
@@ -1105,7 +1178,9 @@ class UnifiedNoticeSystem {
                                         </div>
                                         <div class="nft-info">
                                             <span class="nft-label">Alert Notice</span>
-                                            <span class="nft-id">NFT ID: ${recipient.alertId || 'Pending'}</span>
+                                            <span class="nft-id" style="font-weight: bold; color: #007bff;">
+                                                <i class="fas fa-link"></i> Blockchain #${recipient.alertId || 'Pending'}
+                                            </span>
                                             <span class="nft-status status-delivered">✓ Delivered</span>
                                             <span class="backend-status" id="backend-status-alert-${recipient.alertId}" style="margin-left: 10px;">
                                                 <i class="fas fa-circle-notch fa-spin" style="color: #666;"></i>
@@ -1128,7 +1203,9 @@ class UnifiedNoticeSystem {
                                         </div>
                                         <div class="nft-info">
                                             <span class="nft-label">Document (${recipient.pageCount || 1} pages)</span>
-                                            <span class="nft-id">NFT ID: ${recipient.documentId || 'Pending'}</span>
+                                            <span class="nft-id" style="font-weight: bold; color: #28a745;">
+                                                <i class="fas fa-link"></i> Blockchain #${recipient.documentId || 'Pending'}
+                                            </span>
                                             <span class="nft-status ${recipient.documentStatus === 'SIGNED' ? 'status-signed' : 'status-pending'}">
                                                 ${recipient.documentStatus === 'SIGNED' ? '✓ Signed For' : '⏳ Awaiting Signature'}
                                             </span>
@@ -3631,4 +3708,9 @@ window.addEventListener('beforeunload', () => {
     }
 });
 
-console.log('✅ Unified Notice System loaded');
+console.log('✅ Unified Notice System loaded with enhanced cataloging');
+console.log('📚 New features:');
+console.log('  - Blockchain IDs prominently displayed');
+console.log('  - Search by blockchain ID: unifiedSystem.findByBlockchainId(12)');
+console.log('  - Unified reference format: CASE#-ALERT#-DOC#');
+console.log('  - Visual pairing of Alert ↔ Document NFTs');
