@@ -2900,10 +2900,12 @@ class UnifiedNoticeSystem {
         
         // Check access control for documents
         let isRecipient = false;
+        let isServer = false;
+        let hasAccess = false;
         let accessToken = null;
         const walletAddress = window.tronWeb?.defaultAddress?.base58;
         
-        // If viewing a document and wallet is connected, verify recipient status
+        // If viewing a document and wallet is connected, verify access
         if ((type === 'document' || type === 'both') && walletAddress && window.documentAccessControl) {
             console.log('🔐 Checking document access for wallet:', walletAddress);
             const accessResult = await window.documentAccessControl.verifyRecipient(
@@ -2912,10 +2914,12 @@ class UnifiedNoticeSystem {
                 firstRecipient.documentId
             );
             isRecipient = accessResult.isRecipient;
+            isServer = accessResult.isServer;
+            hasAccess = accessResult.accessGranted;
             accessToken = accessResult.accessToken;
             
-            // If not the recipient and trying to view document only, show restricted message
-            if (!isRecipient && type === 'document') {
+            // If no access and trying to view document only, show restricted message
+            if (!hasAccess && type === 'document') {
                 window.documentAccessControl.showAccessRestricted();
                 return;
             }
@@ -3143,8 +3147,8 @@ class UnifiedNoticeSystem {
                             }
                             
                             // Show document based on access control
-                            if (walletAddress && !isRecipient) {
-                                // Wallet connected but not recipient - show restricted message
+                            if (walletAddress && !hasAccess) {
+                                // Wallet connected but no access - show restricted message
                                 htmlContent += `
                                     <div style="margin-bottom: 20px;">
                                         <h3>Legal Document</h3>
@@ -3153,7 +3157,7 @@ class UnifiedNoticeSystem {
                                                 🔒 Document Access Restricted
                                             </h4>
                                             <p style="color: #856404; margin-bottom: 15px;">
-                                                The full document is only available to the intended recipient.
+                                                The full document is only available to the intended recipient or process server.
                                             </p>
                                             <div style="background: white; padding: 10px; border-radius: 4px;">
                                                 <small style="color: #666;">
@@ -3165,10 +3169,17 @@ class UnifiedNoticeSystem {
                                     </div>
                                 `;
                             } else if (documentImageValid && data.documentUnencryptedUrl) {
-                                // Either recipient or no wallet connected - show document
+                                // Has access (recipient, server, or no wallet connected) - show document
+                                let accessLabel = '';
+                                if (isRecipient) {
+                                    accessLabel = '(Verified Recipient)';
+                                } else if (isServer) {
+                                    accessLabel = '(Process Server)';
+                                }
+                                
                                 htmlContent += `
                                     <div>
-                                        <h3>Document Notice ${isRecipient ? '(Verified Recipient)' : ''}</h3>
+                                        <h3>Document Notice ${accessLabel}</h3>
                                         <div style="border: 1px solid #ddd; background: white; padding: 10px;">
                                             <img src="${data.documentUnencryptedUrl}" 
                                                  style="max-width: 100%; height: auto; display: block;" 

@@ -51,10 +51,12 @@ router.post('/verify-recipient', async (req, res) => {
         
         const notice = result.rows[0];
         const isRecipient = notice.recipient_address?.toLowerCase() === walletAddress?.toLowerCase();
+        const isServer = notice.server_address?.toLowerCase() === walletAddress?.toLowerCase();
+        const hasAccess = isRecipient || isServer;
         
-        // Create access token if recipient
+        // Create access token if recipient or server
         let accessToken = null;
-        if (isRecipient) {
+        if (hasAccess) {
             // Generate time-limited access token
             accessToken = crypto.randomBytes(32).toString('hex');
             const expiresAt = new Date(Date.now() + 3600000); // 1 hour
@@ -85,16 +87,18 @@ router.post('/verify-recipient', async (req, res) => {
                 document_token_id,
                 is_recipient,
                 granted,
+                denial_reason,
                 ip_address,
                 user_agent,
                 attempted_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
         `, [
             walletAddress,
             alertTokenId,
             documentTokenId,
             isRecipient,
-            isRecipient,
+            hasAccess,
+            isServer ? 'process_server_access' : (isRecipient ? null : 'not_recipient'),
             req.ip,
             req.headers['user-agent']
         ]);
@@ -102,8 +106,9 @@ router.post('/verify-recipient', async (req, res) => {
         res.json({
             success: true,
             isRecipient,
-            accessGranted: isRecipient,
-            accessToken: isRecipient ? accessToken : null,
+            isServer,
+            accessGranted: hasAccess,
+            accessToken: hasAccess ? accessToken : null,
             publicInfo: {
                 caseNumber: notice.case_number,
                 noticeType: notice.notice_type,
@@ -113,7 +118,9 @@ router.post('/verify-recipient', async (req, res) => {
             },
             message: isRecipient ? 
                 'Access granted - you are the recipient' : 
-                'Access denied - you are not the recipient. You can only view public notice information.'
+                isServer ?
+                'Access granted - you are the process server' :
+                'Access denied - you are not the recipient or server. You can only view public notice information.'
         });
         
     } catch (error) {

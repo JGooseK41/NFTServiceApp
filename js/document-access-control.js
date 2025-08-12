@@ -33,18 +33,24 @@ class DocumentAccessControl {
             
             this.walletAddress = walletAddress;
             this.isRecipient = result.isRecipient;
+            this.isServer = result.isServer;
             this.publicInfo = result.publicInfo;
             
-            if (result.isRecipient) {
+            if (result.accessGranted) {
                 this.accessToken = result.accessToken;
                 // Store token securely
                 sessionStorage.setItem('doc_access_token', this.accessToken);
                 sessionStorage.setItem('doc_access_expires', Date.now() + 3600000); // 1 hour
                 
-                console.log('✅ Access granted - recipient verified');
-                this.showAccessGranted();
+                if (result.isRecipient) {
+                    console.log('✅ Access granted - recipient verified');
+                    this.showAccessGranted('recipient');
+                } else if (result.isServer) {
+                    console.log('✅ Access granted - process server verified');
+                    this.showAccessGranted('server');
+                }
             } else {
-                console.log('⚠️ Access restricted - not the recipient');
+                console.log('⚠️ Access restricted - not the recipient or server');
                 this.showAccessRestricted();
             }
             
@@ -121,10 +127,17 @@ class DocumentAccessControl {
     /**
      * Show access granted UI
      */
-    showAccessGranted() {
+    showAccessGranted(accessType = 'recipient') {
+        let message;
+        if (accessType === 'server') {
+            message = 'You are the process server. You have full access to view the document.';
+        } else {
+            message = 'You are the recipient. You have full access to view and sign the document.';
+        }
+        
         const notification = this.createNotification(
             '✅ Access Granted',
-            'You are the recipient. You have full access to view and sign the document.',
+            message,
             'success'
         );
         document.body.appendChild(notification);
