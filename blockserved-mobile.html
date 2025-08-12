@@ -715,22 +715,24 @@
         
         // Connect Wallet
         async function connectWallet() {
+            // In TronLink browser, wallet is already connected
+            if (window.tronWeb && window.tronWeb.ready && tronWeb.defaultAddress.base58) {
+                // Already connected in TronLink browser
+                showWalletConnected(tronWeb.defaultAddress.base58);
+                loadNotices();
+                return;
+            }
+            
             if (!window.tronWeb) {
-                alert('Please install TronLink wallet app or extension');
-                // For mobile, redirect to app store
-                if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-                    if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-                        window.location.href = 'https://apps.apple.com/app/tronlink/id1453530188';
-                    } else {
-                        window.location.href = 'https://play.google.com/store/apps/details?id=com.tronlink.wallet';
-                    }
-                }
+                alert('Please open this page in TronLink browser');
                 return;
             }
             
             try {
-                // Request account access
-                await window.tronWeb.request({ method: 'tron_requestAccounts' });
+                // Request account access (usually not needed in TronLink browser)
+                if (!tronWeb.defaultAddress.base58) {
+                    await window.tronWeb.request({ method: 'tron_requestAccounts' });
+                }
                 
                 if (tronWeb.defaultAddress.base58) {
                     showWalletConnected(tronWeb.defaultAddress.base58);
@@ -738,7 +740,7 @@
                 }
             } catch (error) {
                 console.error('Connection error:', error);
-                alert('Failed to connect wallet. Please try again.');
+                alert('Please make sure your wallet is unlocked');
             }
         }
         

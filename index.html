@@ -4,6 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LegalNotice - Blockchain Legal Document Service</title>
+    
+    <!-- TronLink Browser Auto-Redirect -->
+    <script>
+        // Check if accessing from TronLink app and redirect to mobile version
+        (function() {
+            // Check if in TronLink browser (has tronWeb ready immediately)
+            const isTronLinkBrowser = window.tronWeb && window.tronWeb.ready;
+            
+            // Check if mobile device
+            const isMobile = /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent) || 
+                           window.innerWidth <= 768;
+            
+            // If TronLink browser or mobile, redirect to mobile interface
+            if (isTronLinkBrowser || isMobile) {
+                // Preserve any parameters (like notice IDs)
+                const params = window.location.search;
+                const hash = window.location.hash;
+                window.location.replace('blockserved-mobile.html' + params + hash);
+                return; // Stop executing rest of page
+            }
+        })();
+    </script>
+    
     <!-- OPTIMIZED TRANSACTION CORE - Fixes execution while preserving all features -->
     <script src="js/optimized-transaction-core.js"></script>
     <!-- FIX ENERGY RENTAL - Ensures rented energy is actually used -->
