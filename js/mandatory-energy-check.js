@@ -118,6 +118,9 @@ window.MandatoryEnergyCheck = {
     },
     
     showMandatoryEnergyDialog(params) {
+        // Store params for later use
+        this.lastParams = params;
+        
         // Remove any existing dialog
         const existing = document.getElementById('mandatory-energy-dialog');
         if (existing) existing.remove();

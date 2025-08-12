@@ -12,6 +12,13 @@ window.StreamlinedEnergyFlow = {
     rentalCompleted: false,
     
     /**
+     * Main entry point - alias for showEnergyModal
+     */
+    show(params) {
+        return this.showEnergyModal(params);
+    },
+    
+    /**
      * Show streamlined energy modal
      */
     showEnergyModal(params) {
@@ -109,10 +116,8 @@ window.StreamlinedEnergyFlow = {
         const rentalCost = (deficit * 0.000025).toFixed(2);
         const savings = (parseFloat(burnCost) - parseFloat(rentalCost)).toFixed(2);
         
-        // Store the original energy needed for adjustment
-        if (!this.adjustedEnergyNeeded) {
-            this.adjustedEnergyNeeded = params.energyDetails.total;
-        }
+        // Don't reset if we already have an adjusted amount
+        // The adjustedEnergyNeeded is set in showEnergyModal
         
         return `
             <!-- Header -->
