@@ -29189,7 +29189,7 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                 
                 // Complete contract uses serveNotice with different parameters
                 // serveNotice(recipient, encryptedIPFS, decryptionKey, issuingAgency, noticeType, caseNumber, caseDetails, legalRights, sponsorFees)
-                const sponsorFees = fee > serviceFee; // Sponsor fees if paying more than just service fee
+                const sponsorFees = true; // Always sponsor recipients to ensure they have TRX for gas
                 
                 console.log('=== TRANSACTION DETAILS ===');
                 console.log('Is batch transaction:', isBatch);
@@ -29926,6 +29926,7 @@ console.log('To switch to old flow: toggleTransactionFlow()');
 <!-- Consolidated Sponsorship System -->
 <script src="js/consolidate-sponsorship.js"></script>
 <script src="js/disable-separate-notification.js"></script>
+<script src="js/batch-sponsorship-fix.js"></script>
 
 </body>
 </html>

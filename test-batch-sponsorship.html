@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Batch Sponsorship Distribution</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .recipient-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 5px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .address {
+            font-family: monospace;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .info-box {
+            background: #e8f5e9;
+            border: 1px solid #4caf50;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .warning-box {
+            background: #fff3e0;
+            border: 1px solid #ff9800;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .error-box {
+            background: #ffebee;
+            border: 1px solid #f44336;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .log-area {
+            background: #263238;
+            color: #aed581;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .fee-breakdown {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        
+        .fee-label {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .fee-value {
+            color: #333;
+        }
+        
+        .highlight {
+            background: yellow;
+            padding: 2px 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Batch Sponsorship Test</h1>
+        <p>Test if sponsorship fees are distributed to all recipients in batch transactions</p>
+        
+        <div class="test-section">
+            <h2>📋 Test Configuration</h2>
+            <div class="fee-breakdown">
+                <div class="fee-label">Contract Address:</div>
+                <div class="fee-value address" id="contractAddress">Not connected</div>
+                
+                <div class="fee-label">Current Sponsorship Fee:</div>
+                <div class="fee-value" id="currentFee">Loading...</div>
+                
+                <div class="fee-label">Test Recipients:</div>
+                <div class="fee-value">3 addresses</div>
+                
+                <div class="fee-label">Expected Total Sponsorship:</div>
+                <div class="fee-value" id="expectedTotal">Calculating...</div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>📬 Test Recipients</h2>
+            <div id="recipientsList">
+                <div class="recipient-row">
+                    <span class="address">T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb</span>
+                    <span class="status pending">PENDING</span>
+                </div>
+                <div class="recipient-row">
+                    <span class="address">TWDvH8EpZwaBJ7SSFQQ7YPxRUba6f4mA8X</span>
+                    <span class="status pending">PENDING</span>
+                </div>
+                <div class="recipient-row">
+                    <span class="address">TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL</span>
+                    <span class="status pending">PENDING</span>
+                </div>
+            </div>
+        </div>
+        
+        <button onclick="connectWallet()" id="connectBtn">Connect TronLink</button>
+        <button onclick="runTest()" id="testBtn" style="display:none;">Run Sponsorship Test</button>
+        <button onclick="checkBalances()" id="checkBtn" style="display:none;">Check Recipient Balances</button>
+        
+        <div id="results"></div>
+        
+        <div class="log-area" id="logArea" style="display:none;">
+            <strong>Transaction Log:</strong><br>
+            <div id="logContent"></div>
+        </div>
+    </div>
+    
+    <script>
+        let tronWeb;
+        let contract;
+        const CONTRACT_ADDRESS = 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN'; // v5 Enumerable mainnet
+        
+        // Test recipients (you can change these)
+        const testRecipients = [
+            'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb',  // Null address (should be filtered)
+            'TWDvH8EpZwaBJ7SSFQQ7YPxRUba6f4mA8X',  // Test address 1
+            'TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL'   // Test address 2
+        ];
+        
+        function log(message) {
+            const logContent = document.getElementById('logContent');
+            const timestamp = new Date().toLocaleTimeString();
+            logContent.innerHTML += `[${timestamp}] ${message}<br>`;
+            
+            const logArea = document.getElementById('logArea');
+            logArea.style.display = 'block';
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+        
+        async function connectWallet() {
+            if (typeof window.tronWeb === 'undefined') {
+                document.getElementById('results').innerHTML = 
+                    '<div class="error-box">Please install TronLink wallet extension!</div>';
+                return;
+            }
+            
+            // Wait for TronLink
+            let retries = 0;
+            while (!window.tronWeb || !window.tronWeb.ready) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                retries++;
+                if (retries > 10) {
+                    document.getElementById('results').innerHTML = 
+                        '<div class="error-box">TronLink timeout. Please unlock your wallet.</div>';
+                    return;
+                }
+            }
+            
+            tronWeb = window.tronWeb;
+            
+            // Load contract (simplified ABI)
+            const ABI = [
+                {
+                    "inputs": [],
+                    "name": "sponsorshipFee",
+                    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [{"internalType": "address", "name": "server", "type": "address"}],
+                    "name": "calculateFee",
+                    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+                    "stateMutability": "view",
+                    "type": "function"
+                },
+                {
+                    "inputs": [
+                        {
+                            "components": [
+                                {"internalType": "address", "name": "recipient", "type": "address"},
+                                {"internalType": "string", "name": "encryptedIPFS", "type": "string"},
+                                {"internalType": "string", "name": "encryptionKey", "type": "string"},
+                                {"internalType": "string", "name": "issuingAgency", "type": "string"},
+                                {"internalType": "string", "name": "noticeType", "type": "string"},
+                                {"internalType": "string", "name": "caseNumber", "type": "string"},
+                                {"internalType": "string", "name": "caseDetails", "type": "string"},
+                                {"internalType": "string", "name": "legalRights", "type": "string"},
+                                {"internalType": "bool", "name": "sponsorFees", "type": "bool"},
+                                {"internalType": "string", "name": "metadataURI", "type": "string"}
+                            ],
+                            "internalType": "struct LegalNoticeNFT_v5_Enumerable.BatchNotice[]",
+                            "name": "batchNotices",
+                            "type": "tuple[]"
+                        }
+                    ],
+                    "name": "serveNoticeBatch",
+                    "outputs": [
+                        {"internalType": "uint256[]", "name": "alertIds", "type": "uint256[]"},
+                        {"internalType": "uint256[]", "name": "documentIds", "type": "uint256[]"}
+                    ],
+                    "stateMutability": "payable",
+                    "type": "function"
+                }
+            ];
+            
+            try {
+                contract = await tronWeb.contract(ABI, CONTRACT_ADDRESS);
+                
+                document.getElementById('contractAddress').textContent = CONTRACT_ADDRESS;
+                document.getElementById('connectBtn').style.display = 'none';
+                document.getElementById('testBtn').style.display = 'block';
+                document.getElementById('checkBtn').style.display = 'block';
+                
+                // Check current sponsorship fee
+                const sponsorshipFee = await contract.sponsorshipFee().call();
+                const feeInTRX = sponsorshipFee / 1000000;
+                document.getElementById('currentFee').textContent = feeInTRX + ' TRX';
+                
+                // Calculate expected total
+                const validRecipients = testRecipients.filter(addr => 
+                    addr !== 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb'
+                );
+                const expectedTotal = feeInTRX * validRecipients.length;
+                document.getElementById('expectedTotal').textContent = expectedTotal + ' TRX';
+                
+                document.getElementById('results').innerHTML = 
+                    '<div class="info-box">✅ Connected: ' + tronWeb.defaultAddress.base58 + '</div>';
+                
+                log('Wallet connected: ' + tronWeb.defaultAddress.base58);
+                log('Contract loaded: ' + CONTRACT_ADDRESS);
+                log('Current sponsorship fee: ' + feeInTRX + ' TRX');
+                
+            } catch (error) {
+                document.getElementById('results').innerHTML = 
+                    '<div class="error-box">Failed to load contract: ' + error.message + '</div>';
+            }
+        }
+        
+        async function checkBalances() {
+            log('Checking recipient balances...');
+            
+            for (let i = 0; i < testRecipients.length; i++) {
+                const address = testRecipients[i];
+                try {
+                    const balance = await tronWeb.trx.getBalance(address);
+                    const balanceInTRX = balance / 1000000;
+                    log(`${address}: ${balanceInTRX} TRX`);
+                } catch (error) {
+                    log(`Error checking ${address}: ${error.message}`);
+                }
+            }
+        }
+        
+        async function runTest() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="warning-box">⏳ Running test transaction...</div>';
+            
+            try {
+                log('Starting batch sponsorship test...');
+                
+                // Get balances before
+                log('Getting initial balances...');
+                const balancesBefore = {};
+                for (const addr of testRecipients) {
+                    balancesBefore[addr] = await tronWeb.trx.getBalance(addr);
+                    log(`Initial balance ${addr}: ${balancesBefore[addr]/1000000} TRX`);
+                }
+                
+                // Calculate fees
+                const baseFee = await contract.calculateFee(tronWeb.defaultAddress.base58).call();
+                const sponsorshipFee = await contract.sponsorshipFee().call();
+                const feePerRecipient = baseFee + sponsorshipFee;
+                const totalFee = feePerRecipient * testRecipients.length;
+                
+                log(`Base fee per recipient: ${baseFee/1000000} TRX`);
+                log(`Sponsorship per recipient: ${sponsorshipFee/1000000} TRX`);
+                log(`Total per recipient: ${feePerRecipient/1000000} TRX`);
+                log(`Total for batch: ${totalFee/1000000} TRX`);
+                
+                // Build batch notices
+                const batchNotices = testRecipients.map((addr, index) => ({
+                    recipient: addr,
+                    encryptedIPFS: '',
+                    encryptionKey: '',
+                    issuingAgency: 'Test Agency',
+                    noticeType: 'Test Notice',
+                    caseNumber: 'TEST-' + Date.now(),
+                    caseDetails: 'Testing sponsorship distribution',
+                    legalRights: '',
+                    sponsorFees: true,  // IMPORTANT: Enable sponsorship for all
+                    metadataURI: ''
+                }));
+                
+                log('Sending batch transaction with ' + batchNotices.length + ' recipients...');
+                log('All recipients have sponsorFees: true');
+                
+                // Send transaction
+                const tx = await contract.serveNoticeBatch(batchNotices).send({
+                    feeLimit: 500_000_000,
+                    callValue: totalFee,
+                    shouldPollResponse: true
+                });
+                
+                log('Transaction sent! Hash: ' + tx);
+                log('Waiting 3 seconds for blockchain confirmation...');
+                
+                // Wait for confirmation
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                
+                // Check balances after
+                log('Checking final balances...');
+                const balancesAfter = {};
+                const sponsorshipReceived = {};
+                
+                for (const addr of testRecipients) {
+                    balancesAfter[addr] = await tronWeb.trx.getBalance(addr);
+                    sponsorshipReceived[addr] = (balancesAfter[addr] - balancesBefore[addr]) / 1000000;
+                    
+                    log(`Final balance ${addr}: ${balancesAfter[addr]/1000000} TRX`);
+                    log(`Sponsorship received: ${sponsorshipReceived[addr]} TRX`);
+                    
+                    // Update UI
+                    const rows = document.querySelectorAll('.recipient-row');
+                    const row = Array.from(rows).find(r => r.querySelector('.address').textContent === addr);
+                    if (row) {
+                        const status = row.querySelector('.status');
+                        if (sponsorshipReceived[addr] > 0) {
+                            status.className = 'status success';
+                            status.textContent = `+${sponsorshipReceived[addr]} TRX`;
+                        } else if (addr === 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb') {
+                            status.className = 'status pending';
+                            status.textContent = 'NULL ADDRESS';
+                        } else {
+                            status.className = 'status failed';
+                            status.textContent = 'NO SPONSORSHIP';
+                        }
+                    }
+                }
+                
+                // Analyze results
+                const validRecipients = testRecipients.filter(addr => 
+                    addr !== 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb'
+                );
+                
+                const recipientsWithSponsorship = validRecipients.filter(addr => 
+                    sponsorshipReceived[addr] > 0
+                );
+                
+                if (recipientsWithSponsorship.length === validRecipients.length) {
+                    resultsDiv.innerHTML = `
+                        <div class="info-box">
+                            <h3>✅ TEST PASSED!</h3>
+                            <p>All ${validRecipients.length} valid recipients received sponsorship.</p>
+                            <p>Each received: ${sponsorshipFee/1000000} TRX</p>
+                            <p>Transaction: <a href="https://tronscan.org/#/transaction/${tx}" target="_blank">${tx.substring(0,8)}...</a></p>
+                        </div>
+                    `;
+                    log('✅ TEST PASSED - All recipients received sponsorship!');
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="error-box">
+                            <h3>❌ TEST FAILED!</h3>
+                            <p>Only ${recipientsWithSponsorship.length} of ${validRecipients.length} recipients received sponsorship.</p>
+                            <p class="highlight">This confirms the issue you reported!</p>
+                            <p>Transaction: <a href="https://tronscan.org/#/transaction/${tx}" target="_blank">${tx.substring(0,8)}...</a></p>
+                        </div>
+                    `;
+                    log('❌ TEST FAILED - Not all recipients received sponsorship!');
+                    log('This confirms the issue: only some recipients get sponsorship in batch');
+                }
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="error-box">
+                        <h3>Error running test:</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+                log('ERROR: ' + error.message);
+            }
+        }
+        
+        // Auto-connect if TronLink is ready
+        window.addEventListener('load', () => {
+            if (window.tronWeb && window.tronWeb.ready) {
+                connectWallet();
+            }
+        });
+    </script>
+</body>
+</html>
