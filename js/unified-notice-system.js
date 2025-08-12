@@ -3178,20 +3178,25 @@ class UnifiedNoticeSystem {
                                 `;
                             }
                             
-                            container.innerHTML = htmlContent
-                                ${!alertImageValid && data.alertThumbnailUrl ? `
+                            // Add error messages if images failed to load
+                            if (!alertImageValid && data.alertThumbnailUrl) {
+                                htmlContent += `
                                     <div style="margin-bottom: 20px; padding: 15px; background: #fee; border: 1px solid #fcc; border-radius: 8px;">
                                         <p style="color: #c00; margin: 0;">⚠️ Alert thumbnail could not be loaded</p>
                                         <small style="color: #666;">${data.alertThumbnailUrl}</small>
                                     </div>
-                                ` : ''}
-                                ${!documentImageValid && data.documentUnencryptedUrl ? `
+                                `;
+                            }
+                            if (!documentImageValid && data.documentUnencryptedUrl) {
+                                htmlContent += `
                                     <div style="padding: 15px; background: #fee; border: 1px solid #fcc; border-radius: 8px;">
                                         <p style="color: #c00; margin: 0;">⚠️ Document could not be loaded</p>
                                         <small style="color: #666;">${data.documentUnencryptedUrl}</small>
                                     </div>
-                                ` : ''}
-                            `;
+                                `;
+                            }
+                            
+                            container.innerHTML = htmlContent;
                         } else {
                             container.innerHTML = this.createManualUploadInterface(caseNumber, noticeId, 'Unable to load any images', caseData.transactionHash);
                         }
