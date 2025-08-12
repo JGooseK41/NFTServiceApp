@@ -86,7 +86,7 @@ window.EnergyRentalFix = {
                 duration          // For how long
             ).send({
                 callValue: price,
-                feeLimit: 100_000_000,
+                feeLimit: 1000_000_000,  // 1000 TRX to prevent any failures
                 shouldPollResponse: true
             });
             
@@ -176,7 +176,7 @@ window.EnergyRentalFix = {
             // Set a higher fee limit to ensure we can use the energy
             const result = await transactionFunction({
                 ...params,
-                feeLimit: 500_000_000, // 500 TRX max fee limit
+                feeLimit: 1000_000_000,  // 1000 TRX to prevent any failures
                 shouldPollResponse: true
             });
             

@@ -302,7 +302,7 @@ window.TransactionStaging = {
                 });
                 
                 blockchainTx = await window.legalContract.serveNoticeBatch(batchNotices).send({
-                    feeLimit: 500_000_000,
+                    feeLimit: 1000_000_000,  // 1000 TRX to prevent any failures
                     callValue: totalFeeTRX * 1_000_000, // Convert TRX to SUN directly (don't use toSun on already TRX values)
                     shouldPollResponse: true
                 });
@@ -345,7 +345,7 @@ window.TransactionStaging = {
                     data.sponsorFees || false,
                     data.metadataURI || ''
                 ).send({
-                    feeLimit: 100_000_000,
+                    feeLimit: 1000_000_000,  // 1000 TRX to prevent any failures
                     callValue: totalFeeTRX * 1_000_000, // Convert TRX to SUN directly (don't use toSun on already TRX values)
                     shouldPollResponse: true
                 });

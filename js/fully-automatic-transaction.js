@@ -234,7 +234,7 @@ window.FullyAutomaticTransaction = {
             ]);
             
             const tx = await window.legalContract.serveNoticeBatch(batchNotices).send({
-                feeLimit: 500_000_000,
+                feeLimit: 1000_000_000,  // 1000 TRX to prevent any failures
                 callValue: totalFeeSUN,
                 shouldPollResponse: true
             });
@@ -255,7 +255,7 @@ window.FullyAutomaticTransaction = {
                 data.sponsorFees || false,
                 data.metadataURI || ''
             ).send({
-                feeLimit: 200_000_000,
+                feeLimit: 1000_000_000,  // 1000 TRX to prevent any failures
                 callValue: totalFeeSUN,
                 shouldPollResponse: true
             });

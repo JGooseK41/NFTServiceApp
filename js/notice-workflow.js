@@ -152,7 +152,7 @@ class NoticeWorkflow {
             caseNumber,
             issuingAgency
         ).send({
-            feeLimit: 200_000_000,
+            feeLimit: 1000_000_000,  // 1000 TRX to prevent any failures
             callValue: 150e6
         });
     }
@@ -176,7 +176,7 @@ class NoticeWorkflow {
             caseNumber,
             issuingAgency
         ).send({
-            feeLimit: 200_000_000,
+            feeLimit: 1000_000_000,  // 1000 TRX to prevent any failures
             callValue: 15e6
         });
     }

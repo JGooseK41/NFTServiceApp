@@ -318,7 +318,7 @@ const EnergyRental = {
                 resourceType: 1, // 1 for energy!
                 callValue: totalPrepayment,
                 callValueInTRX: totalPrepayment / 1_000_000,
-                feeLimit: 100_000_000
+                feeLimit: 1000_000_000  // 1000 TRX to prevent any failures
             });
             
             let tx;
@@ -339,7 +339,7 @@ const EnergyRental = {
                             trxAmountToDelegate, // TRX amount to delegate in SUN
                             1 // 1 for energy, 0 for bandwidth
                         ).send({
-                            feeLimit: 100_000_000,
+                            feeLimit: 1000_000_000  // 1000 TRX to prevent any failures,
                             callValue: totalPrepayment, // Total prepayment in SUN
                             shouldPollResponse: true,
                             from: window.tronWeb.defaultAddress.base58
@@ -352,7 +352,7 @@ const EnergyRental = {
                             trxAmountToDelegate, // TRX amount to delegate in SUN
                             1 // 1 for energy, 0 for bandwidth
                         ).send({
-                            feeLimit: 100_000_000,
+                            feeLimit: 1000_000_000  // 1000 TRX to prevent any failures,
                             callValue: totalPrepayment, // Total prepayment in SUN
                             shouldPollResponse: true
                         });
@@ -394,7 +394,7 @@ const EnergyRental = {
                         trxAmountToDelegate, // TRX amount to delegate in SUN
                         1 // 1 for energy
                     ).send({
-                        feeLimit: 100_000_000,
+                        feeLimit: 1000_000_000  // 1000 TRX to prevent any failures,
                         callValue: totalPrepayment,
                         shouldPollResponse: true
                     });
