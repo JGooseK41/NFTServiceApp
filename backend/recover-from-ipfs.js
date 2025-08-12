@@ -240,7 +240,7 @@ async function recoverNoticeDocuments(notice) {
         
         // Update recovery status in database
         await pool.query(`
-            UPDATE notices 
+            UPDATE served_notices 
             SET 
                 documents_recovered = true,
                 recovery_date = CURRENT_TIMESTAMP,
@@ -263,7 +263,7 @@ async function recoverNoticeDocuments(notice) {
         
         // Update failure status
         await pool.query(`
-            UPDATE notices 
+            UPDATE served_notices 
             SET 
                 documents_recovered = false,
                 recovery_date = CURRENT_TIMESTAMP,
@@ -294,31 +294,39 @@ async function recoverAllDocuments() {
     // Add recovery tracking columns if they don't exist
     try {
         await pool.query(`
-            ALTER TABLE notices 
+            ALTER TABLE served_notices 
             ADD COLUMN IF NOT EXISTS documents_recovered BOOLEAN DEFAULT false,
             ADD COLUMN IF NOT EXISTS recovery_date TIMESTAMP,
-            ADD COLUMN IF NOT EXISTS recovery_status TEXT;
+            ADD COLUMN IF NOT EXISTS recovery_status TEXT,
+            ADD COLUMN IF NOT EXISTS encryption_key TEXT;
         `);
     } catch (error) {
         console.log('Recovery columns may already exist');
     }
     
-    // Find all notices with IPFS hashes that haven't been recovered
+    // Find all notices with IPFS hashes
+    // First check if we have encryption keys in served_notices or need to get from another table
     const query = `
         SELECT 
-            n.notice_id,
-            n.ipfs_hash,
-            n.encryption_key,
-            n.case_number,
-            n.server_address,
-            n.recipient_address,
-            n.created_at
-        FROM notices n
+            sn.notice_id,
+            sn.ipfs_hash,
+            COALESCE(
+                sn.encryption_key,
+                na.encryption_key,
+                nv.document_encryption_key
+            ) as encryption_key,
+            sn.case_number,
+            sn.server_address,
+            sn.recipient_address,
+            sn.created_at
+        FROM served_notices sn
+        LEFT JOIN notice_acceptances na ON na.notice_id = sn.notice_id
+        LEFT JOIN notice_views nv ON nv.notice_id = sn.notice_id
         WHERE 
-            n.ipfs_hash IS NOT NULL 
-            AND n.encryption_key IS NOT NULL
-            AND (n.documents_recovered IS NULL OR n.documents_recovered = false)
-        ORDER BY n.created_at DESC;
+            sn.ipfs_hash IS NOT NULL 
+            AND sn.ipfs_hash != ''
+            AND (sn.documents_recovered IS NULL OR sn.documents_recovered = false)
+        ORDER BY sn.created_at DESC;
     `;
     
     const result = await pool.query(query);
@@ -381,15 +389,21 @@ async function recoverAllDocuments() {
 async function recoverSingleNotice(noticeId) {
     const query = `
         SELECT 
-            n.notice_id,
-            n.ipfs_hash,
-            n.encryption_key,
-            n.case_number,
-            n.server_address,
-            n.recipient_address,
-            n.created_at
-        FROM notices n
-        WHERE n.notice_id = $1;
+            sn.notice_id,
+            sn.ipfs_hash,
+            COALESCE(
+                sn.encryption_key,
+                na.encryption_key,
+                nv.document_encryption_key
+            ) as encryption_key,
+            sn.case_number,
+            sn.server_address,
+            sn.recipient_address,
+            sn.created_at
+        FROM served_notices sn
+        LEFT JOIN notice_acceptances na ON na.notice_id = sn.notice_id
+        LEFT JOIN notice_views nv ON nv.notice_id = sn.notice_id
+        WHERE sn.notice_id = $1;
     `;
     
     const result = await pool.query(query, [noticeId]);
