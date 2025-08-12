@@ -9152,7 +9152,11 @@ function useConnectedAddressForFeeCollector() {
                         updateServerStats();
                         
                         // Refresh recent activities
-                        refreshRecentActivitiesHybrid();
+                        // Disabled - using unified system instead
+                        // refreshRecentActivitiesHybrid();
+                        if (window.unifiedSystem && window.unifiedSystem.serverAddress) {
+                            window.unifiedSystem.refreshData();
+                        }
                     }
                     
                     // Check if contract is already in the address field
@@ -12160,7 +12164,11 @@ function useConnectedAddressForFeeCollector() {
                     
                     // Also refresh hybrid activities if available
                     if (window.refreshRecentActivitiesHybrid) {
-                        refreshRecentActivitiesHybrid();
+                        // Disabled - using unified system instead
+                        // refreshRecentActivitiesHybrid();
+                        if (window.unifiedSystem && window.unifiedSystem.serverAddress) {
+                            window.unifiedSystem.refreshData();
+                        }
                     } else {
                         console.error('refreshRecentActivitiesHybrid not available');
                         refreshRecentActivitiesGrouped();
@@ -19604,22 +19612,24 @@ async function checkUserRoles() {
                 LanguageManager.init();
             }
             
-            // Initialize unified system when wallet connects
-            if (window.tronWeb && window.tronWeb.ready) {
-                setTimeout(async () => {
-                    if (window.unifiedSystem) {
-                        console.log('🚀 Initializing Unified Notice System...');
-                        // Ensure server address is set before init
-                        if (!window.unifiedSystem.serverAddress && window.tronWeb.defaultAddress) {
-                            window.unifiedSystem.serverAddress = window.tronWeb.defaultAddress.base58;
-                            console.log('Pre-setting server address:', window.unifiedSystem.serverAddress);
-                        }
-                        await window.unifiedSystem.init();
-                        // Render cases in the recent activities container
-                        window.unifiedSystem.renderCases('unifiedCasesContainer');
+            // Always initialize unified system on page load
+            setTimeout(async () => {
+                if (window.unifiedSystem) {
+                    console.log('🚀 Initializing Unified Notice System on page load...');
+                    
+                    // Set server address if wallet is connected
+                    if (window.tronWeb && window.tronWeb.ready && window.tronWeb.defaultAddress) {
+                        window.unifiedSystem.serverAddress = window.tronWeb.defaultAddress.base58;
+                        console.log('Server address from wallet:', window.unifiedSystem.serverAddress);
                     }
-                }, 2000);
-            }
+                    
+                    // Initialize the system (will show empty state if no wallet)
+                    await window.unifiedSystem.init();
+                    
+                    // Render cases explicitly
+                    window.unifiedSystem.renderCases('unifiedCasesContainer');
+                }
+            }, 1000);
             
             // Listen for wallet connection
             window.addEventListener('walletConnected', async () => {
@@ -29780,7 +29790,11 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     
                     // Refresh recent activities if on home tab
                     if (document.getElementById('homeTab').style.display !== 'none') {
-                        refreshRecentActivitiesHybrid();
+                        // Disabled - using unified system instead
+                        // refreshRecentActivitiesHybrid();
+                        if (window.unifiedSystem && window.unifiedSystem.serverAddress) {
+                            window.unifiedSystem.refreshData();
+                        }
                     }
                 }, 2000); // 2 second delay for blockchain confirmation
 

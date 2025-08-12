@@ -99,14 +99,22 @@ class UnifiedNoticeSystem {
         await this.loadPDFMerger();
         
         // IMMEDIATELY load cases from backend - this should be FAST
-        await this.loadServerCases();
+        if (this.serverAddress) {
+            await this.loadServerCases();
+        } else {
+            console.log('No server address yet, showing empty state');
+            // Show empty state
+            this.renderCases('unifiedCasesContainer');
+        }
         
         // Then sync blockchain in background without blocking
-        setTimeout(() => {
-            this.syncFromBlockchain().catch(error => {
-                console.warn('Background blockchain sync failed:', error);
-            });
-        }, 2000); // Do blockchain sync 2 seconds later in background
+        if (this.serverAddress) {
+            setTimeout(() => {
+                this.syncFromBlockchain().catch(error => {
+                    console.warn('Background blockchain sync failed:', error);
+                });
+            }, 2000); // Do blockchain sync 2 seconds later in background
+        }
         
         return true;
     }
