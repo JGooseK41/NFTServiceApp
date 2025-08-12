@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BlockServed - Legal Notice Delivery</title>
+    
+    <!-- Icons & Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Unified System CSS -->
+    <link rel="stylesheet" href="css/unified-system.css">
+    
+    <style>
+        /* Mobile Optimizations */
+        * {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8f9fa;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        /* Mobile Header */
+        .mobile-header {
+            background: linear-gradient(135deg, #0ea5e9 0%, #3730a3 100%);
+            color: white;
+            padding: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        
+        .wallet-status {
+            padding: 0.5rem 1rem;
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        /* Hero Section */
+        .hero-section {
+            background: white;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        .hero-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+        
+        .hero-subtitle {
+            font-size: 1rem;
+            color: #64748b;
+            margin-bottom: 1.5rem;
+        }
+        
+        /* Alert Banner */
+        .alert-banner {
+            background: #fef2f2;
+            border: 2px solid #fca5a5;
+            border-radius: 12px;
+            padding: 1rem;
+            margin: 1rem;
+            display: flex;
+            align-items: start;
+            gap: 0.75rem;
+        }
+        
+        .alert-banner i {
+            color: #dc2626;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+        
+        .alert-content {
+            flex: 1;
+        }
+        
+        .alert-title {
+            font-weight: 600;
+            color: #991b1b;
+            margin-bottom: 0.25rem;
+        }
+        
+        .alert-text {
+            font-size: 0.9rem;
+            color: #7f1d1d;
+        }
+        
+        /* Connect Wallet Button */
+        .connect-wallet-btn {
+            width: calc(100% - 2rem);
+            margin: 1rem;
+            padding: 1rem;
+            background: linear-gradient(135deg, #0ea5e9 0%, #3730a3 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        
+        .connect-wallet-btn:active {
+            transform: scale(0.98);
+        }
+        
+        /* Info Cards */
+        .info-cards {
+            padding: 0 1rem;
+            display: grid;
+            gap: 1rem;
+        }
+        
+        .info-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .info-card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .icon-green {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+        
+        .icon-yellow {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .icon-blue {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+        
+        .info-card h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+        }
+        
+        .info-card p {
+            font-size: 0.9rem;
+            color: #64748b;
+            line-height: 1.5;
+        }
+        
+        /* Process Steps */
+        .process-section {
+            background: white;
+            margin: 1rem;
+            padding: 1.5rem;
+            border-radius: 12px;
+        }
+        
+        .process-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+        
+        .process-step {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .process-step:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .step-number {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #0ea5e9 0%, #3730a3 100%);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        
+        .step-content {
+            flex: 1;
+        }
+        
+        .step-title {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+        
+        .step-desc {
+            font-size: 0.9rem;
+            color: #64748b;
+            line-height: 1.4;
+        }
+        
+        /* FAQ Section */
+        .faq-section {
+            padding: 1rem;
+        }
+        
+        .faq-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .faq-item {
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .faq-question {
+            padding: 1rem;
+            font-weight: 600;
+            color: #1e293b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .faq-question i {
+            color: #94a3b8;
+            transition: transform 0.3s;
+        }
+        
+        .faq-item.active .faq-question i {
+            transform: rotate(180deg);
+        }
+        
+        .faq-answer {
+            padding: 0 1rem;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+        
+        .faq-item.active .faq-answer {
+            padding: 0 1rem 1rem;
+            max-height: 500px;
+        }
+        
+        .faq-answer p {
+            color: #64748b;
+            line-height: 1.5;
+            margin: 0;
+        }
+        
+        /* Notice List */
+        .notices-section {
+            padding: 1rem;
+            display: none;
+        }
+        
+        .notices-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .notice-count {
+            background: #dc2626;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+        }
+        
+        .notice-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-left: 4px solid #dc2626;
+        }
+        
+        .notice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 0.75rem;
+        }
+        
+        .notice-type {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .notice-status {
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-urgent {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+        
+        .status-pending {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .notice-details {
+            display: grid;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .notice-detail {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+        
+        .notice-detail i {
+            width: 16px;
+            color: #94a3b8;
+        }
+        
+        .notice-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+        
+        .notice-btn {
+            padding: 0.75rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .notice-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .btn-view {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+        
+        .btn-sign {
+            background: linear-gradient(135deg, #0ea5e9 0%, #3730a3 100%);
+            color: white;
+        }
+        
+        /* Document Modal */
+        .document-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: white;
+            z-index: 2000;
+            flex-direction: column;
+        }
+        
+        .document-modal.active {
+            display: flex;
+        }
+        
+        .modal-header {
+            background: linear-gradient(135deg, #0ea5e9 0%, #3730a3 100%);
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-title {
+            font-weight: 600;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+        }
+        
+        .document-viewer {
+            flex: 1;
+            overflow: auto;
+            padding: 1rem;
+            background: #f8f9fa;
+        }
+        
+        .document-controls {
+            background: white;
+            padding: 0.75rem;
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .zoom-btn {
+            padding: 0.5rem 0.75rem;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        .modal-footer {
+            background: white;
+            padding: 1rem;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .modal-warning {
+            background: #fef2f2;
+            border: 1px solid #fca5a5;
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            font-size: 0.85rem;
+            color: #7f1d1d;
+        }
+        
+        .modal-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+        
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 3rem 1rem;
+        }
+        
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid #3730a3;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 375px) {
+            .hero-title {
+                font-size: 1.5rem;
+            }
+            
+            .notice-actions {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* iOS specific fixes */
+        @supports (-webkit-touch-callout: none) {
+            body {
+                min-height: -webkit-fill-available;
+            }
+            
+            .document-modal {
+                height: -webkit-fill-available;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Header -->
+    <div class="mobile-header">
+        <div class="header-content">
+            <div class="brand">
+                <i class="fas fa-file-contract"></i>
+                <span>BlockServed</span>
+            </div>
+            <div class="wallet-status" id="walletStatus" style="display: none;">
+                <i class="fas fa-check-circle"></i>
+                <span id="walletAddress">Connected</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <h1 class="hero-title">📬 You Have a Legal Document</h1>
+        <p class="hero-subtitle">Someone has sent you an important document that requires your attention</p>
+    </div>
+    
+    <!-- Critical Alert -->
+    <div class="alert-banner">
+        <i class="fas fa-exclamation-triangle"></i>
+        <div class="alert-content">
+            <div class="alert-title">Legal Notice Requires Response</div>
+            <div class="alert-text">Ignoring legal notices can result in default judgment, asset seizure, or criminal charges</div>
+        </div>
+    </div>
+    
+    <!-- Connect Wallet -->
+    <button class="connect-wallet-btn" id="connectBtn" onclick="connectWallet()">
+        <i class="fas fa-wallet"></i>
+        Connect Wallet to View Documents
+    </button>
+    
+    <!-- Loading State -->
+    <div class="loading" id="loadingSection" style="display: none;">
+        <div class="spinner"></div>
+        <p>Loading your legal notices...</p>
+    </div>
+    
+    <!-- Notices Section -->
+    <div class="notices-section" id="noticesSection">
+        <div class="notices-title">
+            Your Legal Notices
+            <span class="notice-count" id="noticeCount">0</span>
+        </div>
+        <div id="noticesList">
+            <!-- Notices will be dynamically loaded -->
+        </div>
+    </div>
+    
+    <!-- Info Cards -->
+    <div class="info-cards">
+        <div class="info-card">
+            <div class="info-card-icon icon-green">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <h3>Safe & Secure</h3>
+            <p>This is an official legal notice delivery system. Your wallet and funds are completely safe - we only read public blockchain data.</p>
+        </div>
+        
+        <div class="info-card">
+            <div class="info-card-icon icon-yellow">
+                <i class="fas fa-clock"></i>
+            </div>
+            <h3>Time Sensitive</h3>
+            <p>Legal notices have strict deadlines. Missing a deadline can result in default judgment against you.</p>
+        </div>
+        
+        <div class="info-card">
+            <div class="info-card-icon icon-blue">
+                <i class="fas fa-file-signature"></i>
+            </div>
+            <h3>Digital Signature</h3>
+            <p>Accepting creates a blockchain record that you received the notice. This is legally equivalent to signing for certified mail.</p>
+        </div>
+    </div>
+    
+    <!-- Process Steps -->
+    <div class="process-section">
+        <h2 class="process-title">How This Works</h2>
+        
+        <div class="process-step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+                <div class="step-title">Connect Your Wallet</div>
+                <div class="step-desc">Use TronLink to connect the wallet that received the notice</div>
+            </div>
+        </div>
+        
+        <div class="process-step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+                <div class="step-title">View the Document</div>
+                <div class="step-desc">Read the legal notice carefully to understand what action is required</div>
+            </div>
+        </div>
+        
+        <div class="process-step">
+            <div class="step-number">3</div>
+            <div class="step-content">
+                <div class="step-title">Accept Receipt</div>
+                <div class="step-desc">Sign to acknowledge you received the notice (this doesn't mean you agree with it)</div>
+            </div>
+        </div>
+        
+        <div class="process-step">
+            <div class="step-number">4</div>
+            <div class="step-content">
+                <div class="step-title">Take Action</div>
+                <div class="step-desc">Contact the sender or seek legal advice to respond appropriately</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- FAQ Section -->
+    <div class="faq-section">
+        <h2 class="faq-title">
+            <i class="fas fa-question-circle"></i>
+            Common Questions
+        </h2>
+        
+        <div class="faq-item">
+            <div class="faq-question" onclick="toggleFAQ(this)">
+                Why did I receive this?
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p>Your wallet address was involved in a transaction or holds assets that are subject to legal proceedings. This could be related to asset recovery, civil litigation, regulatory compliance, or law enforcement action.</p>
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question" onclick="toggleFAQ(this)">
+                What happens if I ignore it?
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p>Ignoring legal notices can have severe consequences including: default judgment against you, asset freezing or seizure, contempt of court charges, loss of your right to defend yourself, and additional fines and penalties.</p>
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question" onclick="toggleFAQ(this)">
+                Is this a scam?
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p>This system is used by licensed process servers and law enforcement. You can verify authenticity by checking the sender's credentials, contacting the court directly, or consulting with a lawyer. The blockchain provides permanent proof of service.</p>
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question" onclick="toggleFAQ(this)">
+                Will signing cost me money?
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p>No. Accepting the notice is free. The sender has already paid all fees. You're only acknowledging receipt, not agreeing to any terms or making any payment.</p>
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question" onclick="toggleFAQ(this)">
+                What should I do next?
+                <i class="fas fa-chevron-down"></i>
+            </div>
+            <div class="faq-answer">
+                <p>1) Accept the notice to start the clock on your response time. 2) Read the document carefully. 3) Contact a lawyer immediately if criminal charges are involved. 4) Respond within the deadline specified. 5) Keep all documentation for your records.</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Document Modal -->
+    <div class="document-modal" id="documentModal">
+        <div class="modal-header">
+            <div class="modal-title">Legal Document</div>
+            <button class="modal-close" onclick="closeDocument()">×</button>
+        </div>
+        
+        <div class="document-viewer" id="documentViewer">
+            <!-- Document content will be loaded here -->
+        </div>
+        
+        <div class="document-controls">
+            <button class="zoom-btn" onclick="zoomOut()">
+                <i class="fas fa-search-minus"></i>
+            </button>
+            <button class="zoom-btn" onclick="resetZoom()">
+                <i class="fas fa-compress"></i>
+            </button>
+            <button class="zoom-btn" onclick="zoomIn()">
+                <i class="fas fa-search-plus"></i>
+            </button>
+        </div>
+        
+        <div class="modal-footer">
+            <div class="modal-warning">
+                <strong>⚠️ Important:</strong> By signing, you acknowledge receipt of this legal notice. This creates a permanent blockchain record.
+            </div>
+            <div class="modal-actions">
+                <button class="notice-btn btn-view" onclick="viewWithoutSigning()">
+                    <i class="fas fa-eye"></i>
+                    View Only
+                </button>
+                <button class="notice-btn btn-sign" onclick="signDocument()">
+                    <i class="fas fa-signature"></i>
+                    Sign & Accept
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Include the integration script -->
+    <script src="js/blockserved-mobile-integration.js"></script>
+    
+    <script>
+        let tronWeb = null;
+        let currentNotice = null;
+        let currentZoom = 1;
+        
+        // Initialize
+        window.addEventListener('load', () => {
+            checkTronLink();
+        });
+        
+        // Check TronLink
+        function checkTronLink() {
+            if (window.tronWeb && window.tronWeb.ready) {
+                tronWeb = window.tronWeb;
+                // Auto-connect if in TronLink browser
+                if (tronWeb.defaultAddress.base58) {
+                    showConnected();
+                    loadNotices();
+                }
+            } else {
+                setTimeout(checkTronLink, 500);
+            }
+        }
+        
+        // Connect Wallet
+        async function connectWallet() {
+            if (!window.tronWeb) {
+                alert('Please install TronLink wallet or open this page in TronLink browser');
+                return;
+            }
+            
+            try {
+                if (!tronWeb.defaultAddress.base58) {
+                    await window.tronWeb.request({ method: 'tron_requestAccounts' });
+                }
+                
+                if (tronWeb.defaultAddress.base58) {
+                    showConnected();
+                    loadNotices();
+                }
+            } catch (error) {
+                console.error('Connection error:', error);
+                alert('Failed to connect wallet');
+            }
+        }
+        
+        // Show Connected State
+        function showConnected() {
+            const address = tronWeb.defaultAddress.base58;
+            document.getElementById('walletAddress').textContent = 
+                address.substring(0, 6) + '...' + address.substring(address.length - 4);
+            document.getElementById('walletStatus').style.display = 'flex';
+            document.getElementById('connectBtn').style.display = 'none';
+        }
+        
+        // Load Notices
+        async function loadNotices() {
+            document.getElementById('loadingSection').style.display = 'block';
+            document.getElementById('noticesSection').style.display = 'none';
+            
+            try {
+                const notices = await BlockServedMobile.getRecipientNotices(tronWeb.defaultAddress.base58);
+                
+                if (notices.length > 0) {
+                    displayNotices(notices);
+                    document.getElementById('noticesSection').style.display = 'block';
+                } else {
+                    document.getElementById('noticesSection').innerHTML = `
+                        <div style="text-align: center; padding: 3rem 1rem;">
+                            <i class="fas fa-inbox" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 1rem;"></i>
+                            <h3 style="color: #64748b;">No Legal Notices</h3>
+                            <p style="color: #94a3b8;">You don't have any legal notices at this time</p>
+                        </div>
+                    `;
+                    document.getElementById('noticesSection').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error loading notices:', error);
+                alert('Error loading notices. Please try again.');
+            } finally {
+                document.getElementById('loadingSection').style.display = 'none';
+            }
+        }
+        
+        // Display Notices
+        function displayNotices(notices) {
+            const formattedNotices = notices.map(n => BlockServedMobile.formatNoticeForMobile(n));
+            document.getElementById('noticeCount').textContent = formattedNotices.length;
+            
+            document.getElementById('noticesList').innerHTML = formattedNotices.map(notice => `
+                <div class="notice-card" onclick="viewNotice('${notice.id}')">
+                    <div class="notice-header">
+                        <div class="notice-type">${notice.displayType}</div>
+                        <div class="notice-status ${notice.urgent ? 'status-urgent' : 'status-pending'}">
+                            ${notice.urgent ? 'URGENT' : notice.status === 'signed' ? 'SIGNED' : 'PENDING'}
+                        </div>
+                    </div>
+                    <div class="notice-details">
+                        <div class="notice-detail">
+                            <i class="fas fa-building"></i>
+                            <span>${notice.displayAgency}</span>
+                        </div>
+                        <div class="notice-detail">
+                            <i class="fas fa-hashtag"></i>
+                            <span>${notice.displayCaseNumber}</span>
+                        </div>
+                        <div class="notice-detail">
+                            <i class="fas fa-calendar"></i>
+                            <span>${notice.formattedDate}</span>
+                        </div>
+                        ${notice.urgent ? `
+                            <div class="notice-detail" style="color: #dc2626;">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <span>${notice.daysRemaining} days remaining</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="notice-actions">
+                        <button class="notice-btn btn-view" onclick="event.stopPropagation(); viewNotice('${notice.id}')">
+                            <i class="fas fa-eye"></i>
+                            View
+                        </button>
+                        ${notice.status !== 'signed' ? `
+                            <button class="notice-btn btn-sign" onclick="event.stopPropagation(); viewNotice('${notice.id}', true)">
+                                <i class="fas fa-signature"></i>
+                                Sign
+                            </button>
+                        ` : `
+                            <button class="notice-btn btn-view" onclick="event.stopPropagation(); viewCertificate('${notice.id}')">
+                                <i class="fas fa-certificate"></i>
+                                Certificate
+                            </button>
+                        `}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // View Notice
+        async function viewNotice(noticeId, autoSign = false) {
+            const notices = await BlockServedMobile.getRecipientNotices(tronWeb.defaultAddress.base58);
+            currentNotice = notices.find(n => n.id === noticeId);
+            
+            if (!currentNotice) return;
+            
+            document.getElementById('documentModal').classList.add('active');
+            
+            // Load document content
+            if (currentNotice.encryptedIPFS) {
+                const content = await BlockServedMobile.decryptDocument(
+                    currentNotice.encryptedIPFS,
+                    currentNotice.decryptionKey
+                );
+                document.getElementById('documentViewer').innerHTML = `
+                    <img src="${content}" style="width: 100%; height: auto;" id="documentImage">
+                `;
+            } else {
+                document.getElementById('documentViewer').innerHTML = `
+                    <div style="padding: 2rem; background: white; border-radius: 8px;">
+                        <h3>${currentNotice.type}</h3>
+                        <p><strong>Case:</strong> ${currentNotice.caseNumber}</p>
+                        <p><strong>Details:</strong> ${currentNotice.caseDetails || 'See attached documents'}</p>
+                        <p><strong>Your Rights:</strong> ${currentNotice.legalRights || 'You have the right to respond to this notice'}</p>
+                    </div>
+                `;
+            }
+            
+            if (autoSign) {
+                setTimeout(() => signDocument(), 500);
+            }
+        }
+        
+        // Close Document
+        function closeDocument() {
+            document.getElementById('documentModal').classList.remove('active');
+            currentNotice = null;
+        }
+        
+        // View Without Signing
+        function viewWithoutSigning() {
+            document.querySelector('.modal-warning').innerHTML = 
+                '<strong>ℹ️ Viewing Only:</strong> You are viewing this document without creating a blockchain record.';
+            document.querySelector('.modal-actions').style.display = 'none';
+        }
+        
+        // Sign Document
+        async function signDocument() {
+            if (!currentNotice) return;
+            
+            if (confirm('Sign this document? This will create a permanent blockchain record of receipt.')) {
+                try {
+                    const result = await BlockServedMobile.signNotice(currentNotice.alertId);
+                    alert('Document signed successfully! Transaction: ' + result.txHash);
+                    closeDocument();
+                    loadNotices(); // Reload to show updated status
+                } catch (error) {
+                    alert('Failed to sign document. Please try again.');
+                }
+            }
+        }
+        
+        // View Certificate
+        function viewCertificate(noticeId) {
+            alert('Certificate viewing coming soon');
+        }
+        
+        // Toggle FAQ
+        function toggleFAQ(element) {
+            const faqItem = element.parentElement;
+            faqItem.classList.toggle('active');
+        }
+        
+        // Zoom Controls
+        function zoomIn() {
+            currentZoom = Math.min(currentZoom + 0.25, 3);
+            applyZoom();
+        }
+        
+        function zoomOut() {
+            currentZoom = Math.max(currentZoom - 0.25, 0.5);
+            applyZoom();
+        }
+        
+        function resetZoom() {
+            currentZoom = 1;
+            applyZoom();
+        }
+        
+        function applyZoom() {
+            const img = document.getElementById('documentImage');
+            if (img) {
+                img.style.transform = `scale(${currentZoom})`;
+            }
+        }
+    </script>
+</body>
+</html>

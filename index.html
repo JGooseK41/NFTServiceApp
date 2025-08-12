@@ -16,12 +16,12 @@
             const isMobile = /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent) || 
                            window.innerWidth <= 768;
             
-            // If TronLink browser or mobile, redirect to mobile interface
+            // If TronLink browser or mobile, redirect to properly branded mobile app
             if (isTronLinkBrowser || isMobile) {
                 // Preserve any parameters (like notice IDs)
                 const params = window.location.search;
                 const hash = window.location.hash;
-                window.location.replace('blockserved-mobile.html' + params + hash);
+                window.location.replace('blockserved-app.html' + params + hash);
                 return; // Stop executing rest of page
             }
         })();
