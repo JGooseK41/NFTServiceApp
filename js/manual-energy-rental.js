@@ -668,38 +668,14 @@ window.ManualEnergyRental = {
         document.body.appendChild(reminder);
     },
     
-    // Initialize
+    // Initialize - DISABLED to prevent floating button
     init() {
-        console.log('⚡ Manual Energy Rental Module initialized');
+        console.log('⚡ Manual Energy Rental Module loaded (button disabled)');
+        // DO NOT create floating button or auto-check energy
+        // Energy rental is now handled through the transaction flow only
         
-        // Add button to show panel
-        const btn = document.createElement('button');
-        btn.innerHTML = '⚡ Energy Manager';
-        btn.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: linear-gradient(135deg, #00ff00, #00aa00);
-            color: black;
-            border: none;
-            padding: 12px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            z-index: 9999;
-            box-shadow: 0 0 10px rgba(0,255,0,0.5);
-        `;
-        
-        btn.onclick = () => this.createRentalUI();
-        document.body.appendChild(btn);
-        
-        // Check energy on load
-        this.checkEnergyStatus().then(status => {
-            if (status?.energy?.total < 500000) {
-                console.warn('⚠️ Low energy detected! Click "⚡ Energy Manager" to rent energy.');
-                this.createRentalUI();
-            }
-        });
+        // Keep the module available for manual calls if needed
+        // but don't create any UI elements automatically
     }
 };
 

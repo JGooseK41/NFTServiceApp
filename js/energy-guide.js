@@ -322,26 +322,15 @@ window.EnergyGuide = {
         }
     },
     
-    // Initialize
+    // Initialize - DISABLED to prevent auto-popup
     init() {
-        console.log('📚 Energy Guide initialized');
+        console.log('📚 Energy Guide loaded (auto-help disabled)');
         
-        // Create UI elements
-        this.createGuideUI();
-        this.createHelpButton();
+        // DISABLED - Don't create UI elements automatically
+        // Energy help is now integrated into the transaction flow
         
-        // Check energy status after a delay
-        setTimeout(() => this.showContextualHelp(), 3000);
-        
-        // Add tooltip to energy manager button if it exists
-        setTimeout(() => {
-            const energyBtn = Array.from(document.querySelectorAll('button'))
-                .find(btn => btn.textContent.includes('Energy Manager'));
-            
-            if (energyBtn) {
-                energyBtn.title = 'Save money by renting energy instead of burning TRX!';
-            }
-        }, 1000);
+        // Keep the guide available for manual calls if needed
+        // but don't show any contextual help automatically
     }
 };
 

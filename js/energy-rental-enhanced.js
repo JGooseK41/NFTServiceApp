@@ -836,5 +836,6 @@ const EnhancedEnergyRental = {
 // Export for use
 window.EnhancedEnergyRental = EnhancedEnergyRental;
 
-// Initialize with default config
-EnhancedEnergyRental.init();
+// DISABLED - Don't auto-initialize to prevent unwanted UI
+// EnhancedEnergyRental.init();
+console.log('Enhanced Energy Rental loaded (auto-init disabled)');
