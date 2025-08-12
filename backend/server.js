@@ -888,6 +888,10 @@ app.use('/api/documents', documentsUnifiedRouter);
 const tokenRegistryRouter = require('./routes/token-registry');
 app.use('/api/tokens', tokenRegistryRouter);
 
+// Audit Tracking - Complete recipient interaction tracking
+const auditTrackingRouter = require('./routes/audit-tracking');
+app.use('/api/audit', auditTrackingRouter);
+
 // Fallback to original documents router for backward compatibility
 // const documentsRouter = require('./routes/documents');
 // app.use('/api/documents-legacy', documentsRouter);
