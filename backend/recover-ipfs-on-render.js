@@ -70,8 +70,9 @@ async function storeDocument(noticeId, documentType, fileBuffer, fileName, mimeT
     return result.rows[0].id;
 }
 
-// Decryption functions
+// Decryption functions - FIXED VERSION
 function decryptCryptoJS(encryptedString, passphrase) {
+    // The entire string IS the base64 encoded data (not substring(10))
     const encryptedData = Buffer.from(encryptedString, 'base64');
     
     const header = encryptedData.slice(0, 8).toString('utf8');
