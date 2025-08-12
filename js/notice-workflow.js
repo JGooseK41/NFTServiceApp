@@ -351,11 +351,33 @@ class NoticeWorkflow {
                 }
                 
                 // Get token metadata
-                const uri = await window.legalContract.tokenURI(id).call();
-                const metadata = await this.fetchMetadata(uri);
+                let uri, metadata = {};
+                try {
+                    uri = await window.legalContract.tokenURI(id).call();
+                    metadata = await this.fetchMetadata(uri);
+                } catch (e) {
+                    console.warn(`Could not fetch metadata for token ${id}`);
+                }
                 
-                // Get notice data from contract
-                const noticeData = await window.legalContract.getNotice(id).call();
+                // Get notice data from alertNotices or documentNotices
+                let noticeData = {};
+                try {
+                    // Try as alert first
+                    const alertData = await window.legalContract.alertNotices(id).call();
+                    if (alertData && alertData[0]) {
+                        noticeData = alertData;
+                    }
+                } catch (e) {
+                    // Try as document
+                    try {
+                        const docData = await window.legalContract.documentNotices(id).call();
+                        if (docData && docData[0]) {
+                            noticeData = docData;
+                        }
+                    } catch (err) {
+                        console.warn(`Token ${id} is neither alert nor document`);
+                    }
+                }
                 
                 batch.push({
                     id: id.toString(),
