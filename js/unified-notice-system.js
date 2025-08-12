@@ -2828,8 +2828,9 @@ class UnifiedNoticeSystem {
             
             console.log(`Fetching notice images for ID: ${noticeIdForBackend}, type: ${type}`);
             
+            // Use the correct documents API endpoint
             const response = await fetch(
-                `${this.backend}/api/notices/${noticeIdForBackend}/images`
+                `${this.backend}/api/documents/${noticeIdForBackend}/images`
             );
             
             if (response.ok) {

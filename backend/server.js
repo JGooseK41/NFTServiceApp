@@ -944,6 +944,10 @@ app.use('/api/migrations', migrationsRouter);
 const noticesRouter = require('./routes/notices');
 app.use('/api/notices', noticesRouter);
 
+// Notice view tracking routes (for recipient view-only access)
+const noticeViewsRouter = require('./routes/notice-views');
+app.use('/api/notices', noticeViewsRouter);
+
 // Case management routes (unified system)
 const casesRouter = require('./routes/cases');
 app.use('/api', casesRouter);
