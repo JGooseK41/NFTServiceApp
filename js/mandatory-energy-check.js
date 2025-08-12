@@ -371,15 +371,20 @@ window.MandatoryEnergyCheck = {
         const dialog = document.getElementById('mandatory-energy-dialog');
         if (dialog) dialog.remove();
         
-        // Show the secure rental UI
-        if (window.SecureEnergyRental) {
-            window.SecureEnergyRental.createSecureRentalUI();
-        } else if (window.ManualEnergyRental) {
-            window.ManualEnergyRental.createRentalUI();
+        // ONLY use TronSave - no other options
+        if (window.StreamlinedEnergyFlow) {
+            const energyDetails = this.lastParams?.energyDetails || {};
+            window.StreamlinedEnergyFlow.show({
+                energyDetails: energyDetails,
+                documentSizeMB: this.lastParams?.documentSizeMB || 0,
+                recipientCount: this.lastParams?.recipientCount || 1
+            });
+        } else if (window.TronSaveAPI) {
+            // Direct TronSave if streamlined flow not available
+            window.TronSaveAPI.showEnergyRentalForm();
+        } else {
+            alert('TronSave energy rental is loading. Please try again in a moment.');
         }
-        
-        // Show instruction dialog
-        this.showRentalInstructions();
     },
     
     showRentalInstructions() {

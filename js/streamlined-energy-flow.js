@@ -15,7 +15,22 @@ window.StreamlinedEnergyFlow = {
      * Show streamlined energy modal
      */
     showEnergyModal(params) {
-        this.energyNeeded = params.energyDetails.total;
+        // For 2.5MB documents, we KNOW it needs 3.5M energy
+        if (params.documentSizeMB >= 2.5) {
+            this.energyNeeded = 3500000; // Use actual blockchain requirement
+            this.adjustedEnergyNeeded = 3500000;
+            console.log('📄 Large document (2.5MB+) - using proven 3.5M energy requirement');
+        } else if (params.documentSizeMB > 0) {
+            // Use 1.4M per MB based on actual blockchain data
+            const ENERGY_PER_MB = 1400000;
+            this.energyNeeded = Math.ceil(params.documentSizeMB * ENERGY_PER_MB * 1.1); // 10% buffer
+            this.adjustedEnergyNeeded = this.energyNeeded;
+            console.log(`📄 Document (${params.documentSizeMB}MB) - calculated ${this.energyNeeded} energy`);
+        } else {
+            this.energyNeeded = params.energyDetails?.total || 400000;
+            this.adjustedEnergyNeeded = this.energyNeeded;
+        }
+        
         this.currentStep = 1;
         
         // Remove any existing modal
@@ -725,6 +740,24 @@ window.StreamlinedEnergyFlow = {
     },
     
     openMarketplace(url, name) {
+        // If TronSave is selected and we have the API integrated, use it directly
+        if (name === 'TronSave' && window.TronSaveAPI) {
+            // Close this modal
+            const modal = document.getElementById('streamlined-energy-modal');
+            if (modal) modal.remove();
+            
+            // Pass the adjusted energy amount to TronSave
+            window.TronSaveAPI.energyNeeded = this.adjustedEnergyNeeded || this.energyNeeded;
+            window.TronSaveAPI.adjustedEnergyNeeded = this.adjustedEnergyNeeded || this.energyNeeded;
+            
+            console.log('🔌 Opening TronSave with energy requirement:', window.TronSaveAPI.energyNeeded);
+            
+            // Show TronSave rental form
+            window.TronSaveAPI.showEnergyRentalForm();
+            return;
+        }
+        
+        // For other marketplaces, open externally
         // Copy wallet address
         if (window.tronWeb?.defaultAddress?.base58) {
             navigator.clipboard.writeText(window.tronWeb.defaultAddress.base58);

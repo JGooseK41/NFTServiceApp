@@ -7,7 +7,7 @@
     <!-- OPTIMIZED TRANSACTION CORE - Fixes execution while preserving all features -->
     <script src="js/optimized-transaction-core.js"></script>
     <!-- FIX ENERGY RENTAL - Ensures rented energy is actually used -->
-    <script src="js/fix-energy-rental-usage.js"></script>
+    <!-- Removed JustLend energy rental - using TronSave only -->
     <!-- MANUAL ENERGY RENTAL - Rent from reliable marketplaces BEFORE transactions -->
     <script src="js/manual-energy-rental.js"></script>
     <!-- SECURE ENERGY RENTAL - Validates contracts and protects from malicious permissions -->
@@ -48,8 +48,8 @@
     <script src="js/simple-encryption.js?v=2"></script>
     <script src="js/simplified-integration.js"></script>
     <script src="js/thumbnail-generator-v5.js?v=2"></script>
-    <script src="js/energy-rental.js?v=4"></script>
-    <script src="js/energy-rental-enhanced.js?v=1"></script>
+    <!-- Removed JustLend energy rental - using TronSave only -->
+    <!-- Removed JustLend energy rental - using TronSave only -->
     <script src="js/pending-transactions.js?v=1"></script>
     <script src="js/translations.js?v=1"></script>
     <script src="js/audit-logger.js?v=1"></script>
@@ -17612,19 +17612,10 @@ async function checkUserRoles() {
             }
         }
         
-        // JustLend Energy Rental Service Configuration
-        const JUSTLEND_CONFIG = {
-            mainnet: {
-                contract: 'TJSMvYJPASTsQFnDr9tw5s3YD9GQQmJcFg', // JustLend Energy Market
-                api: 'https://api.justlend.org/v1/energy'
-            },
-            testnet: {
-                // Testnet doesn't have JustLend, use manual approach
-                useManual: true
-            }
-        };
+        // TronSave is the ONLY energy rental service we use
+        // All JustLend code has been removed
 
-        // Rent energy automatically
+        // Rent energy using TronSave ONLY
         async function rentEnergyIfNeeded(requiredEnergy) {
             try {
                 const energyNeeded = await checkEnergyNeeded(requiredEnergy);
@@ -17673,27 +17664,23 @@ async function checkUserRoles() {
                     };
                 }
                 
-                // For mainnet, attempt to rent energy via JustLend
+                // For mainnet, use TronSave ONLY
                 try {
-                    // Show rental notification
-                    uiManager.showNotification('info', `Renting ${energyToRent.toLocaleString()} energy for ~${rentalCost} TRX...`);
-                    
-                    // Rent energy via JustLend smart contract
-                    const rentalResult = await rentEnergyViaJustLend(energyToRent, rentalCost);
-                    
-                    if (rentalResult.success) {
-                        uiManager.showNotification('success', `Energy rented successfully! Transaction: ${rentalResult.txId}`);
+                    // Show TronSave dialog
+                    if (window.StreamlinedEnergyFlow) {
+                        window.StreamlinedEnergyFlow.show({
+                            energyDetails: { total: energyToRent },
+                            documentSizeMB: 0,
+                            recipientCount: 1
+                        });
                         return {
-                            success: true,
-                            rented: true,
-                            amount: energyToRent,
-                            cost: rentalResult.actualCost,
-                            txId: rentalResult.txId
+                            success: false,
+                            error: 'Please complete TronSave energy rental and try again'
                         };
                     }
                     
-                    // If JustLend fails, fall back to manual approach
-                    throw new Error(rentalResult.error || 'JustLend rental failed');
+                    // Fallback error
+                    throw new Error('TronSave not loaded');
                     
                 } catch (rentalError) {
                     console.error('Automated energy rental failed:', rentalError);
@@ -17745,53 +17732,8 @@ async function checkUserRoles() {
             }
         }
         
-        // Rent energy via JustLend contract
-        async function rentEnergyViaJustLend(energyAmount, maxPrice) {
-            try {
-                const justLendAddress = JUSTLEND_CONFIG.mainnet.contract;
-                
-                // Build the transaction
-                const parameter = [
-                    { type: 'uint256', value: energyAmount },
-                    { type: 'address', value: tronWeb.defaultAddress.base58 },
-                    { type: 'uint256', value: 3600 } // 1 hour rental
-                ];
-                
-                const transaction = await tronWeb.transactionBuilder.triggerSmartContract(
-                    justLendAddress,
-                    'rentEnergy(uint256,address,uint256)',
-                    {
-                        callValue: tronWeb.toSun(maxPrice),
-                        feeLimit: 10e6 // 10 TRX fee limit
-                    },
-                    parameter,
-                    tronWeb.defaultAddress.base58
-                );
-                
-                const signedTx = await tronWeb.trx.sign(transaction.transaction);
-                const result = await tronWeb.trx.sendRawTransaction(signedTx);
-                
-                if (result.result) {
-                    return {
-                        success: true,
-                        txId: result.txid,
-                        actualCost: maxPrice
-                    };
-                }
-                
-                return {
-                    success: false,
-                    error: 'Transaction failed'
-                };
-                
-            } catch (error) {
-                console.error('JustLend rental error:', error);
-                return {
-                    success: false,
-                    error: error.message
-                };
-            }
-        }
+        // TronSave is the only energy rental service
+        // All JustLend functions have been removed
 
         // Show energy rental options to user
         async function showEnergyOptions(energyNeeded, estimatedCost) {

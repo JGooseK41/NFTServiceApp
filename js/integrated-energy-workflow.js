@@ -25,6 +25,11 @@ window.IntegratedEnergyWorkflow = {
             true // include breakdown
         );
         
+        // Store for later use
+        this.lastDocumentSizeMB = documentSizeMB;
+        this.lastRecipientCount = recipientCount;
+        this.lastEnergyDetails = energyDetails;
+        
         console.log('📊 Energy calculation:', energyDetails);
         
         // Check current energy status
@@ -245,12 +250,30 @@ window.IntegratedEnergyWorkflow = {
         const dialog = document.getElementById('integrated-energy-dialog');
         if (dialog) dialog.remove();
         
-        // Open the Manual Energy Rental UI
-        if (window.ManualEnergyRental) {
-            window.ManualEnergyRental.createRentalUI();
+        // ONLY use TronSave
+        if (window.StreamlinedEnergyFlow) {
+            // Store last params for TronSave
+            this.lastParams = {
+                documentSizeMB: this.lastDocumentSizeMB || 0,
+                recipientCount: this.lastRecipientCount || 1,
+                energyDetails: this.lastEnergyDetails || {}
+            };
+            
+            window.StreamlinedEnergyFlow.show({
+                energyDetails: this.lastParams.energyDetails,
+                documentSizeMB: this.lastParams.documentSizeMB,
+                recipientCount: this.lastParams.recipientCount
+            });
+            return; // Don't show wait dialog for TronSave
+        } else if (window.TronSaveAPI) {
+            window.TronSaveAPI.showEnergyRentalForm();
+            return; // Don't show wait dialog for TronSave
+        } else {
+            alert('TronSave energy rental is loading. Please try again in a moment.');
+            return;
         }
         
-        // Show waiting message
+        // Show waiting message (this code won't be reached anymore)
         const waitDialog = document.createElement('div');
         waitDialog.id = 'energy-wait-dialog';
         waitDialog.style.cssText = `
