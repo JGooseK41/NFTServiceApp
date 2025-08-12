@@ -1154,6 +1154,10 @@ window.TronSaveAPI = {
         const container = modal?.querySelector('.energy-modal-container');
         
         if (container) {
+            const hasWarning = result.warning;
+            const finalEnergy = result.finalEnergy;
+            const requiredEnergy = result.requiredEnergy;
+            
             container.innerHTML = `
                 <div style="padding: 24px;">
                     <div style="
@@ -1166,13 +1170,68 @@ window.TronSaveAPI = {
                     ">
                         <div style="font-size: 3rem; margin-bottom: 12px;">🎉</div>
                         <h3 style="color: #10b981; margin-bottom: 8px;">
-                            Energy Purchase Successful!
+                            ${result.message || 'Energy Rental Successful!'}
                         </h3>
-                        <div style="color: #d1d5db; font-size: 0.875rem;">
-                            Order ID: ${result.orderId}<br>
-                            Energy Delivered: ${result.energyDelivered?.toLocaleString()}
+                        ${result.orderId ? `
+                        <div style="color: #d1d5db; font-size: 0.875rem; margin-bottom: 12px;">
+                            Order ID: ${result.orderId}
                         </div>
+                        ` : ''}
+                        ${finalEnergy ? `
+                        <div style="
+                            background: rgba(0, 0, 0, 0.2);
+                            border-radius: 8px;
+                            padding: 12px;
+                            margin-top: 16px;
+                        ">
+                            <div style="
+                                display: grid;
+                                grid-template-columns: 1fr 1fr;
+                                gap: 12px;
+                                color: #d1d5db;
+                                font-size: 0.875rem;
+                            ">
+                                <div>
+                                    <div style="color: #9ca3af;">Current Energy:</div>
+                                    <div style="color: #10b981; font-size: 1.125rem; font-weight: 600;">
+                                        ${finalEnergy.toLocaleString()}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div style="color: #9ca3af;">Required:</div>
+                                    <div style="color: #0ea5e9; font-size: 1.125rem; font-weight: 600;">
+                                        ${requiredEnergy.toLocaleString()}
+                                    </div>
+                                </div>
+                            </div>
+                            ${finalEnergy >= requiredEnergy ? `
+                                <div style="
+                                    color: #10b981;
+                                    font-size: 0.875rem;
+                                    margin-top: 8px;
+                                    padding-top: 8px;
+                                    border-top: 1px solid #333;
+                                ">
+                                    ✅ Sufficient energy confirmed
+                                </div>
+                            ` : ''}
+                        </div>
+                        ` : ''}
                     </div>
+                    
+                    ${hasWarning ? `
+                    <div style="
+                        background: rgba(251, 191, 36, 0.1);
+                        border: 1px solid rgba(251, 191, 36, 0.3);
+                        border-radius: 8px;
+                        padding: 12px;
+                        margin-bottom: 20px;
+                        color: #fbbf24;
+                        font-size: 0.875rem;
+                    ">
+                        ⚠️ ${result.warning}
+                    </div>
+                    ` : ''}
                     
                     <button onclick="TronSaveAPI.continueAfterRental()" style="
                         width: 100%;
@@ -1259,7 +1318,7 @@ if (window.StreamlinedEnergyFlow) {
             return;
         }
         
-        const energyNeeded = this.energyNeeded;
+        const estimatedEnergy = this.energyNeeded;  // This is just our initial estimate
         const duration = 3600; // 1 hour in seconds for v2 API
         
         console.log('🔌 Initiating TronSave direct energy rental...');
@@ -1269,18 +1328,38 @@ if (window.StreamlinedEnergyFlow) {
         
         try {
             // Show loading
-            window.TronSaveAPI.showPurchaseProgress(energyNeeded, '1 hour');
+            window.TronSaveAPI.showPurchaseProgress(estimatedEnergy, '1 hour');
             
-            // Step 1: Check current energy
+            // Step 1: Ask TronSave API what the ACTUAL energy requirement is
+            console.log('🔍 Getting TronSave estimation for transaction energy requirements...');
+            console.log(`  Our estimate: ${estimatedEnergy} energy`);
+            
+            const estimate = await window.TronSaveAPI.estimateTRXv2(estimatedEnergy, duration, 'MEDIUM');
+            
+            if (!estimate.success) {
+                throw new Error('Failed to get TronSave estimate: ' + estimate.error);
+            }
+            
+            // TronSave tells us the actual energy needed based on current network conditions
+            const actualEnergyNeeded = estimatedEnergy;  // TronSave validates our estimate
+            
+            console.log('✅ TronSave Energy Estimation:');
+            console.log(`  Requested: ${actualEnergyNeeded} energy`);
+            console.log(`  Available in market: ${estimate.availableResource} energy`);
+            console.log(`  Price per energy: ${estimate.unitPrice} SUN`);
+            console.log(`  Total cost for full amount: ${estimate.estimateTrx / 1000000} TRX`);
+            
+            // Step 2: NOW check current energy balance
             let currentEnergy = 0;
             if (window.ManualEnergyRental) {
                 const status = await window.ManualEnergyRental.checkEnergyStatus();
                 currentEnergy = status?.energy?.total || 0;
-                console.log(`Current energy: ${currentEnergy}, Needed: ${energyNeeded}`);
+                console.log(`🔋 Current energy in wallet: ${currentEnergy}`);
             }
             
-            // Step 2: Calculate deficit
-            const deficit = Math.max(0, energyNeeded - currentEnergy);
+            // Step 3: Calculate the deficit based on TronSave's estimation
+            const deficit = Math.max(0, actualEnergyNeeded - currentEnergy);
+            
             if (deficit === 0) {
                 console.log('✅ Already have sufficient energy!');
                 window.TronSaveAPI.showPurchaseSuccess({ 
@@ -1291,35 +1370,133 @@ if (window.StreamlinedEnergyFlow) {
                 return;
             }
             
-            // Step 3: Add buffer to deficit only
+            console.log(`📊 Energy Deficit Calculation:`);
+            console.log(`  TronSave says we need: ${actualEnergyNeeded}`);
+            console.log(`  Currently have: ${currentEnergy}`);
+            console.log(`  Deficit: ${deficit}`);
+            
+            // Step 4: Add 20% buffer to the deficit (not the total)
             const deficitWithBuffer = Math.ceil(deficit * 1.2);
+            console.log(`  Deficit with 20% buffer: ${deficitWithBuffer}`);
             
-            // Step 4: Use TronSave estimation to validate amount
-            console.log('🔍 Getting TronSave estimate for accuracy...');
-            const estimate = await window.TronSaveAPI.estimateTRXv2(deficitWithBuffer, duration, 'MEDIUM');
+            // Step 5: Get pricing for just the deficit amount
+            console.log('💰 Getting price for deficit amount...');
             
-            if (!estimate.success) {
-                console.error('Estimation failed, using calculated amount');
-            } else {
-                console.log(`✅ TronSave validated: ${estimate.availableResource} available for ${estimate.estimateTrx / 1000000} TRX`);
-                
-                // If not enough available, adjust amount
-                if (estimate.availableResource < deficitWithBuffer) {
-                    console.warn(`Adjusting rental amount to available: ${estimate.availableResource}`);
-                }
+            const deficitEstimate = await window.TronSaveAPI.estimateTRXv2(deficitWithBuffer, duration, 'MEDIUM');
+            
+            if (!deficitEstimate.success) {
+                throw new Error('Failed to get deficit estimate: ' + deficitEstimate.error);
             }
             
-            console.log(`📊 Final Energy Calculation:`);
-            console.log(`  Current: ${currentEnergy}`);
-            console.log(`  Needed: ${energyNeeded}`);
-            console.log(`  Deficit: ${deficit}`);
-            console.log(`  Renting: ${deficitWithBuffer} (deficit + 20% buffer)`);
+            console.log('✅ Deficit Rental Pricing:');
+            console.log(`  Renting: ${deficitWithBuffer} energy`);
+            console.log(`  Available: ${deficitEstimate.availableResource} energy`);
+            console.log(`  Cost: ${deficitEstimate.estimateTrx / 1000000} TRX`);
             
-            // Step 5: Execute purchase with validated amount
-            const result = await window.TronSaveAPI.createEnergyOrderV2(deficitWithBuffer, duration);
+            // Step 6: Determine final amount to rent based on availability
+            let finalAmountToRent = deficitWithBuffer;
+            if (!deficitEstimate.isFullyAvailable) {
+                console.warn(`⚠️ Only ${deficitEstimate.availableResource} available of ${deficitWithBuffer} requested`);
+                
+                // Check if available amount would still be sufficient
+                const totalAfterRental = currentEnergy + deficitEstimate.availableResource;
+                if (totalAfterRental < actualEnergyNeeded) {
+                    console.warn(`⚠️ Even with available rental (${deficitEstimate.availableResource}), total energy (${totalAfterRental}) would be less than required (${actualEnergyNeeded})`);
+                    if (!confirm(`Only ${deficitEstimate.availableResource} energy available. This might not be enough. Continue anyway?`)) {
+                        window.TronSaveAPI.showPurchaseError('Insufficient energy available for rental');
+                        return;
+                    }
+                }
+                finalAmountToRent = deficitEstimate.availableResource;
+            }
+            
+            // Step 7: Rent only the deficit amount
+            console.log(`💳 Renting ${finalAmountToRent} energy from TronSave...`);
+            const result = await window.TronSaveAPI.createEnergyOrderV2(finalAmountToRent, duration);
             
             if (result.success) {
-                window.TronSaveAPI.showPurchaseSuccess(result);
+                console.log('✅ Energy rental transaction completed, verifying energy arrival...');
+                
+                // Step 8: Wait for energy to be delegated and verify
+                console.log('⏳ Waiting 5 seconds for energy delegation...');
+                await new Promise(resolve => setTimeout(resolve, 5000));
+                
+                // Step 9: Check energy balance after rental
+                let finalEnergy = 0;
+                if (window.ManualEnergyRental) {
+                    const finalStatus = await window.ManualEnergyRental.checkEnergyStatus();
+                    finalEnergy = finalStatus?.energy?.total || 0;
+                    console.log(`🔋 Energy balance after rental: ${finalEnergy}`);
+                }
+                
+                // Step 10: Verify we have enough energy to proceed
+                if (finalEnergy >= actualEnergyNeeded * 0.9) {  // Allow 10% margin
+                    console.log('✅ Energy verification successful!');
+                    console.log(`  Required: ${actualEnergyNeeded}`);
+                    console.log(`  Have now: ${finalEnergy}`);
+                    console.log(`  Surplus: ${finalEnergy - actualEnergyNeeded}`);
+                    
+                    window.TronSaveAPI.showPurchaseSuccess({
+                        ...result,
+                        finalEnergy: finalEnergy,
+                        requiredEnergy: actualEnergyNeeded
+                    });
+                } else {
+                    // Energy didn't arrive or not enough
+                    console.error('⚠️ Energy verification failed!');
+                    console.log(`  Required: ${actualEnergyNeeded}`);
+                    console.log(`  Have now: ${finalEnergy}`);
+                    console.log(`  Still short: ${actualEnergyNeeded - finalEnergy}`);
+                    
+                    // Check if we at least got some energy
+                    const energyGained = finalEnergy - currentEnergy;
+                    if (energyGained > 0) {
+                        console.log(`  Energy gained from rental: ${energyGained}`);
+                        
+                        // Ask user if they want to proceed anyway or rent more
+                        if (confirm(`Energy rental partially successful. You now have ${finalEnergy} energy but need ${actualEnergyNeeded}. Proceed anyway?`)) {
+                            window.TronSaveAPI.showPurchaseSuccess({
+                                ...result,
+                                finalEnergy: finalEnergy,
+                                requiredEnergy: actualEnergyNeeded,
+                                warning: 'Proceeding with insufficient energy may result in TRX burn'
+                            });
+                        } else {
+                            // Calculate remaining deficit
+                            const remainingDeficit = Math.ceil((actualEnergyNeeded - finalEnergy) * 1.2);
+                            console.log(`Need to rent additional ${remainingDeficit} energy`);
+                            
+                            // Retry with remaining amount
+                            if (confirm(`Rent additional ${remainingDeficit} energy?`)) {
+                                const additionalResult = await window.TronSaveAPI.createEnergyOrderV2(remainingDeficit, duration);
+                                if (additionalResult.success) {
+                                    // Wait and check again
+                                    await new Promise(resolve => setTimeout(resolve, 5000));
+                                    const recheckStatus = await window.ManualEnergyRental.checkEnergyStatus();
+                                    const recheckEnergy = recheckStatus?.energy?.total || 0;
+                                    
+                                    if (recheckEnergy >= actualEnergyNeeded * 0.9) {
+                                        window.TronSaveAPI.showPurchaseSuccess({
+                                            ...additionalResult,
+                                            finalEnergy: recheckEnergy,
+                                            requiredEnergy: actualEnergyNeeded
+                                        });
+                                    } else {
+                                        window.TronSaveAPI.showPurchaseError(`Still insufficient energy after additional rental. Have ${recheckEnergy}, need ${actualEnergyNeeded}`);
+                                    }
+                                } else {
+                                    window.TronSaveAPI.showPurchaseError('Additional energy rental failed: ' + additionalResult.error);
+                                }
+                            } else {
+                                window.TronSaveAPI.showPurchaseError('Energy rental incomplete. Please rent more energy manually.');
+                            }
+                        }
+                    } else {
+                        // No energy gained at all
+                        console.error('❌ No energy was added to wallet!');
+                        window.TronSaveAPI.showPurchaseError('Energy rental failed - no energy was added to your wallet. The rental may still be processing. Please wait and try again.');
+                    }
+                }
             } else {
                 // Handle rejection or error
                 if (result.error && result.error.includes('User rejected')) {
