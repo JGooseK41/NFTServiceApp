@@ -2845,16 +2845,20 @@ class UnifiedNoticeSystem {
                     const documentImageValid = data.documentUnencryptedUrl ? await this.loadImageWithFallback(data.documentUnencryptedUrl, 'Document') : null;
                     
                     // Display based on type requested
-                    if (type === 'alert' && data.alertThumbnailUrl) {
-                        // Show only thumbnail for alert type
-                        if (alertImageValid) {
+                    if (type === 'alert') {
+                        // For alert type, try alert thumbnail first, fallback to document
+                        const imageUrl = data.alertThumbnailUrl || data.documentUnencryptedUrl;
+                        const imageValid = imageUrl ? await this.loadImageWithFallback(imageUrl, 'Alert/Document') : false;
+                        
+                        if (imageValid) {
+                            const imageTitle = data.alertThumbnailUrl ? 'Alert Notice Thumbnail' : 'Document (Alert thumbnail not available)';
                             container.innerHTML = `
                                 <div style="margin-bottom: 20px;">
-                                    <h3>Alert Notice Thumbnail</h3>
+                                    <h3>${imageTitle}</h3>
                                     <div style="border: 1px solid #ddd; background: white; padding: 10px;">
-                                        <img src="${data.alertThumbnailUrl}" 
+                                        <img src="${imageUrl}" 
                                              style="max-width: 100%; height: auto; display: block;" 
-                                             alt="Alert Notice Thumbnail" />
+                                             alt="${imageTitle}" />
                                     </div>
                                     <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
                                         Notice ID: ${noticeId || 'Unknown'}
@@ -2862,11 +2866,14 @@ class UnifiedNoticeSystem {
                                 </div>
                             `;
                         } else {
-                            container.innerHTML = this.createManualUploadInterface(caseNumber, noticeId, `Unable to load alert thumbnail from: ${data.alertThumbnailUrl}`, caseData.transactionHash);
+                            container.innerHTML = this.createManualUploadInterface(caseNumber, noticeId, `No images available for this notice`, caseData.transactionHash);
                         }
-                    } else if (type === 'document' && data.documentUnencryptedUrl) {
-                        // Show full document for document type
-                        if (documentImageValid) {
+                    } else if (type === 'document') {
+                        // Show full document for document type, fallback to alert if no document
+                        const imageUrl = data.documentUnencryptedUrl || data.alertThumbnailUrl;
+                        const imageValid = imageUrl ? await this.loadImageWithFallback(imageUrl, 'Document/Alert') : false;
+                        
+                        if (imageValid && data.documentUnencryptedUrl) {
                             // Add blockchain stamp if possible
                             const txHash = caseData.transactionHash || 'PENDING';
                             const stampedBlob = await this.stampNoticeWithBlockchain(
@@ -2905,8 +2912,23 @@ class UnifiedNoticeSystem {
                                     </div>
                                 `;
                             }
+                        } else if (imageValid && data.alertThumbnailUrl) {
+                            // Fallback to showing alert thumbnail if no document available
+                            container.innerHTML = `
+                                <div>
+                                    <h3>Alert Thumbnail (Document not available)</h3>
+                                    <div style="border: 1px solid #ddd; background: white; padding: 10px;">
+                                        <img src="${data.alertThumbnailUrl}" 
+                                             style="max-width: 100%; height: auto; display: block;" 
+                                             alt="Alert Thumbnail" />
+                                    </div>
+                                    <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
+                                        Notice ID: ${noticeId || 'Unknown'}
+                                    </p>
+                                </div>
+                            `;
                         } else {
-                            container.innerHTML = this.createManualUploadInterface(caseNumber, noticeId, `Unable to load document from: ${data.documentUnencryptedUrl}`, caseData.transactionHash);
+                            container.innerHTML = this.createManualUploadInterface(caseNumber, noticeId, `No images available for this notice`, caseData.transactionHash);
                         }
                     } else if (type === 'both') {
                         // Show both for the general case
