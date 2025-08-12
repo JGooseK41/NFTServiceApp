@@ -387,11 +387,17 @@ class HybridDataService {
         // Create a map of blockchain notices by ID
         const blockchainMap = new Map();
         blockchainNotices.forEach(notice => {
-            blockchainMap.set(notice.noticeId, notice);
+            if (notice && notice.noticeId) {
+                blockchainMap.set(notice.noticeId, notice);
+            }
         });
 
         // Check each backend notice against blockchain
         backendNotices.forEach(backendNotice => {
+            if (!backendNotice || !backendNotice.noticeId) {
+                return; // Skip invalid notices
+            }
+            
             const blockchainNotice = blockchainMap.get(backendNotice.noticeId);
             
             if (blockchainNotice) {

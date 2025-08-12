@@ -3734,10 +3734,10 @@
             <div class="card server-only" id="recentActivitiesCard">
                 <div class="card-header">
                     <h2><i class="fas fa-history"></i> Recent Served Notices</h2>
-                    <button class="btn btn-primary btn-small" onclick="unifiedSystem.syncAndRefresh()">
+                    <button class="btn btn-primary btn-small" onclick="window.unifiedSystem && window.unifiedSystem.syncAndRefresh()">
                         <i class="fas fa-cloud-download-alt"></i> Sync Blockchain
                     </button>
-                    <button class="btn btn-secondary btn-small" onclick="unifiedSystem.refreshData()">
+                    <button class="btn btn-secondary btn-small" onclick="window.unifiedSystem && window.unifiedSystem.refreshData()">
                         <i class="fas fa-sync"></i> Refresh
                     </button>
                     <button class="btn btn-secondary btn-small" onclick="hideTestCases()" title="Hide test cases">
