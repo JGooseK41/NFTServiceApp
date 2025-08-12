@@ -1,10 +1,9 @@
 /**
- * IPFS Recovery Script for Render Production
- * Run this directly on Render using the Shell tab
+ * Simple IPFS Recovery - For Unencrypted Data URLs
+ * Run this on Render to recover documents that are stored as plain data URLs
  */
 
 const { Pool } = require('pg');
-const crypto = require('crypto');
 const https = require('https');
 
 // Use Render's DATABASE_URL directly
@@ -70,54 +69,6 @@ async function storeDocument(noticeId, documentType, fileBuffer, fileName, mimeT
     return result.rows[0].id;
 }
 
-// Decryption functions
-function decryptCryptoJS(encryptedString, passphrase) {
-    const encryptedData = Buffer.from(encryptedString, 'base64');
-    
-    const header = encryptedData.slice(0, 8).toString('utf8');
-    if (header !== 'Salted__') {
-        throw new Error(`Invalid CryptoJS format. Expected "Salted__", got "${header}"`);
-    }
-    
-    const salt = encryptedData.slice(8, 16);
-    const ciphertext = encryptedData.slice(16);
-    
-    const keyAndIV = deriveKeyAndIV(passphrase, salt);
-    
-    const decipher = crypto.createDecipheriv('aes-256-cbc', keyAndIV.key, keyAndIV.iv);
-    decipher.setAutoPadding(true);
-    
-    let decrypted = decipher.update(ciphertext);
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
-    
-    return decrypted.toString('utf8');
-}
-
-function deriveKeyAndIV(passphrase, salt) {
-    const password = Buffer.from(passphrase, 'utf8');
-    const keyLen = 32;
-    const ivLen = 16;
-    
-    let derivedBytes = Buffer.alloc(0);
-    let currentBlock = Buffer.alloc(0);
-    
-    while (derivedBytes.length < keyLen + ivLen) {
-        const hash = crypto.createHash('md5');
-        hash.update(currentBlock);
-        hash.update(password);
-        if (salt) {
-            hash.update(salt);
-        }
-        currentBlock = hash.digest();
-        derivedBytes = Buffer.concat([derivedBytes, currentBlock]);
-    }
-    
-    return {
-        key: derivedBytes.slice(0, keyLen),
-        iv: derivedBytes.slice(keyLen, keyLen + ivLen)
-    };
-}
-
 function downloadFromIPFS(ipfsHash) {
     return new Promise((resolve, reject) => {
         const url = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
@@ -145,91 +96,145 @@ function dataURLtoBuffer(dataURL) {
     }
     
     const parts = dataURL.split(',');
+    if (parts.length !== 2) {
+        return null;
+    }
+    
+    // Extract mime type from data URL
+    const mimeMatch = parts[0].match(/data:([^;]+)/);
+    const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+    
     const base64Data = parts[1];
-    return Buffer.from(base64Data, 'base64');
+    return {
+        buffer: Buffer.from(base64Data, 'base64'),
+        mimeType: mimeType
+    };
 }
 
 async function recoverNotice(notice) {
-    const { notice_id, ipfs_hash, encryption_key, case_number } = notice;
+    const { notice_id, ipfs_hash, case_number } = notice;
     
     console.log(`\nRecovering ${notice_id} (${case_number})`);
     
     try {
         const ipfsData = await downloadFromIPFS(ipfs_hash);
         
-        let data;
-        
-        // Check if data is encrypted (CryptoJS format) or plain
-        if (ipfsData.startsWith('U2FsdGVkX1')) {
-            // Encrypted data - decrypt it
-            const decryptedString = decryptCryptoJS(ipfsData, encryption_key);
-            data = JSON.parse(decryptedString);
-            console.log(`  ✅ Decrypted successfully`);
-        } else if (ipfsData.startsWith('data:image')) {
-            // Direct data URL - not encrypted, just use as-is
-            console.log(`  ℹ️ Data is not encrypted (direct data URL)`);
-            // If it's a direct image, treat it as the document
-            data = { document: ipfsData };
-        } else {
-            // Try to parse as JSON (might be unencrypted JSON)
-            try {
-                data = JSON.parse(ipfsData);
-                console.log(`  ℹ️ Data is unencrypted JSON`);
-            } catch (e) {
-                throw new Error(`Unknown data format (not encrypted, not JSON, not data URL)`);
-            }
-        }
-        
         let recovered = [];
         
-        // Store thumbnail
-        if (data.thumbnail || data.thumbnailUrl) {
-            const thumbnailData = data.thumbnail || data.thumbnailUrl;
-            const buffer = dataURLtoBuffer(thumbnailData);
+        // Check what type of data we have
+        if (ipfsData.startsWith('data:image')) {
+            // Direct data URL - store it as the document
+            console.log(`  ℹ️ Found direct image data URL`);
             
-            if (buffer) {
+            const extracted = dataURLtoBuffer(ipfsData);
+            if (extracted) {
+                // Store as both thumbnail and document for compatibility
                 await storeDocument(
                     notice_id,
                     'thumbnail',
-                    buffer,
+                    extracted.buffer,
                     `thumbnail-${notice_id}.png`,
-                    'image/png',
-                    'recovery'
+                    extracted.mimeType,
+                    'ipfs-recovery'
                 );
                 recovered.push('thumbnail');
-                console.log(`  ✅ Thumbnail stored (${buffer.length} bytes)`);
-            }
-        }
-        
-        // Store document
-        if (data.document || data.fullDocument || data.documentUrl) {
-            const documentData = data.document || data.fullDocument || data.documentUrl;
-            const buffer = dataURLtoBuffer(documentData);
-            
-            if (buffer) {
+                
                 await storeDocument(
                     notice_id,
                     'document',
-                    buffer,
+                    extracted.buffer,
                     `document-${notice_id}.png`,
-                    'image/png',
-                    'recovery'
+                    extracted.mimeType,
+                    'ipfs-recovery'
                 );
                 recovered.push('document');
-                console.log(`  ✅ Document stored (${buffer.length} bytes)`);
+                
+                console.log(`  ✅ Stored as both thumbnail and document (${extracted.buffer.length} bytes)`);
+            }
+        } else {
+            // Try to parse as JSON
+            try {
+                const data = JSON.parse(ipfsData);
+                console.log(`  ℹ️ Found JSON data with keys:`, Object.keys(data));
+                
+                // Check for thumbnail
+                if (data.thumbnail || data.thumbnailUrl) {
+                    const thumbnailData = data.thumbnail || data.thumbnailUrl;
+                    const extracted = dataURLtoBuffer(thumbnailData);
+                    
+                    if (extracted) {
+                        await storeDocument(
+                            notice_id,
+                            'thumbnail',
+                            extracted.buffer,
+                            `thumbnail-${notice_id}.png`,
+                            extracted.mimeType,
+                            'ipfs-recovery'
+                        );
+                        recovered.push('thumbnail');
+                        console.log(`  ✅ Thumbnail stored (${extracted.buffer.length} bytes)`);
+                    }
+                }
+                
+                // Check for document
+                if (data.document || data.fullDocument || data.documentUrl) {
+                    const documentData = data.document || data.fullDocument || data.documentUrl;
+                    const extracted = dataURLtoBuffer(documentData);
+                    
+                    if (extracted) {
+                        await storeDocument(
+                            notice_id,
+                            'document',
+                            extracted.buffer,
+                            `document-${notice_id}.png`,
+                            extracted.mimeType,
+                            'ipfs-recovery'
+                        );
+                        recovered.push('document');
+                        console.log(`  ✅ Document stored (${extracted.buffer.length} bytes)`);
+                    }
+                }
+            } catch (e) {
+                console.log(`  ⚠️ Data is not JSON, might be encrypted (skipping)`);
+                throw new Error('Data format not supported - might need decryption');
             }
         }
         
-        return { success: true, notice_id, recovered };
+        if (recovered.length > 0) {
+            // Mark as recovered
+            await pool.query(`
+                UPDATE served_notices 
+                SET 
+                    documents_recovered = true,
+                    recovery_date = CURRENT_TIMESTAMP,
+                    recovery_status = $1
+                WHERE notice_id = $2
+            `, [`Recovered: ${recovered.join(', ')}`, notice_id]);
+            
+            return { success: true, notice_id, recovered };
+        } else {
+            throw new Error('No documents found to recover');
+        }
         
     } catch (error) {
         console.error(`  ❌ Failed: ${error.message}`);
+        
+        // Mark as failed
+        await pool.query(`
+            UPDATE served_notices 
+            SET 
+                documents_recovered = false,
+                recovery_date = CURRENT_TIMESTAMP,
+                recovery_status = $1
+            WHERE notice_id = $2
+        `, [`Failed: ${error.message}`, notice_id]);
+        
         return { success: false, notice_id, error: error.message };
     }
 }
 
 async function main() {
-    console.log('🚀 IPFS Document Recovery on Render\n');
+    console.log('🚀 Simple IPFS Document Recovery (Unencrypted Data)\n');
     console.log('=' .repeat(50));
     
     try {
@@ -248,23 +253,20 @@ async function main() {
             // Columns might exist
         }
         
-        // Find notices to recover
+        // Find notices to recover - don't require encryption key for unencrypted data
         const query = `
             SELECT DISTINCT
                 sn.notice_id,
                 sn.ipfs_hash,
-                nc.document_encryption_key as encryption_key,
                 sn.case_number,
                 sn.created_at
             FROM served_notices sn
-            LEFT JOIN notice_components nc ON nc.notice_id = sn.notice_id
             WHERE 
                 sn.ipfs_hash IS NOT NULL 
                 AND sn.ipfs_hash != ''
-                AND nc.document_encryption_key IS NOT NULL
                 AND (sn.documents_recovered IS NULL OR sn.documents_recovered = false)
             ORDER BY sn.created_at DESC
-            LIMIT 20;
+            LIMIT 50;
         `;
         
         const result = await pool.query(query);
@@ -285,38 +287,30 @@ async function main() {
             
             if (result.success) {
                 successful++;
-                
-                // Mark as recovered
-                await pool.query(`
-                    UPDATE served_notices 
-                    SET 
-                        documents_recovered = true,
-                        recovery_date = CURRENT_TIMESTAMP,
-                        recovery_status = $1
-                    WHERE notice_id = $2
-                `, [`Recovered: ${result.recovered.join(', ')}`, result.notice_id]);
             } else {
                 failed++;
-                
-                // Mark as failed
-                await pool.query(`
-                    UPDATE served_notices 
-                    SET 
-                        documents_recovered = false,
-                        recovery_date = CURRENT_TIMESTAMP,
-                        recovery_status = $1
-                    WHERE notice_id = $2
-                `, [`Failed: ${result.error}`, result.notice_id]);
             }
             
-            // Small delay
-            await new Promise(r => setTimeout(r, 1000));
+            // Small delay to avoid overwhelming IPFS
+            await new Promise(r => setTimeout(r, 500));
         }
         
         console.log('\n' + '='.repeat(50));
         console.log('RECOVERY COMPLETE');
         console.log(`✅ Successful: ${successful}`);
         console.log(`❌ Failed: ${failed}`);
+        
+        // Show some statistics
+        const stats = await pool.query(`
+            SELECT COUNT(*) as total,
+                   COUNT(CASE WHEN documents_recovered = true THEN 1 END) as recovered
+            FROM served_notices
+            WHERE ipfs_hash IS NOT NULL AND ipfs_hash != '';
+        `);
+        
+        console.log(`\n📊 Overall Statistics:`);
+        console.log(`Total notices with IPFS: ${stats.rows[0].total}`);
+        console.log(`Successfully recovered: ${stats.rows[0].recovered}`);
         
     } catch (error) {
         console.error('Fatal error:', error);
