@@ -198,7 +198,8 @@ window.StreamlinedEnergyFlow = {
                         />
                         <div style="color: #9ca3af; padding: 0 8px;">energy</div>
                     </div>
-                    <div style="margin-top: 8px; display: flex; gap: 8px;">
+                    <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
+                        <!-- Preset amounts -->
                         <button onclick="StreamlinedEnergyFlow.setEnergyAmount(3500000)" style="
                             padding: 6px 12px;
                             background: rgba(0, 0, 0, 0.3);
@@ -226,21 +227,43 @@ window.StreamlinedEnergyFlow = {
                             font-size: 0.75rem;
                             cursor: pointer;
                         ">5M</button>
+                        
+                        <!-- Subtract buttons -->
+                        <button onclick="StreamlinedEnergyFlow.subtractEnergyAmount(1000000)" style="
+                            padding: 6px 12px;
+                            background: rgba(239, 68, 68, 0.1);
+                            border: 1px solid rgba(239, 68, 68, 0.3);
+                            border-radius: 4px;
+                            color: #ef4444;
+                            font-size: 0.75rem;
+                            cursor: pointer;
+                        ">-1M</button>
+                        <button onclick="StreamlinedEnergyFlow.subtractEnergyAmount(500000)" style="
+                            padding: 6px 12px;
+                            background: rgba(239, 68, 68, 0.1);
+                            border: 1px solid rgba(239, 68, 68, 0.3);
+                            border-radius: 4px;
+                            color: #ef4444;
+                            font-size: 0.75rem;
+                            cursor: pointer;
+                        ">-500k</button>
+                        
+                        <!-- Add buttons -->
                         <button onclick="StreamlinedEnergyFlow.addEnergyAmount(500000)" style="
                             padding: 6px 12px;
-                            background: rgba(0, 0, 0, 0.3);
-                            border: 1px solid #333;
+                            background: rgba(16, 185, 129, 0.1);
+                            border: 1px solid rgba(16, 185, 129, 0.3);
                             border-radius: 4px;
-                            color: #9ca3af;
+                            color: #10b981;
                             font-size: 0.75rem;
                             cursor: pointer;
                         ">+500k</button>
                         <button onclick="StreamlinedEnergyFlow.addEnergyAmount(1000000)" style="
                             padding: 6px 12px;
-                            background: rgba(0, 0, 0, 0.3);
-                            border: 1px solid #333;
+                            background: rgba(16, 185, 129, 0.1);
+                            border: 1px solid rgba(16, 185, 129, 0.3);
                             border-radius: 4px;
-                            color: #9ca3af;
+                            color: #10b981;
                             font-size: 0.75rem;
                             cursor: pointer;
                         ">+1M</button>
@@ -1009,6 +1032,16 @@ window.StreamlinedEnergyFlow = {
         if (input) {
             const current = parseInt(input.value) || 0;
             const newAmount = current + amount;
+            input.value = newAmount;
+            this.updateEnergyAmount(newAmount);
+        }
+    },
+    
+    subtractEnergyAmount(amount) {
+        const input = document.getElementById('energy-adjustment-input');
+        if (input) {
+            const current = parseInt(input.value) || 0;
+            const newAmount = Math.max(500000, current - amount); // Minimum 500k energy
             input.value = newAmount;
             this.updateEnergyAmount(newAmount);
         }
