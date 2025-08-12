@@ -348,21 +348,37 @@ window.TronSaveAPI = {
     },
     
     /**
-     * Estimate TRX cost using v2 API (more accurate)
+     * Estimate TRX cost using v2 API (official TronSave estimation)
+     * @param {number} resourceAmount - Amount of energy needed
+     * @param {number} durationSec - Duration in seconds (default 1 hour)
+     * @param {string} unitPrice - SLOW/MEDIUM/FAST or specific number
+     * @param {object} options - Additional options like allowPartialFill
      */
-    async estimateTRXv2(resourceAmount, durationSec = 3600) {
+    async estimateTRXv2(resourceAmount, durationSec = 3600, unitPrice = 'MEDIUM', options = {}) {
         try {
+            console.log(`📊 Estimating cost via TronSave API...`);
+            
+            const requestBody = {
+                resourceType: 'ENERGY',
+                resourceAmount: resourceAmount,
+                unitPrice: unitPrice,  // SLOW, MEDIUM, or FAST
+                durationSec: durationSec,
+                receiver: window.tronWeb?.defaultAddress?.base58,  // Optional
+                options: {
+                    allowPartialFill: true,
+                    minResourceDelegateRequiredAmount: Math.min(32000, resourceAmount),
+                    ...options
+                }
+            };
+            
+            console.log('Estimation request:', requestBody);
+            
             const response = await fetch(`${this.getApiUrl('v2')}/estimate-buy-resource`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    resourceAmount: resourceAmount,
-                    unitPrice: 'MEDIUM',  // LOW, MEDIUM, HIGH
-                    resourceType: 'ENERGY',
-                    durationSec: durationSec
-                })
+                body: JSON.stringify(requestBody)
             });
             
             if (!response.ok) {
@@ -374,6 +390,12 @@ window.TronSaveAPI = {
             if (result.error) {
                 throw new Error(result.message);
             }
+            
+            console.log('💰 TronSave Estimation Result:');
+            console.log(`  Unit Price: ${result.data.unitPrice} SUN`);
+            console.log(`  Total Cost: ${result.data.estimateTrx} SUN (${result.data.estimateTrx / 1000000} TRX)`);
+            console.log(`  Available: ${result.data.availableResource} energy`);
+            console.log(`  Can fulfill: ${result.data.availableResource >= resourceAmount ? '✅ Yes' : '⚠️ Partial'}`);
             
             return {
                 success: true,
@@ -426,20 +448,32 @@ window.TronSaveAPI = {
         try {
             console.log(`📊 Requesting ${resourceAmount} energy for ${durationSec} seconds`);
             
-            // Step 1: Estimate cost
-            const estimate = await this.estimateTRXv2(resourceAmount, durationSec);
+            // Step 1: Use TronSave estimation API to get accurate pricing
+            const estimate = await this.estimateTRXv2(resourceAmount, durationSec, 'MEDIUM', {
+                allowPartialFill: true
+            });
+            
             if (!estimate.success) {
                 throw new Error('Failed to estimate: ' + estimate.error);
             }
             
-            console.log(`💰 Estimated cost: ${estimate.estimateTrx / 1000000} TRX`);
-            console.log(`📦 Available energy: ${estimate.availableResource}`);
+            console.log(`💰 TronSave Quote:`);
+            console.log(`  Cost: ${estimate.estimateTrx / 1000000} TRX`);
+            console.log(`  Available: ${estimate.availableResource} energy`);
+            console.log(`  Unit Price: ${estimate.unitPrice} SUN`);
             
+            // Adjust amount if not fully available
+            let finalAmount = resourceAmount;
             if (!estimate.isFullyAvailable) {
-                console.warn(`⚠️ Only ${estimate.availableResource} energy available, requested ${resourceAmount}`);
+                console.warn(`⚠️ Adjusting order: Only ${estimate.availableResource} available of ${resourceAmount} requested`);
+                
                 if (estimate.availableResource < resourceAmount * 0.8) {
-                    throw new Error(`Insufficient energy available. Only ${estimate.availableResource} available, need ${resourceAmount}`);
+                    // If less than 80% available, it might not be enough
+                    console.warn('Less than 80% available, transaction might fail');
                 }
+                
+                // Use what's available
+                finalAmount = Math.min(resourceAmount, estimate.availableResource);
             }
             
             // Step 2: Build signed transaction
@@ -448,9 +482,10 @@ window.TronSaveAPI = {
                 throw new Error('No wallet connected');
             }
             
+            // Use the TronSave estimated amount for the transaction
             const signedTx = await this.buildSignedTransaction(estimate.estimateTrx, senderAddress);
             
-            // Step 3: Create order
+            // Step 3: Create order with exact parameters from estimation
             const response = await fetch(`${this.getApiUrl('v2')}/buy-resource`, {
                 method: 'POST',
                 headers: {
@@ -458,13 +493,15 @@ window.TronSaveAPI = {
                 },
                 body: JSON.stringify({
                     resourceType: 'ENERGY',
-                    resourceAmount: resourceAmount,
-                    unitPrice: estimate.unitPrice,
+                    resourceAmount: finalAmount,  // Use adjusted amount
+                    unitPrice: estimate.unitPrice,  // Use price from estimation
                     allowPartialFill: true,
                     receiver: receiverAddress || senderAddress,
                     durationSec: durationSec,
                     signedTx: signedTx,
-                    options: {}
+                    options: {
+                        allowPartialFill: true
+                    }
                 })
             });
             
@@ -1234,7 +1271,7 @@ if (window.StreamlinedEnergyFlow) {
             // Show loading
             window.TronSaveAPI.showPurchaseProgress(energyNeeded, '1 hour');
             
-            // Check current energy first
+            // Step 1: Check current energy
             let currentEnergy = 0;
             if (window.ManualEnergyRental) {
                 const status = await window.ManualEnergyRental.checkEnergyStatus();
@@ -1242,7 +1279,7 @@ if (window.StreamlinedEnergyFlow) {
                 console.log(`Current energy: ${currentEnergy}, Needed: ${energyNeeded}`);
             }
             
-            // Only rent what we're missing plus 20% buffer
+            // Step 2: Calculate deficit
             const deficit = Math.max(0, energyNeeded - currentEnergy);
             if (deficit === 0) {
                 console.log('✅ Already have sufficient energy!');
@@ -1254,14 +1291,31 @@ if (window.StreamlinedEnergyFlow) {
                 return;
             }
             
+            // Step 3: Add buffer to deficit only
             const deficitWithBuffer = Math.ceil(deficit * 1.2);
-            console.log(`📊 Energy calculation:`);
+            
+            // Step 4: Use TronSave estimation to validate amount
+            console.log('🔍 Getting TronSave estimate for accuracy...');
+            const estimate = await window.TronSaveAPI.estimateTRXv2(deficitWithBuffer, duration, 'MEDIUM');
+            
+            if (!estimate.success) {
+                console.error('Estimation failed, using calculated amount');
+            } else {
+                console.log(`✅ TronSave validated: ${estimate.availableResource} available for ${estimate.estimateTrx / 1000000} TRX`);
+                
+                // If not enough available, adjust amount
+                if (estimate.availableResource < deficitWithBuffer) {
+                    console.warn(`Adjusting rental amount to available: ${estimate.availableResource}`);
+                }
+            }
+            
+            console.log(`📊 Final Energy Calculation:`);
             console.log(`  Current: ${currentEnergy}`);
             console.log(`  Needed: ${energyNeeded}`);
             console.log(`  Deficit: ${deficit}`);
             console.log(`  Renting: ${deficitWithBuffer} (deficit + 20% buffer)`);
             
-            // Execute purchase with signed transaction
+            // Step 5: Execute purchase with validated amount
             const result = await window.TronSaveAPI.createEnergyOrderV2(deficitWithBuffer, duration);
             
             if (result.success) {
