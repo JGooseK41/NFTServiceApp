@@ -1215,6 +1215,10 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// Transaction Tracking Routes
+const transactionRoutes = require('./routes/transaction-tracking');
+app.use('/api/transactions', transactionRoutes);
+
 // Mobile Document Viewer API Endpoints
 app.post('/api/documents/view/:noticeId', async (req, res) => {
   try {

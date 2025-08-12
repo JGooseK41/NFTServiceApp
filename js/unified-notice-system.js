@@ -2578,8 +2578,9 @@ class UnifiedNoticeSystem {
                     <p><strong>Document Status:</strong> ${recipient.documentStatus === 'SIGNED' ? '✓ SIGNED FOR' : '⏳ AWAITING SIGNATURE'}</p>
                     <div class="stamp">
                         BLOCKCHAIN VERIFIED<br>
-                        Transaction Hash: ${caseData.transactionHash || 'PENDING'}<br>
-                        Network: TRON
+                        Transaction Hash: ${recipient.alertTxHash || recipient.documentTxHash || caseData.transactionHash || 'PENDING'}<br>
+                        Network: TRON<br>
+                        <small>Note: All recipients in a batch share the same transaction hash</small>
                     </div>
                     <p>I declare under penalty of perjury that the foregoing is true and correct.</p>
                     <div class="signature-line">
