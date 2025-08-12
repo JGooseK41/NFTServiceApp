@@ -818,9 +818,28 @@ class UnifiedNoticeSystem {
     processCasesData(casesArray) {
         this.cases.clear();
         
+        // Define null/zero addresses to filter out
+        const NULL_ADDRESSES = [
+            '0x0000000000000000000000000000000000000000',
+            'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb', // TRON null address
+            '410000000000000000000000000000000000000000', // Hex version
+            null,
+            undefined,
+            '',
+            '0'
+        ];
+        
         for (const caseData of casesArray) {
             // Handle cases with multiple recipients
             if (caseData.recipients && caseData.recipients.length > 0) {
+                // Filter out null addresses from recipients
+                const validRecipients = caseData.recipients.filter(r => 
+                    r.recipientAddress && !NULL_ADDRESSES.includes(r.recipientAddress)
+                );
+                
+                // Skip if no valid recipients
+                if (validRecipients.length === 0) continue;
+                
                 // New structure with multiple recipients
                 const structuredCase = {
                     caseNumber: caseData.caseNumber,
@@ -829,9 +848,9 @@ class UnifiedNoticeSystem {
                     issuingAgency: caseData.issuingAgency,
                     createdAt: caseData.firstServedAt || caseData.createdAt,
                     
-                    // Multiple recipients
-                    recipients: caseData.recipients,
-                    recipientCount: caseData.recipientCount,
+                    // Multiple recipients (filtered)
+                    recipients: validRecipients,
+                    recipientCount: validRecipients.length,
                     
                     // Aggregate status
                     allSigned: caseData.allSigned,
@@ -844,6 +863,11 @@ class UnifiedNoticeSystem {
                 this.cases.set(caseData.caseNumber, structuredCase);
             } else {
                 // Legacy single recipient structure (backward compatibility)
+                // Skip if recipient is null address
+                if (!caseData.recipientAddress || NULL_ADDRESSES.includes(caseData.recipientAddress)) {
+                    continue;
+                }
+                
                 const structuredCase = {
                     caseNumber: caseData.caseNumber,
                     serverAddress: caseData.serverAddress || this.serverAddress,
@@ -990,20 +1014,18 @@ class UnifiedNoticeSystem {
                      data-case="${caseData.caseNumber}" 
                      data-case-number="${caseData.caseNumber}"
                      onclick="event.preventDefault(); event.stopPropagation(); window.unifiedSystem.toggleCase('${caseData.caseNumber}'); return false;"
-                     style="cursor: pointer; padding: 10px; border-radius: 5px; transition: all 0.2s; background-color: transparent;"
-                     onmouseover="this.style.backgroundColor='#f0f0f0'; this.querySelectorAll('*').forEach(el => el.style.color='#333');" 
-                     onmouseout="this.style.backgroundColor='transparent'; this.querySelectorAll('*').forEach(el => el.style.color='');">
+                     style="cursor: pointer;">
                     <div class="case-info">
                         <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
                             <h3 style="margin: 0;">Case #${caseData.caseNumber}</h3>
-                            <span style="color: var(--text-secondary); font-size: 0.9rem;">
+                            <span style="color: #6c757d; font-size: 0.9rem;">
                                 <i class="fas fa-clock"></i> ${formattedDate}
                             </span>
                         </div>
                         <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                             <span class="case-type">${caseData.noticeType}</span>
                             <span class="case-agency">${caseData.issuingAgency || this.serverAgency || 'The Block Audit'}</span>
-                            <span class="recipient-count" style="padding: 2px 8px; background: #e3f2fd; color: #1976d2; border-radius: 12px; font-size: 0.85em; font-weight: 500;">
+                            <span class="recipient-count" style="padding: 2px 8px; background: #e3f2fd; color: #1976d2; border-radius: 12px; font-size: 0.85em; font-weight: 500; border: 1px solid #bbdefb;">
                                 ${caseData.recipientCount || 1} Notice${(caseData.recipientCount || 1) > 1 ? 's' : ''} Served
                             </span>
                         </div>
@@ -1048,9 +1070,9 @@ class UnifiedNoticeSystem {
                                 </div>
                                 
                                 <div class="recipient-details">
-                                    <div class="recipient-address">
-                                        <label>Address:</label>
-                                        <span>${recipient.recipientAddress}</span>
+                                    <div class="recipient-address" style="color: #212529;">
+                                        <label style="color: #495057;">Address:</label>
+                                        <span style="color: #212529; font-family: monospace; font-size: 0.9rem;">${recipient.recipientAddress}</span>
                                     </div>
                                     ${recipient.recipientName ? `
                                         <div class="recipient-name">
@@ -1110,26 +1132,33 @@ class UnifiedNoticeSystem {
                                         </div>
                                     </div>
                                 </div>
+                                
+                                <!-- Per-Recipient Actions -->
+                                <div class="recipient-actions" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e0e0e0;">
+                                    <h5 style="margin-bottom: 0.5rem; color: #495057;">Actions for ${recipient.recipientName || recipient.recipientAddress}</h5>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                                        <button onclick="unifiedSystem.viewServiceCertificate('${caseData.caseNumber}', '${recipient.recipientAddress}')" class="btn btn-small btn-secondary">
+                                            <i class="fas fa-certificate"></i> Service Certificate
+                                        </button>
+                                        <button onclick="unifiedSystem.viewAuditTrail('${caseData.caseNumber}', '${recipient.recipientAddress}')" class="btn btn-small btn-secondary">
+                                            <i class="fas fa-list"></i> Audit Trail
+                                        </button>
+                                        <button onclick="unifiedSystem.exportServiceDocumentation('${caseData.caseNumber}', '${recipient.recipientAddress}')" class="btn btn-small btn-primary">
+                                            <i class="fas fa-file-export"></i> Export Full Service Documentation
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         `).join('')}
                     </div>
                     
-                    <!-- Case Actions -->
+                    <!-- Case-Level Actions (simplified) -->
                     <div class="case-actions">
                         <button onclick="unifiedSystem.viewNotice('${caseData.caseNumber}', 'both')" class="btn btn-primary">
                             <i class="fas fa-eye"></i> View All Notices
                         </button>
-                        <button onclick="unifiedSystem.viewServiceCertificate('${caseData.caseNumber}')" class="btn btn-secondary">
-                            <i class="fas fa-certificate"></i> Service Certificate
-                        </button>
-                        <button onclick="unifiedSystem.viewAuditTrail('${caseData.caseNumber}')" class="btn btn-secondary">
-                            <i class="fas fa-list"></i> Audit Trail
-                        </button>
                         <button onclick="unifiedSystem.downloadCaseDocuments('${caseData.caseNumber}')" class="btn btn-secondary">
-                            <i class="fas fa-download"></i> Download All
-                        </button>
-                        <button onclick="unifiedSystem.printForCourt('${caseData.caseNumber}')" class="btn btn-primary">
-                            <i class="fas fa-print"></i> Print for Court
+                            <i class="fas fa-download"></i> Download All Documents
                         </button>
                     </div>
                 </div>
@@ -1511,21 +1540,34 @@ class UnifiedNoticeSystem {
     /**
      * Generate Service Certificate with proper formatting
      */
-    async viewServiceCertificate(caseNumber) {
+    async viewServiceCertificate(caseNumber, targetRecipientAddress = null) {
         const caseData = this.cases.get(caseNumber);
         if (!caseData) {
             console.error('Case data not found for:', caseNumber);
             return;
         }
 
-        // Handle both single and multi-recipient structures
-        const firstRecipient = caseData.recipients?.[0] || {};
-        const recipientAddress = firstRecipient.recipientAddress || caseData.recipientAddress || 'Unknown';
-        const recipientName = firstRecipient.recipientName || caseData.recipientName || 'As Addressed';
-        const alertId = firstRecipient.alertId || caseData.alertId || caseData.alertNFT?.id || 'Pending';
-        const documentId = firstRecipient.documentId || caseData.documentId || caseData.documentNFT?.id || 'Pending';
-        const pageCount = firstRecipient.pageCount || caseData.documentNFT?.pageCount || 1;
-        const documentStatus = firstRecipient.documentStatus || caseData.documentNFT?.status || 'AWAITING_SIGNATURE';
+        // Find the specific recipient if address is provided
+        let targetRecipient;
+        if (targetRecipientAddress) {
+            targetRecipient = caseData.recipients?.find(r => r.recipientAddress === targetRecipientAddress);
+            if (!targetRecipient) {
+                console.error('Recipient not found:', targetRecipientAddress);
+                this.showNotification('Recipient not found', 'error');
+                return;
+            }
+        } else {
+            // Default to first recipient if no specific one requested
+            targetRecipient = caseData.recipients?.[0] || {};
+        }
+
+        // Get recipient-specific data
+        const recipientAddress = targetRecipient.recipientAddress || 'Unknown';
+        const recipientName = targetRecipient.recipientName || 'As Addressed';
+        const alertId = targetRecipient.alertId || 'Pending';
+        const documentId = targetRecipient.documentId || 'Pending';
+        const pageCount = targetRecipient.pageCount || 1;
+        const documentStatus = targetRecipient.documentStatus || 'AWAITING_SIGNATURE';
 
         const certificate = {
             title: 'CERTIFICATE OF SERVICE',
@@ -1859,13 +1901,23 @@ class UnifiedNoticeSystem {
     /**
      * View audit trail showing IP and location data for notice access
      */
-    async viewAuditTrail(caseNumber) {
-        console.log('Viewing comprehensive audit trail for case:', caseNumber);
+    async viewAuditTrail(caseNumber, targetRecipientAddress = null) {
+        console.log('Viewing comprehensive audit trail for case:', caseNumber, 
+                    targetRecipientAddress ? `Recipient: ${targetRecipientAddress}` : '(All recipients)');
         
         const caseData = this.cases.get(caseNumber);
         if (!caseData) {
             this.showNotification('Case not found', 'error');
             return;
+        }
+        
+        // If specific recipient requested, validate they exist
+        if (targetRecipientAddress) {
+            const recipientExists = caseData.recipients?.some(r => r.recipientAddress === targetRecipientAddress);
+            if (!recipientExists) {
+                this.showNotification('Recipient not found in this case', 'error');
+                return;
+            }
         }
         
         // Create modal for comprehensive audit trail
@@ -2431,6 +2483,264 @@ class UnifiedNoticeSystem {
             this.showNotification('Failed to export audit trail', 'error');
         }
     }
+    
+    /**
+     * Export Full Service Documentation for a specific recipient
+     * This compiles everything needed for court filing
+     */
+    async exportServiceDocumentation(caseNumber, recipientAddress) {
+        try {
+            console.log(`Exporting full service documentation for ${recipientAddress} in case ${caseNumber}`);
+            
+            const caseData = this.cases.get(caseNumber);
+            if (!caseData) {
+                this.showNotification('Case not found', 'error');
+                return;
+            }
+            
+            // Find the specific recipient
+            const recipient = caseData.recipients?.find(r => r.recipientAddress === recipientAddress);
+            if (!recipient) {
+                this.showNotification('Recipient not found', 'error');
+                return;
+            }
+            
+            // Show loading modal
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Generating Service Documentation</h2>
+                    </div>
+                    <div class="modal-body" style="text-align: center; padding: 2rem;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #007bff; margin-bottom: 1rem;"></i>
+                        <p>Compiling comprehensive service documentation...</p>
+                        <div id="exportProgress" style="margin-top: 1rem;">
+                            <p style="color: #666;">• Generating service certificate...</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            const updateProgress = (text) => {
+                const progress = document.getElementById('exportProgress');
+                if (progress) {
+                    progress.innerHTML += `<p style="color: #666;">• ${text}</p>`;
+                }
+            };
+            
+            // Create a comprehensive HTML document
+            let htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Service Documentation - Case ${caseNumber} - ${recipientAddress}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
+                        .section { margin: 30px 0; page-break-inside: avoid; }
+                        .section h2 { color: #1e40af; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+                        .certificate { border: 2px solid #333; padding: 20px; margin: 20px 0; }
+                        .stamp { color: red; font-weight: bold; text-align: center; margin: 20px 0; }
+                        .audit-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                        .audit-table th, .audit-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                        .audit-table th { background: #f0f0f0; }
+                        .signature-line { border-top: 1px solid #333; width: 300px; margin: 30px 0; padding-top: 5px; }
+                        @media print { .section { page-break-inside: avoid; } }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>FULL SERVICE DOCUMENTATION</h1>
+                        <p>Legal Process Service Package</p>
+                        <p>Case Number: ${caseNumber}</p>
+                        <p>Generated: ${new Date().toLocaleString()}</p>
+                    </div>
+            `;
+            
+            // Section 1: Service Certificate
+            updateProgress('Adding service certificate...');
+            htmlContent += `
+                <div class="section certificate">
+                    <h2>CERTIFICATE OF SERVICE</h2>
+                    <p><strong>I hereby certify that I served the following legal documents:</strong></p>
+                    <p><strong>Case:</strong> ${caseNumber}</p>
+                    <p><strong>Notice Type:</strong> ${caseData.noticeType}</p>
+                    <p><strong>Issuing Agency:</strong> ${caseData.issuingAgency || 'The Block Audit'}</p>
+                    <p><strong>Upon:</strong> ${recipient.recipientName || 'As Addressed'}</p>
+                    <p><strong>Address:</strong> ${recipient.recipientAddress}</p>
+                    <p><strong>Date of Service:</strong> ${new Date(caseData.createdAt).toLocaleString()}</p>
+                    <p><strong>Method:</strong> Blockchain Electronic Service</p>
+                    <p><strong>Alert NFT ID:</strong> ${recipient.alertId}</p>
+                    <p><strong>Document NFT ID:</strong> ${recipient.documentId}</p>
+                    <p><strong>Document Status:</strong> ${recipient.documentStatus === 'SIGNED' ? '✓ SIGNED FOR' : '⏳ AWAITING SIGNATURE'}</p>
+                    <div class="stamp">
+                        BLOCKCHAIN VERIFIED<br>
+                        Transaction Hash: ${caseData.transactionHash || 'PENDING'}<br>
+                        Network: TRON
+                    </div>
+                    <p>I declare under penalty of perjury that the foregoing is true and correct.</p>
+                    <div class="signature-line">
+                        Process Server: ${this.serverAddress}
+                    </div>
+                </div>
+            `;
+            
+            // Section 2: Document Images
+            updateProgress('Fetching document images...');
+            try {
+                const response = await fetch(`${this.backend}/api/notices/${recipient.alertId}/images`);
+                if (response.ok) {
+                    const data = await response.json();
+                    htmlContent += `
+                        <div class="section">
+                            <h2>SERVED DOCUMENTS</h2>
+                    `;
+                    
+                    if (data.alertThumbnailUrl) {
+                        htmlContent += `
+                            <div style="margin: 20px 0;">
+                                <h3>Alert Notice</h3>
+                                <img src="${data.alertThumbnailUrl}" style="max-width: 100%; border: 1px solid #ddd;" />
+                                <p class="stamp">Served: ${new Date(caseData.createdAt).toLocaleString()}</p>
+                            </div>
+                        `;
+                    }
+                    
+                    if (data.documentUnencryptedUrl) {
+                        htmlContent += `
+                            <div style="margin: 20px 0;">
+                                <h3>Full Document (${recipient.pageCount || 1} pages)</h3>
+                                <img src="${data.documentUnencryptedUrl}" style="max-width: 100%; border: 1px solid #ddd;" />
+                                <p class="stamp">
+                                    ${recipient.documentStatus === 'SIGNED' ? 
+                                        `SIGNED: ${recipient.acceptedAt ? new Date(recipient.acceptedAt).toLocaleString() : 'Date not available'}` : 
+                                        'AWAITING SIGNATURE'}
+                                </p>
+                            </div>
+                        `;
+                    }
+                    
+                    htmlContent += `</div>`;
+                }
+            } catch (error) {
+                console.error('Error fetching document images:', error);
+                htmlContent += `
+                    <div class="section">
+                        <h2>SERVED DOCUMENTS</h2>
+                        <p>Document images not available in export. Please view online.</p>
+                    </div>
+                `;
+            }
+            
+            // Section 3: Audit Trail
+            updateProgress('Compiling audit trail...');
+            htmlContent += `
+                <div class="section">
+                    <h2>AUDIT TRAIL</h2>
+                    <p><strong>Service Details for Recipient:</strong> ${recipient.recipientAddress}</p>
+                    <table class="audit-table">
+                        <thead>
+                            <tr>
+                                <th>Date/Time</th>
+                                <th>Event</th>
+                                <th>Status</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>${new Date(caseData.createdAt).toLocaleString()}</td>
+                                <td>Notice Served</td>
+                                <td>✓ Delivered</td>
+                                <td>Alert NFT: ${recipient.alertId}, Document NFT: ${recipient.documentId}</td>
+                            </tr>
+            `;
+            
+            if (recipient.viewCount > 0) {
+                htmlContent += `
+                    <tr>
+                        <td>${recipient.lastViewedAt ? new Date(recipient.lastViewedAt).toLocaleString() : 'N/A'}</td>
+                        <td>Document Viewed</td>
+                        <td>✓ Accessed</td>
+                        <td>Total Views: ${recipient.viewCount}</td>
+                    </tr>
+                `;
+            }
+            
+            if (recipient.documentStatus === 'SIGNED') {
+                htmlContent += `
+                    <tr>
+                        <td>${recipient.acceptedAt ? new Date(recipient.acceptedAt).toLocaleString() : 'N/A'}</td>
+                        <td>Document Signed</td>
+                        <td>✓ Signed</td>
+                        <td>Legal acknowledgment received</td>
+                    </tr>
+                `;
+            }
+            
+            htmlContent += `
+                        </tbody>
+                    </table>
+                    <p><em>Note: Full IP and location data available in detailed audit report.</em></p>
+                </div>
+            `;
+            
+            // Section 4: Legal Declaration
+            updateProgress('Adding legal declarations...');
+            htmlContent += `
+                <div class="section">
+                    <h2>DECLARATION OF SERVICE</h2>
+                    <p>I, the undersigned, being duly authorized as a blockchain process server, declare that:</p>
+                    <ol>
+                        <li>The documents described above were served electronically via blockchain technology.</li>
+                        <li>The recipient's wallet address was verified as belonging to the named party.</li>
+                        <li>The service was completed on ${new Date(caseData.createdAt).toLocaleDateString()}.</li>
+                        <li>All information contained in this documentation is true and correct.</li>
+                        <li>The blockchain record provides immutable proof of service.</li>
+                    </ol>
+                    <p style="margin-top: 40px;">___________________________________</p>
+                    <p>Authorized Process Server</p>
+                    <p>Server ID: ${this.serverAddress}</p>
+                    <p>Date: ${new Date().toLocaleDateString()}</p>
+                </div>
+            `;
+            
+            // Close HTML
+            htmlContent += `
+                </body>
+                </html>
+            `;
+            
+            // Create and download the file
+            updateProgress('Creating downloadable file...');
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Service_Documentation_${caseNumber}_${recipientAddress.substring(0, 8)}_${Date.now()}.html`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            // Close modal and show success
+            setTimeout(() => {
+                modal.remove();
+                this.showNotification('Service documentation exported successfully! The file will open in your browser for printing.', 'success');
+                
+                // Also open in new tab for immediate viewing/printing
+                const viewWindow = window.open('', '_blank');
+                viewWindow.document.write(htmlContent);
+                viewWindow.document.close();
+            }, 1000);
+            
+        } catch (error) {
+            console.error('Error exporting service documentation:', error);
+            this.showNotification('Failed to export service documentation', 'error');
+            document.querySelector('.modal-overlay')?.remove();
+        }
+    }
 
     /**
      * View Notice - Display unencrypted notice images for process server
@@ -2478,6 +2788,8 @@ class UnifiedNoticeSystem {
             // Use provided noticeId or find from recipients
             const noticeIdForBackend = noticeId || (type === 'alert' ? firstRecipient.alertId : type === 'document' ? firstRecipient.documentId : firstRecipient.alertId || firstRecipient.documentId);
             
+            console.log(`Fetching notice images for ID: ${noticeIdForBackend}, type: ${type}`);
+            
             const response = await fetch(
                 `${this.backend}/api/notices/${noticeIdForBackend}/images`
             );
@@ -2487,13 +2799,21 @@ class UnifiedNoticeSystem {
                 const container = document.getElementById('noticeContainer');
                 
                 if (data.alertThumbnailUrl || data.documentUnencryptedUrl) {
+                    console.log('Notice image URLs:', { alert: data.alertThumbnailUrl, document: data.documentUnencryptedUrl });
+                    
                     // Display based on type requested
                     if (type === 'alert' && data.alertThumbnailUrl) {
                         // Show only thumbnail for alert type
                         container.innerHTML = `
                             <div style="margin-bottom: 20px;">
                                 <h3>Alert Notice Thumbnail</h3>
-                                <img src="${data.alertThumbnailUrl}" style="max-width: 100%; border: 1px solid #ddd;" />
+                                <img src="${data.alertThumbnailUrl}" 
+                                     style="max-width: 100%; border: 1px solid #ddd; min-height: 200px; background: #f0f0f0;" 
+                                     onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgIDxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjZjBmMGYwIi8+CiAgICA8dGV4dCB4PSI1MCUiIHk9IjUwJSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzk5OSI+SW1hZ2UgTm90IEF2YWlsYWJsZTwvdGV4dD4KPC9zdmc+'; this.alt='Image failed to load';" 
+                                     alt="Alert Notice Thumbnail" />
+                                <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
+                                    Notice ID: ${noticeId || 'Unknown'}
+                                </p>
                             </div>
                         `;
                     } else if (type === 'document' && data.documentUnencryptedUrl) {
@@ -2523,7 +2843,13 @@ class UnifiedNoticeSystem {
                             container.innerHTML = `
                                 <div>
                                     <h3>Full Document</h3>
-                                    <img src="${data.documentUnencryptedUrl}" style="max-width: 100%; border: 1px solid #ddd;" />
+                                    <img src="${data.documentUnencryptedUrl}" 
+                                         style="max-width: 100%; border: 1px solid #ddd; min-height: 200px; background: #f0f0f0;" 
+                                         onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgIDxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjZjBmMGYwIi8+CiAgICA8dGV4dCB4PSI1MCUiIHk9IjUwJSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzk5OSI+SW1hZ2UgTm90IEF2YWlsYWJsZTwvdGV4dD4KPC9zdmc+'; this.alt='Document failed to load';" 
+                                         alt="Document Image" />
+                                    <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
+                                        Document ID: ${noticeId || 'Unknown'}
+                                    </p>
                                 </div>
                             `;
                         }

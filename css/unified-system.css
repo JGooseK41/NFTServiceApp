@@ -35,7 +35,7 @@
     justify-content: space-between;
     align-items: center;
     cursor: pointer;
-    background: var(--card-bg);
+    background: #f8f9fa;  /* Light gray background */
     transition: background 0.2s;
     position: relative;
     z-index: 10;
@@ -43,11 +43,11 @@
 }
 
 .case-header:hover {
-    background: var(--hover-bg);
+    background: #e9ecef;  /* Slightly darker on hover but still light */
 }
 
 .case-info h3 {
-    color: var(--text-primary);
+    color: #212529;  /* Dark text for readability on light bg */
     font-size: 1.2rem;
     margin-bottom: 0.5rem;
 }
@@ -55,10 +55,11 @@
 .case-type, .case-agency {
     display: inline-block;
     padding: 0.25rem 0.75rem;
-    background: var(--hover-bg);
+    background: #e9ecef;  /* Light background */
+    border: 1px solid #dee2e6;
     border-radius: 6px;
     font-size: 0.85rem;
-    color: var(--text-secondary);
+    color: #495057;  /* Dark gray text */
     margin-right: 0.5rem;
 }
 
@@ -233,8 +234,8 @@
     align-items: center;
     gap: 1rem;
     padding: 1rem;
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
+    background: #f8f9fa;  /* Light background */
+    border: 1px solid #dee2e6;
     border-radius: 8px;
     margin-bottom: 0.75rem;
     transition: all 0.2s;
@@ -243,6 +244,7 @@
 .nft-item:hover {
     border-color: var(--accent-blue);
     transform: translateX(4px);
+    background: #e9ecef;  /* Slightly darker on hover */
 }
 
 .nft-icon {
@@ -251,7 +253,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--hover-bg);
+    background: #ffffff;
+    border: 1px solid #dee2e6;
     border-radius: 50%;
     font-size: 1.5rem;
 }
@@ -271,14 +274,14 @@
 .nft-label {
     display: block;
     font-weight: 600;
-    color: var(--text-primary);
+    color: #212529;  /* Dark text for readability */
     margin-bottom: 0.25rem;
 }
 
 .nft-id {
     display: block;
     font-size: 0.85rem;
-    color: var(--text-muted);
+    color: #6c757d;  /* Gray text for secondary info */
     margin-bottom: 0.25rem;
 }
 
