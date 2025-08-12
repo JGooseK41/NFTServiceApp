@@ -551,8 +551,8 @@ app.post('/api/notices/served', async (req, res) => {
       noticeId,
       alertId || null,
       documentId || null,
-      serverAddress ? serverAddress.toLowerCase() : null,
-      recipientAddress ? recipientAddress.toLowerCase() : null,
+      serverAddress || null,  // Keep original case for TRON addresses
+      recipientAddress || null,  // Keep original case for TRON addresses
       noticeType || 'Legal Notice',
       issuingAgency || '',
       caseNumber || '',
@@ -740,8 +740,8 @@ app.post('/api/notices/:noticeId/metadata', async (req, res) => {
     
     const values = [
       noticeId,
-      serverAddress.toLowerCase(),
-      recipientAddress.toLowerCase(),
+      serverAddress,  // Keep original case for TRON addresses
+      recipientAddress,  // Keep original case for TRON addresses
       noticeType,
       jurisdiction,
       caseNumber,

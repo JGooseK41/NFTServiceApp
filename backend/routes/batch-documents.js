@@ -235,7 +235,7 @@ router.post('/documents',
             const failedRecipients = [];
             
             for (let i = 0; i < data.recipients.length; i++) {
-                const recipient = SafeTypes.string(data.recipients[i]).toLowerCase();
+                const recipient = SafeTypes.string(data.recipients[i]);  // Keep original case for TRON addresses
                 const noticeId = SafeTypes.string(data.alertIds[i] || generateSafeId(data.batchId, i));
                 const alertId = SafeTypes.string(data.alertIds[i] || noticeId);
                 const documentId = SafeTypes.string(data.documentIds[i] || String(Number(noticeId) + 1));

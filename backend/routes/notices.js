@@ -44,8 +44,8 @@ router.post('/pending', async (req, res) => {
 
     const values = [
       caseNumber,
-      serverAddress.toLowerCase(),
-      recipientAddress?.toLowerCase(),
+      serverAddress,  // Keep original case for TRON addresses
+      recipientAddress,  // Keep original case for TRON addresses
       recipientName,
       noticeType,
       issuingAgency,
@@ -154,8 +154,8 @@ router.post('/delivered', async (req, res) => {
       const values = [
         pendingNoticeId,
         caseNumber,
-        serverAddress.toLowerCase(),
-        recipientAddress.toLowerCase(),
+        serverAddress,  // Keep original case for TRON addresses
+        recipientAddress,  // Keep original case for TRON addresses
         alertId,
         alertTxHash,
         alertThumbnailUrl,
