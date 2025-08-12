@@ -9,16 +9,19 @@ console.log('🔌 Loading TronSave API Integration...');
 window.TronSaveAPI = {
     
     // API Configuration
-    API_BASE_URL: 'https://api.tronsave.io/v1',
+    API_BASE_URL: 'https://api.tronsave.io/v0',  // Production API
+    API_TEST_URL: 'https://api-dev.tronsave.io/v0',  // Testnet API
     API_KEY: null,
+    USE_TESTNET: false,  // Toggle for testing
     
-    // Energy pricing (update based on current rates)
-    PRICING: {
-        '1h': 0.000019,   // TRX per energy for 1 hour
-        '12h': 0.000025,  // TRX per energy for 12 hours
-        '1d': 0.000029,   // TRX per energy for 1 day
-        '3d': 0.000034,   // TRX per energy for 3 days
-        '7d': 0.000039    // TRX per energy for 7 days
+    // Duration mappings for UI display
+    DURATION_LABELS: {
+        3600000: '1 hour',
+        21600000: '6 hours',
+        43200000: '12 hours',
+        86400000: '1 day',
+        259200000: '3 days',
+        604800000: '7 days'
     },
     
     /**
@@ -27,6 +30,12 @@ window.TronSaveAPI = {
     async initialize() {
         // Check if API key is stored
         this.API_KEY = localStorage.getItem('tronsave_api_key');
+        
+        // Check if testnet mode is stored
+        const storedTestnet = localStorage.getItem('tronsave_use_testnet');
+        if (storedTestnet !== null) {
+            this.USE_TESTNET = storedTestnet === 'true';
+        }
         
         if (!this.API_KEY) {
             console.log('TronSave API key not configured');
@@ -42,7 +51,7 @@ window.TronSaveAPI = {
             return false;
         }
         
-        console.log('✅ TronSave API initialized');
+        console.log(`✅ TronSave API initialized (${this.USE_TESTNET ? 'TESTNET' : 'MAINNET'})`);
         return true;
     },
     
@@ -56,16 +65,32 @@ window.TronSaveAPI = {
     },
     
     /**
-     * Verify API key is valid
+     * Toggle testnet mode
+     */
+    setTestnetMode(useTestnet) {
+        this.USE_TESTNET = useTestnet;
+        localStorage.setItem('tronsave_use_testnet', useTestnet.toString());
+        console.log(`Switched to ${useTestnet ? 'TESTNET' : 'MAINNET'} mode`);
+    },
+    
+    /**
+     * Get current API URL based on network
+     */
+    getApiUrl() {
+        return this.USE_TESTNET ? this.API_TEST_URL : this.API_BASE_URL;
+    },
+    
+    /**
+     * Verify API key is valid using user-info endpoint
      */
     async verifyApiKey() {
         if (!this.API_KEY) return false;
         
         try {
-            const response = await fetch(`${this.API_BASE_URL}/account/balance`, {
+            const response = await fetch(`${this.getApiUrl()}/user-info`, {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${this.API_KEY}`,
+                    'apikey': this.API_KEY,
                     'Content-Type': 'application/json'
                 }
             });
@@ -78,63 +103,130 @@ window.TronSaveAPI = {
     },
     
     /**
-     * Get account balance
+     * Get user info (internal account balance)
      */
-    async getAccountBalance() {
+    async getUserInfo() {
         try {
-            const response = await fetch(`${this.API_BASE_URL}/account/balance`, {
+            const response = await fetch(`${this.getApiUrl()}/user-info`, {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${this.API_KEY}`,
+                    'apikey': this.API_KEY,
                     'Content-Type': 'application/json'
                 }
             });
             
             if (!response.ok) {
-                throw new Error('Failed to get balance');
+                throw new Error('Failed to get user info');
             }
             
             const data = await response.json();
             return {
                 success: true,
-                balance: data.balance,
-                available: data.available_energy
+                balance: data.balance || 0,
+                email: data.email,
+                apiKey: data.apiKey
             };
             
         } catch (error) {
-            console.error('Balance check failed:', error);
+            console.error('User info check failed:', error);
             return { success: false, error: error.message };
         }
     },
     
     /**
-     * Create energy rental order via API
+     * Get order book to see available energy prices
      */
-    async createEnergyOrder(energyAmount, duration = '1h', recipientAddress) {
+    async getOrderBook() {
+        try {
+            const response = await fetch(`${this.getApiUrl()}/order-book`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to get order book');
+            }
+            
+            const data = await response.json();
+            return {
+                success: true,
+                orders: data
+            };
+            
+        } catch (error) {
+            console.error('Order book fetch failed:', error);
+            return { success: false, error: error.message };
+        }
+    },
+    
+    /**
+     * Estimate TRX cost for energy rental
+     */
+    async estimateTRX(energyAmount, duration = 3600000) {
+        try {
+            const response = await fetch(`${this.getApiUrl()}/estimate-trx`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    resource_value: energyAmount,
+                    resource_type: 'ENERGY',
+                    period: duration  // Duration in milliseconds
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to estimate price');
+            }
+            
+            const data = await response.json();
+            return {
+                success: true,
+                estimated_trx: data.estimated_trx,
+                unit_price: data.unit_price
+            };
+            
+        } catch (error) {
+            console.error('Price estimation failed:', error);
+            return { success: false, error: error.message };
+        }
+    },
+    
+    /**
+     * Create energy rental order via API (internal-buy-energy endpoint)
+     */
+    async createEnergyOrder(energyAmount, duration = 3600000, recipientAddress) {
         try {
             if (!this.API_KEY) {
                 throw new Error('API key not configured');
             }
             
-            // Calculate price
-            const pricePerUnit = this.PRICING[duration] || this.PRICING['1h'];
-            const totalPrice = energyAmount * pricePerUnit;
+            // First estimate the price
+            const estimate = await this.estimateTRX(energyAmount, duration);
+            if (!estimate.success) {
+                throw new Error('Failed to estimate price: ' + estimate.error);
+            }
             
-            console.log(`📝 Creating order: ${energyAmount} energy for ${duration} = ${totalPrice.toFixed(2)} TRX`);
+            const totalPrice = estimate.estimated_trx;
+            
+            console.log(`📝 Creating order: ${energyAmount} energy for ${duration}ms = ${totalPrice} TRX`);
             
             const orderData = {
-                type: 'ENERGY',
-                amount: energyAmount,
-                duration: duration,
-                recipient: recipientAddress || window.tronWeb?.defaultAddress?.base58,
-                price_limit: totalPrice * 1.1, // Allow 10% price variance
-                auto_execute: true
+                resource_value: energyAmount,
+                resource_type: 'ENERGY',
+                period: duration,  // Duration in milliseconds
+                receive_address: recipientAddress || window.tronWeb?.defaultAddress?.base58,
+                max_price: totalPrice * 1.1,  // Allow 10% price variance
+                allow_partial_fill: true
             };
             
-            const response = await fetch(`${this.API_BASE_URL}/orders/create`, {
+            const response = await fetch(`${this.getApiUrl()}/internal-buy-energy`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${this.API_KEY}`,
+                    'apikey': this.API_KEY,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(orderData)
@@ -150,10 +242,11 @@ window.TronSaveAPI = {
             
             return {
                 success: true,
-                orderId: result.order_id,
+                orderId: result.id || result.order_id,
                 status: result.status,
-                price: result.price,
-                estimatedTime: result.estimated_time || '30 seconds'
+                price: totalPrice,
+                estimatedTime: '10-30 seconds',
+                orderData: result
             };
             
         } catch (error) {
@@ -163,14 +256,14 @@ window.TronSaveAPI = {
     },
     
     /**
-     * Check order status
+     * Check order status (get one order details)
      */
     async checkOrderStatus(orderId) {
         try {
-            const response = await fetch(`${this.API_BASE_URL}/orders/${orderId}/status`, {
+            const response = await fetch(`${this.getApiUrl()}/orders/${orderId}`, {
                 method: 'GET',
                 headers: {
-                    'Authorization': `Bearer ${this.API_KEY}`,
+                    'apikey': this.API_KEY,
                     'Content-Type': 'application/json'
                 }
             });
@@ -182,9 +275,10 @@ window.TronSaveAPI = {
             const data = await response.json();
             return {
                 success: true,
-                status: data.status, // 'pending', 'processing', 'completed', 'failed'
-                energyDelivered: data.energy_delivered,
-                transactionHash: data.tx_hash
+                status: data.status || data.order_status,  // Check both possible field names
+                energyDelivered: data.resource_value || data.energy_delivered,
+                transactionHash: data.tx_hash || data.transaction_hash,
+                orderDetails: data
             };
             
         } catch (error) {
@@ -194,12 +288,59 @@ window.TronSaveAPI = {
     },
     
     /**
+     * Get order history for the internal account
+     */
+    async getOrderHistory() {
+        try {
+            const response = await fetch(`${this.getApiUrl()}/orders`, {
+                method: 'GET',
+                headers: {
+                    'apikey': this.API_KEY,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to get order history');
+            }
+            
+            const data = await response.json();
+            return {
+                success: true,
+                orders: data
+            };
+            
+        } catch (error) {
+            console.error('Order history fetch failed:', error);
+            return { success: false, error: error.message };
+        }
+    },
+    
+    /**
+     * Convert duration string to milliseconds
+     */
+    durationToMilliseconds(duration) {
+        const durations = {
+            '1h': 3600000,      // 1 hour
+            '6h': 21600000,     // 6 hours
+            '12h': 43200000,    // 12 hours
+            '1d': 86400000,     // 1 day
+            '3d': 259200000,    // 3 days
+            '7d': 604800000     // 7 days
+        };
+        return durations[duration] || 3600000;  // Default to 1 hour
+    },
+    
+    /**
      * Complete energy purchase flow
      */
     async purchaseEnergy(energyAmount, duration = '1h') {
         try {
+            // Convert duration to milliseconds
+            const durationMs = this.durationToMilliseconds(duration);
+            
             // Step 1: Create order
-            const orderResult = await this.createEnergyOrder(energyAmount, duration);
+            const orderResult = await this.createEnergyOrder(energyAmount, durationMs);
             if (!orderResult.success) {
                 throw new Error(orderResult.error);
             }
@@ -214,15 +355,17 @@ window.TronSaveAPI = {
                 const statusResult = await this.checkOrderStatus(orderResult.orderId);
                 
                 if (statusResult.success) {
-                    if (statusResult.status === 'completed') {
+                    // Check various status field names for compatibility
+                    const status = statusResult.status || statusResult.orderDetails?.status;
+                    if (status === 'completed' || status === 'success' || status === 'filled') {
                         return {
                             success: true,
                             orderId: orderResult.orderId,
                             energyDelivered: statusResult.energyDelivered,
                             transactionHash: statusResult.transactionHash
                         };
-                    } else if (statusResult.status === 'failed') {
-                        throw new Error('Order failed to execute');
+                    } else if (status === 'failed' || status === 'cancelled' || status === 'rejected') {
+                        throw new Error('Order failed to execute: ' + status);
                     }
                 }
                 
@@ -317,18 +460,54 @@ window.TronSaveAPI = {
                     
                     <div style="margin-bottom: 20px;">
                         <h4 style="color: #d1d5db; font-size: 0.875rem; margin-bottom: 12px;">How to get your API key:</h4>
-                        <ol style="
-                            margin: 0;
-                            padding-left: 20px;
-                            color: #9ca3af;
-                            font-size: 0.875rem;
-                            line-height: 1.8;
-                        ">
-                            <li>Visit <a href="https://tronsave.io" target="_blank" style="color: #0ea5e9;">TronSave.io</a></li>
-                            <li>Create an Internal Account</li>
-                            <li>Go to Developer → Get API Key</li>
-                            <li>Copy and paste it here</li>
-                        </ol>
+                        <div style="margin-bottom: 15px;">
+                            <h5 style="color: #0ea5e9; font-size: 0.875rem; margin-bottom: 8px;">Option 1: Via Website</h5>
+                            <ol style="
+                                margin: 0 0 10px 0;
+                                padding-left: 20px;
+                                color: #9ca3af;
+                                font-size: 0.875rem;
+                                line-height: 1.8;
+                            ">
+                                <li>Visit <a href="https://tronsave.io" target="_blank" style="color: #0ea5e9;">TronSave.io</a></li>
+                                <li>Create an Internal Account</li>
+                                <li>Generate API key on the website</li>
+                                <li>Copy and paste it here</li>
+                            </ol>
+                        </div>
+                        <div>
+                            <h5 style="color: #0ea5e9; font-size: 0.875rem; margin-bottom: 8px;">Option 2: Via Telegram</h5>
+                            <ol style="
+                                margin: 0;
+                                padding-left: 20px;
+                                color: #9ca3af;
+                                font-size: 0.875rem;
+                                line-height: 1.8;
+                            ">
+                                <li>Open TronSave Telegram bot</li>
+                                <li>Generate API key through bot</li>
+                                <li>Copy and paste it here</li>
+                            </ol>
+                        </div>
+                    </div>
+                    
+                    <div style="
+                        background: rgba(251, 191, 36, 0.1);
+                        border: 1px solid rgba(251, 191, 36, 0.3);
+                        border-radius: 8px;
+                        padding: 12px;
+                        margin-bottom: 20px;
+                        color: #fbbf24;
+                        font-size: 0.75rem;
+                    ">
+                        <strong>Network:</strong> Currently using ${this.USE_TESTNET ? 'TESTNET (Nile)' : 'MAINNET'} API<br>
+                        <label style="display: flex; align-items: center; margin-top: 8px; cursor: pointer;">
+                            <input type="checkbox" id="tronsave-testnet-toggle" 
+                                ${this.USE_TESTNET ? 'checked' : ''} 
+                                onchange="TronSaveAPI.setTestnetMode(this.checked)" 
+                                style="margin-right: 8px;">
+                            Use Testnet for Testing
+                        </label>
                     </div>
                     
                     <div style="display: flex; gap: 12px;">
