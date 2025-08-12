@@ -1,0 +1,397 @@
+/* Contrast Fixes for BlockServed
+ * Ensures all text is readable on various backgrounds
+ */
+
+/* Fix case cards with white backgrounds */
+.case-card {
+    background: #ffffff !important;
+}
+
+.case-header {
+    background: #f8f9fa !important;
+}
+
+/* Ensure all text in case headers is dark */
+.case-info h3,
+.case-header h3 {
+    color: #212529 !important; /* Dark gray for excellent contrast */
+}
+
+.case-info span,
+.case-header span {
+    color: #495057 !important; /* Medium gray for secondary text */
+}
+
+/* Fix case type and agency badges */
+.case-type, .case-agency {
+    background: #e9ecef !important;
+    color: #495057 !important;
+    border: 1px solid #dee2e6 !important;
+}
+
+/* Fix recipient cards */
+.recipient-card {
+    background: #f8f9fa !important;
+    color: #212529 !important;
+}
+
+.recipient-header {
+    color: #212529 !important;
+}
+
+.recipient-address {
+    color: #212529 !important;
+}
+
+.recipient-address label {
+    color: #6c757d !important;
+}
+
+.recipient-address span {
+    color: #212529 !important;
+}
+
+/* Fix any white text on white backgrounds */
+.case-card h1, .case-card h2, .case-card h3, .case-card h4, .case-card h5, .case-card h6,
+.case-card p, .case-card span, .case-card div, .case-card label {
+    color: #212529 !important;
+}
+
+/* Fix status badges to ensure contrast */
+.status-badge {
+    font-weight: 600 !important;
+}
+
+.status-completed {
+    background: rgba(16, 185, 129, 0.2) !important;
+    color: #047857 !important; /* Darker green for better contrast */
+    border: 1px solid #10b981 !important;
+}
+
+.status-pending {
+    background: rgba(245, 158, 11, 0.2) !important;
+    color: #92400e !important; /* Darker orange for better contrast */
+    border: 1px solid #f59e0b !important;
+}
+
+.status-partial {
+    background: rgba(255, 152, 0, 0.2) !important;
+    color: #ea580c !important; /* Darker orange for better contrast */
+    border: 1px solid #ff9800 !important;
+}
+
+.status-delivered {
+    background: rgba(14, 165, 233, 0.2) !important;
+    color: #0369a1 !important; /* Darker blue for better contrast */
+    border: 1px solid #0ea5e9 !important;
+}
+
+/* Fix meta items in expanded view */
+.case-meta label,
+.meta-item label {
+    color: #6c757d !important;
+    font-weight: 600 !important;
+}
+
+.case-meta span,
+.meta-item span {
+    color: #212529 !important;
+}
+
+/* Fix NFT item text */
+.nft-item {
+    background: #f8f9fa !important;
+}
+
+.nft-label {
+    color: #212529 !important;
+    font-weight: 600 !important;
+}
+
+.nft-id {
+    color: #6c757d !important;
+}
+
+.nft-status {
+    color: #495057 !important;
+}
+
+/* Fix audit log readability */
+.audit-log {
+    background: #f8f9fa !important;
+    color: #212529 !important;
+}
+
+.audit-entry {
+    color: #495057 !important;
+}
+
+.audit-entry .timestamp {
+    color: #6c757d !important;
+}
+
+/* Fix any inherited white text */
+body .case-card *:not(.status-badge):not(.btn):not(button) {
+    color: inherit;
+}
+
+/* Ensure links remain visible */
+.case-card a {
+    color: #0ea5e9 !important;
+}
+
+.case-card a:hover {
+    color: #0284c7 !important;
+}
+
+/* Fix dropdown and expanded content */
+.case-details {
+    background: #ffffff !important;
+    color: #212529 !important;
+}
+
+.case-details h4 {
+    color: #212529 !important;
+    font-weight: 600 !important;
+}
+
+/* Fix any modals or overlays */
+.modal-content {
+    background: #ffffff !important;
+    color: #212529 !important;
+}
+
+/* Fix timestamp text */
+.timestamp, .date-text, .time-text {
+    color: #6c757d !important;
+}
+
+/* Fix empty states */
+.empty-state {
+    color: #6c757d !important;
+}
+
+.empty-state h3 {
+    color: #495057 !important;
+}
+
+/* Fix loading states */
+.loading-text {
+    color: #6c757d !important;
+}
+
+/* Ensure all text on light backgrounds is dark */
+[style*="background: #f8f9fa"],
+[style*="background:#f8f9fa"],
+[style*="background: white"],
+[style*="background:white"],
+[style*="background: #ffffff"],
+[style*="background:#ffffff"],
+[style*="background: #fff"],
+[style*="background:#fff"] {
+    color: #212529 !important;
+}
+
+/* Override any inline styles that might cause issues */
+[style*="color: white"]:not(.btn):not(button):not(.status-badge) {
+    color: #212529 !important;
+}
+
+/* Fix recipient count badge */
+.recipient-count {
+    background: #e3f2fd !important;
+    color: #1565c0 !important; /* Darker blue for better contrast */
+    border: 1px solid #90caf9 !important;
+}
+
+/* Additional contrast fixes for dropdowns and form elements */
+.chain-dropdown {
+    background: #212529 !important;
+    color: #f8f9fa !important;
+    border: 1px solid #495057 !important;
+}
+
+.chain-dropdown option {
+    background: #212529 !important;
+    color: #f8f9fa !important;
+}
+
+.chain-dropdown:hover {
+    border-color: #0ea5e9 !important;
+}
+
+/* Fix select elements */
+select {
+    background: #ffffff !important;
+    color: #212529 !important;
+    border: 1px solid #dee2e6 !important;
+}
+
+select option {
+    background: #ffffff !important;
+    color: #212529 !important;
+}
+
+/* Fix form inputs on white backgrounds */
+.form-input {
+    background: #ffffff !important;
+    color: #212529 !important;
+    border: 1px solid #dee2e6 !important;
+}
+
+.form-input::placeholder {
+    color: #6c757d !important;
+}
+
+.form-input:focus {
+    border-color: #0ea5e9 !important;
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1) !important;
+}
+
+/* Fix notification cards */
+.notification-card {
+    background: #ffffff !important;
+}
+
+.notification-card h3,
+.notification-card h4,
+.notification-card p,
+.notification-card span {
+    color: #212529 !important;
+}
+
+/* Fix alert and warning messages */
+.alert,
+.warning,
+.error-message {
+    background: #fff3cd !important;
+    color: #856404 !important;
+    border: 1px solid #ffeeba !important;
+}
+
+.alert.alert-danger,
+.error-message {
+    background: #f8d7da !important;
+    color: #721c24 !important;
+    border: 1px solid #f5c6cb !important;
+}
+
+.alert.alert-success {
+    background: #d4edda !important;
+    color: #155724 !important;
+    border: 1px solid #c3e6cb !important;
+}
+
+/* Fix wallet search section */
+#walletSearchSection {
+    background: #f8f9fa !important;
+}
+
+#walletSearchSection h3,
+#walletSearchSection p,
+#walletSearchSection label {
+    color: #212529 !important;
+}
+
+/* Fix modal content on white backgrounds */
+.modal-content[style*="background: white"] *,
+.modal-content[style*="background:white"] * {
+    color: #212529 !important;
+}
+
+/* Fix receipt containers */
+.receipt-container {
+    background: #ffffff !important;
+    color: #212529 !important;
+}
+
+.receipt-container h1,
+.receipt-container h2,
+.receipt-container h3,
+.receipt-container h4,
+.receipt-container p,
+.receipt-container span,
+.receipt-container td,
+.receipt-container th {
+    color: #212529 !important;
+}
+
+/* Fix audit trail elements */
+.audit-summary {
+    background: #f8f9fa !important;
+}
+
+.audit-summary h3,
+.audit-summary span,
+.audit-summary p {
+    color: #212529 !important;
+}
+
+/* Fix case group headers */
+.case-group {
+    background: #ffffff !important;
+}
+
+.case-group .case-header {
+    background: #f8f9fa !important;
+}
+
+.case-group h3,
+.case-group span,
+.case-group p {
+    color: #212529 !important;
+}
+
+/* Fix delivery items */
+.delivery-item {
+    background: #ffffff !important;
+}
+
+.delivery-item:hover {
+    background: #e8f4f8 !important;
+}
+
+.delivery-item h4,
+.delivery-item span,
+.delivery-item p {
+    color: #212529 !important;
+}
+
+/* Fix document preview areas */
+[style*="background: white"] h1,
+[style*="background: white"] h2,
+[style*="background: white"] h3,
+[style*="background: white"] h4,
+[style*="background: white"] h5,
+[style*="background: white"] h6,
+[style*="background: white"] p,
+[style*="background: white"] span,
+[style*="background: white"] div,
+[style*="background: white"] label,
+[style*="background: white"] td,
+[style*="background: white"] th {
+    color: #212529 !important;
+}
+
+/* Fix any remaining white text on light backgrounds */
+[style*="background: #f8f9fa"] *:not(.btn):not(button):not(.status-badge),
+[style*="background:#f8f9fa"] *:not(.btn):not(button):not(.status-badge) {
+    color: #212529 !important;
+}
+
+/* Ensure buttons keep their intended styles */
+.btn,
+button {
+    /* Buttons should maintain their original styling */
+}
+
+/* Debug: Add border to any element with white text to identify issues */
+/*
+[style*="color: white"],
+[style*="color:#fff"],
+[style*="color: #fff"],
+[style*="color:#ffffff"],
+[style*="color: #ffffff"] {
+    border: 2px solid red !important;
+}
+*/

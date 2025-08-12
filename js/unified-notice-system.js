@@ -1017,7 +1017,7 @@ class UnifiedNoticeSystem {
                      style="cursor: pointer;">
                     <div class="case-info">
                         <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-                            <h3 style="margin: 0;">Case #${caseData.caseNumber}</h3>
+                            <h3 style="margin: 0; color: #212529;">Case #${caseData.caseNumber}</h3>
                             <span style="color: #6c757d; font-size: 0.9rem;">
                                 <i class="fas fa-clock"></i> ${formattedDate}
                             </span>
@@ -2744,6 +2744,43 @@ class UnifiedNoticeSystem {
     }
 
     /**
+     * Helper function to load image with proper error handling
+     */
+    async loadImageWithFallback(url, description = 'Image') {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            
+            // Set a timeout for image loading
+            const timeout = setTimeout(() => {
+                console.error(`Timeout loading ${description}:`, url);
+                resolve(null);
+            }, 10000); // 10 second timeout
+            
+            img.onload = () => {
+                clearTimeout(timeout);
+                resolve(url);
+            };
+            
+            img.onerror = () => {
+                clearTimeout(timeout);
+                console.error(`Failed to load ${description}:`, url);
+                
+                // Try without crossorigin
+                const img2 = new Image();
+                img2.onload = () => resolve(url);
+                img2.onerror = () => {
+                    console.error(`Second attempt failed for ${description}:`, url);
+                    resolve(null);
+                };
+                img2.src = url;
+            };
+            
+            img.src = url;
+        });
+    }
+
+    /**
      * View Notice - Display unencrypted notice images for process server
      */
     async viewNotice(caseNumber, type = 'both', noticeId = null) {
@@ -2802,74 +2839,116 @@ class UnifiedNoticeSystem {
                 if (data.alertThumbnailUrl || data.documentUnencryptedUrl) {
                     console.log('Notice image URLs:', { alert: data.alertThumbnailUrl, document: data.documentUnencryptedUrl });
                     
+                    // Pre-load images to check if they're accessible
+                    const alertImageValid = data.alertThumbnailUrl ? await this.loadImageWithFallback(data.alertThumbnailUrl, 'Alert Thumbnail') : null;
+                    const documentImageValid = data.documentUnencryptedUrl ? await this.loadImageWithFallback(data.documentUnencryptedUrl, 'Document') : null;
+                    
                     // Display based on type requested
                     if (type === 'alert' && data.alertThumbnailUrl) {
                         // Show only thumbnail for alert type
-                        container.innerHTML = `
-                            <div style="margin-bottom: 20px;">
-                                <h3>Alert Notice Thumbnail</h3>
-                                <img src="${data.alertThumbnailUrl}" 
-                                     style="max-width: 100%; border: 1px solid #ddd; min-height: 200px; background: #f0f0f0;" 
-                                     onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgIDxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjZjBmMGYwIi8+CiAgICA8dGV4dCB4PSI1MCUiIHk9IjUwJSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzk5OSI+SW1hZ2UgTm90IEF2YWlsYWJsZTwvdGV4dD4KPC9zdmc+'; this.alt='Image failed to load';" 
-                                     alt="Alert Notice Thumbnail" />
-                                <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
-                                    Notice ID: ${noticeId || 'Unknown'}
-                                </p>
-                            </div>
-                        `;
-                    } else if (type === 'document' && data.documentUnencryptedUrl) {
-                        // Show full document for document type
-                        // Add blockchain stamp if possible
-                        const txHash = caseData.transactionHash || 'PENDING';
-                        const stampedBlob = await this.stampNoticeWithBlockchain(
-                            data.documentUnencryptedUrl,
-                            txHash,
-                            1,
-                            1
-                        );
-                        
-                        if (stampedBlob) {
-                            const stampedUrl = URL.createObjectURL(stampedBlob);
+                        if (alertImageValid) {
                             container.innerHTML = `
-                                <div>
-                                    <h3>Full Document (Blockchain Stamped)</h3>
-                                    <img src="${stampedUrl}" style="max-width: 100%; border: 1px solid #ddd;" />
-                                    <div style="margin-top: 10px; color: red; font-size: 0.9em;">
-                                        <p>Transaction: ${txHash}</p>
-                                        <p>Stamped: ${new Date().toLocaleString()}</p>
+                                <div style="margin-bottom: 20px;">
+                                    <h3>Alert Notice Thumbnail</h3>
+                                    <div style="border: 1px solid #ddd; background: white; padding: 10px;">
+                                        <img src="${data.alertThumbnailUrl}" 
+                                             style="max-width: 100%; height: auto; display: block;" 
+                                             alt="Alert Notice Thumbnail" />
                                     </div>
-                                </div>
-                            `;
-                        } else {
-                            container.innerHTML = `
-                                <div>
-                                    <h3>Full Document</h3>
-                                    <img src="${data.documentUnencryptedUrl}" 
-                                         style="max-width: 100%; border: 1px solid #ddd; min-height: 200px; background: #f0f0f0;" 
-                                         onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgIDxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjZjBmMGYwIi8+CiAgICA8dGV4dCB4PSI1MCUiIHk9IjUwJSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzk5OSI+SW1hZ2UgTm90IEF2YWlsYWJsZTwvdGV4dD4KPC9zdmc+'; this.alt='Document failed to load';" 
-                                         alt="Document Image" />
                                     <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
-                                        Document ID: ${noticeId || 'Unknown'}
+                                        Notice ID: ${noticeId || 'Unknown'}
                                     </p>
                                 </div>
                             `;
+                        } else {
+                            container.innerHTML = this.createManualUploadInterface(caseNumber, noticeId, `Unable to load alert thumbnail from: ${data.alertThumbnailUrl}`, caseData.transactionHash);
+                        }
+                    } else if (type === 'document' && data.documentUnencryptedUrl) {
+                        // Show full document for document type
+                        if (documentImageValid) {
+                            // Add blockchain stamp if possible
+                            const txHash = caseData.transactionHash || 'PENDING';
+                            const stampedBlob = await this.stampNoticeWithBlockchain(
+                                data.documentUnencryptedUrl,
+                                txHash,
+                                1,
+                                1
+                            );
+                            
+                            if (stampedBlob) {
+                                const stampedUrl = URL.createObjectURL(stampedBlob);
+                                container.innerHTML = `
+                                    <div>
+                                        <h3>Full Document (Blockchain Stamped)</h3>
+                                        <div style="border: 1px solid #ddd; background: white; padding: 10px;">
+                                            <img src="${stampedUrl}" style="max-width: 100%; height: auto; display: block;" alt="Stamped Document" />
+                                        </div>
+                                        <div style="margin-top: 10px; color: red; font-size: 0.9em;">
+                                            <p>Transaction: ${txHash}</p>
+                                            <p>Stamped: ${new Date().toLocaleString()}</p>
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                container.innerHTML = `
+                                    <div>
+                                        <h3>Full Document</h3>
+                                        <div style="border: 1px solid #ddd; background: white; padding: 10px;">
+                                            <img src="${data.documentUnencryptedUrl}" 
+                                                 style="max-width: 100%; height: auto; display: block;" 
+                                                 alt="Document Image" />
+                                        </div>
+                                        <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
+                                            Document ID: ${noticeId || 'Unknown'}
+                                        </p>
+                                    </div>
+                                `;
+                            }
+                        } else {
+                            container.innerHTML = this.createManualUploadInterface(caseNumber, noticeId, `Unable to load document from: ${data.documentUnencryptedUrl}`, caseData.transactionHash);
                         }
                     } else if (type === 'both') {
                         // Show both for the general case
-                        container.innerHTML = `
-                            ${data.alertThumbnailUrl ? `
-                                <div style="margin-bottom: 20px;">
-                                    <h3>Alert Notice</h3>
-                                    <img src="${data.alertThumbnailUrl}" style="max-width: 100%; border: 1px solid #ddd;" />
-                                </div>
-                            ` : ''}
-                            ${data.documentUnencryptedUrl ? `
-                                <div>
-                                    <h3>Document Notice</h3>
-                                    <img src="${data.documentUnencryptedUrl}" style="max-width: 100%; border: 1px solid #ddd;" />
-                                </div>
-                            ` : ''}
-                        `;
+                        const hasValidImages = alertImageValid || documentImageValid;
+                        
+                        if (hasValidImages) {
+                            container.innerHTML = `
+                                ${alertImageValid && data.alertThumbnailUrl ? `
+                                    <div style="margin-bottom: 20px;">
+                                        <h3>Alert Notice</h3>
+                                        <div style="border: 1px solid #ddd; background: white; padding: 10px;">
+                                            <img src="${data.alertThumbnailUrl}" 
+                                                 style="max-width: 100%; height: auto; display: block;" 
+                                                 alt="Alert Notice" />
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                ${documentImageValid && data.documentUnencryptedUrl ? `
+                                    <div>
+                                        <h3>Document Notice</h3>
+                                        <div style="border: 1px solid #ddd; background: white; padding: 10px;">
+                                            <img src="${data.documentUnencryptedUrl}" 
+                                                 style="max-width: 100%; height: auto; display: block;" 
+                                                 alt="Document Notice" />
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                ${!alertImageValid && data.alertThumbnailUrl ? `
+                                    <div style="margin-bottom: 20px; padding: 15px; background: #fee; border: 1px solid #fcc; border-radius: 8px;">
+                                        <p style="color: #c00; margin: 0;">⚠️ Alert thumbnail could not be loaded</p>
+                                        <small style="color: #666;">${data.alertThumbnailUrl}</small>
+                                    </div>
+                                ` : ''}
+                                ${!documentImageValid && data.documentUnencryptedUrl ? `
+                                    <div style="padding: 15px; background: #fee; border: 1px solid #fcc; border-radius: 8px;">
+                                        <p style="color: #c00; margin: 0;">⚠️ Document could not be loaded</p>
+                                        <small style="color: #666;">${data.documentUnencryptedUrl}</small>
+                                    </div>
+                                ` : ''}
+                            `;
+                        } else {
+                            container.innerHTML = this.createManualUploadInterface(caseNumber, noticeId, 'Unable to load any images', caseData.transactionHash);
+                        }
                     } else {
                         container.innerHTML = '<p>No images available for requested type</p>';
                     }

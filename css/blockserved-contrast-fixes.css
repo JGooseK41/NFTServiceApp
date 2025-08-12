@@ -1,0 +1,202 @@
+/* BlockServed App Specific Contrast Fixes */
+
+/* Ensure all text on white backgrounds is dark */
+body {
+    background: #f8f9fa !important;
+    color: #212529 !important;
+}
+
+/* Fix main content areas */
+.container {
+    background: white !important;
+    color: #212529 !important;
+}
+
+/* Fix cards and sections with white backgrounds */
+.card,
+.section,
+[style*="background: white"],
+[style*="background:white"],
+[style*="background: #fff"],
+[style*="background:#fff"] {
+    color: #212529 !important;
+}
+
+/* Ensure all child elements have proper contrast */
+.card *,
+.section *,
+[style*="background: white"] *,
+[style*="background: #fff"] * {
+    color: #212529 !important;
+}
+
+/* Fix notification cards */
+.notice-card {
+    background: white !important;
+    color: #212529 !important;
+    border: 1px solid #dee2e6 !important;
+}
+
+.notice-card h2,
+.notice-card h3,
+.notice-card h4,
+.notice-card p,
+.notice-card span {
+    color: #212529 !important;
+}
+
+/* Fix status badges */
+.status-badge {
+    font-weight: 600 !important;
+}
+
+.status-delivered {
+    background: rgba(14, 165, 233, 0.2) !important;
+    color: #0369a1 !important;
+    border: 1px solid #0ea5e9 !important;
+}
+
+.status-pending {
+    background: rgba(245, 158, 11, 0.2) !important;
+    color: #92400e !important;
+    border: 1px solid #f59e0b !important;
+}
+
+.status-signed {
+    background: rgba(16, 185, 129, 0.2) !important;
+    color: #047857 !important;
+    border: 1px solid #10b981 !important;
+}
+
+/* Fix FAQ sections */
+.faq-item {
+    background: white !important;
+    color: #212529 !important;
+    border: 1px solid #dee2e6 !important;
+}
+
+.faq-header {
+    background: #f8f9fa !important;
+    color: #212529 !important;
+}
+
+.faq-body {
+    color: #495057 !important;
+}
+
+/* Fix warning messages */
+.warning-banner {
+    background: #fff3cd !important;
+    color: #856404 !important;
+    border: 1px solid #ffeeba !important;
+}
+
+.warning-banner h3,
+.warning-banner p {
+    color: #856404 !important;
+}
+
+/* Fix info messages */
+.info-box {
+    background: #d1ecf1 !important;
+    color: #0c5460 !important;
+    border: 1px solid #bee5eb !important;
+}
+
+.info-box h3,
+.info-box p {
+    color: #0c5460 !important;
+}
+
+/* Fix document viewer */
+.document-viewer {
+    background: white !important;
+    color: #212529 !important;
+}
+
+.document-viewer h1,
+.document-viewer h2,
+.document-viewer h3,
+.document-viewer p {
+    color: #212529 !important;
+}
+
+/* Fix modals */
+.modal {
+    background: white !important;
+    color: #212529 !important;
+}
+
+.modal-header {
+    background: #f8f9fa !important;
+    color: #212529 !important;
+}
+
+.modal-body {
+    color: #212529 !important;
+}
+
+/* Fix buttons to maintain their styles */
+.btn-primary {
+    /* Keep original button styling */
+}
+
+.btn-secondary {
+    /* Keep original button styling */
+}
+
+/* Fix gradient backgrounds - ensure text is readable */
+[style*="background: linear-gradient"] {
+    /* Text should remain light on gradient backgrounds */
+}
+
+/* Override for elements that should have light text */
+.gradient-bg,
+.hero-section,
+[style*="background: linear-gradient"] h1,
+[style*="background: linear-gradient"] h2,
+[style*="background: linear-gradient"] p {
+    color: white !important;
+}
+
+/* Fix form inputs */
+input,
+textarea,
+select {
+    background: white !important;
+    color: #212529 !important;
+    border: 1px solid #dee2e6 !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: #6c757d !important;
+}
+
+/* Fix links */
+a {
+    color: #0ea5e9 !important;
+}
+
+a:hover {
+    color: #0284c7 !important;
+}
+
+/* Ensure proper contrast for all text elements */
+h1, h2, h3, h4, h5, h6 {
+    color: #212529 !important;
+}
+
+p, span, div, label {
+    color: inherit;
+}
+
+/* Exception for elements that should have white text */
+.btn-primary,
+.btn-success,
+.btn-danger,
+.btn-warning,
+.gradient-section,
+[style*="background: linear-gradient"] {
+    /* These elements can keep white text */
+}
