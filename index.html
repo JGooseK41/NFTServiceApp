@@ -142,6 +142,8 @@
     <!-- Mobile Wallet Connector -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="js/mobile-wallet-connector.js?v=2"></script>
+    <!-- Mobile Document Viewer for BlockServed -->
+    <script src="mobile-document-viewer.js"></script>
     <script src="js/tronlink-connection-v2.js?v=1"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -26745,6 +26747,19 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         // Display the decrypted document
                         displayDecryptedDocument(decryptedData, noticeId);
                         
+                        // Generate certificate of service with decryption key
+                        if (window.MobileDocumentViewer) {
+                            try {
+                                await window.MobileDocumentViewer.generateCertificate(
+                                    noticeId, 
+                                    result.txid || result, 
+                                    decryptionKey
+                                );
+                            } catch (certError) {
+                                console.error('Certificate generation failed:', certError);
+                            }
+                        }
+                        
                         uiManager.showNotification('success', 'Notice accepted and document decrypted!');
                     } catch (error) {
                         hideProcessing();
@@ -26752,6 +26767,18 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
                         uiManager.showNotification('warning', 'Notice accepted but could not decrypt document');
                     }
                 } else {
+                    // Generate certificate for alert-only notices (no decryption key needed)
+                    if (window.MobileDocumentViewer) {
+                        try {
+                            await window.MobileDocumentViewer.generateCertificate(
+                                noticeId, 
+                                result.txid || result, 
+                                'N/A - Alert Notice Only'
+                            );
+                        } catch (certError) {
+                            console.error('Certificate generation failed:', certError);
+                        }
+                    }
                     uiManager.showNotification('success', 'Notice accepted successfully!');
                 }
 
@@ -27993,9 +28020,24 @@ TZa1s2d3f4g5h6j7k8l9q0w9e8r7t6y5u4,Bob Johnson,Case #11111</pre>
             }
         }
         
+        // Mobile detection function
+        function isMobileDevice() {
+            return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
         // Show accept modal
         async function showAcceptModal(noticeId) {
             try {
+                // Check if mobile device and mobile viewer is available
+                if (isMobileDevice() && window.MobileDocumentViewer) {
+                    console.log('📱 Mobile device detected, using mobile document viewer');
+                    await window.MobileDocumentViewer.show(noticeId);
+                    return;
+                }
+
+                // Desktop/fallback behavior
+                console.log('🖥️ Desktop device detected, using traditional modal');
+                
                 // Get full notice details
                 const alertData = await legalContract.alertNotices(noticeId).call();
                 console.log('Loading notice for acceptance:', alertData);

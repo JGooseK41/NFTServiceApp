@@ -1215,6 +1215,75 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// Mobile Document Viewer API Endpoints
+app.post('/api/documents/view/:noticeId', async (req, res) => {
+  try {
+    const { noticeId } = req.params;
+    const { recipientAddress, signed = false } = req.body;
+    
+    console.log(`📱 Mobile document view request: ${noticeId} by ${recipientAddress}`);
+    
+    // Verify recipient is authorized to view this document
+    const noticeQuery = await pool.query(
+      'SELECT * FROM blockchain_data WHERE notice_id = $1 AND recipient_address = $2',
+      [noticeId, recipientAddress]
+    );
+    
+    if (noticeQuery.rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied - you are not authorized to view this document'
+      });
+    }
+    
+    const notice = noticeQuery.rows[0];
+    
+    // Return document URL (unencrypted for authenticated users)
+    res.json({
+      success: true,
+      documentUrl: notice.document_url || notice.preview_image,
+      imageUrl: notice.preview_image,
+      noticeType: notice.notice_type,
+      caseNumber: notice.case_number,
+      issuingAgency: notice.issuing_agency,
+      timestamp: notice.created_at,
+      signed: signed
+    });
+    
+  } catch (error) {
+    console.error('Mobile document view error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve document'
+    });
+  }
+});
+
+// Audit logging endpoint
+app.post('/api/audit/log', async (req, res) => {
+  try {
+    const { action, notice_id, user_address, details } = req.body;
+    
+    console.log(`📋 Audit log: ${action} by ${user_address}`);
+    
+    // Log to audit table
+    await pool.query(
+      `INSERT INTO audit_trail (action, notice_id, user_address, details, occurred_at) 
+       VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)`,
+      [action, notice_id, user_address, JSON.stringify(details)]
+    );
+    
+    res.json({ success: true });
+    
+  } catch (error) {
+    console.error('Audit logging error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to log audit entry'
+    });
+  }
+});
+
 // Initialize blockchain sync service
 let blockchainSync;
 async function initializeBlockchainSync() {
