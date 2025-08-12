@@ -42,10 +42,29 @@ function overrideFunctions() {
             return;
         }
         
-        // Calculate document size
+        // Calculate document size - check multiple sources
         const documentInput = document.getElementById('documentUploadInput');
-        const documentSizeMB = documentInput?.files?.[0] ? 
-            (documentInput.files[0].size / (1024 * 1024)) : 0;
+        let documentSizeMB = 0;
+        
+        if (documentInput?.files?.[0]) {
+            documentSizeMB = documentInput.files[0].size / (1024 * 1024);
+            console.log('📄 Document from input:', documentSizeMB.toFixed(2), 'MB');
+        } else if (window.encryptedDocumentBlob) {
+            documentSizeMB = window.encryptedDocumentBlob.size / (1024 * 1024);
+            console.log('📄 Document from encrypted blob:', documentSizeMB.toFixed(2), 'MB');
+        } else if (window.currentDocumentSize) {
+            documentSizeMB = window.currentDocumentSize / (1024 * 1024);
+            console.log('📄 Document from stored size:', documentSizeMB.toFixed(2), 'MB');
+        }
+        
+        // OVERRIDE: If we know it's a large document, use 2.5MB minimum
+        if (documentSizeMB > 0 && documentSizeMB < 2.5) {
+            console.log('⚠️ Document detected but seems small, using 2.5MB minimum for safety');
+            documentSizeMB = 2.5;
+        } else if (documentSizeMB === 0) {
+            console.log('⚠️ No document size detected - assuming 2.5MB document for safety');
+            documentSizeMB = 2.5;
+        }
         
         // Get recipient count
         const recipients = window.getAllRecipients ? window.getAllRecipients() : 
@@ -66,10 +85,29 @@ function overrideFunctions() {
             return;
         }
         
-        // Calculate document size
+        // Calculate document size - check multiple sources
         const documentInput = document.getElementById('documentUploadInput');
-        const documentSizeMB = documentInput?.files?.[0] ? 
-            (documentInput.files[0].size / (1024 * 1024)) : 0;
+        let documentSizeMB = 0;
+        
+        if (documentInput?.files?.[0]) {
+            documentSizeMB = documentInput.files[0].size / (1024 * 1024);
+            console.log('📄 Document from input:', documentSizeMB.toFixed(2), 'MB');
+        } else if (window.encryptedDocumentBlob) {
+            documentSizeMB = window.encryptedDocumentBlob.size / (1024 * 1024);
+            console.log('📄 Document from encrypted blob:', documentSizeMB.toFixed(2), 'MB');
+        } else if (window.currentDocumentSize) {
+            documentSizeMB = window.currentDocumentSize / (1024 * 1024);
+            console.log('📄 Document from stored size:', documentSizeMB.toFixed(2), 'MB');
+        }
+        
+        // OVERRIDE: If we know it's a large document, use 2.5MB minimum
+        if (documentSizeMB > 0 && documentSizeMB < 2.5) {
+            console.log('⚠️ Document detected but seems small, using 2.5MB minimum for safety');
+            documentSizeMB = 2.5;
+        } else if (documentSizeMB === 0) {
+            console.log('⚠️ No document size detected - assuming 2.5MB document for safety');
+            documentSizeMB = 2.5;
+        }
         
         // Get recipient count
         const recipients = window.getAllRecipients ? window.getAllRecipients() : 
@@ -124,220 +162,35 @@ window.MandatoryEnergyCheck = {
         // Store params for later use
         this.lastParams = params;
         
-        // Remove any existing dialog
-        const existing = document.getElementById('mandatory-energy-dialog');
-        if (existing) existing.remove();
-        
-        // Remove the floating button if it exists
-        const floatingBtn = Array.from(document.querySelectorAll('button'))
-            .find(btn => btn.textContent.includes('Energy Manager'));
-        if (floatingBtn) floatingBtn.style.display = 'none';
-        
         const needsRental = params.currentEnergy < params.energyDetails.total;
-        const deficit = Math.max(0, params.energyDetails.total - params.currentEnergy);
         
         console.log('🔍 Energy check:');
         console.log('   Current energy:', params.currentEnergy?.toLocaleString());
         console.log('   Required energy:', params.energyDetails.total?.toLocaleString());
         console.log('   Needs rental?', needsRental);
-        console.log('   Deficit:', deficit?.toLocaleString());
         
-        const dialog = document.createElement('div');
-        dialog.id = 'mandatory-energy-dialog';
-        dialog.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.95);
-            z-index: 999999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: fadeIn 0.3s;
-        `;
+        // ALWAYS use StreamlinedEnergyFlow for the UI
+        if (window.StreamlinedEnergyFlow) {
+            window.StreamlinedEnergyFlow.show({
+                energyDetails: params.energyDetails,
+                documentSizeMB: params.documentSizeMB,
+                recipientCount: params.recipientCount,
+                currentEnergy: params.currentEnergy,
+                originalFunction: params.originalFunction
+            });
+            return;
+        }
         
-        // Get best rental option
-        const bestRental = this.getBestRentalOption(params.energyDetails.total);
+        // Fallback if StreamlinedEnergyFlow not loaded
+        if (!needsRental) {
+            // Have enough energy - proceed
+            console.log('✅ Sufficient energy - proceeding with transaction');
+            this.proceedWithTransaction(params.originalFunction);
+            return;
+        }
         
-        dialog.innerHTML = `
-            <div style="
-                background: linear-gradient(135deg, #1a1a2e, #16213e);
-                border: 3px solid ${needsRental ? '#ff0000' : '#00ff00'};
-                border-radius: 15px;
-                padding: 30px;
-                max-width: 700px;
-                width: 90%;
-                max-height: 90vh;
-                overflow-y: auto;
-                color: white;
-                font-family: Arial, sans-serif;
-                box-shadow: 0 20px 60px rgba(0,0,0,0.8);
-            ">
-                <h1 style="color: ${needsRental ? '#ff0000' : '#00ff00'}; margin-bottom: 25px; text-align: center; font-size: 1.8em;">
-                    ${needsRental ? '⚠️ ENERGY REQUIRED' : '✅ ENERGY CHECK'}
-                </h1>
-                
-                <!-- Current Status -->
-                <div style="background: ${needsRental ? 'rgba(255,0,0,0.1)' : 'rgba(0,255,0,0.1)'}; 
-                            border: 2px solid ${needsRental ? '#ff0000' : '#00ff00'}; 
-                            padding: 20px; border-radius: 10px; margin-bottom: 25px;">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 1.1em;">
-                        <div>
-                            <div style="color: #888; font-size: 0.9em;">Your Energy:</div>
-                            <div style="color: ${params.currentEnergy > 100000 ? '#ffff00' : '#ff0000'}; font-weight: bold; font-size: 1.3em;">
-                                ${params.currentEnergy.toLocaleString()}
-                            </div>
-                        </div>
-                        <div>
-                            <div style="color: #888; font-size: 0.9em;">Required:</div>
-                            <div style="color: #ff4444; font-weight: bold; font-size: 1.3em;">
-                                ${params.energyDetails.total.toLocaleString()}
-                            </div>
-                        </div>
-                        ${needsRental ? `
-                            <div>
-                                <div style="color: #888; font-size: 0.9em;">Deficit:</div>
-                                <div style="color: #ff0000; font-weight: bold; font-size: 1.3em;">
-                                    ${deficit.toLocaleString()}
-                                </div>
-                            </div>
-                            <div>
-                                <div style="color: #888; font-size: 0.9em;">Burn Cost:</div>
-                                <div style="color: #ff0000; font-weight: bold; font-size: 1.3em;">
-                                    ${params.energyDetails.estimatedTRXBurn} TRX
-                                </div>
-                            </div>
-                        ` : ''}
-                    </div>
-                </div>
-                
-                ${needsRental ? `
-                    <!-- Critical Warning -->
-                    <div style="background: rgba(255,0,0,0.2); border: 2px solid #ff0000; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                        <h3 style="color: #ff0000; margin: 0 0 10px 0;">🚨 INSUFFICIENT ENERGY!</h3>
-                        <p style="line-height: 1.6; margin: 0;">
-                            You don't have enough energy for this transaction. You must either:
-                        </p>
-                        <ol style="margin: 10px 0 0 20px; line-height: 1.8;">
-                            <li><strong style="color: #00ff00;">Rent Energy (Recommended)</strong> - Save ${(parseFloat(params.energyDetails.estimatedTRXBurn) - bestRental.cost).toFixed(2)} TRX</li>
-                            <li><strong style="color: #ff9900;">Burn TRX</strong> - Pay ${params.energyDetails.estimatedTRXBurn} TRX in fees</li>
-                            <li><strong>Cancel</strong> - Don't proceed with transaction</li>
-                        </ol>
-                    </div>
-                    
-                    <!-- Best Rental Option -->
-                    <div style="background: rgba(0,255,0,0.1); border: 2px solid #00ff00; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                        <h3 style="color: #00ff00; margin: 0 0 10px 0;">💰 Recommended Rental:</h3>
-                        <div style="font-size: 1.1em; line-height: 1.6;">
-                            <strong>${bestRental.service}</strong><br>
-                            Cost: <span style="color: #00ff00; font-weight: bold;">${bestRental.cost.toFixed(2)} TRX</span> for ${bestRental.duration}<br>
-                            <span style="color: #00ff88;">You save: ${(parseFloat(params.energyDetails.estimatedTRXBurn) - bestRental.cost).toFixed(2)} TRX!</span>
-                        </div>
-                    </div>
-                ` : `
-                    <!-- Success Message -->
-                    <div style="background: rgba(0,255,0,0.1); border: 2px solid #00ff00; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                        <h3 style="color: #00ff00; margin: 0 0 10px 0;">✅ Sufficient Energy!</h3>
-                        <p style="line-height: 1.6; margin: 0;">
-                            You have enough energy to complete this transaction without additional fees.
-                        </p>
-                    </div>
-                `}
-                
-                <!-- Energy Breakdown -->
-                <div style="background: rgba(0,0,0,0.4); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                    <h4 style="color: #00ffff; margin: 0 0 10px 0;">📊 Energy Usage Breakdown:</h4>
-                    <div style="font-size: 0.9em; line-height: 1.8;">
-                        <div style="display: grid; grid-template-columns: auto auto; gap: 8px;">
-                            <span>Base Contract:</span>
-                            <span style="text-align: right;">${params.energyDetails.breakdown.baseContract.toLocaleString()}</span>
-                            <span>NFT Minting:</span>
-                            <span style="text-align: right;">${params.energyDetails.breakdown.nftMinting.toLocaleString()}</span>
-                            ${params.documentSizeMB > 0 ? `
-                                <span>Document (${params.documentSizeMB.toFixed(1)}MB):</span>
-                                <span style="text-align: right;">${params.energyDetails.breakdown.documentStorage.toLocaleString()}</span>
-                            ` : ''}
-                            ${params.recipientCount > 1 ? `
-                                <span>Batch (${params.recipientCount} recipients):</span>
-                                <span style="text-align: right;">${(params.energyDetails.breakdown.perRecipient * params.recipientCount).toLocaleString()}</span>
-                            ` : ''}
-                            <span style="border-top: 1px solid #444; padding-top: 5px;">Safety Buffer:</span>
-                            <span style="border-top: 1px solid #444; padding-top: 5px; text-align: right;">${params.energyDetails.buffer.toLocaleString()}</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Action Buttons -->
-                <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
-                    ${needsRental ? `
-                        <button onclick="MandatoryEnergyCheck.openRentalServices()" style="
-                            padding: 15px 30px;
-                            background: linear-gradient(135deg, #00ff00, #00aa00);
-                            color: black;
-                            border: none;
-                            border-radius: 10px;
-                            font-weight: bold;
-                            cursor: pointer;
-                            font-size: 1.1em;
-                            box-shadow: 0 5px 15px rgba(0,255,0,0.3);
-                        ">
-                            ⚡ Rent Energy Now
-                        </button>
-                        
-                        <button onclick="MandatoryEnergyCheck.proceedWithBurn('${params.originalFunction}', ${params.energyDetails.estimatedTRXBurn})" style="
-                            padding: 15px 30px;
-                            background: linear-gradient(135deg, #ff9900, #ff6600);
-                            color: white;
-                            border: none;
-                            border-radius: 10px;
-                            font-weight: bold;
-                            cursor: pointer;
-                            font-size: 1.1em;
-                        ">
-                            🔥 Burn ${params.energyDetails.estimatedTRXBurn} TRX
-                        </button>
-                    ` : `
-                        <button onclick="MandatoryEnergyCheck.proceedWithTransaction('${params.originalFunction}')" style="
-                            padding: 15px 30px;
-                            background: linear-gradient(135deg, #00ff00, #00aa00);
-                            color: black;
-                            border: none;
-                            border-radius: 10px;
-                            font-weight: bold;
-                            cursor: pointer;
-                            font-size: 1.1em;
-                            box-shadow: 0 5px 15px rgba(0,255,0,0.3);
-                        ">
-                            ✅ Proceed with Transaction
-                        </button>
-                    `}
-                    
-                    <button onclick="MandatoryEnergyCheck.cancel()" style="
-                        padding: 15px 30px;
-                        background: #666;
-                        color: white;
-                        border: none;
-                        border-radius: 10px;
-                        font-weight: bold;
-                        cursor: pointer;
-                        font-size: 1.1em;
-                    ">
-                        ❌ Cancel
-                    </button>
-                </div>
-                
-                <div style="margin-top: 20px; text-align: center;">
-                    <a href="#" onclick="document.getElementById('energy-guide-modal')?.style.display='block'; return false;" 
-                       style="color: #00ffff; text-decoration: none; font-size: 0.9em;">
-                        ❓ Learn more about energy and why rental saves money
-                    </a>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(dialog);
+        // Need rental - open TronSave
+        this.openRentalServices();
     },
     
     getBestRentalOption(energyNeeded) {
