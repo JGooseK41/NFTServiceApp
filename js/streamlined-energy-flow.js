@@ -817,11 +817,24 @@ window.StreamlinedEnergyFlow = {
         const modal = document.getElementById('streamlined-energy-modal');
         if (modal) modal.remove();
         
-        // Continue with original transaction
+        // Also remove mandatory energy dialog if it exists
+        const mandatoryDialog = document.getElementById('mandatory-energy-dialog');
+        if (mandatoryDialog) mandatoryDialog.remove();
+        
+        // IMPORTANT: Bypass energy checks and continue with ORIGINAL transaction
+        // We've already rented energy, so go directly to the actual function
         if (window._originalCreateLegalNotice) {
+            // Call the REAL original function, not the wrapped one
             window._originalCreateLegalNotice();
         } else if (window._originalCreateLegalNoticeWithStaging) {
+            // Call the REAL original function, not the wrapped one
             window._originalCreateLegalNoticeWithStaging();
+        } else {
+            // Fallback: try to call the transaction directly
+            console.log('Proceeding with transaction after energy rental...');
+            if (window.TransactionStaging && window.TransactionStaging.processTransaction) {
+                window.TransactionStaging.processTransaction();
+            }
         }
     },
     

@@ -424,14 +424,22 @@ window.TronSaveAPI = {
      */
     async createEnergyOrderV2(resourceAmount, durationSec = 3600, receiverAddress) {
         try {
+            console.log(`📊 Requesting ${resourceAmount} energy for ${durationSec} seconds`);
+            
             // Step 1: Estimate cost
             const estimate = await this.estimateTRXv2(resourceAmount, durationSec);
             if (!estimate.success) {
                 throw new Error('Failed to estimate: ' + estimate.error);
             }
             
+            console.log(`💰 Estimated cost: ${estimate.estimateTrx / 1000000} TRX`);
+            console.log(`📦 Available energy: ${estimate.availableResource}`);
+            
             if (!estimate.isFullyAvailable) {
-                console.warn(`Only ${estimate.availableResource} energy available, requested ${resourceAmount}`);
+                console.warn(`⚠️ Only ${estimate.availableResource} energy available, requested ${resourceAmount}`);
+                if (estimate.availableResource < resourceAmount * 0.8) {
+                    throw new Error(`Insufficient energy available. Only ${estimate.availableResource} available, need ${resourceAmount}`);
+                }
             }
             
             // Step 2: Build signed transaction
@@ -1129,7 +1137,7 @@ window.TronSaveAPI = {
                         </div>
                     </div>
                     
-                    <button onclick="StreamlinedEnergyFlow.proceed()" style="
+                    <button onclick="TronSaveAPI.continueAfterRental()" style="
                         width: 100%;
                         background: linear-gradient(135deg, #10b981, #059669);
                         color: white;
@@ -1226,8 +1234,35 @@ if (window.StreamlinedEnergyFlow) {
             // Show loading
             window.TronSaveAPI.showPurchaseProgress(energyNeeded, '1 hour');
             
+            // Check current energy first
+            let currentEnergy = 0;
+            if (window.ManualEnergyRental) {
+                const status = await window.ManualEnergyRental.checkEnergyStatus();
+                currentEnergy = status?.energy?.total || 0;
+                console.log(`Current energy: ${currentEnergy}, Needed: ${energyNeeded}`);
+            }
+            
+            // Only rent what we're missing plus 20% buffer
+            const deficit = Math.max(0, energyNeeded - currentEnergy);
+            if (deficit === 0) {
+                console.log('✅ Already have sufficient energy!');
+                window.TronSaveAPI.showPurchaseSuccess({ 
+                    resourceAmount: 0, 
+                    method: 'none',
+                    message: 'Already have sufficient energy'
+                });
+                return;
+            }
+            
+            const deficitWithBuffer = Math.ceil(deficit * 1.2);
+            console.log(`📊 Energy calculation:`);
+            console.log(`  Current: ${currentEnergy}`);
+            console.log(`  Needed: ${energyNeeded}`);
+            console.log(`  Deficit: ${deficit}`);
+            console.log(`  Renting: ${deficitWithBuffer} (deficit + 20% buffer)`);
+            
             // Execute purchase with signed transaction
-            const result = await window.TronSaveAPI.createEnergyOrderV2(energyNeeded, duration);
+            const result = await window.TronSaveAPI.createEnergyOrderV2(deficitWithBuffer, duration);
             
             if (result.success) {
                 window.TronSaveAPI.showPurchaseSuccess(result);
@@ -1256,6 +1291,42 @@ if (window.StreamlinedEnergyFlow) {
             }, 2000);
         }
     };
+}
+
+// Function to continue after successful rental
+window.TronSaveAPI.continueAfterRental = async function() {
+    console.log('✅ Energy rented, verifying before continuing...');
+    
+    // Close all energy-related modals
+    document.getElementById('streamlined-energy-modal')?.remove();
+    document.getElementById('mandatory-energy-dialog')?.remove();
+    document.getElementById('tronsave-api-modal')?.remove();
+    
+    // Wait a moment for energy to be delegated
+    console.log('Waiting 3 seconds for energy delegation...');
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    // Check energy status to confirm
+    if (window.ManualEnergyRental) {
+        const status = await window.ManualEnergyRental.checkEnergyStatus();
+        console.log(`Current energy after rental: ${status?.energy?.total || 0}`);
+    }
+    
+    // Call the ORIGINAL transaction function directly
+    // This bypasses all energy checks since we just rented
+    if (window._originalCreateLegalNotice) {
+        console.log('Calling original createLegalNotice...');
+        window._originalCreateLegalNotice();
+    } else if (window._originalCreateLegalNoticeWithStaging) {
+        console.log('Calling original createLegalNoticeWithStaging...');
+        window._originalCreateLegalNoticeWithStaging();
+    } else if (window.TransactionStaging?.processTransaction) {
+        console.log('Calling TransactionStaging.processTransaction...');
+        window.TransactionStaging.processTransaction();
+    } else {
+        console.error('No transaction function found to continue!');
+        alert('Transaction function not found. Please try creating the NFT again.');
+    }
 }
 
 // Initialize on load

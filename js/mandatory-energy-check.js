@@ -26,6 +26,10 @@ function overrideFunctions() {
     _originalCreateLegalNotice = window.createLegalNotice;
     _originalCreateLegalNoticeWithStaging = window.createLegalNoticeWithStaging;
     
+    // Store originals globally for TronSave to use
+    window._originalCreateLegalNotice = _originalCreateLegalNotice;
+    window._originalCreateLegalNoticeWithStaging = _originalCreateLegalNoticeWithStaging;
+    
     // Override BOTH create functions to force energy check
     window.createLegalNotice = async function() {
         console.log('🚨 MANDATORY ENERGY CHECK INITIATED');
