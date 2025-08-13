@@ -2905,7 +2905,7 @@ class UnifiedNoticeSystem {
         let accessToken = null;
         const walletAddress = window.tronWeb?.defaultAddress?.base58;
         
-        // If viewing a document and wallet is connected, verify access
+        // Check access control for documents and 'both' type, but not for alerts alone
         if ((type === 'document' || type === 'both') && walletAddress && window.documentAccessControl) {
             console.log('🔐 Checking document access for wallet:', walletAddress);
             console.log('Notice ID:', noticeId, 'Type:', type);
@@ -3019,7 +3019,7 @@ class UnifiedNoticeSystem {
                     
                     // Display based on type requested
                     if (type === 'alert') {
-                        // For alert type, show alert thumbnail ONLY
+                        // For alert type, show alert thumbnail ONLY - no fallback to document
                         if (data.alertThumbnailUrl && alertImageValid) {
                             container.innerHTML = `
                                 <div style="margin-bottom: 20px;">
@@ -3030,30 +3030,26 @@ class UnifiedNoticeSystem {
                                              alt="Alert Notice Thumbnail" />
                                     </div>
                                     <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
-                                        Notice ID: ${noticeId || 'Unknown'}
-                                    </p>
-                                </div>
-                            `;
-                        } else if (data.documentUnencryptedUrl && documentImageValid) {
-                            // If no alert thumbnail but document exists, show document with note
-                            container.innerHTML = `
-                                <div style="margin-bottom: 20px;">
-                                    <h3>Document Image</h3>
-                                    <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 5px; padding: 10px; margin-bottom: 10px;">
-                                        <small>Note: Alert thumbnail not available, showing document instead</small>
-                                    </div>
-                                    <div style="border: 1px solid #ddd; background: white; padding: 10px;">
-                                        <img src="${data.documentUnencryptedUrl}" 
-                                             style="max-width: 100%; height: auto; display: block;" 
-                                             alt="Document Image" />
-                                    </div>
-                                    <p style="color: #666; font-size: 0.9em; margin-top: 10px;">
-                                        Notice ID: ${noticeId || 'Unknown'}
+                                        Alert Token ID: ${noticeId || 'Unknown'}
                                     </p>
                                 </div>
                             `;
                         } else {
-                            container.innerHTML = this.createManualUploadInterface(caseNumber, noticeId, `No alert thumbnail available for this notice`, caseData.transactionHash);
+                            // Don't show document when viewing alert - show missing alert message
+                            container.innerHTML = `
+                                <div style="margin-bottom: 20px;">
+                                    <h3>Alert Notice</h3>
+                                    <div style="background: #fee; border: 2px solid #fcc; padding: 20px; border-radius: 8px;">
+                                        <p style="color: #c00; margin: 0;">
+                                            <i class="fas fa-exclamation-triangle"></i> Alert thumbnail not available
+                                        </p>
+                                        <p style="color: #666; margin-top: 10px; font-size: 0.9em;">
+                                            The alert image for Token ID ${noticeId} could not be loaded.
+                                        </p>
+                                    </div>
+                                    ${this.createManualUploadInterface(caseNumber, noticeId, `Alert thumbnail missing`, caseData.transactionHash)}
+                                </div>
+                            `;
                         }
                     } else if (type === 'document') {
                         // Show full document for document type
