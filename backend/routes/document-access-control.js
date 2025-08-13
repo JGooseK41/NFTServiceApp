@@ -51,6 +51,7 @@ router.post('/verify-recipient', async (req, res) => {
         
         // If not found in token_tracking, try notice_components
         if (result.rows.length === 0) {
+            console.log(`Checking notice_components for tokens: alert=${alertTokenId}, doc=${documentTokenId}`);
             result = await pool.query(`
                 SELECT 
                     recipient_address,
@@ -60,7 +61,7 @@ router.post('/verify-recipient', async (req, res) => {
                     server_address,
                     status
                 FROM notice_components
-                WHERE alert_token_id = $1 OR document_token_id = $2 OR alert_token_id = $2 OR document_token_id = $1
+                WHERE alert_token_id IN ($1, $2) OR document_token_id IN ($1, $2)
                 LIMIT 1
             `, [alertTokenId, documentTokenId]);
         }
@@ -76,6 +77,15 @@ router.post('/verify-recipient', async (req, res) => {
         const isRecipient = notice.recipient_address?.toLowerCase() === walletAddress?.toLowerCase();
         const isServer = notice.server_address?.toLowerCase() === walletAddress?.toLowerCase();
         const hasAccess = isRecipient || isServer;
+        
+        console.log('Access check:', {
+            walletAddress: walletAddress?.toLowerCase(),
+            recipientAddress: notice.recipient_address?.toLowerCase(),
+            serverAddress: notice.server_address?.toLowerCase(),
+            isRecipient,
+            isServer,
+            hasAccess
+        });
         
         // Create access token if recipient or server
         let accessToken = null;

@@ -2908,18 +2908,36 @@ class UnifiedNoticeSystem {
         // If viewing a document and wallet is connected, verify access
         if ((type === 'document' || type === 'both') && walletAddress && window.documentAccessControl) {
             console.log('🔐 Checking document access for wallet:', walletAddress);
+            console.log('Notice ID:', noticeId, 'Type:', type);
+            console.log('First recipient:', firstRecipient);
+            
+            // For document view, use the noticeId if it's a document ID, otherwise use documentId
+            let checkAlertId = firstRecipient.alertId;
+            let checkDocId = firstRecipient.documentId;
+            
+            // If the noticeId matches documentId, we're viewing a document
+            if (noticeId && noticeId === firstRecipient.documentId) {
+                console.log('Viewing document directly, using document ID:', noticeId);
+                checkDocId = noticeId;
+            } else if (noticeId && noticeId === firstRecipient.alertId) {
+                console.log('Viewing from alert ID, using paired document ID:', firstRecipient.documentId);
+            }
+            
             const accessResult = await window.documentAccessControl.verifyRecipient(
                 walletAddress,
-                firstRecipient.alertId,
-                firstRecipient.documentId
+                checkAlertId,
+                checkDocId
             );
             isRecipient = accessResult.isRecipient;
             isServer = accessResult.isServer;
             hasAccess = accessResult.accessGranted;
             accessToken = accessResult.accessToken;
             
+            console.log('Access result:', { isRecipient, isServer, hasAccess });
+            
             // If no access and trying to view document only, show restricted message
             if (!hasAccess && type === 'document') {
+                console.log('Access denied for document view');
                 window.documentAccessControl.showAccessRestricted();
                 return;
             }

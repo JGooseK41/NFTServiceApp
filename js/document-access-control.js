@@ -31,6 +31,8 @@ class DocumentAccessControl {
             
             const result = await response.json();
             
+            console.log('Access verification response:', result);
+            
             this.walletAddress = walletAddress;
             this.isRecipient = result.isRecipient;
             this.isServer = result.isServer;
