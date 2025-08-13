@@ -27,6 +27,8 @@ router.post('/verify-recipient', async (req, res) => {
             signature // Optional: signed message for extra verification
         } = req.body;
         
+        console.log('Access verification request:', { walletAddress, alertTokenId, documentTokenId });
+        
         // Get the intended recipient and server from token tracking or notice_components
         let result;
         

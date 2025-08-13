@@ -229,11 +229,16 @@ class NoticeWorkflow {
         try {
             const endpoint = `${this.backendUrl}/api/notices/served`;
             
+            // Ensure we have a server address
+            const serverAddr = noticeRecord.serverAddress || 
+                              (window.tronWeb && window.tronWeb.defaultAddress ? window.tronWeb.defaultAddress.base58 : null) ||
+                              'TJRex3vGsNeoNjKWEXsM87qCDdvqV7Koa6';
+            
             const payload = {
                 noticeId: noticeRecord.blockchain?.noticeId || noticeRecord.id,
                 alertId: noticeRecord.blockchain?.alertId,
                 documentId: noticeRecord.blockchain?.documentId,
-                serverAddress: noticeRecord.serverAddress,
+                serverAddress: serverAddr,
                 recipientAddress: noticeRecord.recipientAddress,
                 noticeType: noticeRecord.noticeType,
                 issuingAgency: noticeRecord.issuingAgency,

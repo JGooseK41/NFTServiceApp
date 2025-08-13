@@ -410,9 +410,14 @@ class UnifiedNoticeSystem {
         noticeData.serverAddress = this.serverAddress;
         
         // Structure the notice properly
+        // Ensure we have a server address
+        const serverAddr = this.serverAddress || 
+                          (window.tronWeb && window.tronWeb.defaultAddress ? window.tronWeb.defaultAddress.base58 : null) ||
+                          'TJRex3vGsNeoNjKWEXsM87qCDdvqV7Koa6';
+        
         const structuredNotice = {
             caseNumber: noticeData.caseNumber,
-            serverAddress: this.serverAddress,
+            serverAddress: serverAddr,
             recipientAddress: noticeData.recipientAddress,
             recipientName: noticeData.recipientName || '',
             noticeType: noticeData.noticeType || 'Legal Notice',
@@ -633,9 +638,14 @@ class UnifiedNoticeSystem {
                             }
                         }
                         
+                        // Ensure we have a server address
+                        const serverAddr = this.serverAddress || 
+                                          (window.tronWeb && window.tronWeb.defaultAddress ? window.tronWeb.defaultAddress.base58 : null) ||
+                                          'TJRex3vGsNeoNjKWEXsM87qCDdvqV7Koa6';
+                        
                         const notice = {
                             alertId: i.toString(),
-                            serverAddress: this.serverAddress, // Use OUR address, not null
+                            serverAddress: serverAddr, // Use the ensured address
                             recipientAddress: tronWeb.address.fromHex(alertData[1]),
                             alertURI: alertData[2],
                             alertDescription: alertData[3],
@@ -754,7 +764,7 @@ class UnifiedNoticeSystem {
                     noticeId: notice.alertId,
                     alertId: notice.alertId,
                     documentId: notice.documentId,
-                    serverAddress: this.serverAddress,
+                    serverAddress: this.serverAddress || 'TJRex3vGsNeoNjKWEXsM87qCDdvqV7Koa6',
                     recipient: notice.recipientAddress,
                     recipientAddress: notice.recipientAddress,
                     caseNumber: notice.caseNumber,
@@ -799,6 +809,11 @@ class UnifiedNoticeSystem {
                 // Ignore - we'll update anyway
             }
             
+            // Ensure we have a server address
+            const serverAddr = this.serverAddress || 
+                              (window.tronWeb && window.tronWeb.defaultAddress ? window.tronWeb.defaultAddress.base58 : null) ||
+                              'TJRex3vGsNeoNjKWEXsM87qCDdvqV7Koa6'; // Fallback to your known address
+            
             const response = await fetch(`${this.backend}/api/notices/served`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -806,7 +821,7 @@ class UnifiedNoticeSystem {
                     noticeId: notice.alertId,
                     alertId: notice.alertId,
                     documentId: notice.documentId,
-                    serverAddress: this.serverAddress, // Always use OUR address
+                    serverAddress: serverAddr, // Use the ensured address
                     recipientAddress: notice.recipientAddress,
                     caseNumber: actualCaseNumber,
                     noticeType: 'Legal Notice',
