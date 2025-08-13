@@ -410,14 +410,23 @@ class UnifiedNoticeSystem {
         noticeData.serverAddress = this.serverAddress;
         
         // Structure the notice properly
-        // Ensure we have a server address
-        const serverAddr = this.serverAddress || 
-                          (window.tronWeb && window.tronWeb.defaultAddress ? window.tronWeb.defaultAddress.base58 : null) ||
-                          'TJRex3vGsNeoNjKWEXsM87qCDdvqV7Koa6';
+        // Get the connected wallet address (they MUST be connected to create a notice)
+        const connectedWallet = window.tronWeb && window.tronWeb.defaultAddress ? 
+                               window.tronWeb.defaultAddress.base58 : null;
+        
+        if (!connectedWallet) {
+            throw new Error('Wallet not connected. Cannot create notice without wallet connection.');
+        }
+        
+        // Update our server address if needed
+        if (!this.serverAddress || this.serverAddress !== connectedWallet) {
+            this.serverAddress = connectedWallet;
+            console.log('Updated server address to connected wallet:', connectedWallet);
+        }
         
         const structuredNotice = {
             caseNumber: noticeData.caseNumber,
-            serverAddress: serverAddr,
+            serverAddress: connectedWallet,
             recipientAddress: noticeData.recipientAddress,
             recipientName: noticeData.recipientName || '',
             noticeType: noticeData.noticeType || 'Legal Notice',
@@ -638,14 +647,15 @@ class UnifiedNoticeSystem {
                             }
                         }
                         
-                        // Ensure we have a server address
-                        const serverAddr = this.serverAddress || 
-                                          (window.tronWeb && window.tronWeb.defaultAddress ? window.tronWeb.defaultAddress.base58 : null) ||
-                                          'TJRex3vGsNeoNjKWEXsM87qCDdvqV7Koa6';
+                        // Since blockchain has null address as server, use the actual connected wallet
+                        // The person syncing MUST be the server (for now, that's you)
+                        const actualServerAddress = this.serverAddress || 
+                                                   (window.tronWeb && window.tronWeb.defaultAddress ? 
+                                                    window.tronWeb.defaultAddress.base58 : null);
                         
                         const notice = {
                             alertId: i.toString(),
-                            serverAddress: serverAddr, // Use the ensured address
+                            serverAddress: actualServerAddress, // Use actual server address, not blockchain's null address
                             recipientAddress: tronWeb.address.fromHex(alertData[1]),
                             alertURI: alertData[2],
                             alertDescription: alertData[3],
@@ -809,10 +819,17 @@ class UnifiedNoticeSystem {
                 // Ignore - we'll update anyway
             }
             
-            // Ensure we have a server address
-            const serverAddr = this.serverAddress || 
-                              (window.tronWeb && window.tronWeb.defaultAddress ? window.tronWeb.defaultAddress.base58 : null) ||
-                              'TJRex3vGsNeoNjKWEXsM87qCDdvqV7Koa6'; // Fallback to your known address
+            // Get the connected wallet address (they MUST be connected to have blockchain notices)
+            const connectedWallet = window.tronWeb && window.tronWeb.defaultAddress ? 
+                                   window.tronWeb.defaultAddress.base58 : null;
+            
+            // Use connected wallet, or stored server address, or the notice's server address
+            const serverAddr = connectedWallet || this.serverAddress || notice.serverAddress;
+            
+            if (!serverAddr) {
+                console.error('No server address available for notice:', notice);
+                return; // Skip this notice
+            }
             
             const response = await fetch(`${this.backend}/api/notices/served`, {
                 method: 'POST',

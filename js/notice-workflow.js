@@ -229,10 +229,17 @@ class NoticeWorkflow {
         try {
             const endpoint = `${this.backendUrl}/api/notices/served`;
             
-            // Ensure we have a server address
-            const serverAddr = noticeRecord.serverAddress || 
-                              (window.tronWeb && window.tronWeb.defaultAddress ? window.tronWeb.defaultAddress.base58 : null) ||
-                              'TJRex3vGsNeoNjKWEXsM87qCDdvqV7Koa6';
+            // Get the connected wallet address (process server must be connected)
+            const connectedWallet = window.tronWeb && window.tronWeb.defaultAddress ? 
+                                   window.tronWeb.defaultAddress.base58 : null;
+            
+            // Use the notice's server address if available, otherwise use connected wallet
+            const serverAddr = noticeRecord.serverAddress || connectedWallet;
+            
+            if (!serverAddr) {
+                console.error('No server address available for notice tracking');
+                return;
+            }
             
             const payload = {
                 noticeId: noticeRecord.blockchain?.noticeId || noticeRecord.id,
