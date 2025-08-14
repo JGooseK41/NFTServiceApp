@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Access Control Verification</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #1a1a1a;
+            color: #0f0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #0ff;
+            border-bottom: 2px solid #0ff;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            background: #222;
+            border: 1px solid #444;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+        }
+        .pass {
+            background: #1a3a1a;
+            border-left: 4px solid #0f0;
+        }
+        .fail {
+            background: #3a1a1a;
+            border-left: 4px solid #f00;
+        }
+        .pending {
+            background: #3a3a1a;
+            border-left: 4px solid #ff0;
+        }
+        button {
+            background: #0ff;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-family: monospace;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #0aa;
+        }
+        .wallet-info {
+            background: #333;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 3px;
+        }
+        pre {
+            background: #111;
+            padding: 10px;
+            overflow-x: auto;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 Access Control Verification Dashboard</h1>
+        
+        <div class="wallet-info">
+            <strong>Wallet Status:</strong> <span id="walletStatus">Not Connected</span><br>
+            <strong>Address:</strong> <span id="walletAddress">-</span>
+        </div>
+
+        <div class="test-section">
+            <h2>Quick Tests</h2>
+            <button onclick="checkWallet()">Check Wallet</button>
+            <button onclick="testMyServedNotices()">Test My Served Notices</button>
+            <button onclick="testMyReceivedNotices()">Test My Received Notices</button>
+            <button onclick="runAllTests()">Run All Tests</button>
+        </div>
+
+        <div class="test-section">
+            <h2>Specific Notice Test</h2>
+            <input type="number" id="noticeId" placeholder="Notice ID" style="padding: 5px; margin-right: 10px;">
+            <button onclick="testSpecificNotice()">Test Access</button>
+        </div>
+
+        <div class="test-section">
+            <h2>Test Results</h2>
+            <div id="results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Console Output</h2>
+            <pre id="console"></pre>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'https://nftserviceapp.onrender.com';
+        
+        function log(message, type = 'info') {
+            const consoleEl = document.getElementById('console');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? 'color: #f00' : type === 'success' ? 'color: #0f0' : '';
+            consoleEl.innerHTML += `<span style="${color}">[${timestamp}] ${message}</span>\n`;
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        function addResult(title, status, details) {
+            const resultsEl = document.getElementById('results');
+            const statusClass = status === 'PASS' ? 'pass' : status === 'FAIL' ? 'fail' : 'pending';
+            resultsEl.innerHTML += `
+                <div class="test-result ${statusClass}">
+                    <strong>${title}</strong>: ${status}<br>
+                    ${details ? `<small>${details}</small>` : ''}
+                </div>
+            `;
+        }
+
+        async function checkWallet() {
+            if (typeof window.tronWeb !== 'undefined' && window.tronWeb.defaultAddress.base58) {
+                const address = window.tronWeb.defaultAddress.base58;
+                document.getElementById('walletStatus').textContent = 'Connected';
+                document.getElementById('walletAddress').textContent = address;
+                log(`Wallet connected: ${address}`, 'success');
+                return address;
+            } else {
+                document.getElementById('walletStatus').textContent = 'Not Connected';
+                document.getElementById('walletAddress').textContent = '-';
+                log('No wallet connected. Please connect TronLink.', 'error');
+                alert('Please connect your TronLink wallet first!');
+                return null;
+            }
+        }
+
+        async function testMyServedNotices() {
+            const wallet = await checkWallet();
+            if (!wallet) return;
+
+            log('Testing served notices access...');
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/notices/my-served`, {
+                    headers: {
+                        'X-Wallet-Address': wallet,
+                        'X-Server-Address': wallet
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`Found ${data.totalNotices} served notices`, 'success');
+                    addResult('Served Notices Access', 'PASS', `Found ${data.totalNotices} notices`);
+                    
+                    if (data.notices && data.notices.length > 0) {
+                        log('Sample notices:');
+                        data.notices.slice(0, 3).forEach(n => {
+                            log(`  - Notice #${n.notice_id} to ${n.recipient_address?.substring(0, 10)}...`);
+                        });
+                    }
+                } else {
+                    log(`Access denied: ${response.status}`, 'error');
+                    addResult('Served Notices Access', 'FAIL', `HTTP ${response.status}`);
+                }
+            } catch (e) {
+                log(`Error: ${e.message}`, 'error');
+                addResult('Served Notices Access', 'FAIL', e.message);
+            }
+        }
+
+        async function testMyReceivedNotices() {
+            const wallet = await checkWallet();
+            if (!wallet) return;
+
+            log('Testing received notices access...');
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/notices/my-received`, {
+                    headers: {
+                        'X-Wallet-Address': wallet
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`Found ${data.totalNotices} received notices`, 'success');
+                    addResult('Received Notices Access', 'PASS', `Found ${data.totalNotices} notices`);
+                    
+                    if (data.notices && data.notices.length > 0) {
+                        log('Sample notices:');
+                        data.notices.slice(0, 3).forEach(n => {
+                            log(`  - Notice #${n.notice_id} from ${n.server_address?.substring(0, 10)}...`);
+                        });
+                    }
+                } else {
+                    log(`Access denied: ${response.status}`, 'error');
+                    addResult('Received Notices Access', 'FAIL', `HTTP ${response.status}`);
+                }
+            } catch (e) {
+                log(`Error: ${e.message}`, 'error');
+                addResult('Received Notices Access', 'FAIL', e.message);
+            }
+        }
+
+        async function testSpecificNotice() {
+            const wallet = await checkWallet();
+            if (!wallet) return;
+
+            const noticeId = document.getElementById('noticeId').value;
+            if (!noticeId) {
+                alert('Please enter a notice ID');
+                return;
+            }
+
+            log(`Testing access to notice ${noticeId}...`);
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/notices/${noticeId}/images`, {
+                    headers: {
+                        'X-Wallet-Address': wallet,
+                        'X-Server-Address': wallet
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    log(`Access GRANTED to notice ${noticeId}`, 'success');
+                    log(`Access type: ${data.accessType}`);
+                    log(`Message: ${data.message}`);
+                    addResult(`Notice #${noticeId} Access`, 'PASS', data.message);
+                } else if (response.status === 403) {
+                    log(`Access DENIED to notice ${noticeId}`, 'error');
+                    log(`Reason: ${data.message}`);
+                    addResult(`Notice #${noticeId} Access`, 'FAIL', 'Access Denied');
+                } else if (response.status === 404) {
+                    log(`Notice ${noticeId} not found`, 'error');
+                    addResult(`Notice #${noticeId} Access`, 'FAIL', 'Not Found');
+                } else {
+                    log(`Error: ${data.error}`, 'error');
+                    addResult(`Notice #${noticeId} Access`, 'FAIL', data.error);
+                }
+            } catch (e) {
+                log(`Error: ${e.message}`, 'error');
+                addResult(`Notice #${noticeId} Access`, 'FAIL', e.message);
+            }
+        }
+
+        async function runAllTests() {
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('console').innerHTML = '';
+            
+            log('Starting comprehensive access control tests...', 'success');
+            
+            const wallet = await checkWallet();
+            if (!wallet) return;
+
+            // Test CORS headers
+            log('\nTesting CORS headers...');
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/health`, {
+                    headers: {
+                        'X-Wallet-Address': wallet
+                    }
+                });
+                addResult('CORS Headers', 'PASS', 'Headers accepted');
+                log('CORS headers working', 'success');
+            } catch (e) {
+                addResult('CORS Headers', 'FAIL', e.message);
+                log('CORS headers failed', 'error');
+            }
+
+            // Test served notices
+            await testMyServedNotices();
+            
+            // Test received notices
+            await testMyReceivedNotices();
+
+            // Test unauthorized access (using a fake notice ID)
+            log('\nTesting unauthorized access blocking...');
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/notices/999999/images`, {
+                    headers: {
+                        'X-Wallet-Address': 'TUnauthorized123456789'
+                    }
+                });
+                
+                if (response.status === 403) {
+                    addResult('Unauthorized Access Block', 'PASS', 'Access correctly denied');
+                    log('Unauthorized access correctly blocked', 'success');
+                } else {
+                    addResult('Unauthorized Access Block', 'FAIL', 'Access not blocked!');
+                    log('WARNING: Unauthorized access not blocked!', 'error');
+                }
+            } catch (e) {
+                addResult('Unauthorized Access Block', 'PENDING', e.message);
+            }
+
+            log('\nAll tests completed!', 'success');
+        }
+
+        // Auto-check wallet on load
+        window.addEventListener('load', () => {
+            setTimeout(checkWallet, 1000);
+        });
+    </script>
+</body>
+</html>
