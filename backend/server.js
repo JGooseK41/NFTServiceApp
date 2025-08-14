@@ -985,6 +985,11 @@ const recipientAccessRouter = require('./routes/recipient-access');
 app.use('/api/notices', recipientAccessRouter);
 console.log('✅ Recipient access routes loaded');
 
+// Enhanced recipient document access
+const recipientDocumentAccess = require('./routes/recipient-document-access');
+app.use('/api/recipient-access', recipientDocumentAccess);
+console.log('✅ Enhanced recipient document access loaded');
+
 // Complete document storage routes (dual IPFS + backend)
 const documentsCompleteRouter = require('./routes/documents-complete');
 app.use('/api/documents', documentsCompleteRouter);
