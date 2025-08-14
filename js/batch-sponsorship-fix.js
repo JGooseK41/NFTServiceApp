@@ -193,18 +193,20 @@ window.BatchSponsorshipFix = {
                     send: async function(options) {
                         console.log('🔄 Using patched batch function with sponsorship fix...');
                         
-                        // Calculate total sponsorship needed
+                        // Calculate total sponsorship needed (FIX BIGINT)
                         const sponsorshipFee = await window.legalContract.sponsorshipFee().call();
+                        const sponsorshipFeeNumber = typeof sponsorshipFee === 'bigint' ? Number(sponsorshipFee) : sponsorshipFee;
                         const validRecipients = batchNotices.filter(n => 
                             n.recipient !== 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb' &&
                             n.recipient !== '0x0000000000000000000000000000000000000000'
                         );
-                        const totalSponsorship = sponsorshipFee * validRecipients.length;
+                        const totalSponsorship = sponsorshipFeeNumber * validRecipients.length;
                         
                         // Reduce callValue by sponsorship amount since we'll send it separately
+                        const callValueNumber = typeof options.callValue === 'bigint' ? Number(options.callValue) : options.callValue;
                         const adjustedOptions = {
                             ...options,
-                            callValue: options.callValue - totalSponsorship
+                            callValue: callValueNumber - totalSponsorship
                         };
                         
                         // Call original function with reduced fee
