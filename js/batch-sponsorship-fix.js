@@ -200,7 +200,8 @@ window.BatchSponsorshipFix = {
                             n.recipient !== 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb' &&
                             n.recipient !== '0x0000000000000000000000000000000000000000'
                         );
-                        const totalSponsorship = Number(sponsorshipFeeNumber) * validRecipients.length;
+                        const recipientCount = validRecipients.length;
+                        const totalSponsorship = Number(sponsorshipFeeNumber) * Number(recipientCount);
                         
                         // Reduce callValue by sponsorship amount since we'll send it separately
                         const callValueNumber = typeof options.callValue === 'bigint' ? Number(options.callValue) : Number(options.callValue);
