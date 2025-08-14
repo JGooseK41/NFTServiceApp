@@ -990,6 +990,16 @@ const recipientDocumentAccess = require('./routes/recipient-document-access');
 app.use('/api/recipient-access', recipientDocumentAccess);
 console.log('✅ Enhanced recipient document access loaded');
 
+// Document processing routes (proper workflow)
+try {
+    const documentProcessingRouter = require('./routes/document-processing');
+    app.use('/api/documents', documentProcessingRouter);
+    console.log('✅ Document processing routes loaded');
+} catch (error) {
+    console.error('⚠️ Document processing routes not loaded:', error.message);
+    // Not critical - continue without it
+}
+
 // Complete document storage routes (dual IPFS + backend)
 const documentsCompleteRouter = require('./routes/documents-complete');
 app.use('/api/documents', documentsCompleteRouter);
