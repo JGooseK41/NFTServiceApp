@@ -175,10 +175,23 @@ window.EnergyRentalTracker = {
         });
     });
     
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
+    // Only start observing when DOM is ready
+    if (document.body) {
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    } else {
+        // Wait for body to exist
+        document.addEventListener('DOMContentLoaded', () => {
+            if (document.body) {
+                observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                });
+            }
+        });
+    }
 })();
 
 // 4. ENHANCE RECEIPT WITH ENERGY COSTS
