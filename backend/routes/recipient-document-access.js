@@ -5,7 +5,15 @@
 
 const express = require('express');
 const router = express.Router();
-const pool = require('../db');
+const { Pool } = require('pg');
+
+// Create pool instance
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('render.com') 
+        ? { rejectUnauthorized: false }
+        : false
+});
 
 // Get notice details for recipient
 router.get('/recipient/:address/notices', async (req, res) => {
