@@ -980,6 +980,21 @@ app.use('/api/audit', auditRouter);
 const noticeImagesRouter = require('./routes/notice-images');
 app.use('/', noticeImagesRouter);
 
+// Recipient access routes (public notice info and view logging)
+const recipientAccessRouter = require('./routes/recipient-access');
+app.use('/api/notices', recipientAccessRouter);
+console.log('✅ Recipient access routes loaded');
+
+// Complete document storage routes (dual IPFS + backend)
+const documentsCompleteRouter = require('./routes/documents-complete');
+app.use('/api/documents', documentsCompleteRouter);
+console.log('✅ Complete document storage routes loaded');
+
+// Admin dashboard routes
+const adminDashboardRouter = require('./routes/admin-dashboard');
+app.use('/api/admin', adminDashboardRouter);
+console.log('✅ Admin dashboard routes loaded');
+
 // Server registration routes
 const serverRegistrationRouter = require('./routes/server-registration');
 app.use('/', serverRegistrationRouter);
