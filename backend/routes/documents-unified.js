@@ -80,15 +80,19 @@ router.post('/notice/:noticeId/components',
             
             // Create entry if it doesn't exist
             if (componentEntry.rows.length === 0) {
+                // For orphaned documents, use a placeholder alert_id
+                const alertId = noticeId.startsWith('orphaned-') ? '0' : (req.body.alertId || '0');
+                
                 await pool.query(`
                     INSERT INTO notice_components (
                         notice_id, 
+                        alert_id,
                         server_address,
                         recipient_address,
                         case_number,
                         created_at
-                    ) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
-                `, [noticeId, serverAddress, recipientAddress, caseNumber]);
+                    ) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+                `, [noticeId, alertId, serverAddress, recipientAddress, caseNumber]);
                 
                 console.log(`Created notice_components entry for ${noticeId}`);
             }
