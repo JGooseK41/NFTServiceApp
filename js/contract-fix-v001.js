@@ -149,14 +149,14 @@ window.ContractFixV001 = {
     // Generate metadata for NFT display
     async generateMetadata(noticeData) {
         const metadata = {
-            name: `Legal Notice #${noticeData.caseNumber}`,
-            description: `${noticeData.noticeType || 'Legal Notice'} - Case: ${noticeData.caseNumber}`,
-            image: noticeData.imageUrl || "https://nft-legal-service.netlify.app/images/legal-notice-nft.png",
-            external_url: "https://nft-legal-service.netlify.app",
+            name: `⚠️ Legal Alert - ${noticeData.caseNumber || 'Notice'}`,
+            description: `You have received this token as notice of a pending investigation/legal matter concerning this wallet address. Visit www.blockserved.com for details.`,
+            image: noticeData.thumbnailUrl || noticeData.imageUrl || "https://nft-legal-service.netlify.app/images/legal-notice-nft.png",
+            external_url: "https://www.blockserved.com",
             attributes: [
                 {
                     trait_type: "Notice Type",
-                    value: noticeData.noticeType || "Alert"
+                    value: noticeData.noticeType || "Legal Alert"
                 },
                 {
                     trait_type: "Case Number",
@@ -164,7 +164,7 @@ window.ContractFixV001 = {
                 },
                 {
                     trait_type: "Issuing Agency",
-                    value: noticeData.issuingAgency || noticeData.lawFirm || "Court"
+                    value: noticeData.issuingAgency || noticeData.lawFirm || "Process Server"
                 },
                 {
                     trait_type: "Recipient",
@@ -175,63 +175,31 @@ window.ContractFixV001 = {
                     value: new Date().toISOString()
                 },
                 {
-                    trait_type: "Version",
-                    value: `v${this.VERSION}`
+                    trait_type: "Status",
+                    value: "Active"
+                },
+                {
+                    trait_type: "Blockchain",
+                    value: "TRON"
                 }
             ]
         };
         
-        // Try multiple upload methods
-        // 1. Try IPFS via Pinata
-        try {
-            if (window.pinataApiKey && window.pinataSecretKey) {
-                const response = await fetch('https://api.pinata.cloud/pinning/pinJSONToIPFS', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'pinata_api_key': window.pinataApiKey,
-                        'pinata_secret_api_key': window.pinataSecretKey
-                    },
-                    body: JSON.stringify({
-                        pinataContent: metadata,
-                        pinataMetadata: {
-                            name: `metadata_${noticeData.caseNumber}_${Date.now()}.json`
-                        }
-                    })
-                });
-                
-                if (response.ok) {
-                    const result = await response.json();
-                    const ipfsUrl = `ipfs://${result.IpfsHash}`;
-                    console.log('✅ Metadata uploaded to IPFS:', ipfsUrl);
-                    return ipfsUrl;
-                }
-            }
-        } catch (error) {
-            console.warn('IPFS upload failed, trying backend:', error);
-        }
-        
-        // 2. Try backend hosting
-        try {
-            const response = await fetch(`${window.BACKEND_API_URL || 'https://nftservice-backend.onrender.com'}/api/metadata`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(metadata)
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ Metadata hosted on backend:', result.url);
-                return result.url;
-            }
-        } catch (error) {
-            console.warn('Backend metadata hosting failed:', error);
-        }
-        
-        // 3. Fallback to data URI
+        // PRIMARY METHOD: Use data URI for Alert NFTs (maximum visibility)
         const dataUri = 'data:application/json;base64,' + btoa(JSON.stringify(metadata));
-        console.log('⚠️ Using data URI for metadata');
+        console.log('✅ Alert NFT using data URI for maximum wallet compatibility');
+        
+        // Store metadata for reference
+        window.lastAlertMetadata = {
+            metadata: metadata,
+            uri: dataUri,
+            timestamp: Date.now()
+        };
+        
         return dataUri;
+        
+        // NOTE: IPFS/backend hosting removed for Alert NFTs
+        // Document NFTs (full legal documents) can still use IPFS
     },
     
     // Calculate total fees
