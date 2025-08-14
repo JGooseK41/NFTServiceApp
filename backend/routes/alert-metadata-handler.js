@@ -33,22 +33,39 @@ router.post('/generate-alert-metadata', async (req, res) => {
 
         console.log(`Generating base64 metadata for Alert #${alertId}`);
 
-        // Create SVG image with legal seal
+        // Create SVG image with BlockServed.com message
         const svg = `<svg width="850" height="1100" xmlns="http://www.w3.org/2000/svg">
             <rect width="850" height="1100" fill="white"/>
             <rect x="25" y="25" width="800" height="1050" fill="none" stroke="red" stroke-width="5" stroke-dasharray="10,5"/>
-            <text x="425" y="150" font-family="Arial" font-size="48" fill="red" text-anchor="middle" font-weight="bold">SEALED LEGAL DOCUMENT</text>
-            <text x="425" y="200" font-family="Arial" font-size="24" fill="black" text-anchor="middle">Official Legal Notice</text>
-            <text x="425" y="300" font-family="Arial" font-size="36" fill="black" text-anchor="middle" font-weight="bold">Alert #${alertId || 'PENDING'}</text>
-            <text x="425" y="400" font-family="Arial" font-size="20" fill="black" text-anchor="middle">Case: ${caseNumber || 'PENDING'}</text>
-            <text x="425" y="450" font-family="Arial" font-size="20" fill="black" text-anchor="middle">To: ${recipientName || 'To Be Served'}</text>
-            <text x="425" y="500" font-family="Arial" font-size="18" fill="black" text-anchor="middle">Agency: ${issuingAgency || 'N/A'}</text>
-            <circle cx="425" cy="650" r="100" fill="none" stroke="gold" stroke-width="5"/>
-            <text x="425" y="640" font-family="Arial" font-size="24" fill="gold" text-anchor="middle" font-weight="bold">LEGAL</text>
-            <text x="425" y="670" font-family="Arial" font-size="24" fill="gold" text-anchor="middle" font-weight="bold">NOTICE</text>
-            <text x="425" y="850" font-family="Arial" font-size="18" fill="black" text-anchor="middle">This NFT certifies delivery of legal documents</text>
-            <text x="425" y="880" font-family="Arial" font-size="18" fill="black" text-anchor="middle">Full document available for authorized viewing</text>
-            <text x="425" y="1000" font-family="Arial" font-size="16" fill="gray" text-anchor="middle">Blockchain Verified - Immutable Record</text>
+            
+            <text x="425" y="120" font-family="Arial Black" font-size="52" fill="red" text-anchor="middle" font-weight="900">LEGAL NOTICE</text>
+            
+            <rect x="325" y="150" width="200" height="60" fill="red" rx="10"/>
+            <text x="425" y="190" font-family="Arial" font-size="32" fill="white" text-anchor="middle" font-weight="bold">Alert #${alertId || 'PENDING'}</text>
+            
+            <circle cx="425" cy="350" r="90" fill="none" stroke="gold" stroke-width="8"/>
+            <text x="425" y="340" font-family="Arial Black" font-size="28" fill="gold" text-anchor="middle" font-weight="bold">OFFICIAL</text>
+            <text x="425" y="370" font-family="Arial Black" font-size="28" fill="gold" text-anchor="middle" font-weight="bold">DOCUMENT</text>
+            
+            <rect x="100" y="470" width="650" height="120" fill="#f0f0f0" stroke="#333" stroke-width="2" rx="5"/>
+            <text x="425" y="510" font-family="Arial" font-size="20" fill="black" text-anchor="middle" font-weight="bold">Case: ${caseNumber || 'PENDING'}</text>
+            <text x="425" y="540" font-family="Arial" font-size="18" fill="black" text-anchor="middle">To: ${recipientName || 'To Be Served'}</text>
+            <text x="425" y="570" font-family="Arial" font-size="16" fill="#666" text-anchor="middle">From: ${issuingAgency || 'N/A'}</text>
+            
+            <rect x="50" y="620" width="750" height="180" fill="#0066CC" rx="15"/>
+            <text x="425" y="680" font-family="Arial Black" font-size="42" fill="white" text-anchor="middle" font-weight="900">VIEW &amp; ACCEPT AT</text>
+            <text x="425" y="740" font-family="Arial Black" font-size="56" fill="white" text-anchor="middle" font-weight="900">BlockServed.com</text>
+            <text x="425" y="780" font-family="Arial" font-size="24" fill="white" text-anchor="middle">Secure Digital Legal Service</text>
+            
+            <rect x="200" y="830" width="450" height="50" fill="#FFD700" rx="5"/>
+            <text x="425" y="862" font-family="Arial Black" font-size="24" fill="black" text-anchor="middle" font-weight="bold">ACTION REQUIRED</text>
+            
+            <text x="425" y="920" font-family="Arial" font-size="20" fill="black" text-anchor="middle">This NFT certifies legal document delivery</text>
+            <text x="425" y="950" font-family="Arial" font-size="20" fill="black" text-anchor="middle">Full document requires digital signature</text>
+            
+            <rect x="0" y="1000" width="850" height="100" fill="#f8f8f8"/>
+            <text x="425" y="1040" font-family="Arial" font-size="16" fill="#666" text-anchor="middle">Blockchain Verified • Immutable Record</text>
+            <text x="425" y="1065" font-family="Arial" font-size="14" fill="#999" text-anchor="middle">TRON Network • TRC-721 NFT</text>
         </svg>`;
 
         // Convert SVG to base64
