@@ -84,7 +84,7 @@ async function fixAllServerAddresses() {
         const notice19 = await client.query(
             `SELECT alert_id, server_address, recipient_address, case_number
              FROM notice_components
-             WHERE alert_id = 19`
+             WHERE alert_id = '19' OR alert_id = 19::text`
         );
         
         if (notice19.rows.length > 0) {
