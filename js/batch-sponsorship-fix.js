@@ -203,10 +203,10 @@ window.BatchSponsorshipFix = {
                         const totalSponsorship = Number(sponsorshipFeeNumber) * validRecipients.length;
                         
                         // Reduce callValue by sponsorship amount since we'll send it separately
-                        const callValueNumber = typeof options.callValue === 'bigint' ? Number(options.callValue) : options.callValue;
+                        const callValueNumber = typeof options.callValue === 'bigint' ? Number(options.callValue) : Number(options.callValue);
                         const adjustedOptions = {
                             ...options,
-                            callValue: callValueNumber - totalSponsorship
+                            callValue: Number(callValueNumber) - Number(totalSponsorship)
                         };
                         
                         // Call original function with reduced fee
