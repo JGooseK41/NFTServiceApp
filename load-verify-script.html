@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Load Verification Script</title>
+</head>
+<body>
+    <h1>Loading Server Verification Script...</h1>
+    <pre id="output"></pre>
+    
+    <script>
+        // Load the verification script
+        const script = document.createElement('script');
+        script.src = 'js/verify-server-status.js';
+        script.onload = () => {
+            document.getElementById('output').textContent = 'Script loaded! Check console for diagnostic results.';
+            console.log('✅ VerifyServerStatus loaded. Running diagnostic...');
+            
+            // Auto-run if wallet is connected
+            if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+                VerifyServerStatus.runFullDiagnostic();
+            } else {
+                console.log('⚠️ Please connect your TronLink wallet first');
+            }
+        };
+        script.onerror = () => {
+            document.getElementById('output').textContent = 'Error loading script';
+        };
+        document.head.appendChild(script);
+    </script>
+</body>
+</html>
