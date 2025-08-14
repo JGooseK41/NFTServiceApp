@@ -1256,6 +1256,10 @@ app.get('/api/health', (req, res) => {
 const transactionRoutes = require('./routes/transaction-tracking');
 app.use('/api/transactions', transactionRoutes);
 
+// Metadata hosting for NFT display
+const metadataRouter = require('./routes/metadata');
+app.use('/api/metadata', metadataRouter);
+
 // Mobile Document Viewer API Endpoints
 app.post('/api/documents/view/:noticeId', async (req, res) => {
   try {

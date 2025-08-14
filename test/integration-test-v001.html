@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integration Test v001 - Complete Workflow</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #00ffff;
+            border-bottom: 2px solid #00ffff;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            background: #0a0a0a;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .test-header {
+            color: #ffff00;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .pass {
+            color: #00ff00;
+        }
+        .fail {
+            color: #ff0000;
+        }
+        .info {
+            color: #00ffff;
+        }
+        .warning {
+            color: #ffaa00;
+        }
+        button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-family: inherit;
+        }
+        button:hover {
+            background: #00cc00;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            background: #0f0f0f;
+            border-left: 3px solid #444;
+        }
+        .log-entry.success {
+            border-left-color: #00ff00;
+        }
+        .log-entry.error {
+            border-left-color: #ff0000;
+        }
+        .results-summary {
+            background: #002200;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 30px;
+        }
+        pre {
+            background: #000;
+            padding: 10px;
+            overflow-x: auto;
+            border: 1px solid #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Integration Test Suite v001</h1>
+        <p class="info">Complete workflow test from process server login to recipient access</p>
+        
+        <div class="test-section">
+            <div class="test-header">TEST CONTROLS</div>
+            <button onclick="runFullTest()">🚀 Run Full Integration Test</button>
+            <button onclick="runIndividualTests()">🔧 Run Individual Tests</button>
+            <button onclick="clearResults()">🗑️ Clear Results</button>
+        </div>
+
+        <div id="test-results"></div>
+        
+        <div id="summary" class="results-summary" style="display: none;">
+            <h2>📊 Test Summary</h2>
+            <div id="summary-content"></div>
+        </div>
+    </div>
+
+    <script src="../test/comprehensive-workflow-test.js"></script>
+    <script>
+        const resultsDiv = document.getElementById('test-results');
+        const summaryDiv = document.getElementById('summary');
+        const summaryContent = document.getElementById('summary-content');
+        
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="${type}">[${timestamp}]</span> ${message}`;
+            
+            resultsDiv.appendChild(entry);
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+        
+        async function runFullTest() {
+            clearResults();
+            log('🚀 Starting Full Integration Test...', 'info');
+            
+            const testSuite = new WorkflowTestSuite();
+            
+            // Override console.log to capture output
+            const originalLog = console.log;
+            console.log = function(...args) {
+                const message = args.join(' ');
+                if (message.includes('✅')) {
+                    log(message, 'success');
+                } else if (message.includes('❌')) {
+                    log(message, 'error');
+                } else if (message.includes('⚠️')) {
+                    log(message, 'warning');
+                } else {
+                    log(message, 'info');
+                }
+                originalLog.apply(console, args);
+            };
+            
+            try {
+                const report = await testSuite.runAllTests();
+                displaySummary(report);
+            } catch (error) {
+                log(`❌ Test suite failed: ${error.message}`, 'error');
+            }
+            
+            // Restore console.log
+            console.log = originalLog;
+        }
+        
+        async function runIndividualTests() {
+            clearResults();
+            log('🔧 Running Individual Tests...', 'info');
+            
+            const testSuite = new WorkflowTestSuite();
+            
+            // Create test section for each test
+            const tests = [
+                { name: 'Process Server Login', fn: () => testSuite.testProcessServerLogin() },
+                { name: 'Document Upload', fn: () => testSuite.testDocumentUpload() },
+                { name: 'Backend Storage', fn: () => testSuite.testBackendStorage() },
+                { name: 'NFT Creation', fn: () => testSuite.testNFTCreation() },
+                { name: 'V5 Contract Call', fn: () => testSuite.testV5ContractCall() },
+                { name: 'Energy Rental', fn: () => testSuite.testEnergyRental() },
+                { name: 'Transaction Execution', fn: () => testSuite.testTransactionExecution() },
+                { name: 'Recipient Access', fn: () => testSuite.testRecipientAccess() },
+                { name: 'Audit Trail', fn: () => testSuite.testAuditTrail() },
+                { name: 'Process Server Dashboard', fn: () => testSuite.testProcessServerDashboard() }
+            ];
+            
+            for (const test of tests) {
+                const section = document.createElement('div');
+                section.className = 'test-section';
+                section.innerHTML = `
+                    <div class="test-header">${test.name}</div>
+                    <button onclick="runSingleTest('${test.name}')">Run Test</button>
+                    <div id="test-${test.name.replace(/\s/g, '-')}" class="test-output"></div>
+                `;
+                resultsDiv.appendChild(section);
+            }
+        }
+        
+        async function runSingleTest(testName) {
+            const outputDiv = document.getElementById(`test-${testName.replace(/\s/g, '-')}`);
+            outputDiv.innerHTML = '<span class="info">Running...</span>';
+            
+            const testSuite = new WorkflowTestSuite();
+            
+            try {
+                switch(testName) {
+                    case 'Process Server Login':
+                        await testSuite.testProcessServerLogin();
+                        break;
+                    case 'Document Upload':
+                        await testSuite.testDocumentUpload();
+                        break;
+                    case 'Backend Storage':
+                        await testSuite.testBackendStorage();
+                        break;
+                    case 'NFT Creation':
+                        await testSuite.testNFTCreation();
+                        break;
+                    case 'V5 Contract Call':
+                        await testSuite.testV5ContractCall();
+                        break;
+                    case 'Energy Rental':
+                        await testSuite.testEnergyRental();
+                        break;
+                    case 'Transaction Execution':
+                        await testSuite.testTransactionExecution();
+                        break;
+                    case 'Recipient Access':
+                        await testSuite.testRecipientAccess();
+                        break;
+                    case 'Audit Trail':
+                        await testSuite.testAuditTrail();
+                        break;
+                    case 'Process Server Dashboard':
+                        await testSuite.testProcessServerDashboard();
+                        break;
+                }
+                
+                const result = testSuite.results[testSuite.results.length - 1];
+                if (result.status === 'PASS') {
+                    outputDiv.innerHTML = `<span class="pass">✅ PASSED: ${result.details}</span>`;
+                } else {
+                    outputDiv.innerHTML = `<span class="fail">❌ FAILED: ${result.details}</span>`;
+                }
+            } catch (error) {
+                outputDiv.innerHTML = `<span class="fail">❌ ERROR: ${error.message}</span>`;
+            }
+        }
+        
+        function displaySummary(report) {
+            summaryDiv.style.display = 'block';
+            
+            const passRate = report.summary.successRate;
+            const statusColor = report.summary.failed === 0 ? 'pass' : 'fail';
+            
+            summaryContent.innerHTML = `
+                <div class="${statusColor}">
+                    <h3>Test Results</h3>
+                    <p>Total Tests: ${report.summary.total}</p>
+                    <p>Passed: ${report.summary.passed} ✅</p>
+                    <p>Failed: ${report.summary.failed} ❌</p>
+                    <p>Success Rate: ${passRate}</p>
+                </div>
+                
+                ${report.errors.length > 0 ? `
+                    <div class="warning">
+                        <h3>⚠️ Errors Detected:</h3>
+                        <ul>
+                            ${report.errors.map(err => `<li>${err.message}</li>`).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+                
+                ${report.recommendations.length > 0 ? `
+                    <div class="info">
+                        <h3>💡 Recommendations:</h3>
+                        <ul>
+                            ${report.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+                
+                <div>
+                    <h3>📋 Test Data Generated:</h3>
+                    <pre>${JSON.stringify(report.simulatedData, null, 2)}</pre>
+                </div>
+            `;
+        }
+        
+        function clearResults() {
+            resultsDiv.innerHTML = '';
+            summaryDiv.style.display = 'none';
+        }
+        
+        // Auto-load message
+        log('Test suite loaded and ready. Click "Run Full Integration Test" to begin.', 'info');
+    </script>
+</body>
+</html>
