@@ -1273,7 +1273,11 @@ app.use('/api/transactions', transactionRoutes);
 
 // Metadata hosting for NFT display
 const metadataRouter = require('./routes/metadata');
+
+// Alert metadata handler for base64 URIs
+const alertMetadataRouter = require('./routes/alert-metadata-handler');
 app.use('/api/metadata', metadataRouter);
+app.use('/api/alerts', alertMetadataRouter);
 
 // Mobile Document Viewer API Endpoints
 app.post('/api/documents/view/:noticeId', async (req, res) => {
