@@ -36,15 +36,23 @@ console.log('🖼️ Fixing dashboard image viewer...');
                         e.preventDefault();
                         e.stopPropagation();
                         
-                        // Get notice ID
+                        // Get notice ID - be more thorough in extraction
                         const noticeId = item.dataset?.noticeId || 
                                        item.textContent.match(/Notice #(\d+)/)?.[1] ||
-                                       item.textContent.match(/Token (\d+)/)?.[1];
+                                       item.textContent.match(/Token (\d+)/)?.[1] ||
+                                       item.textContent.match(/Alert (\d+)/)?.[1] ||
+                                       item.textContent.match(/Document (\d+)/)?.[1] ||
+                                       item.querySelector('[data-alert-id]')?.dataset?.alertId ||
+                                       item.querySelector('[data-document-id]')?.dataset?.documentId;
                         
-                        if (noticeId) {
+                        if (noticeId && noticeId !== 'null' && noticeId !== 'undefined') {
+                            console.log('Opening viewer for notice:', noticeId);
                             showImprovedImageViewer(noticeId);
-                        } else if (originalOnclick) {
-                            originalOnclick.call(this, e);
+                        } else {
+                            console.warn('No valid notice ID found for item:', item);
+                            if (originalOnclick) {
+                                originalOnclick.call(this, e);
+                            }
                         }
                     };
                 }
@@ -54,6 +62,13 @@ console.log('🖼️ Fixing dashboard image viewer...');
     
     // Create improved image viewer modal
     function showImprovedImageViewer(noticeId) {
+        // Validate notice ID
+        if (!noticeId || noticeId === 'null' || noticeId === 'undefined') {
+            console.error('Invalid notice ID passed to viewer:', noticeId);
+            alert('Unable to load notice - invalid ID');
+            return;
+        }
+        
         console.log('Opening improved viewer for notice:', noticeId);
         
         // Remove any existing modals
@@ -216,6 +231,18 @@ console.log('🖼️ Fixing dashboard image viewer...');
     async function loadNoticeImage(noticeId) {
         const container = document.getElementById('noticeImageContainer');
         if (!container) return;
+        
+        // Validate notice ID
+        if (!noticeId || noticeId === 'null' || noticeId === 'undefined') {
+            console.error('Invalid notice ID:', noticeId);
+            container.innerHTML = `
+                <div class="error-message">
+                    <i class="fas fa-exclamation-triangle"></i> 
+                    Invalid notice ID. Please try again.
+                </div>
+            `;
+            return;
+        }
         
         try {
             // Try backend first
