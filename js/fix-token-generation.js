@@ -128,9 +128,9 @@ console.log('🔧 Fixing token generation for failed transactions...');
     // Function to update UI with confirmed notice ID
     function updateUIWithNoticeId(noticeId, txHash) {
         // Update any elements showing "PENDING"
-        const pendingElements = document.querySelectorAll(':contains("PENDING")');
-        pendingElements.forEach(el => {
-            if (el.textContent.includes('PENDING')) {
+        const allElements = document.querySelectorAll('*');
+        allElements.forEach(el => {
+            if (el.textContent && el.textContent.includes('PENDING')) {
                 el.textContent = el.textContent.replace('PENDING', `#${noticeId}`);
             }
         });
@@ -151,9 +151,9 @@ console.log('🔧 Fixing token generation for failed transactions...');
     // Function to clear pending notice UI
     function clearPendingNotice() {
         // Remove any pending notice displays
-        const pendingElements = document.querySelectorAll(':contains("PENDING")');
-        pendingElements.forEach(el => {
-            if (el.textContent.includes('PENDING')) {
+        const allElements = document.querySelectorAll('*');
+        allElements.forEach(el => {
+            if (el.textContent && el.textContent.includes('PENDING')) {
                 el.style.display = 'none';
             }
         });
@@ -223,8 +223,8 @@ console.log('🔧 Fixing token generation for failed transactions...');
         configurable: true
     });
     
-    // Fix for jQuery contains selector
-    if (!jQuery.expr[':'].contains) {
+    // Fix for jQuery contains selector (only if jQuery is loaded)
+    if (typeof jQuery !== 'undefined' && jQuery.expr && !jQuery.expr[':'].contains) {
         jQuery.expr[':'].contains = function(elem, i, match) {
             return (elem.textContent || elem.innerText || '').indexOf(match[3]) > -1;
         };
