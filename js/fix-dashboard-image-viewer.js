@@ -256,8 +256,12 @@ console.log('🖼️ Fixing dashboard image viewer...');
             if (response.ok) {
                 const data = await response.json();
                 
-                if (data.alertImage || data.documentImage) {
-                    const imageUrl = data.alertImage || data.documentImage;
+                // Handle both camelCase and snake_case field names from API
+                const alertImage = data.alertImage || data.alert_image;
+                const documentImage = data.documentImage || data.document_image;
+                
+                if (alertImage || documentImage) {
+                    const imageUrl = alertImage || documentImage;
                     container.innerHTML = `<img src="${imageUrl}" alt="Notice #${noticeId}">`;
                     
                     // Add details
