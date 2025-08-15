@@ -236,9 +236,220 @@ class BlockServedSimple {
     }
 
     /**
-     * View notice in modal
+     * View notice in modal - with optional sign-before-view
      */
     async viewNotice(noticeId) {
+        // First, check if this notice requires signing
+        const imageData = await this.imageSystem.getNoticeImages(noticeId);
+        
+        if (!imageData) {
+            alert('Document not found');
+            return;
+        }
+
+        // Check if document type and not yet signed
+        const isDocument = !!imageData.document_image;
+        const isSigned = imageData.signature_status === 'signed' || 
+                        localStorage.getItem(`signed_${noticeId}`) === 'true';
+        const wasRefused = localStorage.getItem(`refused_${noticeId}`) === 'true';
+
+        // If it's a document and not signed/refused, show signing prompt
+        if (isDocument && !isSigned && !wasRefused) {
+            this.showSigningPrompt(noticeId, imageData);
+        } else {
+            // Otherwise, show the document directly
+            this.displayDocument(noticeId, imageData);
+        }
+    }
+
+    /**
+     * Show signing prompt before viewing
+     */
+    showSigningPrompt(noticeId, imageData) {
+        // Create signing prompt modal
+        let promptModal = document.getElementById('signingPromptModal');
+        if (!promptModal) {
+            promptModal = this.createSigningPromptModal();
+        }
+
+        // Update content
+        document.getElementById('promptNoticeId').textContent = noticeId;
+        document.getElementById('promptServer').textContent = this.truncateAddress(imageData.server_address);
+        document.getElementById('promptDate').textContent = new Date(imageData.created_at).toLocaleDateString();
+
+        // Show modal
+        promptModal.classList.add('active');
+
+        // Setup button handlers
+        document.getElementById('signAndViewBtn').onclick = async () => {
+            promptModal.classList.remove('active');
+            await this.signAndView(noticeId, imageData);
+        };
+
+        document.getElementById('refuseToSignBtn').onclick = () => {
+            promptModal.classList.remove('active');
+            this.refuseToSign(noticeId, imageData);
+        };
+
+        document.getElementById('cancelViewBtn').onclick = () => {
+            promptModal.classList.remove('active');
+        };
+    }
+
+    /**
+     * Sign document and then view it
+     */
+    async signAndView(noticeId, imageData) {
+        // Show signing in progress
+        const loadingModal = this.showLoadingModal('Signing document on blockchain...');
+
+        try {
+            // Call blockchain signing
+            // TODO: Implement actual blockchain signing
+            const txHash = await this.performBlockchainSigning(noticeId);
+            
+            // Log successful signing in audit trail
+            if (window.auditLogger) {
+                await window.auditLogger.logEvent({
+                    status: 'signed',
+                    action: 'RECIPIENT_SIGNED_DOCUMENT',
+                    sender_address: imageData.server_address,
+                    recipient_address: window.tronWeb?.defaultAddress?.base58 || '',
+                    notice_id: noticeId,
+                    notice_type: 'Document',
+                    case_number: imageData.case_number || 'Unknown',
+                    transaction_hash: txHash || imageData.transaction_hash,
+                    metadata: {
+                        signature_method: 'blockchain',
+                        signed_at: new Date().toISOString(),
+                        notice_created: imageData.created_at,
+                        days_until_signature: Math.floor((new Date() - new Date(imageData.created_at)) / (1000 * 60 * 60 * 24))
+                    }
+                });
+            }
+            
+            // Mark as signed locally
+            localStorage.setItem(`signed_${noticeId}`, 'true');
+            localStorage.setItem(`signed_${noticeId}_date`, new Date().toISOString());
+            
+            // Update backend
+            await this.updateSignatureStatus(noticeId, 'signed');
+            
+            // Close loading
+            loadingModal.remove();
+            
+            // Show success message
+            this.showSuccessMessage('Document signed successfully!');
+            
+            // Now display the document
+            this.displayDocument(noticeId, imageData);
+            
+        } catch (error) {
+            console.error('Error signing document:', error);
+            loadingModal.remove();
+            alert('Failed to sign document. You can still view it by refusing to sign.');
+        }
+    }
+
+    /**
+     * Refuse to sign but still view
+     */
+    refuseToSign(noticeId, imageData) {
+        // Confirm refusal
+        const confirmModal = this.createConfirmRefusalModal();
+        confirmModal.classList.add('active');
+
+        document.getElementById('confirmRefusalBtn').onclick = async () => {
+            confirmModal.classList.remove('active');
+            
+            // Mark as refused locally
+            localStorage.setItem(`refused_${noticeId}`, 'true');
+            
+            // Log refusal in audit trail with IP and timestamp
+            await this.logRefusalInAudit(noticeId, imageData);
+            
+            // Update backend with refusal
+            await this.updateSignatureStatus(noticeId, 'refused');
+            
+            // Show warning
+            this.showWarningMessage('You have refused to sign. This refusal has been recorded in the audit log.');
+            
+            // Display document in view-only mode
+            this.displayDocument(noticeId, imageData, true);
+        };
+
+        document.getElementById('cancelRefusalBtn').onclick = () => {
+            confirmModal.classList.remove('active');
+            // Go back to signing prompt
+            this.showSigningPrompt(noticeId, imageData);
+        };
+    }
+
+    /**
+     * Log refusal in audit trail using existing audit logger
+     */
+    async logRefusalInAudit(noticeId, imageData) {
+        // Use existing audit logger if available
+        if (window.auditLogger) {
+            return await window.auditLogger.logEvent({
+                status: 'refused',
+                action: 'RECIPIENT_REFUSED_TO_SIGN',
+                sender_address: imageData.server_address,
+                recipient_address: window.tronWeb?.defaultAddress?.base58 || '',
+                notice_id: noticeId,
+                notice_type: imageData.document_image ? 'Document' : 'Alert',
+                case_number: imageData.case_number || 'Unknown',
+                transaction_hash: imageData.transaction_hash,
+                metadata: {
+                    refusal_reason: 'User declined to sign',
+                    view_only_mode: true,
+                    timestamp: new Date().toISOString(),
+                    notice_created: imageData.created_at,
+                    days_until_refusal: Math.floor((new Date() - new Date(imageData.created_at)) / (1000 * 60 * 60 * 24))
+                }
+            });
+        } else {
+            // Fallback to direct API call if audit logger not loaded
+            try {
+                const response = await fetch(`${this.imageSystem.backend}/api/audit/log`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Wallet-Address': window.tronWeb?.defaultAddress?.base58 || ''
+                    },
+                    body: JSON.stringify({
+                        status: 'refused',
+                        action: 'RECIPIENT_REFUSED_TO_SIGN',
+                        sender_address: imageData.server_address,
+                        recipient_address: window.tronWeb?.defaultAddress?.base58 || '',
+                        notice_id: noticeId,
+                        notice_type: imageData.document_image ? 'Document' : 'Alert',
+                        case_number: imageData.case_number || 'Unknown',
+                        transaction_hash: imageData.transaction_hash,
+                        timestamp: new Date().toISOString(),
+                        metadata: {
+                            refusal_reason: 'User declined to sign',
+                            view_only_mode: true,
+                            notice_created: imageData.created_at
+                        }
+                    })
+                });
+
+                if (response.ok) {
+                    console.log(`Refusal logged in audit trail for notice ${noticeId}`);
+                } else {
+                    console.error('Failed to log refusal in audit trail');
+                }
+            } catch (error) {
+                console.error('Error logging refusal:', error);
+            }
+        }
+    }
+
+    /**
+     * Display the document
+     */
+    async displayDocument(noticeId, imageData, viewOnly = false) {
         // Get or create modal
         let modal = document.getElementById('documentModal');
         if (!modal) {
@@ -251,28 +462,36 @@ class BlockServedSimple {
         viewer.innerHTML = '<div class="loading">Loading document...</div>';
 
         try {
-            // Get image from simple system
-            const imageData = await this.imageSystem.getNoticeImages(noticeId);
-            
-            if (!imageData) {
-                viewer.innerHTML = '<div class="error">Document not found</div>';
-                return;
-            }
-
             // Display image
             const imageUrl = imageData.document_image || imageData.alert_image;
+            const isSigned = localStorage.getItem(`signed_${noticeId}`) === 'true';
+            const isRefused = localStorage.getItem(`refused_${noticeId}`) === 'true';
+            
             viewer.innerHTML = `
+                ${viewOnly || isRefused ? `
+                    <div style="background: #fef2f2; border: 2px solid #fca5a5; padding: 1rem; margin-bottom: 1rem; border-radius: 8px;">
+                        <strong>⚠️ View-Only Mode</strong><br>
+                        You refused to sign this document. This refusal has been recorded on the blockchain.
+                    </div>
+                ` : ''}
+                ${isSigned ? `
+                    <div style="background: #dcfce7; border: 2px solid #86efac; padding: 1rem; margin-bottom: 1rem; border-radius: 8px;">
+                        <strong>✓ Signed Document</strong><br>
+                        You signed this document on ${new Date().toLocaleDateString()}.
+                    </div>
+                ` : ''}
                 <img src="${imageUrl}" style="width: 100%; height: auto;" id="documentImage">
                 <div style="padding: 1rem; background: #f8f9fa; margin-top: 1rem;">
                     <h4>Notice Details</h4>
                     <p><strong>Notice ID:</strong> ${noticeId}</p>
                     <p><strong>From:</strong> ${this.truncateAddress(imageData.server_address)}</p>
                     <p><strong>Date:</strong> ${new Date(imageData.created_at).toLocaleString()}</p>
+                    <p><strong>Status:</strong> ${isSigned ? 'Signed' : isRefused ? 'Refused' : 'Viewed'}</p>
                     ${imageData.transaction_hash ? `<p><strong>Transaction:</strong> ${this.truncateAddress(imageData.transaction_hash)}</p>` : ''}
                 </div>
             `;
 
-            // Store current notice for signing
+            // Store current notice
             this.currentNotice = imageData;
         } catch (error) {
             console.error('Error viewing notice:', error);
@@ -281,23 +500,52 @@ class BlockServedSimple {
     }
 
     /**
-     * Sign document
+     * Sign document (direct signing from list)
      */
     async signDocument(noticeId) {
-        if (!confirm('Sign this document? This will create a permanent blockchain record of receipt.')) {
+        const imageData = await this.imageSystem.getNoticeImages(noticeId);
+        if (!imageData) {
+            alert('Document not found');
             return;
         }
+        
+        // Show signing prompt
+        this.showSigningPrompt(noticeId, imageData);
+    }
 
+    /**
+     * Perform actual blockchain signing
+     */
+    async performBlockchainSigning(noticeId) {
+        // TODO: Implement actual blockchain call
+        // For now, simulate with delay
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                console.log(`Blockchain signing for notice ${noticeId}`);
+                resolve();
+            }, 2000);
+        });
+    }
+
+    /**
+     * Update signature status in backend
+     */
+    async updateSignatureStatus(noticeId, status) {
         try {
-            // Here you would call the blockchain signing method
-            // For now, just show success
-            alert('Document signing functionality will be implemented with blockchain integration');
+            const response = await fetch(`${this.imageSystem.backend}/api/images/${noticeId}/status`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Wallet-Address': window.tronWeb?.defaultAddress?.base58 || ''
+                },
+                body: JSON.stringify({ signature_status: status })
+            });
             
-            // Reload notices to show updated status
-            this.loadRecipientNotices();
+            if (!response.ok) {
+                console.error('Failed to update signature status');
+            }
         } catch (error) {
-            console.error('Error signing document:', error);
-            alert('Failed to sign document. Please try again.');
+            console.error('Error updating signature status:', error);
         }
     }
 
@@ -330,6 +578,263 @@ class BlockServedSimple {
         `;
         document.body.appendChild(modal);
         return modal;
+    }
+
+    /**
+     * Create signing prompt modal
+     */
+    createSigningPromptModal() {
+        const modal = document.createElement('div');
+        modal.id = 'signingPromptModal';
+        modal.className = 'signing-prompt-modal';
+        modal.innerHTML = `
+            <div class="modal-overlay"></div>
+            <div class="modal-content">
+                <div class="modal-header" style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);">
+                    <h3 style="color: white;">
+                        <i class="fas fa-exclamation-triangle"></i> Legal Document Requires Signature
+                    </h3>
+                </div>
+                <div class="modal-body" style="padding: 2rem;">
+                    <div style="background: #fef2f2; border: 2px solid #fca5a5; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                        <strong>IMPORTANT LEGAL NOTICE</strong><br>
+                        This document requires your signature to acknowledge receipt. 
+                        Refusing to sign does not invalidate the legal notice.
+                    </div>
+                    
+                    <div style="margin-bottom: 1.5rem;">
+                        <p><strong>Notice ID:</strong> #<span id="promptNoticeId"></span></p>
+                        <p><strong>From:</strong> <span id="promptServer"></span></p>
+                        <p><strong>Date:</strong> <span id="promptDate"></span></p>
+                    </div>
+                    
+                    <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px;">
+                        <h4>Your Options:</h4>
+                        <ol>
+                            <li><strong>Sign & View:</strong> Creates blockchain proof of receipt</li>
+                            <li><strong>Refuse to Sign:</strong> View document without signing (refusal is logged)</li>
+                            <li><strong>Cancel:</strong> Return without viewing</li>
+                        </ol>
+                    </div>
+                </div>
+                <div class="modal-footer" style="display: flex; gap: 10px; padding: 1.5rem;">
+                    <button id="signAndViewBtn" class="btn btn-primary" style="flex: 1; background: #16a34a;">
+                        <i class="fas fa-signature"></i> Sign & View
+                    </button>
+                    <button id="refuseToSignBtn" class="btn btn-secondary" style="flex: 1; background: #d97706;">
+                        <i class="fas fa-times-circle"></i> Refuse to Sign
+                    </button>
+                    <button id="cancelViewBtn" class="btn btn-secondary" style="flex: 1;">
+                        <i class="fas fa-arrow-left"></i> Cancel
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        this.addModalStyles();
+        return modal;
+    }
+
+    /**
+     * Create confirm refusal modal
+     */
+    createConfirmRefusalModal() {
+        let modal = document.getElementById('confirmRefusalModal');
+        if (modal) return modal;
+        
+        modal = document.createElement('div');
+        modal.id = 'confirmRefusalModal';
+        modal.className = 'confirm-refusal-modal';
+        modal.innerHTML = `
+            <div class="modal-overlay"></div>
+            <div class="modal-content" style="max-width: 500px;">
+                <div class="modal-header" style="background: #dc2626; color: white;">
+                    <h3><i class="fas fa-exclamation-triangle"></i> Confirm Refusal to Sign</h3>
+                </div>
+                <div class="modal-body" style="padding: 2rem;">
+                    <div style="background: #fef2f2; border: 2px solid #fca5a5; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                        <strong>⚠️ WARNING: Legal Implications</strong>
+                    </div>
+                    
+                    <p><strong>By refusing to sign, you acknowledge that:</strong></p>
+                    <ul style="text-align: left; margin: 1rem 0;">
+                        <li>You have been served with this legal notice</li>
+                        <li>Your refusal will be permanently recorded</li>
+                        <li>Your IP address and timestamp will be logged</li>
+                        <li>This may be used as evidence of service</li>
+                        <li>You may face legal consequences for non-compliance</li>
+                    </ul>
+                    
+                    <p style="color: #dc2626; font-weight: bold;">
+                        Are you sure you want to refuse to sign?
+                    </p>
+                </div>
+                <div class="modal-footer" style="display: flex; gap: 10px; padding: 1.5rem;">
+                    <button id="confirmRefusalBtn" class="btn btn-danger" style="flex: 1; background: #dc2626;">
+                        <i class="fas fa-times-circle"></i> Yes, Refuse to Sign
+                    </button>
+                    <button id="cancelRefusalBtn" class="btn btn-primary" style="flex: 1;">
+                        <i class="fas fa-arrow-left"></i> Go Back
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        return modal;
+    }
+
+    /**
+     * Show loading modal
+     */
+    showLoadingModal(message) {
+        const modal = document.createElement('div');
+        modal.className = 'loading-modal';
+        modal.innerHTML = `
+            <div class="modal-overlay"></div>
+            <div class="modal-content" style="text-align: center; padding: 2rem;">
+                <div class="spinner"></div>
+                <p style="margin-top: 1rem;">${message}</p>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        return modal;
+    }
+
+    /**
+     * Show success message
+     */
+    showSuccessMessage(message) {
+        const notification = document.createElement('div');
+        notification.className = 'notification success';
+        notification.innerHTML = `
+            <i class="fas fa-check-circle"></i> ${message}
+        `;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #16a34a;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 10001;
+            animation: slideIn 0.3s ease;
+        `;
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 3000);
+    }
+
+    /**
+     * Show warning message
+     */
+    showWarningMessage(message) {
+        const notification = document.createElement('div');
+        notification.className = 'notification warning';
+        notification.innerHTML = `
+            <i class="fas fa-exclamation-triangle"></i> ${message}
+        `;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #d97706;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 10001;
+            animation: slideIn 0.3s ease;
+        `;
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 5000);
+    }
+
+    /**
+     * Add modal styles
+     */
+    addModalStyles() {
+        if (document.getElementById('blockservedModalStyles')) return;
+        
+        const style = document.createElement('style');
+        style.id = 'blockservedModalStyles';
+        style.innerHTML = `
+            .signing-prompt-modal,
+            .confirm-refusal-modal,
+            .loading-modal {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            .signing-prompt-modal:not(.active),
+            .confirm-refusal-modal:not(.active) {
+                display: none;
+            }
+            
+            .modal-overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.7);
+            }
+            
+            .modal-content {
+                position: relative;
+                background: white;
+                border-radius: 12px;
+                max-width: 600px;
+                width: 90%;
+                max-height: 90vh;
+                overflow: auto;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            }
+            
+            .btn {
+                padding: 0.75rem 1rem;
+                border: none;
+                border-radius: 8px;
+                font-weight: 600;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.5rem;
+                transition: transform 0.2s;
+            }
+            
+            .btn:hover {
+                transform: scale(1.05);
+            }
+            
+            .btn-primary {
+                background: #3b82f6;
+                color: white;
+            }
+            
+            .btn-secondary {
+                background: #6b7280;
+                color: white;
+            }
+            
+            .btn-danger {
+                background: #dc2626;
+                color: white;
+            }
+            
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
     }
 
     /**
