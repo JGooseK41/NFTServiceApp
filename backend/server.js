@@ -980,6 +980,10 @@ app.use('/api/audit', auditRouter);
 const noticeImagesRouter = require('./routes/notice-images');
 app.use('/', noticeImagesRouter);
 
+// Notice dismissal routes (for managing notice visibility)
+const noticeDismissalRouter = require('./routes/notice-dismissal');
+app.use('/', noticeDismissalRouter);
+
 // Recipient access routes (public notice info and view logging)
 const recipientAccessRouter = require('./routes/recipient-access');
 app.use('/api/notices', recipientAccessRouter);
