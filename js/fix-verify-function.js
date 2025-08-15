@@ -126,7 +126,7 @@ window.verify19 = async function() {
     console.log('\nTesting backend access control for notice 19...');
     
     try {
-        const response = await fetch('https://nftserviceapp.onrender.com/api/notices/19/images', {
+        const response = await fetch('https://nftserviceapp.onrender.com/api/images/19', {
             headers: {
                 'X-Wallet-Address': walletAddress,
                 'X-Server-Address': walletAddress

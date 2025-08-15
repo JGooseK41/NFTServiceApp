@@ -2722,7 +2722,7 @@ class UnifiedNoticeSystem {
             // Section 2: Document Images
             updateProgress('Fetching document images...');
             try {
-                const response = await fetch(`${this.backend}/api/notices/${recipient.alertId}/images`, {
+                const response = await fetch(`${this.backend}/api/images/${recipient.alertId}`, {
                     headers: {
                         'X-Wallet-Address': this.serverAddress || '',
                         'X-Server-Address': this.serverAddress || ''
@@ -3478,7 +3478,7 @@ class UnifiedNoticeSystem {
             
             try {
                 // Check if documents exist in backend
-                const response = await fetch(`${this.backend}/api/notices/${noticeId}/images`, {
+                const response = await fetch(`${this.backend}/api/images/${noticeId}`, {
                     headers: {
                         'X-Wallet-Address': this.serverAddress || '',
                         'X-Server-Address': this.serverAddress || ''
@@ -3552,7 +3552,7 @@ class UnifiedNoticeSystem {
                     return;
                 }
                 
-                const response = await fetch(`${this.backend}/api/notices/${noticeId}/images`, {
+                const response = await fetch(`${this.backend}/api/images/${noticeId}`, {
                     headers: {
                         'X-Wallet-Address': this.serverAddress || '',
                         'X-Server-Address': this.serverAddress || ''

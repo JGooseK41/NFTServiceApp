@@ -63,7 +63,7 @@ class ImageReuploader {
 
                 try {
                     // Check if images exist in backend
-                    const response = await fetch(`${this.backend}/api/notices/${noticeId}/images`);
+                    const response = await fetch(`${this.backend}/api/images/${noticeId}`);
                     
                     if (response.ok) {
                         const data = await response.json();

@@ -101,7 +101,7 @@ console.log('=' .repeat(70));
         // Check 2: Image endpoints
         console.log('\n2️⃣ Checking image storage endpoints...');
         try {
-            const response = await fetch(`${CORRECT_BACKEND_URL}/api/notices/999999/images`);
+            const response = await fetch(`${CORRECT_BACKEND_URL}/api/images/999999`);
             if (response.status === 404 || response.status === 200) {
                 checks.canRetrieveImages = true;
                 console.log('   ✅ Image endpoints exist');
@@ -115,7 +115,7 @@ console.log('=' .repeat(70));
         const noticeIds = [11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
         for (const id of noticeIds) {
             try {
-                const response = await fetch(`${CORRECT_BACKEND_URL}/api/notices/${id}/images`);
+                const response = await fetch(`${CORRECT_BACKEND_URL}/api/images/${id}`);
                 if (response.ok) {
                     const data = await response.json();
                     if (data.alertImage || data.documentImage) {
@@ -146,7 +146,7 @@ console.log('=' .repeat(70));
             console.log('\n✅ BACKEND IS CONFIGURED AND READY!');
             console.log('\nWhen you create a new notice:');
             console.log('1. Images will be automatically saved to backend');
-            console.log('2. They will be retrievable from /api/notices/{id}/images');
+            console.log('2. They will be retrievable from /api/images/{id}');
             console.log('3. No blockchain interaction needed to view images');
             
             if (!checks.hasStoredImages) {
@@ -171,4 +171,4 @@ console.log('=' .repeat(70));
 
 console.log('\nCommands:');
 console.log('  window.saveNoticeToBackend(data) - Save notice with images');
-console.log('  fetch("/api/notices/10/images")  - Will use correct backend');
+console.log('  fetch("/api/images/10")  - Will use correct backend');

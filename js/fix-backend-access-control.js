@@ -111,7 +111,7 @@ window.FixBackendAccessControl = {
         }
         
         try {
-            const response = await fetch(`${window.BACKEND_URL || ''}/api/notices/${noticeId}/images`, {
+            const response = await fetch(`${window.BACKEND_URL || ''}/api/images/${noticeId}`, {
                 headers: {
                     'X-Wallet-Address': walletAddress,
                     'X-Server-Address': walletAddress

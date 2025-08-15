@@ -163,7 +163,7 @@ window.FixNoticeAccess = {
         
         // Test backend access
         try {
-            const response = await fetch('https://nftserviceapp.onrender.com/api/notices/19/images', {
+            const response = await fetch('https://nftserviceapp.onrender.com/api/images/19', {
                 headers: {
                     'X-Wallet-Address': this.SERVER_ADDRESS,
                     'X-Server-Address': this.SERVER_ADDRESS

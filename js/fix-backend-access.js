@@ -79,7 +79,7 @@ window.FixRecipientAccess = {
     
     async showDocumentForSigning(noticeId, documentId) {
         // Get document image
-        const response = await fetch(`https://nftserviceapp.onrender.com/api/notices/${noticeId}/images`);
+        const response = await fetch(`https://nftserviceapp.onrender.com/api/images/${noticeId}`);
         const data = await response.json();
         
         const modal = document.createElement('div');
@@ -174,7 +174,7 @@ window.FixRecipientAccess = {
     async downloadDocument(noticeId) {
         try {
             // Get document data
-            const response = await fetch(`https://nftserviceapp.onrender.com/api/notices/${noticeId}/images`);
+            const response = await fetch(`https://nftserviceapp.onrender.com/api/images/${noticeId}`);
             const data = await response.json();
             
             if (data.documentImage) {

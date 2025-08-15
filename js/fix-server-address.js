@@ -43,7 +43,7 @@ window.FixServerAddress = {
         // Test Notice #19 specifically
         console.log('\n2️⃣ Testing Notice #19 access...');
         try {
-            const response = await fetch('https://nftserviceapp.onrender.com/api/notices/19/images', {
+            const response = await fetch('https://nftserviceapp.onrender.com/api/images/19', {
                 headers: {
                     'X-Wallet-Address': this.YOUR_ADDRESS,
                     'X-Server-Address': this.YOUR_ADDRESS

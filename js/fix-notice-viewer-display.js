@@ -114,7 +114,7 @@ console.log('🎨 Fixing notice viewer display issues...');
         if (imageContainers.length > 0 || noImageMessages.length > 0) {
             try {
                 // Fetch images from backend
-                const response = await fetch(`https://nftserviceapp.onrender.com/api/notices/${noticeId}/images`, {
+                const response = await fetch(`https://nftserviceapp.onrender.com/api/images/${noticeId}`, {
                     headers: {
                         'X-Wallet-Address': window.tronWeb?.defaultAddress?.base58 || '',
                         'X-Server-Address': localStorage.getItem('serverAddress') || ''

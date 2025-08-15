@@ -38,7 +38,7 @@ window.FixImageLoading = {
         try {
             // Step 1: Check backend
             console.log('1️⃣ Checking backend for images...');
-            const backendResponse = await fetch(`https://nftserviceapp.onrender.com/api/notices/${realId}/images`, {
+            const backendResponse = await fetch(`https://nftserviceapp.onrender.com/api/images/${realId}`, {
                 headers: {
                     'X-Wallet-Address': window.tronWeb?.defaultAddress?.base58 || 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY',
                     'X-Server-Address': window.tronWeb?.defaultAddress?.base58 || 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY'

@@ -26,7 +26,7 @@ window.ConvertAlertsToBase64 = {
         // Try to get from backend first
         if (noticeData && noticeData.id) {
             try {
-                const response = await fetch(`/api/notices/${noticeData.id}/images`);
+                const response = await fetch(`/api/images/${noticeData.id}`);
                 if (response.ok) {
                     const images = await response.json();
                     if (images.alertImage) {

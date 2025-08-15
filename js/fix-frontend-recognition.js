@@ -48,7 +48,7 @@ window.FixFrontendRecognition = {
                 // Always check backend to determine access - works for ANY user
                 try {
                     const noticeId = alertTokenId || documentTokenId;
-                    const response = await fetch(`https://nftserviceapp.onrender.com/api/notices/${noticeId}/images`, {
+                    const response = await fetch(`https://nftserviceapp.onrender.com/api/images/${noticeId}`, {
                         headers: {
                             'X-Wallet-Address': walletAddress,
                             'X-Server-Address': walletAddress
@@ -143,7 +143,7 @@ window.FixFrontendRecognition = {
                     // Try to get the current notice ID from the page
                     const noticeId = 19; // Default to 19 for testing
                     
-                    const response = await fetch(`https://nftserviceapp.onrender.com/api/notices/${noticeId}/images`, {
+                    const response = await fetch(`https://nftserviceapp.onrender.com/api/images/${noticeId}`, {
                         headers: {
                             'X-Wallet-Address': wallet,
                             'X-Server-Address': wallet

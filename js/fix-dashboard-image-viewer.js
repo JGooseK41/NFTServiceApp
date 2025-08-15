@@ -246,7 +246,7 @@ console.log('🖼️ Fixing dashboard image viewer...');
         
         try {
             // Try backend first
-            const response = await fetch(`https://nftserviceapp.onrender.com/api/notices/${noticeId}/images`, {
+            const response = await fetch(`https://nftserviceapp.onrender.com/api/images/${noticeId}`, {
                 headers: {
                     'X-Wallet-Address': window.tronWeb?.defaultAddress?.base58 || '',
                     'X-Server-Address': localStorage.getItem('serverAddress') || ''

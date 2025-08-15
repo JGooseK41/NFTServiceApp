@@ -15,7 +15,7 @@ window.FixNoticeDisplay = {
         
         // Check backend for images
         try {
-            const response = await fetch('https://nftserviceapp.onrender.com/api/notices/19/images', {
+            const response = await fetch('https://nftserviceapp.onrender.com/api/images/19', {
                 headers: {
                     'X-Wallet-Address': window.tronWeb?.defaultAddress?.base58 || 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY',
                     'X-Server-Address': window.tronWeb?.defaultAddress?.base58 || 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY'
@@ -130,7 +130,7 @@ window.FixNoticeDisplay = {
         
         try {
             // Get images from backend
-            const response = await fetch(`https://nftserviceapp.onrender.com/api/notices/${noticeId}/images`, {
+            const response = await fetch(`https://nftserviceapp.onrender.com/api/images/${noticeId}`, {
                 headers: {
                     'X-Wallet-Address': window.tronWeb?.defaultAddress?.base58,
                     'X-Server-Address': window.tronWeb?.defaultAddress?.base58
