@@ -5,7 +5,16 @@
 
 const express = require('express');
 const router = express.Router();
-const pool = require('../db');
+const { Pool } = require('pg');
+
+// Use the same database configuration as other routes
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL || 'postgresql://nftservice:nftservice123@localhost:5432/nftservice_db',
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+});
 
 /**
  * Store images for a notice
@@ -69,22 +78,70 @@ router.post('/', async (req, res) => {
  */
 router.get('/:noticeId', async (req, res) => {
     const { noticeId } = req.params;
-    const walletAddress = req.headers['x-wallet-address'];
+    const walletAddress = req.headers['x-wallet-address'] || req.headers['x-server-address'];
 
     if (!walletAddress) {
         return res.status(401).json({ error: 'Wallet address required' });
     }
 
+    let client;
     try {
-        // Get image if user is either the server or recipient
-        const query = `
-            SELECT * FROM images 
-            WHERE notice_id = $1 
-            AND (server_address = $2 OR recipient_address = $2)
-            LIMIT 1;
-        `;
+        client = await pool.connect();
+        
+        // First try the new images table (if it exists)
+        try {
+            const query = `
+                SELECT * FROM images 
+                WHERE notice_id = $1 
+                AND (server_address = $2 OR recipient_address = $2)
+                LIMIT 1;
+            `;
+            const result = await client.query(query, [noticeId, walletAddress]);
+            
+            if (result.rows.length > 0) {
+                return res.json(result.rows[0]);
+            }
+        } catch (e) {
+            // Table doesn't exist yet, fall through to legacy tables
+            console.log('Images table not found, using legacy tables');
+        }
 
-        const result = await pool.query(query, [noticeId, walletAddress]);
+        // Fallback to notice_components table
+        let query = `
+            SELECT 
+                nc.alert_id as notice_id,
+                nc.server_address,
+                nc.recipient_address,
+                nc.alert_thumbnail_url as alert_image,
+                nc.document_unencrypted_url as document_image,
+                nc.alert_thumbnail_url as alert_thumbnail,
+                nc.document_unencrypted_url as document_thumbnail,
+                nc.case_number,
+                nc.created_at
+            FROM notice_components nc
+            WHERE (nc.alert_id = $1 OR nc.document_id = $1 OR nc.notice_id = $1)
+            AND (nc.server_address = $2 OR nc.recipient_address = $2)
+            LIMIT 1
+        `;
+        
+        let result = await client.query(query, [noticeId, walletAddress]);
+        
+        if (result.rows.length === 0) {
+            // Try served_notices table
+            query = `
+                SELECT 
+                    sn.alert_id as notice_id,
+                    sn.server_address,
+                    sn.recipient_address,
+                    sn.case_number,
+                    sn.created_at
+                FROM served_notices sn
+                WHERE (sn.alert_id = $1 OR sn.document_id = $1 OR sn.notice_id = $1)
+                AND (sn.server_address = $2 OR sn.recipient_address = $2)
+                LIMIT 1
+            `;
+            result = await client.query(query, [noticeId, walletAddress]);
+        }
 
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Image not found or access denied' });
@@ -94,6 +151,8 @@ router.get('/:noticeId', async (req, res) => {
     } catch (error) {
         console.error('Error fetching image:', error);
         res.status(500).json({ error: 'Failed to fetch image' });
+    } finally {
+        if (client) client.release();
     }
 });
 
@@ -102,43 +161,102 @@ router.get('/:noticeId', async (req, res) => {
  * GET /api/images
  */
 router.get('/', async (req, res) => {
-    const walletAddress = req.headers['x-wallet-address'];
+    const walletAddress = req.headers['x-wallet-address'] || req.headers['x-server-address'];
     const role = req.query.role; // 'server', 'recipient', or 'all'
 
     if (!walletAddress) {
         return res.status(401).json({ error: 'Wallet address required' });
     }
 
+    let client;
     try {
+        client = await pool.connect();
         let query;
         let params = [walletAddress];
-
+        
+        // Try new images table first
+        try {
+            if (role === 'server') {
+                query = `
+                    SELECT * FROM images 
+                    WHERE server_address = $1
+                    ORDER BY created_at DESC;
+                `;
+            } else if (role === 'recipient') {
+                query = `
+                    SELECT * FROM images 
+                    WHERE recipient_address = $1
+                    ORDER BY created_at DESC;
+                `;
+            } else {
+                query = `
+                    SELECT * FROM images 
+                    WHERE server_address = $1 OR recipient_address = $1
+                    ORDER BY created_at DESC;
+                `;
+            }
+            
+            const result = await client.query(query, params);
+            if (result.rows.length > 0) {
+                return res.json(result.rows);
+            }
+        } catch (e) {
+            // Table doesn't exist, use fallback
+            console.log('Images table not found, using legacy tables');
+        }
+        
+        // Fallback to notice_components
         if (role === 'server') {
             query = `
-                SELECT * FROM images 
-                WHERE server_address = $1
-                ORDER BY created_at DESC;
+                SELECT 
+                    nc.alert_id as notice_id,
+                    nc.server_address,
+                    nc.recipient_address,
+                    nc.alert_thumbnail_url as alert_image,
+                    nc.document_unencrypted_url as document_image,
+                    nc.case_number,
+                    nc.created_at
+                FROM notice_components nc
+                WHERE nc.server_address = $1
+                ORDER BY nc.created_at DESC;
             `;
         } else if (role === 'recipient') {
             query = `
-                SELECT * FROM images 
-                WHERE recipient_address = $1
-                ORDER BY created_at DESC;
+                SELECT 
+                    nc.alert_id as notice_id,
+                    nc.server_address,
+                    nc.recipient_address,
+                    nc.alert_thumbnail_url as alert_image,
+                    nc.document_unencrypted_url as document_image,
+                    nc.case_number,
+                    nc.created_at
+                FROM notice_components nc
+                WHERE nc.recipient_address = $1
+                ORDER BY nc.created_at DESC;
             `;
         } else {
-            // Get all where user is either server or recipient
             query = `
-                SELECT * FROM images 
-                WHERE server_address = $1 OR recipient_address = $1
-                ORDER BY created_at DESC;
+                SELECT 
+                    nc.alert_id as notice_id,
+                    nc.server_address,
+                    nc.recipient_address,
+                    nc.alert_thumbnail_url as alert_image,
+                    nc.document_unencrypted_url as document_image,
+                    nc.case_number,
+                    nc.created_at
+                FROM notice_components nc
+                WHERE nc.server_address = $1 OR nc.recipient_address = $1
+                ORDER BY nc.created_at DESC;
             `;
         }
 
-        const result = await pool.query(query, params);
+        const result = await client.query(query, params);
         res.json(result.rows);
     } catch (error) {
         console.error('Error fetching images:', error);
         res.status(500).json({ error: 'Failed to fetch images' });
+    } finally {
+        if (client) client.release();
     }
 });
 

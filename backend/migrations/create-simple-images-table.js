@@ -9,7 +9,9 @@ require('dotenv').config();
 async function createSimpleImagesTable() {
     const client = new Client({
         connectionString: process.env.DATABASE_URL,
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+        ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('render.com') 
+            ? { rejectUnauthorized: false } 
+            : false
     });
 
     try {
@@ -37,16 +39,19 @@ async function createSimpleImagesTable() {
                 alert_thumbnail TEXT,
                 document_thumbnail TEXT,
                 transaction_hash VARCHAR(255),
+                case_number VARCHAR(255),
+                signature_status VARCHAR(50),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                
-                -- Indexes for fast lookups
-                INDEX idx_notice_id (notice_id),
-                INDEX idx_server_address (server_address),
-                INDEX idx_recipient_address (recipient_address),
-                INDEX idx_transaction_hash (transaction_hash)
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
+        
+        // Create indexes separately (PostgreSQL syntax)
+        console.log('Creating indexes...');
+        await client.query('CREATE INDEX IF NOT EXISTS idx_notice_id ON images(notice_id);');
+        await client.query('CREATE INDEX IF NOT EXISTS idx_server_address ON images(server_address);');
+        await client.query('CREATE INDEX IF NOT EXISTS idx_recipient_address ON images(recipient_address);');
+        await client.query('CREATE INDEX IF NOT EXISTS idx_transaction_hash ON images(transaction_hash);');
 
         // Create a simple function to update the updated_at timestamp
         await client.query(`

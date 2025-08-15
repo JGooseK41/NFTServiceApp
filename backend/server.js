@@ -980,6 +980,10 @@ app.use('/api/audit', auditRouter);
 const noticeImagesRouter = require('./routes/notice-images');
 app.use('/', noticeImagesRouter);
 
+// Simple images routes (new clean image system)
+const simpleImagesRouter = require('./routes/simple-images');
+app.use('/api/images', simpleImagesRouter);
+
 // Notice dismissal routes (for managing notice visibility)
 const noticeDismissalRouter = require('./routes/notice-dismissal');
 app.use('/', noticeDismissalRouter);
