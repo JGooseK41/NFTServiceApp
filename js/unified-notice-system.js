@@ -2722,7 +2722,12 @@ class UnifiedNoticeSystem {
             // Section 2: Document Images
             updateProgress('Fetching document images...');
             try {
-                const response = await fetch(`${this.backend}/api/notices/${recipient.alertId}/images`);
+                const response = await fetch(`${this.backend}/api/notices/${recipient.alertId}/images`, {
+                    headers: {
+                        'X-Wallet-Address': this.serverAddress || '',
+                        'X-Server-Address': this.serverAddress || ''
+                    }
+                });
                 if (response.ok) {
                     const data = await response.json();
                     htmlContent += `
@@ -3473,7 +3478,12 @@ class UnifiedNoticeSystem {
             
             try {
                 // Check if documents exist in backend
-                const response = await fetch(`${this.backend}/api/notices/${noticeId}/images`);
+                const response = await fetch(`${this.backend}/api/notices/${noticeId}/images`, {
+                    headers: {
+                        'X-Wallet-Address': this.serverAddress || '',
+                        'X-Server-Address': this.serverAddress || ''
+                    }
+                });
                 
                 if (response.ok) {
                     const data = await response.json();
@@ -3542,7 +3552,12 @@ class UnifiedNoticeSystem {
                     return;
                 }
                 
-                const response = await fetch(`${this.backend}/api/notices/${noticeId}/images`);
+                const response = await fetch(`${this.backend}/api/notices/${noticeId}/images`, {
+                    headers: {
+                        'X-Wallet-Address': this.serverAddress || '',
+                        'X-Server-Address': this.serverAddress || ''
+                    }
+                });
                 
                 if (response.ok) {
                     const data = await response.json();

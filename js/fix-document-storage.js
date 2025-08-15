@@ -89,9 +89,32 @@ if (window.documentConverter && window.documentConverter.combineImages) {
     };
 }
 
-// Increase upload size limit by intercepting fetch
+// Increase upload size limit by intercepting fetch AND add auth headers
 const originalFetch = window.fetch;
-window.fetch = async function(url, options) {
+window.fetch = async function(url, options = {}) {
+    // Add authentication headers for backend API calls
+    if (url.includes('/api/notices') || url.includes('nftserviceapp.onrender.com')) {
+        // Ensure headers object exists
+        if (!options.headers) {
+            options.headers = {};
+        }
+        
+        // Add wallet authentication headers if not already present
+        if (!options.headers['X-Wallet-Address']) {
+            const walletAddress = window.tronWeb?.defaultAddress?.base58 || localStorage.getItem('walletAddress') || '';
+            if (walletAddress) {
+                options.headers['X-Wallet-Address'] = walletAddress;
+            }
+        }
+        
+        if (!options.headers['X-Server-Address']) {
+            const serverAddress = localStorage.getItem('serverAddress') || window.tronWeb?.defaultAddress?.base58 || '';
+            if (serverAddress) {
+                options.headers['X-Server-Address'] = serverAddress;
+            }
+        }
+    }
+    
     // Intercept document uploads
     if (url.includes('/api/documents') && options && options.body) {
         console.log('🔧 Intercepting document upload...');
@@ -128,3 +151,4 @@ console.log('  - PDF stored directly (no image conversion)');
 console.log('  - Canvas height limit removed');
 console.log('  - Upload size monitoring enabled');
 console.log('  - Original quality preserved');
+console.log('  - Authentication headers auto-added to API calls');
