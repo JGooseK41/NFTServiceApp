@@ -29,46 +29,138 @@ router.post('/', async (req, res) => {
         document_image,
         alert_thumbnail,
         document_thumbnail,
-        transaction_hash
+        transaction_hash,
+        case_number
     } = req.body;
 
+    let client;
     try {
-        // Upsert - insert or update if exists
-        const query = `
-            INSERT INTO images (
-                notice_id, server_address, recipient_address,
-                alert_image, document_image, alert_thumbnail, document_thumbnail,
-                transaction_hash
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            ON CONFLICT (notice_id) 
-            DO UPDATE SET
-                alert_image = COALESCE(EXCLUDED.alert_image, images.alert_image),
-                document_image = COALESCE(EXCLUDED.document_image, images.document_image),
-                alert_thumbnail = COALESCE(EXCLUDED.alert_thumbnail, images.alert_thumbnail),
-                document_thumbnail = COALESCE(EXCLUDED.document_thumbnail, images.document_thumbnail),
-                transaction_hash = COALESCE(EXCLUDED.transaction_hash, images.transaction_hash),
-                updated_at = CURRENT_TIMESTAMP
-            RETURNING *;
-        `;
+        client = await pool.connect();
+        
+        // Try to use images table first
+        try {
+            const query = `
+                INSERT INTO images (
+                    notice_id, server_address, recipient_address,
+                    alert_image, document_image, alert_thumbnail, document_thumbnail,
+                    transaction_hash, case_number
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                ON CONFLICT (notice_id) 
+                DO UPDATE SET
+                    alert_image = COALESCE(EXCLUDED.alert_image, images.alert_image),
+                    document_image = COALESCE(EXCLUDED.document_image, images.document_image),
+                    alert_thumbnail = COALESCE(EXCLUDED.alert_thumbnail, images.alert_thumbnail),
+                    document_thumbnail = COALESCE(EXCLUDED.document_thumbnail, images.document_thumbnail),
+                    transaction_hash = COALESCE(EXCLUDED.transaction_hash, images.transaction_hash),
+                    case_number = COALESCE(EXCLUDED.case_number, images.case_number),
+                    updated_at = CURRENT_TIMESTAMP
+                RETURNING *;
+            `;
 
-        const result = await pool.query(query, [
-            notice_id,
-            server_address,
-            recipient_address,
-            alert_image,
-            document_image,
-            alert_thumbnail,
-            document_thumbnail,
-            transaction_hash
-        ]);
+            const result = await client.query(query, [
+                notice_id,
+                server_address,
+                recipient_address,
+                alert_image,
+                document_image,
+                alert_thumbnail,
+                document_thumbnail,
+                transaction_hash,
+                case_number || ''
+            ]);
 
-        res.json({
-            success: true,
-            image: result.rows[0]
-        });
+            return res.json({
+                success: true,
+                image: result.rows[0],
+                storage: 'images_table'
+            });
+        } catch (e) {
+            // If images table doesn't exist, fallback to notice_components
+            console.log('Images table not available, using notice_components fallback');
+            
+            // Check if record exists first
+            const checkQuery = `
+                SELECT notice_id FROM notice_components 
+                WHERE notice_id = $1 OR alert_id = $1 OR document_id = $1
+                LIMIT 1
+            `;
+            const checkResult = await client.query(checkQuery, [notice_id]);
+            
+            if (checkResult.rows.length > 0) {
+                // Update existing record
+                const updateQuery = `
+                    UPDATE notice_components 
+                    SET alert_thumbnail_url = COALESCE($2, alert_thumbnail_url),
+                        document_unencrypted_url = COALESCE($3, document_unencrypted_url),
+                        case_number = COALESCE($4, case_number)
+                    WHERE notice_id = $1 OR alert_id = $1 OR document_id = $1
+                    RETURNING *;
+                `;
+                
+                const result = await client.query(updateQuery, [
+                    notice_id,
+                    alert_thumbnail || alert_image,
+                    document_thumbnail || document_image,
+                    case_number || ''
+                ]);
+                
+                return res.json({
+                    success: true,
+                    image: {
+                        notice_id: result.rows[0].notice_id || result.rows[0].alert_id,
+                        server_address: result.rows[0].server_address,
+                        recipient_address: result.rows[0].recipient_address,
+                        alert_image: result.rows[0].alert_thumbnail_url,
+                        document_image: result.rows[0].document_unencrypted_url,
+                        case_number: result.rows[0].case_number
+                    },
+                    storage: 'notice_components_update'
+                });
+            } else {
+                // Insert new record
+                const insertQuery = `
+                    INSERT INTO notice_components (
+                        notice_id, alert_id, document_id,
+                        server_address, recipient_address,
+                        alert_thumbnail_url, document_unencrypted_url,
+                        case_number, created_at
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+                    RETURNING *;
+                `;
+                
+                const result = await client.query(insertQuery, [
+                    notice_id,
+                    notice_id, // Use same ID for alert_id
+                    parseInt(notice_id) + 1, // Document ID is typically alert + 1
+                    server_address,
+                    recipient_address,
+                    alert_thumbnail || alert_image,
+                    document_thumbnail || document_image,
+                    case_number || ''
+                ]);
+                
+                return res.json({
+                    success: true,
+                    image: {
+                        notice_id: result.rows[0].notice_id,
+                        server_address: result.rows[0].server_address,
+                        recipient_address: result.rows[0].recipient_address,
+                        alert_image: result.rows[0].alert_thumbnail_url,
+                        document_image: result.rows[0].document_unencrypted_url,
+                        case_number: result.rows[0].case_number
+                    },
+                    storage: 'notice_components_insert'
+                });
+            }
+        }
     } catch (error) {
         console.error('Error storing images:', error);
-        res.status(500).json({ error: 'Failed to store images' });
+        res.status(500).json({ 
+            error: 'Failed to store images',
+            details: error.message 
+        });
+    } finally {
+        if (client) client.release();
     }
 });
 
