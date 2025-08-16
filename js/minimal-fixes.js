@@ -6,52 +6,79 @@ console.log('Loading minimal fixes...');
 
 // Fix 1: Remove ALL loading screens immediately and permanently
 function removeAllLoadingScreens() {
-    // Find ALL potential loading elements
-    const loaders = document.querySelectorAll(`
-        .processing-overlay,
-        .transaction-status,
-        .transaction-status-modal,
-        [class*="processing"],
-        [class*="loading"],
-        [class*="transaction"],
-        [style*="position: fixed"][style*="bottom"],
-        [style*="position:fixed"][style*="bottom"]
-    `);
-    
-    loaders.forEach(loader => {
-        const text = loader.textContent || '';
-        const style = window.getComputedStyle(loader);
+    // Remove ANYTHING that looks like a loading screen
+    const allElements = document.querySelectorAll('*');
+    allElements.forEach(el => {
+        const style = window.getComputedStyle(el);
+        const text = (el.textContent || '').toLowerCase();
+        const className = (el.className || '').toLowerCase();
+        const id = (el.id || '').toLowerCase();
         
-        // Remove if it's a loading/processing element or bottom-right positioned
-        if (text.toLowerCase().includes('processing') || 
-            text.toLowerCase().includes('transaction') ||
-            text.toLowerCase().includes('loading') ||
-            text.toLowerCase().includes('acquiring energy') ||
-            text.toLowerCase().includes('confirming') ||
-            (style.position === 'fixed' && style.bottom !== 'auto' && style.right !== 'auto')) {
-            
-            console.log('Removing loading element:', loader.className || loader.id || 'unnamed');
-            loader.remove();
+        // Check if it's positioned in bottom-right
+        const isBottomRight = style.position === 'fixed' && 
+                             style.bottom !== 'auto' && 
+                             style.right !== 'auto';
+        
+        // Check if it contains loading-related text
+        const hasLoadingText = text.includes('processing') || 
+                              text.includes('transaction') ||
+                              text.includes('loading') ||
+                              text.includes('acquiring') ||
+                              text.includes('confirming') ||
+                              text.includes('waiting') ||
+                              text.includes('please wait') ||
+                              text.includes('blockchain confirmation');
+        
+        // Check class/id for loading indicators
+        const hasLoadingClass = className.includes('process') || 
+                               className.includes('load') ||
+                               className.includes('transaction') ||
+                               className.includes('status') ||
+                               id.includes('process') ||
+                               id.includes('load') ||
+                               id.includes('transaction');
+        
+        // Remove if it matches any criteria
+        if ((isBottomRight && hasLoadingText) || 
+            (hasLoadingClass && hasLoadingText) ||
+            (isBottomRight && text.length > 0 && text.length < 200)) { // Short text in bottom-right
+            console.log('REMOVING:', el.tagName, className || id || text.substring(0, 50));
+            el.remove();
         }
     });
     
-    // Also remove any elements with inline styles for bottom-right positioning
-    const allElements = document.querySelectorAll('[style*="position"]');
-    allElements.forEach(el => {
-        const style = el.getAttribute('style');
-        if (style && style.includes('fixed') && style.includes('bottom') && style.includes('right')) {
-            const text = el.textContent || '';
-            if (text.includes('Processing') || text.includes('Transaction') || text.includes('Loading')) {
-                console.log('Removing inline-styled loader');
-                el.remove();
-            }
+    // Also check for divs with inline styles
+    document.querySelectorAll('div[style*="fixed"]').forEach(div => {
+        const style = div.getAttribute('style') || '';
+        if (style.includes('bottom') && style.includes('right')) {
+            console.log('REMOVING bottom-right div:', div.textContent?.substring(0, 50));
+            div.remove();
         }
     });
 }
 
 // Run immediately and then periodically
 removeAllLoadingScreens();
-setInterval(removeAllLoadingScreens, 500); // Check every 500ms to catch any new ones
+setInterval(removeAllLoadingScreens, 100); // Check every 100ms to catch any new ones
+
+// Extra aggressive removal for the specific blockchain confirmation message
+setInterval(() => {
+    // Target the exact "please wait for blockchain confirmation" message
+    document.querySelectorAll('*').forEach(el => {
+        if (el.textContent && el.textContent.includes('Please wait for blockchain confirmation')) {
+            console.log('FOUND AND REMOVING blockchain confirmation message');
+            // Remove the parent container too
+            if (el.parentElement) el.parentElement.remove();
+            else el.remove();
+        }
+    });
+    
+    // Also remove any transaction-loading class elements
+    document.querySelectorAll('.transaction-loading').forEach(el => {
+        console.log('REMOVING transaction-loading element');
+        el.remove();
+    });
+}, 100);
 
 // Prevent any new loading screens from being created
 const originalCreateElement = document.createElement;
