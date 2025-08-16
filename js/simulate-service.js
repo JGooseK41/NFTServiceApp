@@ -315,43 +315,69 @@ window.SimulateService = {
 
 // Add UI for testing
 (function() {
-    // Create test button
-    const button = document.createElement('button');
-    button.innerHTML = '🧪 Test Service Simulation';
-    button.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        background: #8b5cf6;
-        color: white;
-        padding: 10px 20px;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        z-index: 9999;
-        font-size: 16px;
-    `;
-    
-    button.onclick = () => {
-        // Create file input
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.pdf';
-        input.onchange = async (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const recipientAddress = prompt('Enter recipient address:', 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb');
-                const caseNumber = prompt('Enter case number:', 'TEST-' + Date.now());
-                
-                if (recipientAddress && caseNumber) {
-                    await window.SimulateService.simulateFullService(file, recipientAddress, caseNumber);
-                }
-            }
+    function addSimulationButton() {
+        // Check if button already exists
+        if (document.getElementById('simulationTestButton')) {
+            return;
+        }
+        
+        // Create test button
+        const button = document.createElement('button');
+        button.id = 'simulationTestButton';
+        button.innerHTML = '🧪 Test Service Simulation';
+        button.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #8b5cf6;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 9999;
+            font-size: 16px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        `;
+        
+        button.onmouseover = () => {
+            button.style.background = '#7c3aed';
         };
-        input.click();
-    };
+        
+        button.onmouseout = () => {
+            button.style.background = '#8b5cf6';
+        };
+        
+        button.onclick = () => {
+            // Create file input
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.pdf';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const recipientAddress = prompt('Enter recipient address:', 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb');
+                    const caseNumber = prompt('Enter case number:', 'TEST-' + Date.now());
+                    
+                    if (recipientAddress && caseNumber) {
+                        await window.SimulateService.simulateFullService(file, recipientAddress, caseNumber);
+                    }
+                }
+            };
+            input.click();
+        };
+        
+        document.body.appendChild(button);
+        console.log('✅ Service Simulation button added to page');
+    }
     
-    document.body.appendChild(button);
+    // Wait for DOM to be ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', addSimulationButton);
+    } else {
+        // DOM already loaded
+        addSimulationButton();
+    }
 })();
 
-console.log('✅ Service Simulation loaded - click the purple button to test');
+console.log('✅ Service Simulation loaded - button will appear when page is ready');

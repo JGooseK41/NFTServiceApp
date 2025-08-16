@@ -27,7 +27,10 @@ window.CompleteReceiptSystem = {
     // Capture data throughout the transaction process
     captureData(key, value) {
         this.transactionData[key] = value;
-        console.log(`📝 Captured ${key}:`, value);
+        // Use original console.log to avoid recursion
+        if (window.originalConsoleLog) {
+            window.originalConsoleLog(`📝 Captured ${key}:`, value);
+        }
         
         // Also store in session
         sessionStorage.setItem('currentTransaction', JSON.stringify(this.transactionData));
@@ -374,9 +377,19 @@ delivered via blockchain technology.
 
 // Override transaction success handlers
 (function() {
+    // Store original console.log globally to avoid recursion
+    window.originalConsoleLog = window.originalConsoleLog || console.log;
+    
     // Monitor console logs for transaction hash
-    const originalLog = console.log;
+    const originalLog = window.originalConsoleLog;
     console.log = function(...args) {
+        // Prevent recursion - don't process our own captured messages
+        const message = args.join(' ');
+        if (message.includes('📝 Captured')) {
+            originalLog.apply(console, args);
+            return;
+        }
+        
         originalLog.apply(console, args);
         
         // Look for transaction hash patterns
