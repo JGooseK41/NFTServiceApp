@@ -17,6 +17,14 @@ setInterval(() => {
     `);
     
     loaders.forEach(loader => {
+        // Skip permanent elements
+        if (loader.dataset.permanent === 'true' || 
+            loader.id === 'manualSimulationButton' ||
+            loader.id === 'simulationTestButton' ||
+            loader.className?.includes('simulation-test-button')) {
+            return; // Don't remove simulation buttons
+        }
+        
         const text = loader.textContent || '';
         // Check for transaction/processing text or bottom-right position
         if (text.toLowerCase().includes('processing') || 
