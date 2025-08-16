@@ -27,6 +27,9 @@
         })();
     </script>
     
+    <!-- Stack Overflow Protection - MUST load absolutely first -->
+    <script src="js/fix-stack-overflow-final.js"></script>
+    
     <!-- Page Loading Optimization - Must load first -->
     <script src="js/cleanup-page-loading.js"></script>
     <script src="js/remove-test-scripts.js"></script>
@@ -70,6 +73,8 @@
     <script src="js/recent-served-simple.js"></script>
     <!-- Service Simulation - Test without blockchain transactions -->
     <script src="js/simulate-service.js"></script>
+    <!-- Manual simulation button while main script deploys -->
+    <script src="js/add-simulation-button.js"></script>
     
     <script src="js/direct-energy-rental.js"></script>
     <!-- STREAMLINED ENERGY FLOW - Clean, themed energy rental experience -->
