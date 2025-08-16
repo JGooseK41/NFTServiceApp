@@ -20686,17 +20686,38 @@ document.addEventListener('keydown', function(event) {
             const files = Array.from(event.target.files);
             if (!files || files.length === 0) return;
             
+            console.log(`Starting upload of ${files.length} file(s)`);
+            
             // Check total documents limit
             if (window.uploadedDocumentsList.length + files.length > 10) {
                 uiManager.showNotification('error', 'Maximum 10 documents allowed');
                 return;
             }
             
+            // Show processing status ONCE at the beginning
+            document.getElementById('compressionStatus').style.display = 'block';
+            
+            // Initialize document converter once if needed
+            if (!window.documentConverter && files.some(f => 
+                f.type === 'application/pdf' || 
+                f.name.endsWith('.pdf') || 
+                f.name.endsWith('.doc') || 
+                f.name.endsWith('.docx'))) {
+                console.log('Initializing DocumentConverter...');
+                try {
+                    window.documentConverter = new DocumentConverter();
+                    await window.documentConverter.init();
+                } catch (error) {
+                    console.error('Failed to initialize DocumentConverter:', error);
+                }
+            }
             
             // Process each file
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
                 const maxSize = 10 * 1024 * 1024; // 10MB limit per file
+                
+                console.log(`Processing file ${i + 1}/${files.length}: ${file.name}`);
                 
                 if (file.size > maxSize) {
                     uiManager.showNotification('error', `File "${file.name}" exceeds 10MB limit`);
@@ -20704,16 +20725,16 @@ document.addEventListener('keydown', function(event) {
                 }
                 
                 try {
-                    // Show processing status
-                    document.getElementById('compressionStatus').style.display = 'block';
-                    updateCompressionProgress(10 + (i * 10), `Reading file ${i + 1}/${files.length}: ${file.name}...`);
+                    // Calculate progress based on file index
+                    const baseProgress = (i / files.length) * 90;
+                    updateCompressionProgress(baseProgress + 10, `Reading file ${i + 1}/${files.length}: ${file.name}...`);
                     
                     // Read file as data URL
                     await new Promise((resolve, reject) => {
                         const reader = new FileReader();
                         reader.onload = async function(e) {
                             try {
-                                updateCompressionProgress(30 + (i * 10), `Processing document ${i + 1}/${files.length}...`);
+                                updateCompressionProgress(baseProgress + 30, `Processing document ${i + 1}/${files.length}...`);
                                 
                                 // Check if it's a PDF or Word document that needs conversion
                                 let documentData = {
@@ -20736,11 +20757,12 @@ document.addEventListener('keydown', function(event) {
                                     file.name.endsWith('.doc') || 
                                     file.name.endsWith('.docx')) {
                                     
-                                    updateCompressionProgress(40 + (i * 10), `Converting document ${i + 1} to images...`);
+                                    updateCompressionProgress(baseProgress + 40, `Converting document ${i + 1} to images...`);
                                     
                                     try {
-                                        // Initialize converter if needed
+                                        // Converter should already be initialized
                                         if (!window.documentConverter) {
+                                            console.warn('DocumentConverter not initialized, attempting to initialize...');
                                             window.documentConverter = new DocumentConverter();
                                             await window.documentConverter.init();
                                         }
@@ -20766,11 +20788,12 @@ document.addEventListener('keydown', function(event) {
                                             documentData.allPages = converted.allPages;
                                         }
                                         
-                                        updateCompressionProgress(60 + (i * 10), `Document ${i + 1} converted successfully...`);
+                                        updateCompressionProgress(baseProgress + 60, `Document ${i + 1} converted successfully...`);
                                     } catch (convertError) {
                                         console.error('Document conversion error:', convertError);
-                                        // Generate a basic preview for PDFs
+                                        // For documents that fail to convert, still add them with the raw data
                                         documentData.preview = e.target.result;
+                                        uiManager.showNotification('warning', `Could not convert ${file.name} to image format, using original`);
                                     }
                                 } else if (file.type.startsWith('image/')) {
                                     // For images, use the data as preview
@@ -20790,18 +20813,21 @@ document.addEventListener('keydown', function(event) {
                             }
                         };
                         
-                        reader.onerror = reject;
+                        reader.onerror = (error) => {
+                            console.error('FileReader error:', error);
+                            reject(error);
+                        };
                         reader.readAsDataURL(file);
                     });
                     
                 } catch (error) {
-                    console.error('Error uploading file:', error);
-                    uiManager.showNotification('error', `Failed to upload ${file.name}`);
+                    console.error(`Error uploading file ${file.name}:`, error);
+                    uiManager.showNotification('error', `Failed to upload ${file.name}: ${error.message || 'Unknown error'}`);
+                    // Continue processing remaining files
                 }
             }
             
-            // Hide processing status and show success
-            document.getElementById('compressionStatus').style.display = 'none';
+            console.log(`Upload complete. Total documents: ${window.uploadedDocumentsList.length}`);
             
             if (window.uploadedDocumentsList.length > 0) {
                 // For backward compatibility, set the first document as the main one
@@ -20823,7 +20849,7 @@ document.addEventListener('keydown', function(event) {
                     documentPreview.style.display = 'block';
                 }
                 
-                updateCompressionProgress(100, 'Documents ready for encrypted delivery');
+                updateCompressionProgress(100, `${window.uploadedDocumentsList.length} document(s) ready for encrypted delivery`);
                 
                 // Show proceed button
                 document.getElementById('proceedToStep2').style.display = 'block';
@@ -20831,9 +20857,13 @@ document.addEventListener('keydown', function(event) {
                 // Hide progress after delay
                 setTimeout(() => {
                     document.getElementById('compressionStatus').style.display = 'none';
-                }, 1500);
+                }, 2000);
                 
                 uiManager.showNotification('success', `${window.uploadedDocumentsList.length} document(s) uploaded and ready for encryption`);
+            } else {
+                // No documents uploaded successfully
+                document.getElementById('compressionStatus').style.display = 'none';
+                uiManager.showNotification('warning', 'No documents were uploaded successfully');
             }
         }
         
