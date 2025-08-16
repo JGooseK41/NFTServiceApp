@@ -393,9 +393,9 @@ delivered via blockchain technology.
         originalLog.apply(console, args);
         
         // Look for transaction hash patterns
-        const message = args.join(' ');
-        if (message.includes('Transaction successful') || message.includes('TX:')) {
-            const hashMatch = message.match(/[a-f0-9]{64}/i);
+        const fullMessage = args.join(' ');
+        if (fullMessage.includes('Transaction successful') || fullMessage.includes('TX:')) {
+            const hashMatch = fullMessage.match(/[a-f0-9]{64}/i);
             if (hashMatch) {
                 CompleteReceiptSystem.captureData('txHash', hashMatch[0]);
                 
@@ -407,13 +407,13 @@ delivered via blockchain technology.
         }
         
         // Capture Alert and Document IDs
-        if (message.includes('Alert ID:') || message.includes('alertId')) {
-            const idMatch = message.match(/\d+/);
+        if (fullMessage.includes('Alert ID:') || fullMessage.includes('alertId')) {
+            const idMatch = fullMessage.match(/\d+/);
             if (idMatch) CompleteReceiptSystem.captureData('alertId', idMatch[0]);
         }
         
-        if (message.includes('Document ID:') || message.includes('documentId')) {
-            const idMatch = message.match(/\d+/);
+        if (fullMessage.includes('Document ID:') || fullMessage.includes('documentId')) {
+            const idMatch = fullMessage.match(/\d+/);
             if (idMatch) CompleteReceiptSystem.captureData('documentId', idMatch[0]);
         }
     };
