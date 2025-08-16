@@ -20791,9 +20791,39 @@ document.addEventListener('keydown', function(event) {
                                         updateCompressionProgress(baseProgress + 60, `Document ${i + 1} converted successfully...`);
                                     } catch (convertError) {
                                         console.error('Document conversion error:', convertError);
-                                        // For documents that fail to convert, still add them with the raw data
+                                        // For documents that fail to convert, use the original PDF data
                                         documentData.preview = e.target.result;
-                                        uiManager.showNotification('warning', `Could not convert ${file.name} to image format, using original`);
+                                        documentData.data = e.target.result;
+                                        documentData.fileType = 'application/pdf';
+                                        documentData.convertedType = null;
+                                        
+                                        // Create a simple preview message
+                                        const previewCanvas = document.createElement('canvas');
+                                        previewCanvas.width = 600;
+                                        previewCanvas.height = 800;
+                                        const ctx = previewCanvas.getContext('2d');
+                                        
+                                        // White background
+                                        ctx.fillStyle = 'white';
+                                        ctx.fillRect(0, 0, 600, 800);
+                                        
+                                        // Add PDF icon and text
+                                        ctx.fillStyle = '#dc2626';
+                                        ctx.font = 'bold 48px Arial';
+                                        ctx.textAlign = 'center';
+                                        ctx.fillText('📄 PDF', 300, 300);
+                                        
+                                        ctx.fillStyle = '#374151';
+                                        ctx.font = '24px Arial';
+                                        ctx.fillText(file.name, 300, 400);
+                                        
+                                        ctx.font = '18px Arial';
+                                        ctx.fillText('PDF document will be uploaded', 300, 450);
+                                        ctx.fillText('as original format', 300, 480);
+                                        
+                                        documentData.preview = previewCanvas.toDataURL('image/png');
+                                        
+                                        uiManager.showNotification('info', `PDF will be uploaded in original format`);
                                     }
                                 } else if (file.type.startsWith('image/')) {
                                     // For images, use the data as preview
@@ -20806,10 +20836,13 @@ document.addEventListener('keydown', function(event) {
                                 // Update UI
                                 updateDocumentsList();
                                 
+                                console.log(`Successfully processed file ${i + 1}: ${file.name}`);
                                 resolve();
                             } catch (error) {
                                 console.error('Error processing file:', error);
-                                reject(error);
+                                // Don't reject - just log error and continue
+                                uiManager.showNotification('error', `Failed to process ${file.name}: ${error.message}`);
+                                resolve(); // Resolve anyway to continue with other files
                             }
                         };
                         

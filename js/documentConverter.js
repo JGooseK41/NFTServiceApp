@@ -119,6 +119,10 @@ class DocumentConverter {
             };
         } catch (error) {
             console.error('PDF conversion error:', error);
+            // Clean up any resources
+            if (typeof pdf !== 'undefined' && pdf && pdf.destroy) {
+                pdf.destroy();
+            }
             throw error;
         }
     }
@@ -181,46 +185,71 @@ class DocumentConverter {
      * Render a single PDF page to base64 image
      */
     async renderPDFPage(pdf, pageNum, maxWidth, isPreview = false) {
-        const page = await pdf.getPage(pageNum);
-        const viewport = page.getViewport({ scale: 1 });
-        
-        // Calculate scale to fit maxWidth
-        const scale = maxWidth / viewport.width;
-        const scaledViewport = page.getViewport({ scale: scale });
-        
-        // Create canvas
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        canvas.height = scaledViewport.height;
-        canvas.width = scaledViewport.width;
-        
-        // Set high quality rendering
-        context.imageSmoothingEnabled = true;
-        context.imageSmoothingQuality = 'high';
-        
-        // White background
-        context.fillStyle = 'white';
-        context.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Render PDF page to canvas
-        await page.render({
-            canvasContext: context,
-            viewport: scaledViewport,
-            intent: 'display' // Better quality for display
-        }).promise;
+        try {
+            const page = await pdf.getPage(pageNum);
+            const viewport = page.getViewport({ scale: 1 });
+            
+            // Calculate scale to fit maxWidth
+            const scale = maxWidth / viewport.width;
+            const scaledViewport = page.getViewport({ scale: scale });
+            
+            // Limit canvas size to prevent memory issues
+            const maxCanvasSize = 4096; // Most browsers limit
+            if (scaledViewport.width > maxCanvasSize || scaledViewport.height > maxCanvasSize) {
+                const limitScale = Math.min(maxCanvasSize / viewport.width, maxCanvasSize / viewport.height);
+                const limitedViewport = page.getViewport({ scale: limitScale });
+                console.warn(`Canvas size limited from ${scaledViewport.width}x${scaledViewport.height} to ${limitedViewport.width}x${limitedViewport.height}`);
+                scaledViewport.width = limitedViewport.width;
+                scaledViewport.height = limitedViewport.height;
+            }
+            
+            // Create canvas
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = scaledViewport.height;
+            canvas.width = scaledViewport.width;
+            
+            // Set high quality rendering
+            context.imageSmoothingEnabled = true;
+            context.imageSmoothingQuality = 'high';
+            
+            // White background
+            context.fillStyle = 'white';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Render PDF page to canvas with timeout
+            const renderTask = page.render({
+                canvasContext: context,
+                viewport: scaledViewport,
+                intent: 'display' // Better quality for display
+            });
+            
+            await Promise.race([
+                renderTask.promise,
+                new Promise((_, reject) => 
+                    setTimeout(() => {
+                        renderTask.cancel();
+                        reject(new Error(`Page ${pageNum} render timeout`));
+                    }, 15000)
+                )
+            ]);
         
         // Add watermark ONLY for preview (Alert NFT thumbnail)
         if (isPreview) {
             this.addServiceWatermark(context, canvas.width, canvas.height, isPreview);
         }
         
-        // Convert to base64 with quality settings
-        if (isPreview) {
-            // For preview, balance quality and size
-            return canvas.toDataURL('image/jpeg', 0.85);
-        } else {
-            // For full document, use JPEG to reduce size
-            return canvas.toDataURL('image/jpeg', 0.90);
+            // Convert to base64 with quality settings
+            if (isPreview) {
+                // For preview, balance quality and size
+                return canvas.toDataURL('image/jpeg', 0.85);
+            } else {
+                // For full document, use JPEG to reduce size
+                return canvas.toDataURL('image/jpeg', 0.90);
+            }
+        } catch (error) {
+            console.error(`Error rendering PDF page ${pageNum}:`, error);
+            throw error;
         }
     }
     
