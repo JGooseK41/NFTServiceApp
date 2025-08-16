@@ -27,6 +27,10 @@
         })();
     </script>
     
+    <!-- Page Loading Optimization - Must load first -->
+    <script src="js/cleanup-page-loading.js"></script>
+    <script src="js/remove-test-scripts.js"></script>
+    
     <!-- CONTRACT FIX v001 - Fixes parameter mismatch and adds metadata for NFT display -->
     <script src="js/contract-fix-v001.js"></script>
     <!-- BIGINT FIX v002 - Fixes "Cannot mix BigInt and other types" error -->
@@ -94,9 +98,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-    
-    <!-- jsPDF for PDF generation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="js/documentConverter.js"></script>
     <!-- Simplified Encryption (no registration needed) -->
     <script src="js/simple-encryption.js?v=2"></script>
@@ -141,7 +142,7 @@
     <script src="js/refresh-server-data.js"></script>
     <script src="js/fix-agency-field.js"></script>
     -->
-    <script src="js/diagnose-registration.js"></script>
+    <!-- <script src="js/diagnose-registration.js"></script> DISABLED: diagnostic script -->
     <script src="js/auto-register-server.js"></script>
     <script src="js/force-agency-update.js"></script>
     <script src="js/fix-transaction-fees.js"></script>
@@ -152,8 +153,8 @@
     <script src="js/fix-transaction-order.js"></script>
     <script src="js/fully-automatic-transaction.js"></script>
     -->
-    <!-- Real transaction testing script -->
-    <script src="test-real-transactions.js"></script>
+    <!-- Real transaction testing script - DISABLED IN PRODUCTION -->
+    <!-- <script src="test-real-transactions.js"></script> -->
     <!-- Module loading now handled by optimized-transaction-core.js
     <script src="js/fix-module-loading.js"></script>
     <script src="js/core-system-fix.js"></script>
@@ -197,7 +198,7 @@
     <script src="js/audit-tracker.js?v=1"></script>
     <script src="js/reupload-missing-images.js?v=1"></script>
     <script src="js/ipfs-document-recovery.js?v=1"></script>
-    <script src="js/blockchain-diagnostics.js?v=1"></script>
+    <!-- <script src="js/blockchain-diagnostics.js?v=1"></script> DISABLED: diagnostic script -->
     <script src="js/find-your-tokens.js?v=1"></script>
     <!-- <script src="js/check-blockchain-transaction.js?v=1"></script> Removed: diagnostic script -->
     <script src="js/pdf-direct-storage.js?v=1"></script>
