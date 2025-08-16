@@ -984,6 +984,11 @@ app.use('/', noticeImagesRouter);
 const simpleImagesRouter = require('./routes/simple-images');
 app.use('/api/images', simpleImagesRouter);
 
+// Case management routes (2-stage workflow)
+const caseRouter = require('./case-api');
+app.use('/api', caseRouter);
+console.log('✅ Case management API loaded');
+
 // Notice dismissal routes (for managing notice visibility)
 const noticeDismissalRouter = require('./routes/notice-dismissal');
 app.use('/', noticeDismissalRouter);

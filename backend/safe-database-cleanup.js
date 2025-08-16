@@ -33,8 +33,8 @@ async function safeCleanup() {
         // Tables to remove (verified empty and unused)
         const tablesToRemove = [
             'active_notices',           // 0 rows - replaced by served_notices
-            'document_access_log',       // 0 rows - not implemented
-            'document_access_tokens',    // 0 rows - not implemented
+            // 'document_access_log',   // KEEP - for future document access tracking
+            // 'document_access_tokens', // KEEP - for future token-based access
             'draft_files',              // 0 rows - replaced by notice_drafts
             'notice_events',            // 0 rows - replaced by audit_logs
             'pending_notices',          // 0 rows - replaced by staged_notices
@@ -42,8 +42,8 @@ async function safeCleanup() {
             'server_ratings',           // 0 rows - not implemented
             'staged_files',             // 0 rows - replaced by document_storage
             'staged_ipfs',              // 0 rows - replaced by notice_components
-            'transaction_hashes',       // 0 rows - data in served_notices
-            'access_attempts'           // 0 rows - replaced by audit_logs
+            // 'transaction_hashes',    // KEEP - for dedicated tx hash tracking
+            // 'access_attempts'        // KEEP - for security monitoring
         ];
         
         // Tables to keep (have data or needed for functionality)
