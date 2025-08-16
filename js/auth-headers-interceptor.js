@@ -17,7 +17,8 @@
             (url.includes('/api/notices') || 
              url.includes('nftserviceapp.onrender.com') ||
              url.includes('/api/sync') ||
-             url.includes('/api/documents'))) {
+             url.includes('/api/documents') ||
+             url.includes('/api/images'))) {
             
             // Ensure headers object exists
             if (!options.headers) {
