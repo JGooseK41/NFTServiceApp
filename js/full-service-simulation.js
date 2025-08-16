@@ -118,6 +118,24 @@
                 const mockAlertId = Math.floor(Math.random() * 1000000);
                 const mockDocumentId = mockAlertId + 1;
                 
+                // Store simulated notice data
+                await this.storeSimulatedNotice({
+                    txId: mockTxId,
+                    alertId: mockAlertId,
+                    documentId: mockDocumentId,
+                    recipient: recipientAddress,
+                    caseNumber: caseNumber,
+                    noticeText: noticeText,
+                    documentHash: documentHash,
+                    ipfsHash: ipfsHash,
+                    timestamp: new Date().toISOString(),
+                    fees: {
+                        creation: creationFee,
+                        service: serviceFee,
+                        sponsor: sponsorFee
+                    }
+                });
+                
                 // Show simulation results
                 this.showSimulationResults({
                     txId: mockTxId,
@@ -177,6 +195,87 @@
         },
         
         /**
+         * Store simulated notice for viewing
+         */
+        async storeSimulatedNotice(data) {
+            console.log('💾 Storing simulated notice for viewing...');
+            
+            // Store in localStorage for persistence
+            const simulatedNotices = JSON.parse(localStorage.getItem('simulatedNotices') || '[]');
+            simulatedNotices.push(data);
+            localStorage.setItem('simulatedNotices', JSON.stringify(simulatedNotices));
+            
+            // Also store the uploaded document if available
+            const uploadedDocs = window.uploadedDocuments || [];
+            if (uploadedDocs.length > 0) {
+                const docData = uploadedDocs[uploadedDocs.length - 1]; // Get most recent
+                
+                // Store document data with notice ID
+                const simDocs = JSON.parse(localStorage.getItem('simulatedDocuments') || '{}');
+                simDocs[data.alertId] = docData;
+                simDocs[data.documentId] = docData;
+                localStorage.setItem('simulatedDocuments', JSON.stringify(simDocs));
+                
+                // Also store in simple image system if available
+                if (window.simpleImageSystem) {
+                    try {
+                        await window.simpleImageSystem.storeImage(data.alertId, {
+                            alertImage: docData.alertImage || docData.thumbnail,
+                            documentImage: docData.documentImage || docData.fullDocument
+                        });
+                    } catch (e) {
+                        console.log('Could not store in image system:', e);
+                    }
+                }
+            }
+            
+            // Add to unified notice system if available
+            if (window.unifiedSystem) {
+                window.unifiedSystem.addSimulatedNotice({
+                    caseNumber: data.caseNumber,
+                    alertId: data.alertId,
+                    documentId: data.documentId,
+                    recipientAddress: data.recipient,
+                    timestamp: data.timestamp,
+                    status: 'SIMULATED',
+                    noticeType: 'Legal Notice',
+                    issuingAgency: 'SIMULATION',
+                    pageCount: 1
+                });
+            }
+            
+            // Refresh the display
+            this.refreshNoticeDisplay();
+            
+            console.log('✅ Simulated notice stored with ID:', data.alertId);
+        },
+        
+        /**
+         * Refresh notice display to show simulated notices
+         */
+        refreshNoticeDisplay() {
+            // Try to refresh the Recent Served Notices section
+            if (window.loadRecentServed) {
+                window.loadRecentServed();
+            }
+            
+            // Also try unified system refresh
+            if (window.unifiedSystem && window.unifiedSystem.loadCases) {
+                window.unifiedSystem.loadCases();
+            }
+            
+            // Switch to Recent tab to show the new notice
+            setTimeout(() => {
+                const recentTab = document.querySelector('[onclick*="showTab(\'recent\')"]');
+                if (recentTab) {
+                    recentTab.click();
+                } else if (window.showTab) {
+                    window.showTab('recent');
+                }
+            }, 1500);
+        },
+        
+        /**
          * Show simulation results
          */
         showSimulationResults(data) {
@@ -230,11 +329,18 @@
                         </ul>
                     </div>
                     
-                    <button onclick="this.parentElement.parentElement.remove()" 
-                            style="background: #8b5cf6; color: white; padding: 10px 30px; 
-                                   border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">
-                        Close
-                    </button>
+                    <div style="display: flex; gap: 10px; justify-content: center;">
+                        <button onclick="this.parentElement.parentElement.parentElement.remove(); window.showTab('recent');" 
+                                style="background: #10b981; color: white; padding: 10px 30px; 
+                                       border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">
+                            View in Recent Notices
+                        </button>
+                        <button onclick="this.parentElement.parentElement.parentElement.remove()" 
+                                style="background: #8b5cf6; color: white; padding: 10px 30px; 
+                                       border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">
+                            Close
+                        </button>
+                    </div>
                 </div>
             `;
             
