@@ -332,7 +332,10 @@ class BlockServedSimple {
             localStorage.setItem(`signed_${noticeId}`, 'true');
             localStorage.setItem(`signed_${noticeId}_date`, new Date().toISOString());
             
-            // Update backend
+            // Log acceptance to database (notice_acceptances table)
+            await this.logAcceptanceToBackend(noticeId, txHash, imageData);
+            
+            // Update backend status
             await this.updateSignatureStatus(noticeId, 'signed');
             
             // Close loading
@@ -367,6 +370,9 @@ class BlockServedSimple {
             
             // Log refusal in audit trail with IP and timestamp
             await this.logRefusalInAudit(noticeId, imageData);
+            
+            // Log refusal to database (notice_acceptances table with refused status)
+            await this.logAcceptanceToBackend(noticeId, 'REFUSED', imageData);
             
             // Update backend with refusal
             await this.updateSignatureStatus(noticeId, 'refused');
@@ -546,6 +552,68 @@ class BlockServedSimple {
             }
         } catch (error) {
             console.error('Error updating signature status:', error);
+        }
+    }
+
+    /**
+     * Log acceptance to notice_acceptances table
+     */
+    async logAcceptanceToBackend(noticeId, txHash, imageData) {
+        try {
+            // Get IP address if possible
+            let ipAddress = null;
+            try {
+                const ipResponse = await fetch('https://api.ipify.org?format=json');
+                const ipData = await ipResponse.json();
+                ipAddress = ipData.ip;
+            } catch (e) {
+                console.log('Could not get IP address');
+            }
+            
+            // Get location data if possible
+            let locationData = null;
+            if (ipAddress) {
+                try {
+                    const geoResponse = await fetch(`https://ipapi.co/${ipAddress}/json/`);
+                    locationData = await geoResponse.json();
+                } catch (e) {
+                    console.log('Could not get location data');
+                }
+            }
+            
+            // Send acceptance record to backend
+            const response = await fetch(`${this.imageSystem.backend}/api/notices/${noticeId}/acceptances`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Wallet-Address': window.tronWeb?.defaultAddress?.base58 || ''
+                },
+                body: JSON.stringify({
+                    acceptorAddress: window.tronWeb?.defaultAddress?.base58 || imageData.recipient_address,
+                    transactionHash: txHash || 'manual_signature',
+                    ipAddress: ipAddress,
+                    location: locationData,
+                    timestamp: new Date().toISOString(),
+                    metadata: {
+                        notice_type: 'Document',
+                        case_number: imageData.case_number,
+                        server_address: imageData.server_address,
+                        signature_method: txHash ? 'blockchain' : 'manual',
+                        user_agent: navigator.userAgent
+                    }
+                })
+            });
+            
+            if (response.ok) {
+                console.log('✅ Acceptance logged to database');
+                const result = await response.json();
+                console.log('Acceptance record:', result);
+            } else {
+                console.error('Failed to log acceptance:', response.status);
+            }
+        } catch (error) {
+            console.error('Error logging acceptance to backend:', error);
+            // Don't throw - we don't want to break the signing flow if logging fails
         }
     }
 
