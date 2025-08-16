@@ -30,9 +30,7 @@
         `;
         
         button.onclick = function() {
-            alert('Simulation Test:\n\n1. Upload a PDF document\n2. It will be processed locally\n3. Preview will show without blockchain transaction\n\nNote: Full simulation script is still deploying.');
-            
-            // Simple test without full simulation
+            // Skip the alert and go straight to file selection
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = '.pdf';
