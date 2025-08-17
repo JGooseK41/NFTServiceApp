@@ -163,9 +163,14 @@
         <p>Current Case ID: <span id="currentCaseId" style="font-weight: bold;">None</span></p>
         <button class="button" onclick="viewCurrentPDF()">View Combined PDF</button>
         <button class="button secondary" onclick="downloadCurrentPDF()">Download Combined PDF</button>
+        <button class="button secondary" onclick="embedPDF()">Embed PDF Below</button>
         <button class="button secondary" onclick="prepareForServing()">Prepare for Serving</button>
         <button class="button" onclick="serveToTestAddress()">Serve to Test Address</button>
         <div id="operationStatus"></div>
+        <div id="pdfEmbed" style="margin-top: 20px; display: none;">
+            <h3>Combined PDF Document:</h3>
+            <iframe id="pdfFrame" style="width: 100%; height: 600px; border: 1px solid #ddd; border-radius: 4px;"></iframe>
+        </div>
     </div>
 
     <script src="js/case-management-client.js"></script>
@@ -310,7 +315,14 @@
                 return;
             }
             
-            window.caseManager.viewCasePDF(currentCaseId);
+            // Build URL with server address in query params
+            const serverAddress = window.caseManager.serverAddress || 'TEST-SERVER';
+            const url = `${BACKEND_API_URL}/api/cases/${currentCaseId}/pdf?serverAddress=${encodeURIComponent(serverAddress)}`;
+            
+            console.log('Opening PDF:', url);
+            window.open(url, '_blank');
+            
+            showStatus('operationStatus', 'info', 'Opening PDF in new tab...');
         }
 
         // Prepare for serving
@@ -455,22 +467,67 @@
         });
 
         // Download current PDF
-        function downloadCurrentPDF() {
+        async function downloadCurrentPDF() {
             if (!currentCaseId) {
                 showStatus('operationStatus', 'error', 'No case selected');
                 return;
             }
             
-            const url = `${BACKEND_API_URL}/api/cases/${currentCaseId}/pdf`;
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `case-${currentCaseId}.pdf`;
-            link.target = '_blank';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            showStatus('operationStatus', 'info', 'Downloading PDF...');
             
-            showStatus('operationStatus', 'success', 'Download started');
+            try {
+                const serverAddress = window.caseManager.serverAddress || 'TEST-SERVER';
+                const url = `${BACKEND_API_URL}/api/cases/${currentCaseId}/pdf?serverAddress=${encodeURIComponent(serverAddress)}`;
+                
+                // Fetch the PDF
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                // Get the blob
+                const blob = await response.blob();
+                
+                // Create download link
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = `case-${currentCaseId}-combined.pdf`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Clean up
+                window.URL.revokeObjectURL(downloadUrl);
+                
+                showStatus('operationStatus', 'success', 'PDF downloaded successfully');
+            } catch (error) {
+                console.error('Download error:', error);
+                showStatus('operationStatus', 'error', `Download failed: ${error.message}`);
+            }
+        }
+
+        // Embed PDF in iframe
+        function embedPDF() {
+            if (!currentCaseId) {
+                showStatus('operationStatus', 'error', 'No case selected');
+                return;
+            }
+            
+            const serverAddress = window.caseManager.serverAddress || 'TEST-SERVER';
+            const url = `${BACKEND_API_URL}/api/cases/${currentCaseId}/pdf?serverAddress=${encodeURIComponent(serverAddress)}`;
+            
+            const embedDiv = document.getElementById('pdfEmbed');
+            const iframe = document.getElementById('pdfFrame');
+            
+            iframe.src = url;
+            embedDiv.style.display = 'block';
+            
+            showStatus('operationStatus', 'success', 'PDF embedded below');
+            
+            // Scroll to PDF
+            embedDiv.scrollIntoView({ behavior: 'smooth' });
         }
 
         // Initialize on load
