@@ -5,7 +5,10 @@
 
 class CaseManagementClient {
     constructor() {
-        this.apiUrl = window.BACKEND_API_URL || '';
+        // Use the Render backend URL or localhost for development
+        this.apiUrl = window.BACKEND_API_URL || 
+                     'https://nftserviceapp.onrender.com' || 
+                     'http://localhost:3000';
         this.serverAddress = null;
         this.currentCase = null;
     }

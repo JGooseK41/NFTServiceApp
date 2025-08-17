@@ -1292,6 +1292,15 @@ const alertMetadataRouter = require('./routes/alert-metadata-handler');
 app.use('/api/metadata', metadataRouter);
 app.use('/api/alerts', alertMetadataRouter);
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'NFT Service Backend is running',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Case Management with Render Disk Storage
 const caseApiRoutes = require('./case-api-routes');
 app.use('/api', caseApiRoutes);
