@@ -30,7 +30,8 @@ class CaseManagementClient {
      */
     async createCase(files, metadata = {}) {
         if (!this.serverAddress) {
-            throw new Error('Server address not available');
+            console.warn('Server address not available, using test address');
+            this.serverAddress = 'TEST-SERVER-' + Date.now();
         }
         
         console.log(`📤 Creating case with ${files.length} documents`);
@@ -57,6 +58,11 @@ class CaseManagementClient {
                 },
                 body: formData
             });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || `HTTP ${response.status}`);
+            }
             
             const result = await response.json();
             
@@ -104,6 +110,11 @@ class CaseManagementClient {
      */
     async listCases(status = null) {
         try {
+            // Ensure we have a server address
+            if (!this.serverAddress) {
+                this.serverAddress = 'TEST-SERVER-' + Date.now();
+            }
+            
             const url = new URL(`${this.apiUrl}/api/cases`);
             if (status) {
                 url.searchParams.append('status', status);
@@ -115,7 +126,22 @@ class CaseManagementClient {
                 }
             });
             
-            return await response.json();
+            if (!response.ok) {
+                console.warn(`List cases returned ${response.status}`);
+                return []; // Return empty array on error
+            }
+            
+            const data = await response.json();
+            
+            // Handle response format from backend
+            if (data && data.success && Array.isArray(data.cases)) {
+                return data.cases;
+            } else if (Array.isArray(data)) {
+                return data;
+            } else {
+                console.warn('Unexpected cases response format:', data);
+                return [];
+            }
             
         } catch (error) {
             console.error('Failed to list cases:', error);

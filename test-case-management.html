@@ -181,10 +181,9 @@
                 window.caseManager = new CaseManagementClient();
             }
             
-            // Set a test server address if TronWeb isn't available
-            if (!window.tronWeb || !window.tronWeb.defaultAddress) {
-                window.caseManager.serverAddress = 'TEST-SERVER-' + Date.now();
-            }
+            // Always set a test server address for testing
+            window.caseManager.serverAddress = 'TEST-SERVER-' + Date.now();
+            console.log('Using test server address:', window.caseManager.serverAddress);
             
             await window.caseManager.init();
             
