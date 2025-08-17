@@ -20,41 +20,250 @@ class PDFProcessor {
     }
 
     /**
-     * Merge multiple PDFs into one document
+     * Merge multiple PDFs into one document with separators and page numbers
      */
-    async mergePDFs(pdfBuffers) {
+    async mergePDFs(pdfBuffers, fileInfo = []) {
         console.log(`📑 Merging ${pdfBuffers.length} PDFs into one document`);
         
         const mergedPdf = await PDFDocument.create();
+        const helveticaBold = await mergedPdf.embedFont(StandardFonts.HelveticaBold);
+        const helvetica = await mergedPdf.embedFont(StandardFonts.Helvetica);
         
+        let totalPageCount = 0;
+        const documentSections = [];
+        
+        // First pass: calculate total pages and prepare sections
         for (let i = 0; i < pdfBuffers.length; i++) {
             try {
-                // Load each PDF
                 const pdf = await PDFDocument.load(pdfBuffers[i]);
+                const pageCount = pdf.getPageCount();
                 
-                // Copy all pages
-                const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+                documentSections.push({
+                    pdf,
+                    fileName: fileInfo[i]?.fileName || `Document ${i + 1}`,
+                    startPage: totalPageCount + (i + 1), // Account for separator pages
+                    pageCount: pageCount
+                });
                 
-                // Add pages to merged document
-                pages.forEach(page => mergedPdf.addPage(page));
-                
-                console.log(`  ✓ Added PDF ${i + 1}: ${pdf.getPageCount()} pages`);
+                totalPageCount += pageCount + 1; // +1 for separator page
             } catch (error) {
-                console.error(`  ✗ Failed to add PDF ${i + 1}:`, error.message);
-                // Continue with other PDFs even if one fails
+                console.error(`  ✗ Failed to load PDF ${i + 1}:`, error.message);
             }
         }
         
+        let currentPageNum = 0;
+        
+        // Second pass: add documents with separators and page numbers
+        for (let i = 0; i < documentSections.length; i++) {
+            const section = documentSections[i];
+            
+            // Add separator page before each document
+            const separatorPage = mergedPdf.addPage([612, 792]); // Letter size
+            currentPageNum++;
+            
+            // Draw separator page content
+            this.drawSeparatorPage(
+                separatorPage, 
+                helveticaBold, 
+                helvetica,
+                section.fileName,
+                i + 1,
+                documentSections.length,
+                section.pageCount,
+                currentPageNum,
+                totalPageCount
+            );
+            
+            // Copy and add all pages from this PDF
+            const pages = await mergedPdf.copyPages(section.pdf, section.pdf.getPageIndices());
+            
+            for (let j = 0; j < pages.length; j++) {
+                const page = pages[j];
+                mergedPdf.addPage(page);
+                currentPageNum++;
+                
+                // Add page number to each page
+                this.addPageNumber(
+                    page,
+                    helvetica,
+                    currentPageNum,
+                    totalPageCount,
+                    `${section.fileName} - Page ${j + 1} of ${section.pageCount}`
+                );
+            }
+            
+            console.log(`  ✓ Added ${section.fileName}: ${section.pageCount} pages`);
+        }
+        
         // Add metadata
-        mergedPdf.setTitle('Legal Service Document');
+        mergedPdf.setTitle('Legal Service Document - Combined');
         mergedPdf.setCreator('LegalNotice NFT Service');
+        mergedPdf.setSubject(`Combined ${documentSections.length} documents`);
         mergedPdf.setCreationDate(new Date());
         mergedPdf.setModificationDate(new Date());
         
         const mergedBytes = await mergedPdf.save();
-        console.log(`✅ Merged PDF created: ${mergedPdf.getPageCount()} total pages, ${(mergedBytes.length / 1024 / 1024).toFixed(2)}MB`);
+        console.log(`✅ Merged PDF created: ${totalPageCount} total pages (${documentSections.length} documents), ${(mergedBytes.length / 1024 / 1024).toFixed(2)}MB`);
         
         return Buffer.from(mergedBytes);
+    }
+    
+    /**
+     * Draw separator page between documents
+     */
+    drawSeparatorPage(page, boldFont, regularFont, fileName, docNum, totalDocs, pageCount, currentPage, totalPages) {
+        const { width, height } = page.getSize();
+        
+        // Background color (light gray)
+        page.drawRectangle({
+            x: 0,
+            y: 0,
+            width: width,
+            height: height,
+            color: rgb(0.95, 0.95, 0.95)
+        });
+        
+        // White content box
+        page.drawRectangle({
+            x: 50,
+            y: height - 450,
+            width: width - 100,
+            height: 350,
+            color: rgb(1, 1, 1),
+            borderColor: rgb(0.2, 0.2, 0.2),
+            borderWidth: 1
+        });
+        
+        // Header
+        page.drawText('DOCUMENT SEPARATOR', {
+            x: width / 2 - 100,
+            y: height - 150,
+            size: 20,
+            font: boldFont,
+            color: rgb(0.91, 0.298, 0.235) // Red
+        });
+        
+        // Document info
+        page.drawText(`Document ${docNum} of ${totalDocs}`, {
+            x: 80,
+            y: height - 220,
+            size: 14,
+            font: regularFont,
+            color: rgb(0.2, 0.2, 0.2)
+        });
+        
+        // File name
+        page.drawText('File Name:', {
+            x: 80,
+            y: height - 260,
+            size: 12,
+            font: boldFont,
+            color: rgb(0.2, 0.2, 0.2)
+        });
+        
+        // Truncate filename if too long
+        const maxFileNameLength = 50;
+        const displayFileName = fileName.length > maxFileNameLength ? 
+            fileName.substring(0, maxFileNameLength - 3) + '...' : fileName;
+        
+        page.drawText(displayFileName, {
+            x: 80,
+            y: height - 280,
+            size: 12,
+            font: regularFont,
+            color: rgb(0.3, 0.3, 0.3)
+        });
+        
+        // Page count info
+        page.drawText('Document Pages:', {
+            x: 80,
+            y: height - 320,
+            size: 12,
+            font: boldFont,
+            color: rgb(0.2, 0.2, 0.2)
+        });
+        
+        page.drawText(`${pageCount} pages`, {
+            x: 80,
+            y: height - 340,
+            size: 12,
+            font: regularFont,
+            color: rgb(0.3, 0.3, 0.3)
+        });
+        
+        // Location in combined document
+        page.drawText('Location in Combined Document:', {
+            x: 80,
+            y: height - 380,
+            size: 12,
+            font: boldFont,
+            color: rgb(0.2, 0.2, 0.2)
+        });
+        
+        page.drawText(`Pages ${currentPage + 1} through ${currentPage + pageCount} of ${totalPages}`, {
+            x: 80,
+            y: height - 400,
+            size: 12,
+            font: regularFont,
+            color: rgb(0.3, 0.3, 0.3)
+        });
+        
+        // Footer with page number
+        page.drawText(`Page ${currentPage} of ${totalPages}`, {
+            x: width / 2 - 40,
+            y: 30,
+            size: 10,
+            font: regularFont,
+            color: rgb(0.5, 0.5, 0.5)
+        });
+        
+        // Timestamp
+        page.drawText(`Combined: ${new Date().toLocaleString()}`, {
+            x: 50,
+            y: 30,
+            size: 8,
+            font: regularFont,
+            color: rgb(0.6, 0.6, 0.6)
+        });
+    }
+    
+    /**
+     * Add page number footer to a page
+     */
+    addPageNumber(page, font, currentPage, totalPages, documentInfo) {
+        const { width, height } = page.getSize();
+        
+        // White background for footer
+        page.drawRectangle({
+            x: 0,
+            y: 0,
+            width: width,
+            height: 25,
+            color: rgb(1, 1, 1),
+            opacity: 0.9
+        });
+        
+        // Page number (center)
+        page.drawText(`Page ${currentPage} of ${totalPages}`, {
+            x: width / 2 - 40,
+            y: 8,
+            size: 10,
+            font: font,
+            color: rgb(0.3, 0.3, 0.3)
+        });
+        
+        // Document info (left)
+        const maxInfoLength = 40;
+        const displayInfo = documentInfo.length > maxInfoLength ? 
+            documentInfo.substring(0, maxInfoLength - 3) + '...' : documentInfo;
+        
+        page.drawText(displayInfo, {
+            x: 10,
+            y: 8,
+            size: 8,
+            font: font,
+            color: rgb(0.5, 0.5, 0.5)
+        });
     }
 
     /**

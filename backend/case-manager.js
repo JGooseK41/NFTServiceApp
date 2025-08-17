@@ -83,20 +83,31 @@ class CaseManager {
             // Generate case ID
             const caseId = this.diskStorage.generateCaseId();
             
-            // Convert uploaded files to buffers
+            // Convert uploaded files to buffers and collect file info
             const pdfBuffers = [];
+            const fileInfo = [];
+            
             for (const file of uploadedFiles) {
                 if (file.buffer) {
                     pdfBuffers.push(file.buffer);
+                    fileInfo.push({
+                        fileName: file.originalname || file.filename || `Document ${pdfBuffers.length}`,
+                        size: file.size || file.buffer.length
+                    });
                 } else if (file.data) {
                     // Handle base64 data
                     const base64Data = file.data.replace(/^data:application\/pdf;base64,/, '');
-                    pdfBuffers.push(Buffer.from(base64Data, 'base64'));
+                    const buffer = Buffer.from(base64Data, 'base64');
+                    pdfBuffers.push(buffer);
+                    fileInfo.push({
+                        fileName: file.name || `Document ${pdfBuffers.length}`,
+                        size: buffer.length
+                    });
                 }
             }
             
-            // Merge PDFs into one document
-            const mergedPDF = await this.pdfProcessor.mergePDFs(pdfBuffers);
+            // Merge PDFs into one document with separators and page numbers
+            const mergedPDF = await this.pdfProcessor.mergePDFs(pdfBuffers, fileInfo);
             
             // Save to disk
             const diskResult = await this.diskStorage.saveCasePDF(caseId, mergedPDF);
