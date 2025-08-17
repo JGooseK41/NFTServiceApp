@@ -30244,7 +30244,10 @@ console.log('To switch to old flow: toggleTransactionFlow()');
 
 <!-- Case Management System -->
 <script src="js/case-management-client.js"></script>
-<script>
+<script type="text/javascript">
+(function() {
+    console.log('Initializing case management functions...');
+    
     // Case Management UI Functions
     let currentSelectedCase = null;
     
@@ -30494,6 +30497,20 @@ console.log('To switch to old flow: toggleTransactionFlow()');
             initializeCaseManagement();
         }
     };
+    
+    // Make functions globally available
+    window.initializeCaseManagement = initializeCaseManagement;
+    window.createCaseFromUI = createCaseFromUI;
+    window.refreshCaseList = refreshCaseList;
+    window.selectCase = selectCase;
+    window.showCaseOperations = showCaseOperations;
+    window.viewCasePDF = viewCasePDF;
+    window.downloadCasePDF = downloadCasePDF;
+    window.serveCaseNotice = serveCaseNotice;
+    window.showCaseStatus = showCaseStatus;
+    
+    console.log('✅ Case management functions loaded');
+})();
 </script>
 
 </body>
