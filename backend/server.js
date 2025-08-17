@@ -29,8 +29,14 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl)
+    // Allow requests with no origin (like mobile apps, curl, or local files)
     if (!origin) return callback(null, true);
+    
+    // Allow 'null' origin for local file testing
+    if (origin === 'null') {
+      console.log('Allowing local file testing (null origin)');
+      return callback(null, true);
+    }
     
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
