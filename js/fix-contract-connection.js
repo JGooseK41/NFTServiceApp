@@ -103,6 +103,59 @@
             "type": "function"
         },
         {
+            "constant": true,
+            "inputs": [{"name": "", "type": "uint256"}],
+            "name": "alerts",
+            "outputs": [
+                {"name": "alertId", "type": "uint256"},
+                {"name": "serverAddress", "type": "address"},
+                {"name": "recipientAddress", "type": "address"},
+                {"name": "encryptedIPFS", "type": "string"},
+                {"name": "encryptionKey", "type": "string"},
+                {"name": "timestamp", "type": "uint256"},
+                {"name": "noticeType", "type": "string"},
+                {"name": "caseNumber", "type": "string"},
+                {"name": "documentId", "type": "uint256"}
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "constant": true,
+            "inputs": [
+                {"name": "role", "type": "bytes32"},
+                {"name": "account", "type": "address"}
+            ],
+            "name": "hasRole",
+            "outputs": [{"name": "", "type": "bool"}],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "constant": true,
+            "inputs": [],
+            "name": "DEFAULT_ADMIN_ROLE",
+            "outputs": [{"name": "", "type": "bytes32"}],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "constant": true,
+            "inputs": [],
+            "name": "PROCESS_SERVER_ROLE",
+            "outputs": [{"name": "", "type": "bytes32"}],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "constant": true,
+            "inputs": [],
+            "name": "ADMIN_ROLE",
+            "outputs": [{"name": "", "type": "bytes32"}],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
             "constant": false,
             "inputs": [
                 {
