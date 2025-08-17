@@ -8,7 +8,7 @@
     
     const CONTRACT_ADDRESS = 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN'; // V5 Mainnet
     
-    // V5 Contract ABI
+    // V5 Contract ABI with all required methods
     const V5_ABI = [
         {
             "constant": false,
@@ -91,6 +91,14 @@
             "inputs": [{"name": "tokenId", "type": "uint256"}],
             "name": "tokenURI",
             "outputs": [{"name": "", "type": "string"}],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "constant": true,
+            "inputs": [{"name": "owner", "type": "address"}],
+            "name": "balanceOf",
+            "outputs": [{"name": "", "type": "uint256"}],
             "stateMutability": "view",
             "type": "function"
         },
