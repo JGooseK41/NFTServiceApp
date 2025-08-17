@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test PDF Upload</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="js/documentConverter.js"></script>
+</head>
+<body>
+    <h1>Test PDF Upload</h1>
+    <input type="file" id="testFile" accept=".pdf">
+    <div id="status"></div>
+    <div id="preview"></div>
+    
+    <script>
+        const converter = new DocumentConverter();
+        converter.init();
+        
+        document.getElementById('testFile').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const status = document.getElementById('status');
+            const preview = document.getElementById('preview');
+            
+            status.textContent = 'Processing...';
+            
+            try {
+                const start = Date.now();
+                const result = await converter.convertPDF(file);
+                const elapsed = Date.now() - start;
+                
+                status.textContent = `✓ Success in ${elapsed}ms - ${result.isFallback ? 'Used fallback' : 'PDF rendered'}`;
+                
+                if (result.preview) {
+                    const img = document.createElement('img');
+                    img.src = result.preview;
+                    img.style.maxWidth = '400px';
+                    preview.innerHTML = '';
+                    preview.appendChild(img);
+                }
+            } catch (error) {
+                status.textContent = `✗ Error: ${error.message}`;
+            }
+        });
+    </script>
+</body>
+</html>

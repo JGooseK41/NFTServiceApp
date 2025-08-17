@@ -73,9 +73,35 @@ class DocumentConverter {
             const arrayBuffer = await file.arrayBuffer();
             console.log('ArrayBuffer created, size:', arrayBuffer.byteLength);
             
-            const loadingTask = this.pdfjs.getDocument(arrayBuffer);
-            const pdf = await loadingTask.promise;
-            console.log('PDF loaded, pages:', pdf.numPages);
+            // Create loading task with timeout protection
+            const loadingTask = this.pdfjs.getDocument({
+                data: arrayBuffer,
+                disableAutoFetch: true,
+                disableStream: true,
+                disableFontFace: false
+            });
+            
+            // Add timeout protection - 5 seconds should be enough
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => {
+                    console.error('PDF loading timeout - destroying task');
+                    if (loadingTask && loadingTask.destroy) {
+                        loadingTask.destroy();
+                    }
+                    reject(new Error('PDF loading timeout after 5 seconds'));
+                }, 5000);
+            });
+            
+            // Race between loading and timeout
+            let pdf;
+            try {
+                pdf = await Promise.race([loadingTask.promise, timeoutPromise]);
+                console.log('PDF loaded, pages:', pdf.numPages);
+            } catch (timeoutError) {
+                console.error('PDF loading failed:', timeoutError);
+                // Fallback to simple base64 storage
+                return await this.createFallbackDocument(file, arrayBuffer);
+            }
         
             // Generate preview from first page
             const previewImage = await this.generatePDFPreview(pdf, 1);
@@ -500,6 +526,85 @@ class DocumentConverter {
         ctx.fillText('(Full document will be uploaded)', canvas.width / 2, 170);
         
         return canvas.toDataURL('image/jpeg', 0.8);
+    }
+    
+    /**
+     * Create fallback document when PDF processing fails
+     */
+    async createFallbackDocument(file, arrayBuffer) {
+        console.log('Creating fallback document for:', file.name);
+        
+        // Convert file to base64 for storage
+        const base64 = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(file);
+        });
+        
+        // Create a simple preview showing it's a PDF
+        const preview = this.createPDFPreview(file.name);
+        
+        return {
+            preview: preview,
+            fullDocument: base64,
+            data: base64,
+            allPagePreviews: [preview],
+            documentHash: await this.hashDocument(arrayBuffer),
+            pageCount: 1, // Unknown, default to 1
+            fileType: 'pdf',
+            originalPDF: base64,
+            isFallback: true
+        };
+    }
+    
+    /**
+     * Create a PDF preview without rendering
+     */
+    createPDFPreview(fileName) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 600;
+        canvas.height = 800;
+        const ctx = canvas.getContext('2d');
+        
+        // White background
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Document border
+        ctx.strokeStyle = '#e5e7eb';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(10, 10, 580, 780);
+        
+        // PDF icon
+        ctx.fillStyle = '#dc2626';
+        ctx.font = '72px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('📄', 300, 300);
+        
+        // File name
+        ctx.fillStyle = '#111827';
+        ctx.font = 'bold 24px Arial';
+        const shortName = fileName.length > 30 ? 
+            fileName.substring(0, 27) + '...' : fileName;
+        ctx.fillText(shortName, 300, 400);
+        
+        // Type indicator
+        ctx.fillStyle = '#6b7280';
+        ctx.font = '18px Arial';
+        ctx.fillText('PDF Document', 300, 450);
+        
+        // Status
+        ctx.fillStyle = '#059669';
+        ctx.font = '16px Arial';
+        ctx.fillText('✓ Document Ready for Upload', 300, 500);
+        
+        // Note about processing
+        ctx.fillStyle = '#9ca3af';
+        ctx.font = '14px Arial';
+        ctx.fillText('Full document preserved', 300, 550);
+        
+        return canvas.toDataURL('image/jpeg', 0.85);
     }
     
     /**

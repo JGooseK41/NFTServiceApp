@@ -1292,6 +1292,11 @@ const alertMetadataRouter = require('./routes/alert-metadata-handler');
 app.use('/api/metadata', metadataRouter);
 app.use('/api/alerts', alertMetadataRouter);
 
+// Case Management with Render Disk Storage
+const caseApiRoutes = require('./case-api-routes');
+app.use('/api', caseApiRoutes);
+console.log('✅ Case Management API routes loaded');
+
 // Mobile Document Viewer API Endpoints
 app.post('/api/documents/view/:noticeId', async (req, res) => {
   try {
