@@ -153,7 +153,8 @@ class CaseManagementClient {
      * View case PDF in new tab
      */
     viewCasePDF(caseId) {
-        const url = `${this.apiUrl}/api/cases/${caseId}/pdf`;
+        // Create a form to POST with headers (since we can't set headers on window.open)
+        const url = `${this.apiUrl}/api/cases/${caseId}/pdf?serverAddress=${encodeURIComponent(this.serverAddress)}`;
         window.open(url, '_blank');
     }
 

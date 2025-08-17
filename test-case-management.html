@@ -132,10 +132,14 @@
         <h2>1. Create New Case</h2>
         <p>Upload multiple PDFs to create a combined case document:</p>
         <input type="file" id="caseFiles" multiple accept=".pdf" />
+        <div id="fileList" style="margin: 10px 0; padding: 10px; background: #f9f9f9; border-radius: 4px; display: none;">
+            <strong>Selected Files:</strong>
+            <ul id="selectedFiles" style="margin: 5px 0;"></ul>
+        </div>
         <br>
         <input type="text" id="caseDescription" placeholder="Case description..." style="width: 300px; padding: 8px; margin: 10px 0;">
         <br>
-        <button class="button" onclick="createCase()">Create Case</button>
+        <button class="button" onclick="createCase()">Create Case (Combines All PDFs)</button>
         <div id="createStatus"></div>
         <div id="alertPreview" class="preview-container"></div>
     </div>
@@ -157,7 +161,8 @@
     <div class="container">
         <h2>4. Test Case Operations</h2>
         <p>Current Case ID: <span id="currentCaseId" style="font-weight: bold;">None</span></p>
-        <button class="button" onclick="viewCurrentPDF()">View PDF</button>
+        <button class="button" onclick="viewCurrentPDF()">View Combined PDF</button>
+        <button class="button secondary" onclick="downloadCurrentPDF()">Download Combined PDF</button>
         <button class="button secondary" onclick="prepareForServing()">Prepare for Serving</button>
         <button class="button" onclick="serveToTestAddress()">Serve to Test Address</button>
         <div id="operationStatus"></div>
@@ -421,6 +426,51 @@
                 statusEl.textContent = '❌ Cannot connect to backend: ' + error.message;
                 console.error('Connection test failed:', error);
             }
+        }
+
+        // Handle file selection display
+        document.getElementById('caseFiles').addEventListener('change', function(e) {
+            const fileList = document.getElementById('fileList');
+            const selectedFiles = document.getElementById('selectedFiles');
+            
+            if (e.target.files && e.target.files.length > 0) {
+                fileList.style.display = 'block';
+                selectedFiles.innerHTML = '';
+                
+                for (let i = 0; i < e.target.files.length; i++) {
+                    const file = e.target.files[i];
+                    const li = document.createElement('li');
+                    li.textContent = `${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+                    selectedFiles.appendChild(li);
+                }
+                
+                if (e.target.files.length > 1) {
+                    const note = document.createElement('li');
+                    note.innerHTML = '<strong style="color: #e74c3c;">These PDFs will be combined into one document</strong>';
+                    selectedFiles.appendChild(note);
+                }
+            } else {
+                fileList.style.display = 'none';
+            }
+        });
+
+        // Download current PDF
+        function downloadCurrentPDF() {
+            if (!currentCaseId) {
+                showStatus('operationStatus', 'error', 'No case selected');
+                return;
+            }
+            
+            const url = `${BACKEND_API_URL}/api/cases/${currentCaseId}/pdf`;
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `case-${currentCaseId}.pdf`;
+            link.target = '_blank';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showStatus('operationStatus', 'success', 'Download started');
         }
 
         // Initialize on load

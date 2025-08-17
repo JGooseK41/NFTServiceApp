@@ -64,15 +64,22 @@ class PDFProcessor {
         console.log('🎨 Generating alert preview with overlay');
         
         try {
-            // Method 1: Try with pdf2pic first (better quality)
-            const preview = await this.generateWithPdf2Pic(pdfBuffer);
-            if (preview) return preview;
+            // Try to extract and convert first page
+            const firstPageBuffer = await this.extractFirstPage(pdfBuffer);
+            
+            // Convert to base64 for preview
+            const base64Pdf = firstPageBuffer.toString('base64');
+            const pdfDataUri = `data:application/pdf;base64,${base64Pdf}`;
+            
+            // Since we can't easily render PDF to image on server without dependencies,
+            // we'll create a preview that indicates it's a PDF with overlay styling
+            return await this.createStyledPdfPreview(pdfBuffer);
+            
         } catch (error) {
-            console.warn('pdf2pic failed, trying alternative method:', error.message);
+            console.error('Alert preview generation failed:', error);
+            // Fallback to simple preview
+            return this.createSimplePreview('Legal Document');
         }
-        
-        // Method 2: Fallback to pdf-lib canvas approach
-        return await this.generateWithPdfLib(pdfBuffer);
     }
 
     /**
@@ -300,6 +307,83 @@ class PDFProcessor {
         });
         
         return Buffer.from(await pdfDoc.save());
+    }
+
+    /**
+     * Create styled PDF preview with document info
+     */
+    async createStyledPdfPreview(pdfBuffer) {
+        try {
+            // Get PDF info for display
+            const pdfDoc = await PDFDocument.load(pdfBuffer);
+            const pageCount = pdfDoc.getPageCount();
+            const title = pdfDoc.getTitle() || 'Legal Service Document';
+            
+            // Get first page dimensions
+            const firstPage = pdfDoc.getPage(0);
+            const { width, height } = firstPage.getSize();
+            const aspectRatio = width / height;
+            
+            // Create a preview that mimics the document layout
+            const previewWidth = 800;
+            const previewHeight = Math.round(previewWidth / aspectRatio);
+            
+            const svg = `
+                <svg width="${previewWidth}" height="${previewHeight}" xmlns="http://www.w3.org/2000/svg">
+                    <!-- White background (document) -->
+                    <rect width="${previewWidth}" height="${previewHeight}" fill="white"/>
+                    
+                    <!-- Document content placeholder -->
+                    <rect x="40" y="100" width="${previewWidth-80}" height="2" fill="#e5e7eb"/>
+                    <rect x="40" y="120" width="${previewWidth-120}" height="2" fill="#e5e7eb"/>
+                    <rect x="40" y="140" width="${previewWidth-100}" height="2" fill="#e5e7eb"/>
+                    <rect x="40" y="160" width="${previewWidth-140}" height="2" fill="#e5e7eb"/>
+                    
+                    <rect x="40" y="200" width="${previewWidth-80}" height="2" fill="#e5e7eb"/>
+                    <rect x="40" y="220" width="${previewWidth-100}" height="2" fill="#e5e7eb"/>
+                    <rect x="40" y="240" width="${previewWidth-120}" height="2" fill="#e5e7eb"/>
+                    
+                    <!-- Red overlay header -->
+                    <rect x="0" y="0" width="${previewWidth}" height="80" fill="#e74c3c" fill-opacity="0.95"/>
+                    
+                    <!-- Header text -->
+                    <text x="${previewWidth/2}" y="35" font-family="Arial, sans-serif" font-size="24" 
+                          font-weight="bold" fill="white" text-anchor="middle">
+                        LEGAL SERVICE ALERT
+                    </text>
+                    <text x="${previewWidth/2}" y="60" font-family="Arial, sans-serif" font-size="14" 
+                          fill="white" text-anchor="middle">
+                        Document Ready for Service - ${pageCount} Page${pageCount > 1 ? 's' : ''}
+                    </text>
+                    
+                    <!-- Red border -->
+                    <rect x="2" y="2" width="${previewWidth-4}" height="${previewHeight-4}" 
+                          fill="none" stroke="#e74c3c" stroke-width="4"/>
+                    
+                    <!-- Watermark -->
+                    <text x="${previewWidth/2}" y="${previewHeight/2}" font-family="Arial, sans-serif" 
+                          font-size="48" fill="#e74c3c" fill-opacity="0.1" 
+                          text-anchor="middle" transform="rotate(-45 ${previewWidth/2} ${previewHeight/2})">
+                        LEGAL NOTICE
+                    </text>
+                    
+                    <!-- Footer -->
+                    <rect x="0" y="${previewHeight-40}" width="${previewWidth}" height="40" fill="#f8f9fa"/>
+                    <text x="10" y="${previewHeight-15}" font-family="Arial, sans-serif" 
+                          font-size="12" fill="#666">
+                        Alert Preview Generated: ${new Date().toLocaleString()}
+                    </text>
+                </svg>
+            `;
+            
+            // Convert SVG to base64
+            const base64 = Buffer.from(svg).toString('base64');
+            return `data:image/svg+xml;base64,${base64}`;
+            
+        } catch (error) {
+            console.error('Failed to create styled preview:', error);
+            return this.createSimplePreview('Legal Document');
+        }
     }
 
     /**
