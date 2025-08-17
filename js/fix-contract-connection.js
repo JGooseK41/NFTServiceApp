@@ -8,8 +8,8 @@
     
     const CONTRACT_ADDRESS = 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN'; // V5 Mainnet
     
-    // V5 Contract ABI with all required methods
-    const V5_ABI = [
+    // Use complete ABI if available, otherwise use partial
+    const V5_ABI = window.COMPLETE_CONTRACT_ABI || [
         {
             "constant": false,
             "inputs": [

@@ -1,0 +1,1474 @@
+[
+  {
+    "stateMutability": "Nonpayable",
+    "type": "Constructor"
+  },
+  {
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "name": "approved",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "Approval",
+    "type": "Event"
+  },
+  {
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "name": "operator",
+        "type": "address"
+      },
+      {
+        "name": "approved",
+        "type": "bool"
+      }
+    ],
+    "name": "ApprovalForAll",
+    "type": "Event"
+  },
+  {
+    "inputs": [
+      {
+        "name": "oldCollector",
+        "type": "address"
+      },
+      {
+        "name": "newCollector",
+        "type": "address"
+      }
+    ],
+    "name": "FeeCollectorUpdated",
+    "type": "Event"
+  },
+  {
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "name": "serviceFeeExempt",
+        "type": "bool"
+      },
+      {
+        "name": "fullFeeExempt",
+        "type": "bool"
+      }
+    ],
+    "name": "FeeExemptionSet",
+    "type": "Event"
+  },
+  {
+    "inputs": [
+      {
+        "name": "feeType",
+        "type": "string"
+      },
+      {
+        "name": "oldFee",
+        "type": "uint256"
+      },
+      {
+        "name": "newFee",
+        "type": "uint256"
+      }
+    ],
+    "name": "FeeUpdated",
+    "type": "Event"
+  },
+  {
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "noticeId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "name": "server",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "name": "recipient",
+        "type": "address"
+      },
+      {
+        "name": "timestamp",
+        "type": "uint256"
+      }
+    ],
+    "name": "LegalNoticeCreated",
+    "type": "Event"
+  },
+  {
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "alertId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "name": "recipient",
+        "type": "address"
+      }
+    ],
+    "name": "NoticeAcknowledged",
+    "type": "Event"
+  },
+  {
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "alertId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "name": "documentId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "name": "recipient",
+        "type": "address"
+      }
+    ],
+    "name": "NoticeServed",
+    "type": "Event"
+  },
+  {
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "Paused",
+    "type": "Event"
+  },
+  {
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "recipient",
+        "type": "address"
+      },
+      {
+        "name": "energy",
+        "type": "uint256"
+      },
+      {
+        "name": "bandwidth",
+        "type": "uint256"
+      }
+    ],
+    "name": "ResourceSponsored",
+    "type": "Event"
+  },
+  {
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "RoleGranted",
+    "type": "Event"
+  },
+  {
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "RoleRevoked",
+    "type": "Event"
+  },
+  {
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "server",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "name": "serverId",
+        "type": "uint256"
+      }
+    ],
+    "name": "ServerRegistered",
+    "type": "Event"
+  },
+  {
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "noticeId",
+        "type": "uint256"
+      },
+      {
+        "name": "attemptNumber",
+        "type": "uint256"
+      },
+      {
+        "name": "note",
+        "type": "string"
+      }
+    ],
+    "name": "ServiceAttemptRecorded",
+    "type": "Event"
+  },
+  {
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "Transfer",
+    "type": "Event"
+  },
+  {
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "Unpaused",
+    "type": "Event"
+  },
+  {
+    "outputs": [
+      {
+        "type": "bytes32"
+      }
+    ],
+    "name": "ADMIN_ROLE",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "bytes32"
+      }
+    ],
+    "name": "PROCESS_SERVER_ROLE",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "name": "SERVICE_FEE",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "alertId",
+        "type": "uint256"
+      }
+    ],
+    "name": "acceptNotice",
+    "stateMutability": "Nonpayable",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "name": "recipient",
+        "type": "address"
+      },
+      {
+        "name": "sender",
+        "type": "address"
+      },
+      {
+        "name": "documentId",
+        "type": "uint256"
+      },
+      {
+        "name": "timestamp",
+        "type": "uint256"
+      },
+      {
+        "name": "acknowledged",
+        "type": "bool"
+      },
+      {
+        "name": "issuingAgency",
+        "type": "string"
+      },
+      {
+        "name": "noticeType",
+        "type": "string"
+      },
+      {
+        "name": "caseNumber",
+        "type": "string"
+      },
+      {
+        "name": "caseDetails",
+        "type": "string"
+      },
+      {
+        "name": "legalRights",
+        "type": "string"
+      },
+      {
+        "name": "responseDeadline",
+        "type": "uint256"
+      },
+      {
+        "name": "previewImage",
+        "type": "string"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "name": "alertNotices",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "name": "recipient",
+        "type": "address"
+      },
+      {
+        "name": "sender",
+        "type": "address"
+      },
+      {
+        "name": "documentId",
+        "type": "uint256"
+      },
+      {
+        "name": "timestamp",
+        "type": "uint256"
+      },
+      {
+        "name": "acknowledged",
+        "type": "bool"
+      },
+      {
+        "name": "issuingAgency",
+        "type": "string"
+      },
+      {
+        "name": "noticeType",
+        "type": "string"
+      },
+      {
+        "name": "caseNumber",
+        "type": "string"
+      },
+      {
+        "name": "caseDetails",
+        "type": "string"
+      },
+      {
+        "name": "legalRights",
+        "type": "string"
+      },
+      {
+        "name": "responseDeadline",
+        "type": "uint256"
+      },
+      {
+        "name": "previewImage",
+        "type": "string"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "alertId",
+        "type": "uint256"
+      }
+    ],
+    "name": "alerts",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "approve",
+    "stateMutability": "Nonpayable",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "balanceOf",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address"
+      }
+    ],
+    "name": "calculateFee",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "name": "creationFee",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "name": "encryptedIPFS",
+        "type": "string"
+      },
+      {
+        "name": "decryptionKey",
+        "type": "string"
+      },
+      {
+        "name": "authorizedViewer",
+        "type": "address"
+      },
+      {
+        "name": "alertId",
+        "type": "uint256"
+      },
+      {
+        "name": "isRestricted",
+        "type": "bool"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "name": "documentNotices",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "address"
+      }
+    ],
+    "name": "feeCollector",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "bool"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "address"
+      }
+    ],
+    "name": "fullFeeExemptions",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "name": "recipient",
+        "type": "address"
+      },
+      {
+        "name": "sender",
+        "type": "address"
+      },
+      {
+        "name": "documentId",
+        "type": "uint256"
+      },
+      {
+        "name": "timestamp",
+        "type": "uint256"
+      },
+      {
+        "name": "acknowledged",
+        "type": "bool"
+      },
+      {
+        "name": "issuingAgency",
+        "type": "string"
+      },
+      {
+        "name": "noticeType",
+        "type": "string"
+      },
+      {
+        "name": "caseNumber",
+        "type": "string"
+      },
+      {
+        "name": "caseDetails",
+        "type": "string"
+      },
+      {
+        "name": "legalRights",
+        "type": "string"
+      },
+      {
+        "name": "responseDeadline",
+        "type": "uint256"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "alertId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getAlertDetails",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "address"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getApproved",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256[]"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "recipient",
+        "type": "address"
+      }
+    ],
+    "name": "getRecipientAlerts",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "address"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "name": "getRoleMember",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "role",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getRoleMemberCount",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "server",
+        "type": "address"
+      }
+    ],
+    "name": "getServerId",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256[]"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "server",
+        "type": "address"
+      }
+    ],
+    "name": "getServerNotices",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256[]"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address"
+      }
+    ],
+    "name": "getUserNotices",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "grantRole",
+    "stateMutability": "Nonpayable",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "bool"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "hasRole",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "bool"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "name": "operator",
+        "type": "address"
+      }
+    ],
+    "name": "isApprovedForAll",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "string"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "name": "lastAttemptNote",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "string"
+      }
+    ],
+    "name": "name",
+    "stateMutability": "Pure",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "name": "alertId",
+        "type": "uint256"
+      },
+      {
+        "name": "documentId",
+        "type": "uint256"
+      },
+      {
+        "name": "server",
+        "type": "address"
+      },
+      {
+        "name": "recipient",
+        "type": "address"
+      },
+      {
+        "name": "timestamp",
+        "type": "uint256"
+      },
+      {
+        "name": "acknowledged",
+        "type": "bool"
+      },
+      {
+        "name": "noticeType",
+        "type": "string"
+      },
+      {
+        "name": "caseNumber",
+        "type": "string"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "name": "notices",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "address"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "ownerOf",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "name": "pause",
+    "stateMutability": "Nonpayable",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "bool"
+      }
+    ],
+    "name": "paused",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "address"
+      },
+      {
+        "type": "uint256"
+      }
+    ],
+    "name": "recipientAlerts",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "noticeId",
+        "type": "uint256"
+      },
+      {
+        "name": "note",
+        "type": "string"
+      }
+    ],
+    "name": "recordServiceAttempt",
+    "stateMutability": "Nonpayable",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "bool"
+      }
+    ],
+    "name": "resourceSponsorshipEnabled",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "role",
+        "type": "bytes32"
+      },
+      {
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "revokeRole",
+    "stateMutability": "Nonpayable",
+    "type": "Function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "safeTransferFrom",
+    "stateMutability": "Nonpayable",
+    "type": "Function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "name": "_data",
+        "type": "bytes"
+      }
+    ],
+    "name": "safeTransferFrom",
+    "stateMutability": "Nonpayable",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256"
+      },
+      {
+        "type": "uint256"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "recipient",
+        "type": "address"
+      },
+      {
+        "name": "encryptedIPFS",
+        "type": "string"
+      },
+      {
+        "name": "encryptionKey",
+        "type": "string"
+      },
+      {
+        "name": "issuingAgency",
+        "type": "string"
+      },
+      {
+        "name": "noticeType",
+        "type": "string"
+      },
+      {
+        "name": "caseNumber",
+        "type": "string"
+      },
+      {
+        "name": "caseDetails",
+        "type": "string"
+      },
+      {
+        "name": "legalRights",
+        "type": "string"
+      },
+      {
+        "name": "sponsorFees",
+        "type": "bool"
+      },
+      {
+        "name": "metadataURI",
+        "type": "string"
+      }
+    ],
+    "name": "serveNotice",
+    "stateMutability": "Payable",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "name": "alertIds",
+        "type": "uint256[]"
+      },
+      {
+        "name": "documentIds",
+        "type": "uint256[]"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "batchNotices",
+        "type": "tuple[]"
+      }
+    ],
+    "name": "serveNoticeBatch",
+    "stateMutability": "Payable",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "address"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "name": "serverById",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "address"
+      }
+    ],
+    "name": "serverIds",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "address"
+      },
+      {
+        "type": "uint256"
+      }
+    ],
+    "name": "serverNotices",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "name": "serviceAttempts",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "name": "serviceFee",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "bool"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "address"
+      }
+    ],
+    "name": "serviceFeeExemptions",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "operator",
+        "type": "address"
+      },
+      {
+        "name": "approved",
+        "type": "bool"
+      }
+    ],
+    "name": "setApprovalForAll",
+    "stateMutability": "Nonpayable",
+    "type": "Function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "name": "serviceFeeExempt",
+        "type": "bool"
+      },
+      {
+        "name": "fullFeeExempt",
+        "type": "bool"
+      }
+    ],
+    "name": "setFeeExemption",
+    "stateMutability": "Nonpayable",
+    "type": "Function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "enabled",
+        "type": "bool"
+      }
+    ],
+    "name": "setResourceSponsorship",
+    "stateMutability": "Nonpayable",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "address"
+      }
+    ],
+    "name": "sponsoredBandwidth",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "address"
+      }
+    ],
+    "name": "sponsoredEnergy",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "name": "sponsorshipFee",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "bool"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "interfaceId",
+        "type": "bytes4"
+      }
+    ],
+    "name": "supportsInterface",
+    "stateMutability": "Pure",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "string"
+      }
+    ],
+    "name": "symbol",
+    "stateMutability": "Pure",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "name": "tokenByIndex",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "name": "tokenOfOwnerByIndex",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint8"
+      }
+    ],
+    "inputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "name": "tokenTypes",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "string"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "tokenURI",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256[]"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "tokensOfOwner",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "name": "totalNotices",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "name": "totalSupply",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "from",
+        "type": "address"
+      },
+      {
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "transferFrom",
+    "stateMutability": "Nonpayable",
+    "type": "Function"
+  },
+  {
+    "name": "unpause",
+    "stateMutability": "Nonpayable",
+    "type": "Function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "newFee",
+        "type": "uint256"
+      }
+    ],
+    "name": "updateCreationFee",
+    "stateMutability": "Nonpayable",
+    "type": "Function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "newCollector",
+        "type": "address"
+      }
+    ],
+    "name": "updateFeeCollector",
+    "stateMutability": "Nonpayable",
+    "type": "Function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "newFee",
+        "type": "uint256"
+      }
+    ],
+    "name": "updateServiceFee",
+    "stateMutability": "Nonpayable",
+    "type": "Function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "newFee",
+        "type": "uint256"
+      }
+    ],
+    "name": "updateSponsorshipFee",
+    "stateMutability": "Nonpayable",
+    "type": "Function"
+  },
+  {
+    "outputs": [
+      {
+        "name": "encryptedIPFS",
+        "type": "string"
+      },
+      {
+        "name": "decryptionKey",
+        "type": "string"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "documentId",
+        "type": "uint256"
+      }
+    ],
+    "name": "viewDocument",
+    "stateMutability": "View",
+    "type": "Function"
+  },
+  {
+    "name": "withdraw",
+    "stateMutability": "Nonpayable",
+    "type": "Function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "withdrawTRX",
+    "stateMutability": "Nonpayable",
+    "type": "Function"
+  }
+]
