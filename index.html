@@ -3480,6 +3480,10 @@
                 <i class="fas fa-user"></i> Process Server
                 <span class="badge" id="userBadge" style="display: none;">0</span>
             </button>
+            <button class="tab-button server-only" onclick="switchTab('cases')" id="casesTabButton">
+                <i class="fas fa-folder-open"></i> Case Management
+                <span class="badge" id="casesBadge" style="display: none;">0</span>
+            </button>
             <button class="tab-button" onclick="switchTab('delivery')">
                 <i class="fas fa-truck"></i> Delivery Status
                 <span class="badge" id="deliveryBadge" style="display: none;">0</span>
@@ -3820,6 +3824,79 @@
                         <h3>Loading cases...</h3>
                         <p>Your served notices will appear here</p>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Case Management Tab (Server Only) -->
+        <div id="casesTab" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-folder-open"></i> Case Management System</h2>
+                    <p>Create and manage legal service cases with combined documents</p>
+                </div>
+                
+                <!-- Create New Case Section -->
+                <div class="section-card">
+                    <h3><i class="fas fa-plus-circle"></i> Create New Case</h3>
+                    <p class="text-muted mb-3">Upload multiple PDFs to create a combined case document with page numbering and separators</p>
+                    
+                    <div class="form-group">
+                        <label><i class="fas fa-file-pdf"></i> Select PDF Documents</label>
+                        <input type="file" id="caseFiles" multiple accept=".pdf" class="form-control" />
+                        <small class="text-muted">Select multiple PDFs - they will be combined into one document</small>
+                    </div>
+                    
+                    <div id="caseFileList" class="file-list" style="display: none; margin: 1rem 0; padding: 1rem; background: var(--card-bg); border-radius: 8px;">
+                        <h4>Selected Files:</h4>
+                        <ul id="selectedCaseFiles" style="list-style: none; padding: 0;"></ul>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label><i class="fas fa-sticky-note"></i> Case Description</label>
+                        <input type="text" id="caseDescription" class="form-control" placeholder="Enter case description..." />
+                    </div>
+                    
+                    <button class="btn btn-primary" onclick="createCaseFromUI()">
+                        <i class="fas fa-folder-plus"></i> Create Case
+                    </button>
+                    
+                    <div id="caseCreationStatus" class="alert" style="display: none; margin-top: 1rem;"></div>
+                    <div id="caseAlertPreview" class="preview-container" style="margin-top: 1rem;"></div>
+                </div>
+                
+                <!-- Case List Section -->
+                <div class="section-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3><i class="fas fa-list"></i> Your Cases</h3>
+                        <button class="btn btn-secondary btn-small" onclick="refreshCaseList()">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                    
+                    <div id="caseListContainer" class="case-list" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem;">
+                        <p class="text-muted">Loading cases...</p>
+                    </div>
+                </div>
+                
+                <!-- Case Operations Section -->
+                <div class="section-card" id="caseOperations" style="display: none;">
+                    <h3><i class="fas fa-cogs"></i> Case Operations</h3>
+                    <p>Current Case: <strong id="selectedCaseId">None</strong></p>
+                    
+                    <div class="button-group" style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem;">
+                        <button class="btn btn-primary" onclick="viewCasePDF()">
+                            <i class="fas fa-eye"></i> View PDF
+                        </button>
+                        <button class="btn btn-secondary" onclick="downloadCasePDF()">
+                            <i class="fas fa-download"></i> Download PDF
+                        </button>
+                        <button class="btn btn-success" onclick="serveCaseNotice()">
+                            <i class="fas fa-paper-plane"></i> Serve Notice
+                        </button>
+                    </div>
+                    
+                    <div id="caseOperationStatus" class="alert" style="display: none; margin-top: 1rem;"></div>
                 </div>
             </div>
         </div>
@@ -9456,7 +9533,7 @@ function useConnectedAddressForFeeCollector() {
                 return;
             }
             
-            const tabs = ['user', 'delivery', 'admin', 'help', 'info'];
+            const tabs = ['user', 'cases', 'delivery', 'admin', 'help', 'info'];
             
             tabs.forEach(tab => {
                 const tabButton = document.querySelector(`[onclick="switchTab('${tab}')"]`);
@@ -30164,6 +30241,260 @@ console.log('To switch to old flow: toggleTransactionFlow()');
 <script src="js/check-last-alert.js"></script>
 <script src="js/test-suite-overview.js"></script>
 -->
+
+<!-- Case Management System -->
+<script src="js/case-management-client.js"></script>
+<script>
+    // Case Management UI Functions
+    let currentSelectedCase = null;
+    
+    // Initialize case management when tab is opened
+    function initializeCaseManagement() {
+        if (window.caseManager && !window.caseManager.serverAddress) {
+            window.caseManager.serverAddress = window.tronWeb?.defaultAddress?.base58 || 'TEST-SERVER';
+            window.caseManager.init();
+        }
+        refreshCaseList();
+        
+        // Set up file input listener
+        const caseFiles = document.getElementById('caseFiles');
+        if (caseFiles) {
+            caseFiles.addEventListener('change', function(e) {
+                const fileList = document.getElementById('caseFileList');
+                const selectedFiles = document.getElementById('selectedCaseFiles');
+                
+                if (e.target.files && e.target.files.length > 0) {
+                    fileList.style.display = 'block';
+                    selectedFiles.innerHTML = '';
+                    
+                    for (let i = 0; i < e.target.files.length; i++) {
+                        const file = e.target.files[i];
+                        const li = document.createElement('li');
+                        li.innerHTML = `<i class="fas fa-file-pdf"></i> ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+                        li.style.padding = '0.25rem 0';
+                        selectedFiles.appendChild(li);
+                    }
+                    
+                    if (e.target.files.length > 1) {
+                        const note = document.createElement('li');
+                        note.innerHTML = '<strong style="color: var(--accent-red);">✓ These PDFs will be combined with separator pages and page numbers</strong>';
+                        note.style.padding = '0.5rem 0';
+                        selectedFiles.appendChild(note);
+                    }
+                } else {
+                    fileList.style.display = 'none';
+                }
+            });
+        }
+    }
+    
+    // Create case from UI
+    async function createCaseFromUI() {
+        const fileInput = document.getElementById('caseFiles');
+        const description = document.getElementById('caseDescription').value;
+        const statusDiv = document.getElementById('caseCreationStatus');
+        
+        if (!fileInput.files || fileInput.files.length === 0) {
+            showCaseStatus('caseCreationStatus', 'error', 'Please select at least one PDF file');
+            return;
+        }
+        
+        showCaseStatus('caseCreationStatus', 'info', `Creating case with ${fileInput.files.length} files...`);
+        
+        try {
+            const result = await window.caseManager.createCase(
+                Array.from(fileInput.files),
+                {
+                    description: description || 'Case created ' + new Date().toLocaleString(),
+                    caseType: 'legal_service',
+                    urgency: 'normal'
+                }
+            );
+            
+            if (result.success) {
+                currentSelectedCase = result.caseId;
+                showCaseStatus('caseCreationStatus', 'success', `✅ Case created: ${result.caseId}`);
+                
+                // Show alert preview if available
+                if (result.alertPreview) {
+                    const preview = document.getElementById('caseAlertPreview');
+                    preview.innerHTML = `
+                        <h4>Alert Preview:</h4>
+                        <img src="${result.alertPreview}" style="max-width: 100%; border: 2px solid var(--accent-red); border-radius: 8px;">
+                    `;
+                }
+                
+                // Clear form
+                fileInput.value = '';
+                document.getElementById('caseDescription').value = '';
+                document.getElementById('caseFileList').style.display = 'none';
+                
+                // Refresh case list
+                await refreshCaseList();
+                
+                // Show operations
+                showCaseOperations(result.caseId);
+            } else {
+                showCaseStatus('caseCreationStatus', 'error', `Failed: ${result.error}`);
+            }
+            
+        } catch (error) {
+            console.error('Create case error:', error);
+            showCaseStatus('caseCreationStatus', 'error', `Error: ${error.message}`);
+        }
+    }
+    
+    // Refresh case list
+    async function refreshCaseList() {
+        const container = document.getElementById('caseListContainer');
+        if (!container) return;
+        
+        container.innerHTML = '<p class="text-muted">Loading cases...</p>';
+        
+        try {
+            const cases = await window.caseManager.listCases();
+            
+            if (!cases || cases.length === 0) {
+                container.innerHTML = '<p class="text-muted">No cases found. Create your first case above.</p>';
+                return;
+            }
+            
+            container.innerHTML = cases.map(c => `
+                <div class="case-item" onclick="selectCase('${c.id || c.caseId}')" style="padding: 1rem; margin-bottom: 0.5rem; background: var(--secondary-navy); border-radius: 8px; cursor: pointer;">
+                    <strong>${c.id || c.caseId}</strong><br>
+                    <small>Status: ${c.status} | Created: ${new Date(c.created_at).toLocaleString()}</small><br>
+                    <small>${c.description || 'No description'}</small>
+                </div>
+            `).join('');
+            
+            // Update badge
+            const badge = document.getElementById('casesBadge');
+            if (badge) {
+                badge.textContent = cases.length;
+                badge.style.display = cases.length > 0 ? 'inline-block' : 'none';
+            }
+            
+        } catch (error) {
+            console.error('List cases error:', error);
+            container.innerHTML = '<p style="color: var(--error);">Error loading cases</p>';
+        }
+    }
+    
+    // Select a case
+    function selectCase(caseId) {
+        currentSelectedCase = caseId;
+        showCaseOperations(caseId);
+    }
+    
+    // Show case operations
+    function showCaseOperations(caseId) {
+        const opsSection = document.getElementById('caseOperations');
+        const selectedId = document.getElementById('selectedCaseId');
+        
+        if (opsSection) opsSection.style.display = 'block';
+        if (selectedId) selectedId.textContent = caseId;
+        
+        currentSelectedCase = caseId;
+    }
+    
+    // View case PDF
+    function viewCasePDF() {
+        if (!currentSelectedCase) {
+            showCaseStatus('caseOperationStatus', 'error', 'No case selected');
+            return;
+        }
+        
+        window.caseManager.viewCasePDF(currentSelectedCase);
+        showCaseStatus('caseOperationStatus', 'info', 'Opening PDF...');
+    }
+    
+    // Download case PDF
+    async function downloadCasePDF() {
+        if (!currentSelectedCase) {
+            showCaseStatus('caseOperationStatus', 'error', 'No case selected');
+            return;
+        }
+        
+        showCaseStatus('caseOperationStatus', 'info', 'Downloading PDF...');
+        
+        try {
+            const serverAddress = window.caseManager.serverAddress || 'TEST-SERVER';
+            const url = `${window.caseManager.apiUrl}/api/cases/${currentSelectedCase}/pdf?serverAddress=${encodeURIComponent(serverAddress)}`;
+            
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = `case-${currentSelectedCase}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(downloadUrl);
+            
+            showCaseStatus('caseOperationStatus', 'success', 'PDF downloaded successfully');
+        } catch (error) {
+            console.error('Download error:', error);
+            showCaseStatus('caseOperationStatus', 'error', `Download failed: ${error.message}`);
+        }
+    }
+    
+    // Serve case notice
+    async function serveCaseNotice() {
+        if (!currentSelectedCase) {
+            showCaseStatus('caseOperationStatus', 'error', 'No case selected');
+            return;
+        }
+        
+        // This would integrate with the existing notice serving system
+        showCaseStatus('caseOperationStatus', 'info', 'This will integrate with the notice serving workflow...');
+        
+        // TODO: Integrate with existing serveNotice function
+        // For now, just prepare the case
+        try {
+            const recipientAddress = prompt('Enter recipient address:');
+            if (!recipientAddress) return;
+            
+            const result = await window.caseManager.prepareCaseForServing(currentSelectedCase, recipientAddress);
+            
+            if (result.success) {
+                showCaseStatus('caseOperationStatus', 'success', `Case prepared. IPFS: ${result.ipfsHash}`);
+            } else {
+                showCaseStatus('caseOperationStatus', 'error', `Failed: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Serve error:', error);
+            showCaseStatus('caseOperationStatus', 'error', `Error: ${error.message}`);
+        }
+    }
+    
+    // Show status message
+    function showCaseStatus(elementId, type, message) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.className = 'alert alert-' + type;
+            element.textContent = message;
+            element.style.display = 'block';
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    element.style.display = 'none';
+                }, 5000);
+            }
+        }
+    }
+    
+    // Add to switchTab to initialize case management
+    const originalSwitchTab = window.switchTab;
+    window.switchTab = function(tabName) {
+        originalSwitchTab(tabName);
+        if (tabName === 'cases') {
+            initializeCaseManagement();
+        }
+    };
+</script>
 
 </body>
 </html>
