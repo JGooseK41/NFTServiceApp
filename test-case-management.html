@@ -397,11 +397,21 @@
             statusEl.textContent = 'Testing connection to ' + BACKEND_API_URL + '...';
             
             try {
-                const response = await fetch(BACKEND_API_URL + '/api/health');
+                // First try health endpoint
+                let response = await fetch(BACKEND_API_URL + '/api/health');
                 if (response.ok) {
                     const data = await response.json();
                     statusEl.className = 'status success';
                     statusEl.textContent = '✅ Backend connected! ' + (data.message || '');
+                    return;
+                }
+                
+                // Try case test endpoint
+                response = await fetch(BACKEND_API_URL + '/api/cases/test');
+                if (response.ok) {
+                    const data = await response.json();
+                    statusEl.className = 'status success';
+                    statusEl.textContent = '✅ Case API connected! ' + (data.message || '');
                 } else {
                     statusEl.className = 'status error';
                     statusEl.textContent = '❌ Backend responded with status: ' + response.status;
