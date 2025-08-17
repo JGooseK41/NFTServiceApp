@@ -69,18 +69,20 @@ console.log('🔧 Integrating simple image storage into notice creation...');
                     document_thumbnail: null
                 };
 
-                // Get alert image from localStorage or generation
-                const alertThumbnail = localStorage.getItem('lastAlertThumbnail');
-                const documentImage = localStorage.getItem('lastDocumentImage');
+                // Get images from pending storage (set by CompleteImageHandler)
+                const alertImage = localStorage.getItem('pendingAlertImage');
+                const alertThumbnail = localStorage.getItem('pendingAlertThumbnail'); 
+                const documentImage = localStorage.getItem('pendingDocumentImage');
+                const documentThumbnail = localStorage.getItem('pendingDocumentThumbnail');
                 
-                if (alertThumbnail) {
-                    imageData.alert_image = alertThumbnail;
-                    imageData.alert_thumbnail = alertThumbnail;
+                if (alertImage) {
+                    imageData.alert_image = alertImage;
+                    imageData.alert_thumbnail = alertThumbnail || alertImage;
                 }
                 
                 if (documentImage) {
                     imageData.document_image = documentImage;
-                    imageData.document_thumbnail = documentImage;
+                    imageData.document_thumbnail = documentThumbnail || documentImage;
                 }
 
                 // Also check for images in noticeData
