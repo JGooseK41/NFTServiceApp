@@ -4878,10 +4878,21 @@
                             // If documents haven't been processed yet, process them first
                             if (window.uploadedDocumentsList && window.uploadedDocumentsList.length > 0 && !window.documentsProcessed) {
                                 await processDocuments();
-                            } else {
-                                // Documents already processed or no documents, just proceed
-                                showMintStep2();
                             }
+                            
+                            // Create case from documents if case integration is available
+                            if (window.caseIntegration && window.uploadedDocumentsList && window.uploadedDocumentsList.length > 0) {
+                                try {
+                                    console.log('📋 Creating case from uploaded documents...');
+                                    await window.caseIntegration.createCaseFromDocuments();
+                                } catch (error) {
+                                    console.error('Case creation failed:', error);
+                                    // Don't block the flow, just log the error
+                                }
+                            }
+                            
+                            // Proceed to step 2
+                            showMintStep2();
                         }
                     </script>
                 </div>
@@ -29918,6 +29929,19 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     });
                 }
                 
+                // Mark case as served if case management is active
+                if (window.caseIntegration && window.currentCaseId) {
+                    console.log('📋 Marking case as served on blockchain...');
+                    try {
+                        const documentId = parseInt(alertId) + 1; // Document NFT is typically alert + 1
+                        await window.caseIntegration.markCaseAsServed(txHash, alertId, documentId.toString());
+                        console.log('✅ Case marked as served');
+                    } catch (error) {
+                        console.error('Failed to mark case as served:', error);
+                        // Don't fail the transaction, just log the error
+                    }
+                }
+                
                 // Show success with proper receipt
                 const resultData = {
                     txHash: txHash || 'Transaction confirmed',
@@ -30244,6 +30268,8 @@ console.log('To switch to old flow: toggleTransactionFlow()');
 
 <!-- Case Management System -->
 <script src="js/case-management-client.js"></script>
+<!-- Case Integration - Connects document upload to case management -->
+<script src="js/case-integration.js"></script>
 <script type="text/javascript">
 (function() {
     console.log('Initializing case management functions...');

@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Case Integration with Legal Notice Flow</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .button:hover {
+            background: #5a67d8;
+        }
+        .button.secondary {
+            background: #48bb78;
+        }
+        .button.secondary:hover {
+            background: #38a169;
+        }
+        .test-section {
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .test-header {
+            font-weight: bold;
+            color: #4a5568;
+            margin-bottom: 10px;
+        }
+        .flow-diagram {
+            background: linear-gradient(to right, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .flow-step {
+            display: inline-block;
+            padding: 8px 15px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            margin: 5px;
+        }
+        .arrow {
+            margin: 0 10px;
+        }
+        pre {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .case-info {
+            background: #f7fafc;
+            border: 2px solid #4299e1;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .case-info h3 {
+            margin-top: 0;
+            color: #2b6cb0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Case Integration Test - Legal Notice Flow</h1>
+
+    <div class="flow-diagram">
+        <h3>Complete Flow:</h3>
+        <div style="text-align: center; margin-top: 10px;">
+            <span class="flow-step">1. Upload Documents</span>
+            <span class="arrow">→</span>
+            <span class="flow-step">2. Create Case (Auto)</span>
+            <span class="arrow">→</span>
+            <span class="flow-step">3. Enter Details</span>
+            <span class="arrow">→</span>
+            <span class="flow-step">4. Mint NFTs</span>
+            <span class="arrow">→</span>
+            <span class="flow-step">5. Mark Case Served</span>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>Test Setup</h2>
+        <div class="test-section">
+            <div class="test-header">Configuration:</div>
+            <ul>
+                <li>Backend URL: <strong id="backendUrl">Not set</strong></li>
+                <li>Case Integration: <strong id="caseIntegrationStatus">Not initialized</strong></li>
+                <li>Auto Create Case: <strong id="autoCaseStatus">Not set</strong></li>
+                <li>Current Case ID: <strong id="currentCaseId">None</strong></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>Step 1: Upload Test Documents</h2>
+        <div class="test-section">
+            <input type="file" id="testFiles" multiple accept=".pdf,image/*">
+            <button class="button" onclick="simulateUpload()">Simulate Document Upload</button>
+            <div id="uploadStatus"></div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>Step 2: Test Case Creation</h2>
+        <div class="test-section">
+            <button class="button secondary" onclick="testCaseCreation()">Test Case Creation from Documents</button>
+            <div id="caseStatus"></div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>Step 3: Test Complete Flow</h2>
+        <div class="test-section">
+            <button class="button" onclick="testCompleteFlow()">Test Full Integration Flow</button>
+            <div id="flowStatus"></div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>Console Output</h2>
+        <pre id="console"></pre>
+    </div>
+
+    <script>
+        // Console capture
+        const consoleDiv = document.getElementById('console');
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        function addToConsole(msg, type = 'log') {
+            const time = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#ff6b6b' : '#4ecdc4';
+            consoleDiv.innerHTML += `<span style="color: ${color}">[${time}]</span> ${msg}\n`;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addToConsole(args.join(' '));
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addToConsole(args.join(' '), 'error');
+        };
+
+        // Initialize
+        function initialize() {
+            // Set backend URL
+            window.BACKEND_API_URL = 'https://nftserviceapp.onrender.com';
+            document.getElementById('backendUrl').textContent = window.BACKEND_API_URL;
+            
+            // Check if parent window has the integration
+            if (window.parent && window.parent.caseIntegration) {
+                window.caseIntegration = window.parent.caseIntegration;
+                document.getElementById('caseIntegrationStatus').textContent = 'Loaded from parent';
+            } else {
+                // Load scripts if needed
+                loadScripts();
+            }
+            
+            // Check auto-create setting
+            document.getElementById('autoCaseStatus').textContent = window.AUTO_CREATE_CASE ? 'Enabled' : 'Disabled';
+            
+            console.log('Test page initialized');
+        }
+
+        function loadScripts() {
+            // Load required scripts
+            const scripts = [
+                'js/case-management-client.js',
+                'js/case-integration.js'
+            ];
+            
+            scripts.forEach(src => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = () => console.log(`Loaded: ${src}`);
+                script.onerror = () => console.error(`Failed to load: ${src}`);
+                document.head.appendChild(script);
+            });
+            
+            setTimeout(() => {
+                if (window.caseIntegration) {
+                    document.getElementById('caseIntegrationStatus').textContent = 'Loaded successfully';
+                    window.caseIntegration.init();
+                } else {
+                    document.getElementById('caseIntegrationStatus').textContent = 'Failed to load';
+                }
+            }, 2000);
+        }
+
+        // Simulate document upload
+        async function simulateUpload() {
+            console.log('Simulating document upload...');
+            
+            // Create mock uploaded documents
+            window.uploadedDocumentsList = [
+                {
+                    fileName: 'test-document-1.pdf',
+                    fileType: 'application/pdf',
+                    fileSize: 1024000,
+                    order: 0,
+                    pageCount: 3,
+                    data: 'data:application/pdf;base64,JVBERi0xLjQKJeLjz9M=', // Mock data
+                    preview: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+                },
+                {
+                    fileName: 'test-document-2.pdf',
+                    fileType: 'application/pdf',
+                    fileSize: 512000,
+                    order: 1,
+                    pageCount: 2,
+                    data: 'data:application/pdf;base64,JVBERi0xLjQKJeLjz9M=',
+                    preview: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+                }
+            ];
+            
+            // Also set the main uploaded image for backward compatibility
+            window.uploadedImage = window.uploadedDocumentsList[0];
+            
+            document.getElementById('uploadStatus').innerHTML = `
+                <div class="status success">
+                    ✅ Simulated upload of ${window.uploadedDocumentsList.length} documents
+                </div>
+            `;
+            
+            console.log('Documents ready:', window.uploadedDocumentsList);
+        }
+
+        // Test case creation
+        async function testCaseCreation() {
+            if (!window.caseIntegration) {
+                document.getElementById('caseStatus').innerHTML = `
+                    <div class="status error">❌ Case integration not loaded</div>
+                `;
+                return;
+            }
+            
+            if (!window.uploadedDocumentsList || window.uploadedDocumentsList.length === 0) {
+                document.getElementById('caseStatus').innerHTML = `
+                    <div class="status error">❌ No documents uploaded</div>
+                `;
+                return;
+            }
+            
+            console.log('Testing case creation...');
+            document.getElementById('caseStatus').innerHTML = `
+                <div class="status info">⏳ Creating case...</div>
+            `;
+            
+            try {
+                const result = await window.caseIntegration.createCaseFromDocuments();
+                
+                if (result && result.success) {
+                    document.getElementById('currentCaseId').textContent = result.caseId;
+                    document.getElementById('caseStatus').innerHTML = `
+                        <div class="case-info">
+                            <h3>✅ Case Created Successfully!</h3>
+                            <p><strong>Case ID:</strong> ${result.caseId}</p>
+                            <p><strong>Pages:</strong> ${result.pdfInfo?.pageCount || 'Unknown'}</p>
+                            <p><strong>Size:</strong> ${result.pdfInfo?.size || 'Unknown'} bytes</p>
+                            ${result.alertPreview ? `<p><strong>Preview:</strong> Generated</p>` : ''}
+                        </div>
+                    `;
+                    console.log('Case created:', result);
+                } else {
+                    throw new Error(result?.error || 'Unknown error');
+                }
+            } catch (error) {
+                document.getElementById('caseStatus').innerHTML = `
+                    <div class="status error">❌ Failed: ${error.message}</div>
+                `;
+                console.error('Case creation failed:', error);
+            }
+        }
+
+        // Test complete flow
+        async function testCompleteFlow() {
+            console.log('=== STARTING COMPLETE FLOW TEST ===');
+            
+            const statusDiv = document.getElementById('flowStatus');
+            statusDiv.innerHTML = '';
+            
+            // Step 1: Upload
+            statusDiv.innerHTML += '<div class="status info">Step 1: Uploading documents...</div>';
+            await simulateUpload();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Step 2: Create Case
+            statusDiv.innerHTML += '<div class="status info">Step 2: Creating case...</div>';
+            await testCaseCreation();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Step 3: Simulate blockchain transaction
+            if (window.currentCaseId) {
+                statusDiv.innerHTML += '<div class="status info">Step 3: Simulating blockchain transaction...</div>';
+                
+                const mockTxHash = '0x' + Math.random().toString(36).substring(2, 15);
+                const mockAlertId = Math.floor(Math.random() * 1000000).toString();
+                const mockDocumentId = (parseInt(mockAlertId) + 1).toString();
+                
+                console.log('Mock transaction:', { txHash: mockTxHash, alertId: mockAlertId, documentId: mockDocumentId });
+                
+                // Step 4: Mark as served
+                if (window.caseIntegration) {
+                    statusDiv.innerHTML += '<div class="status info">Step 4: Marking case as served...</div>';
+                    
+                    try {
+                        const serveResult = await window.caseIntegration.markCaseAsServed(
+                            mockTxHash,
+                            mockAlertId,
+                            mockDocumentId
+                        );
+                        
+                        if (serveResult?.success) {
+                            statusDiv.innerHTML += '<div class="status success">✅ Complete flow successful!</div>';
+                            console.log('Case marked as served successfully');
+                        } else {
+                            throw new Error(serveResult?.error || 'Failed to mark as served');
+                        }
+                    } catch (error) {
+                        statusDiv.innerHTML += `<div class="status error">❌ Failed to mark as served: ${error.message}</div>`;
+                        console.error('Mark as served failed:', error);
+                    }
+                }
+            } else {
+                statusDiv.innerHTML += '<div class="status error">❌ No case ID available</div>';
+            }
+            
+            console.log('=== FLOW TEST COMPLETE ===');
+        }
+
+        // Initialize on load
+        window.addEventListener('load', initialize);
+    </script>
+</body>
+</html>
