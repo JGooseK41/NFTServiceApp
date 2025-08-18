@@ -10393,31 +10393,46 @@ function useConnectedAddressForFeeCollector() {
         }
 
         // Update fee display based on actual contract calculation
+        (async function() {
             try {
+                // Wait for TronWeb to be ready
+                if (!window.tronWeb || !window.tronWeb.defaultAddress) {
+                    console.log('Waiting for TronWeb before updating fee display...');
+                    return;
+                }
+                
                 const userAddress = tronWeb.defaultAddress.base58;
                 const fee = await calculateFeeFromConstants(userAddress);
                 const feeInTrx = tronWeb.fromSun(fee);
                 
                 // Display the calculated fee
                 const deliveryMethod = document.querySelector('input[name="deliveryMethod"]:checked')?.value || 'document';
-                document.getElementById('creationFeeDisplay').textContent = `${feeInTrx} TRX`;
+                const feeDisplay = document.getElementById('creationFeeDisplay');
+                if (feeDisplay) {
+                    feeDisplay.textContent = `${feeInTrx} TRX`;
+                }
                 
                 // Check if user has fee exemptions
-                const isLawEnforcement = await legalContract.serviceFeeExemptions(userAddress).call();
-                const agencyName = ''; // Complete contract doesn't track agency names
-                
-                if (isLawEnforcement) {
-                    document.getElementById('feeDescription').textContent = `Law Enforcement - Service fee waived - Pay energy (90-200 TRX) + recipient (5.5 TRX)`;
-                } else if (deliveryMethod === 'document') {
-                    document.getElementById('feeDescription').textContent = 'Encrypted document with public text notice';
-                } else {
-                    document.getElementById('feeDescription').textContent = 'Text-only notice';
+                if (window.legalContract && window.legalContract.serviceFeeExemptions) {
+                    const isLawEnforcement = await legalContract.serviceFeeExemptions(userAddress).call();
+                    const agencyName = ''; // Complete contract doesn't track agency names
+                    
+                    if (isLawEnforcement) {
+                        document.getElementById('feeDescription').textContent = `Law Enforcement - Service fee waived - Pay energy (90-200 TRX) + recipient (5.5 TRX)`;
+                    } else if (deliveryMethod === 'document') {
+                        document.getElementById('feeDescription').textContent = 'Encrypted document with public text notice';
+                    } else {
+                        document.getElementById('feeDescription').textContent = 'Text-only notice';
+                    }
                 }
             } catch (error) {
                 console.error('Error calculating fee:', error);
-                document.getElementById('creationFeeDisplay').textContent = `${currentCreationFee} TRX`;
+                const feeDisplay = document.getElementById('creationFeeDisplay');
+                if (feeDisplay && typeof currentCreationFee !== 'undefined') {
+                    feeDisplay.textContent = `${currentCreationFee} TRX`;
+                }
             }
-        }
+        })();
 
         function closeMintModal(force = false) {
             // Check if there's unsaved data
