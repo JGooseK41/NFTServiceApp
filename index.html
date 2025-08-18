@@ -21639,13 +21639,97 @@ document.addEventListener('keydown', function(event) {
                 if (sortedDocs.length > 1) {
                     updateCompressionProgress(30, 'Merging documents...');
                     
-                    // For now, we'll use the first document as the main one
-                    // In a real implementation, you'd merge PDFs or create a multi-page document
-                    uploadedImage = sortedDocs[0];
-                    window.uploadedImage = uploadedImage;
+                    // Actually merge the PDFs
+                    console.log(`Merging ${sortedDocs.length} documents...`);
                     
-                    // Store all documents for later reference
-                    window.uploadedImage.allDocuments = sortedDocs;
+                    // Check if all are PDFs
+                    const allPDFs = sortedDocs.every(doc => 
+                        doc.fileType === 'application/pdf' || 
+                        (doc.fileName && doc.fileName.toLowerCase().endsWith('.pdf'))
+                    );
+                    
+                    if (allPDFs && window.PDFLib) {
+                        // Use PDF-lib to merge PDFs
+                        try {
+                            const { PDFDocument } = PDFLib;
+                            const mergedPdf = await PDFDocument.create();
+                            
+                            let totalPages = 0;
+                            for (let i = 0; i < sortedDocs.length; i++) {
+                                const doc = sortedDocs[i];
+                                updateCompressionProgress(30 + (40 * i / sortedDocs.length), 
+                                    `Merging document ${i + 1} of ${sortedDocs.length}...`);
+                                
+                                // Convert base64 to bytes
+                                let base64Data = doc.data;
+                                if (base64Data.includes(',')) {
+                                    base64Data = base64Data.split(',')[1];
+                                }
+                                const pdfBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+                                
+                                // Load PDF and copy pages
+                                const pdf = await PDFDocument.load(pdfBytes);
+                                const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+                                pages.forEach(page => mergedPdf.addPage(page));
+                                totalPages += pages.length;
+                                
+                                console.log(`Added ${pages.length} pages from document ${i + 1}`);
+                            }
+                            
+                            // Save merged PDF
+                            const mergedPdfBytes = await mergedPdf.save();
+                            const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
+                            const reader = new FileReader();
+                            const dataUrl = await new Promise((resolve, reject) => {
+                                reader.onload = e => resolve(e.target.result);
+                                reader.onerror = reject;
+                                reader.readAsDataURL(blob);
+                            });
+                            
+                            console.log(`✅ Merged ${sortedDocs.length} PDFs into ${totalPages} pages`);
+                            
+                            // Create merged document object
+                            uploadedImage = {
+                                id: Date.now(),
+                                fileName: `merged_${sortedDocs.length}_documents.pdf`,
+                                fileType: 'application/pdf',
+                                fileSize: mergedPdfBytes.length,
+                                data: dataUrl,
+                                fullDocument: dataUrl,
+                                preview: sortedDocs[0].preview, // Use first doc preview for now
+                                pageCount: totalPages,
+                                order: 0,
+                                allDocuments: sortedDocs,
+                                isMerged: true
+                            };
+                            window.uploadedImage = uploadedImage;
+                            
+                        } catch (mergeError) {
+                            console.error('PDF merge failed:', mergeError);
+                            // Fallback to using first document
+                            uploadedImage = sortedDocs[0];
+                            window.uploadedImage = uploadedImage;
+                            window.uploadedImage.allDocuments = sortedDocs;
+                            uiManager.showNotification('warning', 'Could not merge PDFs, using first document');
+                        }
+                    } else {
+                        // Non-PDF documents or PDF-lib not available
+                        // Combine as base64 array
+                        console.log('Creating combined document package...');
+                        uploadedImage = {
+                            id: Date.now(),
+                            fileName: `combined_${sortedDocs.length}_documents`,
+                            fileType: 'application/octet-stream',
+                            data: sortedDocs[0].data, // Use first for compatibility
+                            fullDocument: sortedDocs[0].data,
+                            preview: sortedDocs[0].preview,
+                            allDocuments: sortedDocs,
+                            pageCount: sortedDocs.reduce((sum, doc) => sum + (doc.pageCount || 1), 0),
+                            order: 0,
+                            isCombined: true
+                        };
+                        window.uploadedImage = uploadedImage;
+                    }
                     
                     updateCompressionProgress(70, 'Documents merged successfully');
                 } else {
