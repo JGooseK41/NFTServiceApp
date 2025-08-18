@@ -447,4 +447,4 @@ if (document.readyState === 'loading') {
 }
 
 // Configuration flags
-window.AUTO_CREATE_CASE = true; // Automatically create case when documents are uploaded
+window.AUTO_CREATE_CASE = false; // Disabled - case should be created from form details first

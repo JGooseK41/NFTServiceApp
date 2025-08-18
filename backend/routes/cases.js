@@ -9,6 +9,89 @@ const pool = new Pool({
 });
 
 /**
+ * GET /api/cases/by-number/:caseNumber
+ * Find a case by its case number
+ */
+router.get('/cases/by-number/:caseNumber', async (req, res) => {
+    try {
+        const { caseNumber } = req.params;
+        const { serverAddress } = req.query;
+
+        if (!caseNumber) {
+            return res.status(400).json({ 
+                error: 'Case number is required' 
+            });
+        }
+
+        console.log(`Looking for case with number: ${caseNumber} for server: ${serverAddress}`);
+
+        // Query to find case by case number
+        const query = `
+            SELECT DISTINCT
+                case_number,
+                server_address,
+                notice_type,
+                issuing_agency,
+                MIN(created_at) as created_at,
+                MAX(updated_at) as updated_at,
+                COUNT(DISTINCT recipient_address) as recipient_count,
+                COUNT(*) as notice_count,
+                json_agg(DISTINCT recipient_address) as recipients,
+                json_agg(DISTINCT recipient_name) as recipient_names
+            FROM saved_notices
+            WHERE case_number = $1 
+            AND ($2::text IS NULL OR server_address = $2)
+            GROUP BY case_number, server_address, notice_type, issuing_agency
+            ORDER BY MIN(created_at) DESC
+            LIMIT 1
+        `;
+
+        const result = await pool.query(query, [caseNumber, serverAddress || null]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ 
+                error: 'Case not found',
+                caseNumber 
+            });
+        }
+
+        const caseData = result.rows[0];
+        
+        // Format as case object
+        const formattedCase = {
+            id: caseNumber, // Use case number as ID
+            case_number: caseData.case_number,
+            server_address: caseData.server_address,
+            metadata: {
+                noticeType: caseData.notice_type,
+                issuingAgency: caseData.issuing_agency,
+                recipientCount: caseData.recipient_count,
+                noticeCount: caseData.notice_count,
+                recipients: caseData.recipients,
+                recipientNames: caseData.recipient_names
+            },
+            status: 'existing',
+            created_at: caseData.created_at,
+            updated_at: caseData.updated_at
+        };
+
+        console.log(`Found case ${caseNumber} with ${caseData.notice_count} notices`);
+
+        res.json({ 
+            success: true,
+            case: formattedCase 
+        });
+
+    } catch (error) {
+        console.error('Error finding case by number:', error);
+        res.status(500).json({ 
+            error: 'Failed to find case',
+            message: error.message 
+        });
+    }
+});
+
+/**
  * Get all cases for a server address
  * Groups notices by case number, supporting multiple recipients per case
  */
