@@ -12306,31 +12306,24 @@ function useConnectedAddressForFeeCollector() {
                 legalContract = await tronWeb.contract(window.CONTRACT_ABI, contractAddress);
                 window.legalContract = legalContract; // Make globally accessible
                 
-                // Test the contract by calling a view function
-                // Check if balanceOf exists (ERC721 function), otherwise use a different test
+                // Test the contract by calling balanceOf (exists at line 370 in contract)
                 let testSuccessful = false;
                 try {
-                    if (typeof legalContract.balanceOf === 'function') {
-                        const balance = await legalContract.balanceOf(tronWeb.defaultAddress.base58).call();
-                        console.log('Contract test successful (balanceOf), balance:', balance.toString());
-                        testSuccessful = true;
-                    } else if (typeof legalContract.totalSupply === 'function') {
+                    const balance = await legalContract.balanceOf(tronWeb.defaultAddress.base58).call();
+                    console.log('Contract test successful, balance:', balance.toString());
+                    testSuccessful = true;
+                } catch (error) {
+                    console.warn('Contract test failed:', error);
+                    // Try totalSupply as backup test
+                    try {
                         const supply = await legalContract.totalSupply().call();
                         console.log('Contract test successful (totalSupply):', supply.toString());
                         testSuccessful = true;
-                    } else if (typeof legalContract.creationFee === 'function') {
-                        const fee = await legalContract.creationFee().call();
-                        console.log('Contract test successful (creationFee):', fee.toString());
-                        testSuccessful = true;
-                    } else {
-                        // Just check if contract object exists with methods
-                        console.log('Contract connected, available methods:', Object.keys(legalContract).filter(k => typeof legalContract[k] === 'function').slice(0, 5));
+                    } catch (e) {
+                        // Contract is still connected, just the test failed
+                        console.log('Contract connected but test calls failed');
                         testSuccessful = true;
                     }
-                } catch (error) {
-                    console.warn('Contract test failed:', error);
-                    // Contract is still connected, just the test failed
-                    testSuccessful = true;
                 }
                 
                 // Success

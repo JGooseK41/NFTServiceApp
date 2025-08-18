@@ -241,21 +241,19 @@ console.log('🔧 Integrating simple image storage into notice creation...');
     enhanceFormSubmission();
     
     // Re-run on DOM changes (only if document.body exists)
-    if (document.body) {
-        const observer = new MutationObserver(() => {
-            enhanceFormSubmission();
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
-    } else {
-        // Wait for body to be available
-        document.addEventListener('DOMContentLoaded', () => {
+    const setupObserver = () => {
+        if (document.body) {
             const observer = new MutationObserver(() => {
                 enhanceFormSubmission();
             });
-            if (document.body) {
-                observer.observe(document.body, { childList: true, subtree: true });
-            }
-        });
+            observer.observe(document.body, { childList: true, subtree: true });
+        }
+    };
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupObserver);
+    } else {
+        setupObserver();
     }
 
     console.log('✅ Simple image storage integrated into notice creation');

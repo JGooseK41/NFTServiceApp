@@ -22,10 +22,10 @@ class ImageReuploader {
         }
 
         // Add method to unified system (check if methods exist first)
-        if (this.reuploadAllMissingImages) {
+        if (typeof this.reuploadAllMissingImages === 'function') {
             window.unifiedSystem.reuploadAllMissingImages = this.reuploadAllMissingImages.bind(this);
         }
-        if (this.checkAndReuploadImage) {
+        if (typeof this.checkAndReuploadImage === 'function') {
             window.unifiedSystem.checkAndReuploadImage = this.checkAndReuploadImage.bind(this);
         }
         

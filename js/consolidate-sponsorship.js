@@ -183,12 +183,7 @@ window.ConsolidatedSponsorship = {
                 return false;
             }
             
-            // Check if sponsorshipFee method exists
-            if (typeof window.legalContract.sponsorshipFee !== 'function') {
-                console.log('sponsorshipFee method not available on contract');
-                return false;
-            }
-            
+            // sponsorshipFee exists at line 90 in contract - just call it directly
             const currentFee = await window.legalContract.sponsorshipFee().call();
             return currentFee === 6000000; // 6 TRX in sun
         } catch (error) {
