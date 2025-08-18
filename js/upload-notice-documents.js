@@ -28,28 +28,7 @@ async function uploadNoticeDocuments(noticeData, maxRetries = 3) {
         formData.append('ipfsHash', noticeData.ipfsHash || '');
         formData.append('encryptionKey', noticeData.encryptionKey || '');
         
-        // Convert data URLs to Blobs and add to form
-        if (window.uploadedImage) {
-            // Handle thumbnail (alert image)
-            if (window.uploadedImage.preview) {
-                const thumbnailBlob = await dataURLtoBlob(window.uploadedImage.preview);
-                formData.append('thumbnail', thumbnailBlob, 'thumbnail.png');
-            }
-            
-            // Handle full document
-            if (window.uploadedImage.data) {
-                let documentData = window.uploadedImage.data;
-                // Handle case where data might be an object
-                if (typeof documentData === 'object' && documentData.data) {
-                    documentData = documentData.data;
-                }
-                const documentBlob = await dataURLtoBlob(documentData);
-                formData.append('unencryptedDocument', documentBlob, 'document.png');
-            }
-        }
-        
-        // Upload to backend - use a more robust noticeId
-        // Try to use the actual NFT ID if available
+        // Generate noticeId early for disk storage
         let noticeId = noticeData.noticeId || noticeData.alertId || noticeData.documentId;
         
         // Use ID manager for safe ID generation
@@ -75,6 +54,78 @@ async function uploadNoticeDocuments(noticeData, maxRetries = 3) {
             }
         }
         
+        // Check if we have documents to upload
+        if (window.uploadedImage || window.uploadedDocumentsList) {
+            // Check if this is a PDF that needs disk storage
+            const docs = window.uploadedDocumentsList || [window.uploadedImage];
+            const hasPDF = docs.some(doc => doc && (doc.fileType === 'application/pdf' || 
+                                                    doc.fileName?.toLowerCase().endsWith('.pdf')));
+            
+            if (hasPDF && window.pdfDiskStorage) {
+                console.log('📁 Using PDF Disk Storage for document upload');
+                
+                // Find the PDF document
+                const pdfDoc = docs.find(doc => doc && (doc.fileType === 'application/pdf' || 
+                                                         doc.fileName?.toLowerCase().endsWith('.pdf')));
+                
+                if (pdfDoc && pdfDoc.originalFile) {
+                    // Upload PDF to disk storage
+                    try {
+                        const diskResult = await window.pdfDiskStorage.uploadPDFToDisk(
+                            pdfDoc.originalFile, 
+                            noticeId,
+                            {
+                                caseNumber: noticeData.caseNumber,
+                                serverAddress: noticeData.serverAddress || tronWeb.defaultAddress.base58,
+                                recipientAddress: noticeData.recipient || noticeData.recipientAddress
+                            }
+                        );
+                        
+                        console.log('✅ PDF uploaded to disk:', diskResult);
+                        
+                        // Add disk URL to form data instead of file
+                        formData.append('documentUrl', diskResult.diskUrl);
+                        formData.append('documentFullUrl', diskResult.fullUrl);
+                        formData.append('documentFileName', pdfDoc.fileName);
+                        formData.append('documentFileSize', pdfDoc.fileSize.toString());
+                        formData.append('documentFileType', pdfDoc.fileType);
+                        
+                        // Still add thumbnail as Base64 (alert image only)
+                        if (pdfDoc.preview) {
+                            const thumbnailBlob = await dataURLtoBlob(pdfDoc.preview);
+                            formData.append('thumbnail', thumbnailBlob, 'thumbnail.png');
+                        }
+                    } catch (error) {
+                        console.error('Failed to upload PDF to disk:', error);
+                        throw error;
+                    }
+                } else {
+                    console.warn('PDF document missing originalFile reference');
+                }
+            } else {
+                // Non-PDF or fallback: Convert data URLs to Blobs (for images, etc.)
+                if (window.uploadedImage) {
+                    // Handle thumbnail (alert image) - always Base64
+                    if (window.uploadedImage.preview) {
+                        const thumbnailBlob = await dataURLtoBlob(window.uploadedImage.preview);
+                        formData.append('thumbnail', thumbnailBlob, 'thumbnail.png');
+                    }
+                    
+                    // Handle full document - only as Base64 if not PDF
+                    if (window.uploadedImage.data && !hasPDF) {
+                        let documentData = window.uploadedImage.data;
+                        // Handle case where data might be an object
+                        if (typeof documentData === 'object' && documentData.data) {
+                            documentData = documentData.data;
+                        }
+                        const documentBlob = await dataURLtoBlob(documentData);
+                        formData.append('unencryptedDocument', documentBlob, 'document.png');
+                    }
+                }
+            }
+        }
+        
+        // noticeId already generated above
         console.log('Uploading documents for notice ID:', noticeId);
         console.log('FormData contents:', {
             caseNumber: noticeData.caseNumber,

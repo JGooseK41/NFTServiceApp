@@ -7,6 +7,8 @@ const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');
 const multer = require('multer');
+const path = require('path');
+const fs = require('fs').promises;
 
 // Increase size limit to 50MB for large PDFs
 const upload = multer({
@@ -114,6 +116,7 @@ router.post('/store-complete', express.json({ limit: '50mb' }), async (req, res)
 /**
  * GET /api/documents/:noticeId/full
  * Get full unencrypted document (for process servers)
+ * Now supports both disk-stored PDFs and Base64 storage
  */
 router.get('/:noticeId/full', async (req, res) => {
     try {
@@ -122,7 +125,50 @@ router.get('/:noticeId/full', async (req, res) => {
         
         console.log(`Fetching full document for notice ${noticeId}`);
         
-        // Get document
+        // First check if document is on disk (new system)
+        const diskResult = await pool.query(`
+            SELECT * FROM document_storage
+            WHERE notice_id = $1
+        `, [noticeId]);
+        
+        if (diskResult.rows.length > 0) {
+            console.log('📁 Found document on disk storage');
+            const diskDoc = diskResult.rows[0];
+            
+            // Check access permissions
+            const isServer = diskDoc.server_address?.toLowerCase() === walletAddress?.toLowerCase();
+            const isRecipient = diskDoc.recipient_address?.toLowerCase() === walletAddress?.toLowerCase();
+            
+            if (!isServer && !isRecipient) {
+                return res.status(403).json({
+                    error: 'Access denied'
+                });
+            }
+            
+            // Read file from disk
+            const filePath = path.join(__dirname, '..', diskDoc.file_path);
+            
+            try {
+                await fs.access(filePath);
+                const fileBuffer = await fs.readFile(filePath);
+                const base64Data = `data:${diskDoc.file_type || 'application/pdf'};base64,${fileBuffer.toString('base64')}`;
+                
+                res.json({
+                    success: true,
+                    documentData: base64Data,
+                    mimeType: diskDoc.file_type || 'application/pdf',
+                    fileName: diskDoc.file_name,
+                    fileSize: diskDoc.file_size,
+                    isDiskStorage: true
+                });
+                return;
+            } catch (error) {
+                console.error('Error reading file from disk:', error);
+                // Fall through to Base64 storage check
+            }
+        }
+        
+        // Fallback to Base64 storage (old system)
         const result = await pool.query(`
             SELECT 
                 document_data,

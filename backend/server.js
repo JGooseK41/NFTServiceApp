@@ -1024,6 +1024,11 @@ const documentsCompleteRouter = require('./routes/documents-complete');
 app.use('/api/documents', documentsCompleteRouter);
 console.log('✅ Complete document storage routes loaded');
 
+// PDF Disk Storage routes - store PDFs on disk, not Base64
+const pdfDiskStorageRouter = require('./routes/pdf-disk-storage');
+app.use('/api/documents', pdfDiskStorageRouter);
+console.log('✅ PDF Disk Storage routes loaded - PDFs will be stored on disk');
+
 // Admin dashboard routes
 const adminDashboardRouter = require('./routes/admin-dashboard');
 app.use('/api/admin', adminDashboardRouter);
