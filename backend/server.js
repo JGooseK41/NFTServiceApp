@@ -1085,6 +1085,14 @@ async function initializeDatabase() {
   try {
     console.log('Initializing database tables...');
     
+    // Setup PDF disk storage directories
+    try {
+      const { setupDiskStorage } = require('./scripts/setup-disk-storage');
+      await setupDiskStorage();
+    } catch (error) {
+      console.log('Could not run disk storage setup:', error.message);
+    }
+    
     // Create all required tables if they don't exist
     await pool.query(`
       CREATE TABLE IF NOT EXISTS served_notices (
