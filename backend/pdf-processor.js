@@ -41,11 +41,12 @@ class PDFProcessor {
                 documentSections.push({
                     pdf,
                     fileName: fileInfo[i]?.fileName || `Document ${i + 1}`,
-                    startPage: totalPageCount + (i + 1), // Account for separator pages
+                    startPage: totalPageCount + i, // Account for separator pages (none before first doc)
                     pageCount: pageCount
                 });
                 
-                totalPageCount += pageCount + 1; // +1 for separator page
+                // Add page count + 1 for separator, except for first document
+                totalPageCount += pageCount + (i > 0 ? 1 : 0);
             } catch (error) {
                 console.error(`  ✗ Failed to load PDF ${i + 1}:`, error.message);
             }
@@ -57,22 +58,24 @@ class PDFProcessor {
         for (let i = 0; i < documentSections.length; i++) {
             const section = documentSections[i];
             
-            // Add separator page before each document
-            const separatorPage = mergedPdf.addPage([612, 792]); // Letter size
-            currentPageNum++;
-            
-            // Draw separator page content
-            this.drawSeparatorPage(
-                separatorPage, 
-                helveticaBold, 
-                helvetica,
-                section.fileName,
-                i + 1,
-                documentSections.length,
-                section.pageCount,
-                currentPageNum,
-                totalPageCount
-            );
+            // Add separator page before each document EXCEPT the first one
+            if (i > 0) {
+                const separatorPage = mergedPdf.addPage([612, 792]); // Letter size
+                currentPageNum++;
+                
+                // Draw separator page content
+                this.drawSeparatorPage(
+                    separatorPage, 
+                    helveticaBold, 
+                    helvetica,
+                    section.fileName,
+                    i + 1,
+                    documentSections.length,
+                    section.pageCount,
+                    currentPageNum,
+                    totalPageCount
+                );
+            }
             
             // Copy and add all pages from this PDF
             const pages = await mergedPdf.copyPages(section.pdf, section.pdf.getPageIndices());
