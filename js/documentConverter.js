@@ -81,15 +81,15 @@ class DocumentConverter {
                 disableFontFace: false
             });
             
-            // Add timeout protection - 5 seconds should be enough
+            // Add timeout protection - 30 seconds for larger PDFs
             const timeoutPromise = new Promise((_, reject) => {
                 setTimeout(() => {
                     console.error('PDF loading timeout - destroying task');
                     if (loadingTask && loadingTask.destroy) {
                         loadingTask.destroy();
                     }
-                    reject(new Error('PDF loading timeout after 5 seconds'));
-                }, 5000);
+                    reject(new Error('PDF loading timeout after 30 seconds'));
+                }, 30000); // Increased from 5000ms to 30000ms for larger documents
             });
             
             // Race between loading and timeout
