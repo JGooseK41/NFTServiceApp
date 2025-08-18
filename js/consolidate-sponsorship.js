@@ -177,7 +177,19 @@ window.ConsolidatedSponsorship = {
      */
     async isConsolidationActive() {
         try {
-            const currentFee = await legalContract.sponsorshipFee().call();
+            // Check if contract is connected first
+            if (!window.legalContract) {
+                console.log('Contract not yet connected, skipping consolidation check');
+                return false;
+            }
+            
+            // Check if sponsorshipFee method exists
+            if (typeof window.legalContract.sponsorshipFee !== 'function') {
+                console.log('sponsorshipFee method not available on contract');
+                return false;
+            }
+            
+            const currentFee = await window.legalContract.sponsorshipFee().call();
             return currentFee === 6000000; // 6 TRX in sun
         } catch (error) {
             console.error('Error checking consolidation status:', error);

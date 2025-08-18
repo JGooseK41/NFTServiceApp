@@ -21,9 +21,13 @@ class ImageReuploader {
             return;
         }
 
-        // Add method to unified system
-        window.unifiedSystem.reuploadAllMissingImages = this.reuploadAllMissingImages.bind(this);
-        window.unifiedSystem.checkAndReuploadImage = this.checkAndReuploadImage.bind(this);
+        // Add method to unified system (check if methods exist first)
+        if (this.reuploadAllMissingImages) {
+            window.unifiedSystem.reuploadAllMissingImages = this.reuploadAllMissingImages.bind(this);
+        }
+        if (this.checkAndReuploadImage) {
+            window.unifiedSystem.checkAndReuploadImage = this.checkAndReuploadImage.bind(this);
+        }
         
         console.log('Image re-upload functions added to unifiedSystem');
     }
