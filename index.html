@@ -1762,6 +1762,30 @@
         #mintModal .alert {
             color: #1e293b !important;
         }
+        
+        /* Fix dropdown options contrast */
+        #mintModal option {
+            background: white !important;
+            color: #1e293b !important;
+        }
+        
+        /* Fix fee information boxes */
+        #mintModal .fee-info,
+        #mintModal .compression-status,
+        #mintModal .upload-metadata,
+        #mintModal .metadata-item {
+            background: white !important;
+            color: #1e293b !important;
+            border: 1px solid #cbd5e1 !important;
+        }
+        
+        #mintModal .metadata-item span {
+            color: #64748b !important;
+        }
+        
+        #mintModal .metadata-item strong {
+            color: #1e293b !important;
+        }
 
         .modal-header {
             display: flex;
@@ -5041,11 +5065,17 @@
                     
                     <div class="preview-container">
                         <div class="preview-image">
-                            <img id="documentPreview" src="" alt="Document preview">
-                            <button class="btn btn-secondary btn-small" style="margin-top: 0.5rem;" onclick="changeDocument()">
-                                <i class="fas fa-exchange-alt"></i>
-                                Change
-                            </button>
+                            <img id="documentPreview" src="" alt="Document preview" style="cursor: pointer;" onclick="showFullDocumentPreview()">
+                            <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center;">
+                                <button class="btn btn-secondary btn-small" onclick="showFullDocumentPreview()">
+                                    <i class="fas fa-eye"></i>
+                                    Preview Full Document
+                                </button>
+                                <button class="btn btn-secondary btn-small" onclick="showDocumentUpload()">
+                                    <i class="fas fa-exchange-alt"></i>
+                                    Change Documents
+                                </button>
+                            </div>
                             <div id="uploadMetadata" class="upload-metadata" style="display: none;">
                                 <h5>Document Info</h5>
                                 <div class="metadata-item">
@@ -5322,22 +5352,26 @@
                         </div>
                     </div>
                     
-                    <div style="display: flex; gap: 1rem; margin-top: 2rem;">
-                        <button class="btn btn-secondary" onclick="showMintStep(1)">
+                    <div style="display: flex; gap: 1rem; margin-top: 2rem; flex-wrap: wrap;">
+                        <button class="btn btn-secondary" onclick="showDocumentUpload()">
                             <i class="fas fa-arrow-left"></i>
-                            Back
+                            Back to Documents
                         </button>
-                        <button class="btn btn-success" onclick="saveDraftWithPrompt()" title="Save current form as draft">
-                            <i class="fas fa-save"></i>
-                            Save Draft
+                        <button class="btn btn-success" onclick="createCaseOnly()" title="Create case file without minting NFTs">
+                            <i class="fas fa-folder-plus"></i>
+                            Create Case Only
                         </button>
-                        <button class="btn btn-secondary" onclick="previewNFT()">
+                        <button class="btn btn-info" onclick="reviewBothNFTs()" title="Review both Alert and Document NFTs">
                             <i class="fas fa-eye"></i>
-                            Preview NFT
+                            Review Both NFTs
                         </button>
-                        <button class="btn btn-primary" onclick="window.USE_STAGING_FLOW ? createLegalNoticeWithStaging() : createLegalNotice()" id="createNoticeBtn">
+                        <button class="btn btn-warning" onclick="checkEnergyAndProceed()" title="Check energy and obtain if needed">
+                            <i class="fas fa-bolt"></i>
+                            Obtain Energy
+                        </button>
+                        <button class="btn btn-primary" onclick="mintNFTsNow()" id="createNoticeBtn" title="Mint NFTs immediately">
                             <i class="fas fa-rocket"></i>
-                            Create Legal Notice
+                            Mint NFTs Now
                         </button>
                     </div>
                 </div>
@@ -10411,6 +10445,191 @@ function useConnectedAddressForFeeCollector() {
         
         // Disable auto-creation of cases
         window.AUTO_CREATE_CASE = false;
+        
+        // Update document preview with actual processed documents
+        function updateDocumentPreview() {
+            const preview = document.getElementById('documentPreview');
+            if (!preview) return;
+            
+            // Check if we have processed documents
+            if (window.uploadedImage && window.uploadedImage.data) {
+                // Use the processed/merged document
+                preview.src = window.uploadedImage.data;
+            } else if (window.uploadedDocumentsList && window.uploadedDocumentsList.length > 0) {
+                // Use the first document's preview
+                const firstDoc = window.uploadedDocumentsList[0];
+                if (firstDoc.preview) {
+                    preview.src = firstDoc.preview;
+                } else if (firstDoc.data) {
+                    preview.src = firstDoc.data;
+                }
+            } else {
+                // No documents available
+                preview.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjUwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjUwMCIgZmlsbD0iI2Y4ZjlmYSIvPjx0ZXh0IHg9IjIwMCIgeT0iMjUwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMjAiIGZpbGw9IiM2NDc0OGIiPk5vIERvY3VtZW50IFVwbG9hZGVkPC90ZXh0Pjwvc3ZnPg==';
+            }
+        }
+        
+        // Show full document preview in a modal
+        function showFullDocumentPreview() {
+            if (!window.uploadedDocumentsList || window.uploadedDocumentsList.length === 0) {
+                uiManager.showNotification('warning', 'No documents to preview');
+                return;
+            }
+            
+            // Create preview modal
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'block';
+            modal.style.zIndex = '10001';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 90%; max-height: 90vh; overflow: auto;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">
+                            <i class="fas fa-file-pdf"></i>
+                            Full Document Preview (${window.uploadedDocumentsList.length} document(s))
+                        </h3>
+                        <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+                    </div>
+                    <div class="modal-body" style="padding: 20px;">
+                        <div class="alert alert-info" style="margin-bottom: 20px;">
+                            <i class="fas fa-info-circle"></i>
+                            This is the complete document that will be encrypted and stored on IPFS.
+                            ${window.uploadedDocumentsList.length > 1 ? 'All documents have been merged into a single file.' : ''}
+                        </div>
+                        <div style="text-align: center;">
+                            ${window.uploadedImage && window.uploadedImage.fullDocument ? 
+                                `<embed src="${window.uploadedImage.fullDocument}" type="application/pdf" width="100%" height="600px" />` :
+                                window.uploadedImage && window.uploadedImage.data ? 
+                                `<img src="${window.uploadedImage.data}" style="max-width: 100%; height: auto;" />` :
+                                '<p>Processing documents...</p>'
+                            }
+                        </div>
+                        <div style="margin-top: 20px;">
+                            <h4>Document Details:</h4>
+                            <ul style="text-align: left;">
+                                ${window.uploadedDocumentsList.map((doc, i) => `
+                                    <li>Document ${i + 1}: ${doc.fileName} (${(doc.fileSize / 1024).toFixed(2)} KB)</li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        // Create case without minting NFTs
+        async function createCaseOnly() {
+            try {
+                // Validate we have all required data
+                const caseNumber = document.getElementById('mintCaseNumber').value;
+                if (!caseNumber) {
+                    uiManager.showNotification('error', 'Case number is required');
+                    return;
+                }
+                
+                // Create case via case integration
+                if (window.caseIntegration) {
+                    const result = await window.caseIntegration.createCaseFromDocuments();
+                    if (result && result.success) {
+                        uiManager.showNotification('success', `Case ${caseNumber} created successfully`);
+                        
+                        // Show option to continue later
+                        if (confirm('Case created! Would you like to close this form and continue later?')) {
+                            closeMintModal(true);
+                        }
+                    }
+                } else {
+                    uiManager.showNotification('error', 'Case integration not available');
+                }
+            } catch (error) {
+                console.error('Error creating case:', error);
+                uiManager.showNotification('error', 'Failed to create case');
+            }
+        }
+        
+        // Review both NFTs before minting
+        async function reviewBothNFTs() {
+            // First process documents if not done
+            if (!window.documentsProcessed) {
+                await processDocuments();
+            }
+            
+            // Create review modal
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'block';
+            modal.style.zIndex = '10002';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 900px;">
+                    <div class="modal-header">
+                        <h3 class="modal-title">
+                            <i class="fas fa-eye"></i>
+                            Review NFT Pair
+                        </h3>
+                        <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div style="border: 2px solid #3b82f6; border-radius: 8px; padding: 15px;">
+                                <h4 style="color: #3b82f6; margin-bottom: 10px;">
+                                    <i class="fas fa-bell"></i> Alert NFT (Public)
+                                </h4>
+                                <img src="${window.alertThumbnail || ''}" style="width: 100%; height: auto; border-radius: 4px;" />
+                                <p style="margin-top: 10px; font-size: 0.9em; color: #64748b;">
+                                    This thumbnail will be visible in the recipient's wallet immediately.
+                                    It contains the notice overlay with case information.
+                                </p>
+                            </div>
+                            <div style="border: 2px solid #10b981; border-radius: 8px; padding: 15px;">
+                                <h4 style="color: #10b981; margin-bottom: 10px;">
+                                    <i class="fas fa-file-shield"></i> Document NFT (Encrypted)
+                                </h4>
+                                <div style="background: #f3f4f6; height: 300px; display: flex; align-items: center; justify-content: center; border-radius: 4px;">
+                                    <div style="text-align: center; color: #6b7280;">
+                                        <i class="fas fa-lock" style="font-size: 48px; margin-bottom: 10px;"></i>
+                                        <p>Encrypted Legal Document</p>
+                                        <p style="font-size: 0.85em;">Requires signature to decrypt</p>
+                                    </div>
+                                </div>
+                                <p style="margin-top: 10px; font-size: 0.9em; color: #64748b;">
+                                    The full document is encrypted and stored on IPFS.
+                                    Only accessible after recipient signs for receipt.
+                                </p>
+                            </div>
+                        </div>
+                        <div style="margin-top: 20px; text-align: center;">
+                            <button class="btn btn-primary" onclick="this.closest('.modal').remove(); checkEnergyAndProceed();">
+                                <i class="fas fa-check"></i> Looks Good - Proceed to Energy Check
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        // Check energy and proceed
+        async function checkEnergyAndProceed() {
+            // This will trigger the existing energy check flow
+            if (window.USE_STAGING_FLOW) {
+                createLegalNoticeWithStaging();
+            } else {
+                createLegalNotice();
+            }
+        }
+        
+        // Mint NFTs immediately
+        async function mintNFTsNow() {
+            // Skip energy check and mint directly (for users who already have energy)
+            if (confirm('This will mint the NFTs immediately. Make sure you have sufficient energy. Continue?')) {
+                if (window.USE_STAGING_FLOW) {
+                    createLegalNoticeWithStaging();
+                } else {
+                    createLegalNotice();
+                }
+            }
+        }
             
         async function calculateFeeForDisplay(userAddress, deliveryMethod) {
             try {
@@ -20916,13 +21135,8 @@ document.addEventListener('keydown', function(event) {
                 window.setIssuingAgency();
             }
             
-            // Update document preview if available
-            if (uploadedImage && uploadedImage.data) {
-                const preview = document.getElementById('documentPreview');
-                if (preview) {
-                    preview.src = uploadedImage.data;
-                }
-            }
+            // Update document preview with actual processed documents
+            updateDocumentPreview();
             
             // Update fee display for step 2
             try {
