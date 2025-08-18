@@ -33,10 +33,12 @@ class PDFProcessor {
         const documentSections = [];
         
         // First pass: calculate total pages and prepare sections
+        console.log(`\n📄 Processing ${pdfBuffers.length} PDF documents for merging...`);
         for (let i = 0; i < pdfBuffers.length; i++) {
             try {
                 const pdf = await PDFDocument.load(pdfBuffers[i]);
                 const pageCount = pdf.getPageCount();
+                console.log(`  Document ${i + 1}: ${fileInfo[i]?.fileName || 'Unknown'} - ${pageCount} pages`);
                 
                 documentSections.push({
                     pdf,
@@ -51,6 +53,7 @@ class PDFProcessor {
                 console.error(`  ✗ Failed to load PDF ${i + 1}:`, error.message);
             }
         }
+        console.log(`📊 Total pages to merge: ${totalPageCount} (including ${pdfBuffers.length - 1} separator pages)`)
         
         let currentPageNum = 0;
         

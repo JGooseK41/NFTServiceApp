@@ -258,6 +258,7 @@ class MultiDocumentHandler {
         // Create new PDF
         const mergedPdf = await PDFDocument.create();
         
+        let totalPagesAdded = 0;
         for (let i = 0; i < this.documents.length; i++) {
             const doc = this.documents[i];
             this.updateProcessingStatus(`Merging PDF ${i + 1} of ${this.documents.length}...`, 
@@ -269,14 +270,21 @@ class MultiDocumentHandler {
             
             // Load PDF
             const pdf = await PDFDocument.load(pdfBytes);
+            const pageCount = pdf.getPageCount();
+            console.log(`Document ${i + 1}: ${doc.name} has ${pageCount} pages`);
             
             // Copy all pages
             const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
             pages.forEach(page => mergedPdf.addPage(page));
+            totalPagesAdded += pages.length;
+            console.log(`Added ${pages.length} pages from document ${i + 1}, total so far: ${totalPagesAdded}`);
         }
         
         // Save merged PDF
         const mergedPdfBytes = await mergedPdf.save();
+        const finalPageCount = mergedPdf.getPageCount();
+        console.log(`✅ Final merged PDF has ${finalPageCount} pages (from ${this.documents.length} documents)`);
+        
         const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
         const dataUrl = await this.blobToDataURL(blob);
         
@@ -285,7 +293,8 @@ class MultiDocumentHandler {
             type: 'application/pdf',
             size: mergedPdfBytes.length,
             data: dataUrl,
-            preview: null
+            preview: null,
+            pageCount: finalPageCount
         };
     }
 
@@ -293,9 +302,17 @@ class MultiDocumentHandler {
      * Combine documents as images
      */
     async combineAsImages() {
-        // For now, just use the first document
-        // TODO: Implement image combination
+        console.warn('⚠️ combineAsImages called - this currently only returns the first document!');
+        console.log(`Have ${this.documents.length} documents but only using the first one`);
+        
+        // TODO: Implement proper image combination for all documents
+        // For now, this is a critical bug - it only returns the first document
         this.updateProcessingStatus('Converting to images...', 50);
+        
+        if (this.documents.length > 1) {
+            this.showNotification('warning', `Warning: Only the first of ${this.documents.length} documents will be used (image combination not yet implemented)`);
+        }
+        
         return this.documents[0];
     }
 
