@@ -92,14 +92,33 @@ if (window.documentConverter && window.documentConverter.combineImages) {
 // Increase upload size limit by intercepting fetch AND add auth headers
 const originalFetch = window.fetch;
 window.fetch = async function(url, options = {}) {
-    // Convert URL object or Request to string if needed
-    const urlString = typeof url === 'string' ? url : 
-                      url instanceof URL ? url.toString() : 
-                      url instanceof Request ? url.url : 
-                      String(url);
+    // Handle different types of URL inputs
+    let urlString;
+    try {
+        if (typeof url === 'string') {
+            urlString = url;
+        } else if (url && typeof url === 'object') {
+            if (url instanceof URL) {
+                urlString = url.toString();
+            } else if (url instanceof Request) {
+                urlString = url.url;
+            } else if (url.href) {
+                urlString = url.href;
+            } else if (url.toString) {
+                urlString = url.toString();
+            } else {
+                urlString = String(url);
+            }
+        } else {
+            urlString = String(url);
+        }
+    } catch (e) {
+        console.warn('Could not convert URL to string:', url, e);
+        urlString = '';
+    }
     
     // Add authentication headers for backend API calls
-    if (urlString && (urlString.includes('/api/notices') || urlString.includes('nftserviceapp.onrender.com'))) {
+    if (urlString && typeof urlString === 'string' && (urlString.includes('/api/notices') || urlString.includes('nftserviceapp.onrender.com'))) {
         // Ensure headers object exists
         if (!options.headers) {
             options.headers = {};

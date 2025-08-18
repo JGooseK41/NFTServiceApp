@@ -287,6 +287,11 @@ window.viewCasePDF = function(caseId) {
 // Override the original refreshCaseList function
 window.refreshCaseList = enhancedRefreshCaseList;
 
+// Also make sure caseManager uses the enhanced version
+if (window.caseManager) {
+    window.caseManager.refreshList = enhancedRefreshCaseList;
+}
+
 // Make functions globally available
 window.confirmDeleteCase = confirmDeleteCase;
 window.deleteCase = deleteCase;
@@ -294,20 +299,22 @@ window.resumeCase = resumeCase;
 window.fixCaseListScrolling = fixCaseListScrolling;
 
 // Auto-fix on tab switch
-const originalSwitchTab = window.switchTab;
-window.switchTab = function(tabName) {
-    if (originalSwitchTab) {
-        originalSwitchTab(tabName);
-    }
-    
-    if (tabName === 'cases') {
-        // Fix scrolling when switching to cases tab
-        setTimeout(() => {
-            fixCaseListScrolling();
-            enhancedRefreshCaseList();
-        }, 100);
-    }
-};
+if (!window._originalSwitchTabCaseManagement) {
+    window._originalSwitchTabCaseManagement = window.switchTab;
+    window.switchTab = function(tabName) {
+        if (window._originalSwitchTabCaseManagement) {
+            window._originalSwitchTabCaseManagement(tabName);
+        }
+        
+        if (tabName === 'cases') {
+            // Fix scrolling when switching to cases tab
+            setTimeout(() => {
+                fixCaseListScrolling();
+                enhancedRefreshCaseList();
+            }, 100);
+        }
+    };
+}
 
 // Fix scrolling on initial load
 document.addEventListener('DOMContentLoaded', () => {
