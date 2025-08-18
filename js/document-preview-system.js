@@ -329,10 +329,185 @@ window.DocumentPreviewSystem = {
     }
 };
 
-// Hook into the transaction flow
+// Hook into the document upload flow to show preview immediately
+const originalHandleDocumentUpload = window.handleDocumentUpload;
+window.handleDocumentUpload = async function(event) {
+    // First, handle the upload normally
+    const result = await originalHandleDocumentUpload.call(this, event);
+    
+    // If upload was successful and we have a case ID, show preview
+    if (window.currentCaseId) {
+        console.log('📋 Showing document preview after upload...');
+        
+        // Small delay to ensure backend has processed the case
+        setTimeout(async () => {
+            await window.DocumentPreviewSystem.showUploadPreview(window.currentCaseId);
+        }, 1000);
+    }
+    
+    return result;
+};
+
+// Add a method for post-upload preview (non-blocking)
+window.DocumentPreviewSystem.showUploadPreview = async function(caseId) {
+    console.log('📋 Showing preview after document upload for case:', caseId);
+    
+    // Get case data from backend
+    const caseData = await this.getCaseData(caseId);
+    if (!caseData) {
+        console.error('Could not load case data');
+        return;
+    }
+    
+    // Create preview modal (modified for post-upload)
+    const modal = this.createUploadPreviewModal();
+    
+    // Load Alert NFT preview
+    await this.loadAlertPreview(modal, caseData);
+    
+    // Load full PDF preview
+    await this.loadPDFPreview(modal, caseId);
+    
+    // Show modal
+    document.body.appendChild(modal);
+    
+    // Add close handler
+    modal.querySelector('.modal-close').onclick = () => {
+        modal.remove();
+    };
+    
+    modal.querySelector('#continueBtn').onclick = () => {
+        modal.remove();
+    };
+};
+
+// Create a preview modal for post-upload (informational only)
+window.DocumentPreviewSystem.createUploadPreviewModal = function() {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.style.cssText = 'display: flex; align-items: center; justify-content: center; z-index: 10000;';
+    
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 90%; width: 1200px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h2>✅ Documents Successfully Prepared</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            
+            <div class="modal-body" style="padding: 20px;">
+                <!-- Success message -->
+                <div style="background: #d1fae5; border: 1px solid #10b981; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h3 style="color: #065f46; margin: 0 0 10px 0;">
+                        <i class="fas fa-check-circle"></i> Your Documents Are Ready
+                    </h3>
+                    <p style="color: #047857; margin: 5px 0;">
+                        Your documents have been successfully combined and prepared. Review the previews below to ensure everything looks correct.
+                    </p>
+                </div>
+                
+                <!-- Two-column layout -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                    <!-- Alert NFT Preview -->
+                    <div>
+                        <h3 style="margin-bottom: 10px;">
+                            🖼️ Alert NFT Preview
+                            <span style="font-size: 12px; color: #666;">(What recipients will see)</span>
+                        </h3>
+                        <div id="alertPreviewContainer" style="
+                            border: 2px solid #dc2626;
+                            border-radius: 8px;
+                            padding: 10px;
+                            background: #f9f9f9;
+                            min-height: 400px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                        ">
+                            <div class="loading-spinner">Loading alert preview...</div>
+                        </div>
+                        <div style="margin-top: 10px; padding: 10px; background: #fee; border-radius: 4px;">
+                            <strong>This will be:</strong>
+                            <ul style="margin: 5px 0; padding-left: 20px; font-size: 14px;">
+                                <li>Visible in recipient's wallet</li>
+                                <li>First page with "LEGAL NOTICE" stamp</li>
+                                <li>Stored on blockchain as NFT metadata</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <!-- Document Stats -->
+                    <div>
+                        <h3 style="margin-bottom: 10px;">
+                            📄 Document Information
+                        </h3>
+                        <div id="documentStatsContainer" style="
+                            border: 2px solid #2563eb;
+                            border-radius: 8px;
+                            padding: 20px;
+                            background: #f0f9ff;
+                        ">
+                            <div class="loading-spinner">Loading document info...</div>
+                        </div>
+                        
+                        <!-- Next steps -->
+                        <div style="margin-top: 20px; padding: 15px; background: #fef3c7; border-radius: 4px;">
+                            <strong>Next Steps:</strong>
+                            <ol style="margin: 5px 0; padding-left: 20px; font-size: 14px;">
+                                <li>Add recipient addresses</li>
+                                <li>Enter case details</li>
+                                <li>Review energy requirements</li>
+                                <li>Send to blockchain</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Full PDF Preview -->
+                <div>
+                    <h3 style="margin-bottom: 10px;">
+                        📑 Combined PDF Document
+                        <span style="font-size: 12px; color: #666;">(Full document - all pages)</span>
+                    </h3>
+                    <div id="pdfPreviewContainer" style="
+                        border: 2px solid #2563eb;
+                        border-radius: 8px;
+                        padding: 10px;
+                        background: #f9f9f9;
+                        height: 600px;
+                        overflow: hidden;
+                    ">
+                        <iframe id="pdfFrame" style="
+                            width: 100%;
+                            height: 100%;
+                            border: none;
+                            background: white;
+                        "></iframe>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer" style="
+                display: flex;
+                justify-content: center;
+                padding: 20px;
+                border-top: 1px solid #ddd;
+            ">
+                <button id="continueBtn" class="btn btn-primary" style="
+                    min-width: 200px;
+                ">
+                    <i class="fas fa-arrow-right"></i> Continue to Add Recipients
+                </button>
+            </div>
+        </div>
+    `;
+    
+    return modal;
+};
+
+// Also keep the transaction preview hook
 const originalPrepareCase = window.prepareCaseForDelivery;
 window.prepareCaseForDelivery = async function(caseId) {
-    console.log('🔍 Showing comprehensive preview before transaction...');
+    console.log('🔍 Showing final preview before transaction...');
     
     // Show preview and wait for confirmation
     const confirmed = await window.DocumentPreviewSystem.showTransactionPreview(caseId);
@@ -353,4 +528,4 @@ window.prepareCaseForDelivery = async function(caseId) {
 };
 
 console.log('📋 Document Preview System loaded');
-console.log('Preview will show both Alert NFT and full PDF before blockchain transaction');
+console.log('Preview will show immediately after document upload AND before blockchain transaction');
