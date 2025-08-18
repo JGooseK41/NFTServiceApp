@@ -4829,19 +4829,79 @@
                 </div>
             </div>
             <div class="modal-body">
-                <!-- Step 1: Upload -->
-                <div id="mintStep1">
-                    <h4 style="margin-bottom: 1rem;">Step 1: Upload Document Image</h4>
+                <!-- Step 1: Case Details (shown first) -->
+                <div id="mintStep1" style="display: block;">
+                    <h4 style="margin-bottom: 1rem;">Step 1: Case Information</h4>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Case Number <span style="color: var(--error);">*</span></label>
+                        <input type="text" class="form-input" id="mintCaseNumber" 
+                               placeholder="e.g., CV-2024-001234" required
+                               onblur="checkForExistingCase(this.value)">
+                        <div id="caseStatusIndicator" style="margin-top: 5px; font-size: 0.9em;"></div>
+                        <p class="form-help">Use your standard case numbering format</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Notice Type <span style="color: var(--error);">*</span></label>
+                        <select class="form-input" id="noticeType" required 
+                                onchange="document.getElementById('customNoticeTypeGroup').style.display = this.value === 'Other' ? 'block' : 'none';">
+                            <option value="Legal Notice">Legal Notice</option>
+                            <option value="Court Summons">Court Summons</option>
+                            <option value="Subpoena">Subpoena</option>
+                            <option value="Complaint">Complaint</option>
+                            <option value="Motion">Motion</option>
+                            <option value="Order">Order</option>
+                            <option value="Judgment">Judgment</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" id="customNoticeTypeGroup" style="display: none;">
+                        <label class="form-label">Custom Notice Type</label>
+                        <input type="text" class="form-input" id="customNoticeType" 
+                               placeholder="Enter custom notice type">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Issuing Agency</label>
+                        <input type="text" class="form-input" id="issuingAgency" 
+                               placeholder="e.g., Superior Court of California" readonly>
+                        <p class="form-help">Your registered agency name</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Jurisdiction</label>
+                        <select class="form-input" id="mintJurisdiction">
+                            <option value="0">Federal</option>
+                            <option value="1">State</option>
+                            <option value="2">County</option>
+                            <option value="3">Municipal</option>
+                            <option value="4">International</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Button to proceed to document upload -->
+                    <div style="margin-top: 30px; text-align: center;">
+                        <button class="btn btn-primary btn-lg" onclick="showDocumentUpload()" style="padding: 1rem 2rem; font-size: 1.1rem;">
+                            <i class="fas fa-file-upload"></i>
+                            Next: Upload Documents
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Document Upload (hidden initially) -->
+                <div id="mintStep2" style="display: none;">
+                    <h4 style="margin-bottom: 1rem;">Step 2: Upload Documents</h4>
                     <div class="alert alert-info" style="margin-bottom: 1rem;">
                         <i class="fas fa-info-circle"></i>
                         <div>
                             <strong>Document Requirements:</strong>
                             <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
-                                <li>Format: JPEG or PNG only</li>
+                                <li>Format: PDF, JPEG or PNG</li>
                                 <li>Recommended: 8.5×11" documents</li>
-                                <li>Max file size: 400KB after compression</li>
+                                <li>Multiple documents will be combined</li>
                                 <li>Documents will be automatically optimized for blockchain storage</li>
-                                <li>High-resolution documents will be compressed to ensure transaction success</li>
                             </ul>
                         </div>
                     </div>
@@ -4893,11 +4953,14 @@
                         <div id="compressionDetails" style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);"></div>
                     </div>
                     
-                    <!-- Next button to proceed to step 2 -->
-                    <div id="proceedToStep2" style="display: none; margin-top: 30px; text-align: center;">
+                    <!-- Next button to proceed to step 3 (recipients) -->
+                    <div id="proceedToStep3" style="display: none; margin-top: 30px; text-align: center;">
+                        <button class="btn btn-secondary" onclick="showCaseDetails()" style="margin-right: 10px;">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </button>
                         <button class="btn btn-primary btn-lg" onclick="processAndProceed()" style="padding: 1rem 2rem; font-size: 1.1rem;">
                             <i class="fas fa-arrow-right"></i>
-                            Next: Enter Notice Details
+                            Next: Add Recipients
                         </button>
                     </div>
                     
@@ -4920,15 +4983,15 @@
                                 }
                             }
                             
-                            // Proceed to step 2
-                            showMintStep2();
+                            // Proceed to step 3 (Recipients)
+                            showRecipients();
                         }
                     </script>
                 </div>
 
-                <!-- Step 2: Details -->
-                <div id="mintStep2" style="display: none;">
-                    <h4 style="margin-bottom: 1rem;">Step 2: Legal Notice Details</h4>
+                <!-- Step 3: Recipients and Final Details (hidden initially) -->
+                <div id="mintStep3" style="display: none;">
+                    <h4 style="margin-bottom: 1rem;">Step 3: Recipients and Delivery</h4>
                     
                     <div class="preview-container">
                         <div class="preview-image">
@@ -5027,35 +5090,6 @@
                                 });
                             </script>
                             
-                            <div class="form-group">
-                                <label class="form-label">Case Number</label>
-                                <input type="text" class="form-input" id="mintCaseNumber" 
-                                       placeholder="e.g., CV-2024-001234">
-                                <p class="form-help">Use your standard case numbering format</p>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">Jurisdiction</label>
-                                <select class="form-input" id="mintJurisdiction">
-                                    <option value="0">Federal</option>
-                                    <option value="1">State</option>
-                                    <option value="2">County</option>
-                                    <option value="3">Municipal</option>
-                                    <option value="4">Other</option>
-                                </select>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">Document Type</label>
-                                <select class="form-input" id="mintDocumentType">
-                                    <option value="0">Summons</option>
-                                    <option value="1">Complaint</option>
-                                    <option value="2">Subpoena</option>
-                                    <option value="3">Notice of Hearing</option>
-                                    <option value="4">Notice of Seizure</option>
-                                    <option value="5">Other</option>
-                                </select>
-                            </div>
                             
                             <!-- Delivery Method Selection -->
                             <div class="form-group">
@@ -5101,99 +5135,50 @@
                                     <br>• The text fields below will be <strong>publicly visible on the blockchain</strong>
                                     <br>• Only include non-sensitive information in these text fields
                                 </div>
-                                <div class="form-group">
-                                    <label class="form-label">Notice Type</label>
-                                    <select id="noticeType" class="form-select" onchange="updateNoticeTemplate()">
-                                        <option value="Notice of Seizure">Notice of Seizure</option>
-                                        <option value="Summons">Summons</option>
-                                        <option value="Subpoena">Subpoena</option>
-                                        <option value="Restraining Order">Restraining Order</option>
-                                        <option value="Eviction Notice">Eviction Notice</option>
-                                        <option value="Legal Hold">Legal Hold</option>
-                                        <option value="Asset Freeze">Asset Freeze</option>
-                                        <option value="Custom" selected>Custom Notice</option>
-                                    </select>
-                                </div>
-                                
-                                <div class="form-group" id="customNoticeTypeGroup" style="display: block;">
-                                    <label class="form-label">Custom Notice Type</label>
-                                    <input type="text" id="customNoticeType" class="form-input" 
-                                           placeholder="e.g., Notice of Forfeiture" maxlength="50">
-                                </div>
-                                
-                                <div class="form-group">
-                                    <label class="form-label">Issuing Agency</label>
-                                    <input type="text" id="issuingAgency" class="form-input" 
-                                           placeholder="Loading agency from your registration..." 
-                                           maxlength="100" 
-                                           readonly
-                                           value=""
-                                           style="background: var(--gray-800); cursor: not-allowed; color: var(--text-secondary);">
-                                    <p class="form-help">This is automatically populated from your process server registration</p>
-                                    <script>
-                                        // Hard-code issuing agency from server registration
-                                        function setIssuingAgency() {
-                                            const agencyField = document.getElementById('issuingAgency');
-                                            if (!agencyField) return;
-                                            
-                                            if (window.tronWeb && window.tronWeb.defaultAddress) {
-                                                const walletAddress = window.tronWeb.defaultAddress.base58;
-                                                const serverRegistrations = JSON.parse(localStorage.getItem('processServerRegistrations') || '{}');
+                                <!-- Notice Type and Issuing Agency already collected in Step 1 -->
+                                <script>
+                                        // Already collected in Step 1, just use setIssuingAgency function
+                                        if (typeof setIssuingAgency === 'undefined') {
+                                            function setIssuingAgency() {
+                                                const agencyField = document.getElementById('issuingAgency');
+                                                if (!agencyField) return;
                                                 
-                                                // Debug logging
-                                                console.log('Wallet address:', walletAddress);
-                                                console.log('All registrations:', serverRegistrations);
-                                                console.log('Your registration:', serverRegistrations[walletAddress]);
-                                                
-                                                const serverData = serverRegistrations[walletAddress];
-                                                // STANDARD COLUMN NAMES:
-                                                // - agency: The agency/company name
-                                                // - name: The person's name  
-                                                // - email: Contact email
-                                                // Check multiple possible field names for backward compatibility
-                                                const agencyName = serverData?.agency || serverData?.agency_name || serverData?.agencyName;
-                                                const personName = serverData?.name || serverData?.server_name || serverData?.serverName;
-                                                
-                                                if (serverData && agencyName) {
-                                                    agencyField.value = agencyName;
-                                                    agencyField.style.color = 'var(--text-primary)';
-                                                } else if (serverData && personName) {
-                                                    // Has registration with person name but no agency
-                                                    console.log('Registration found but no agency:', serverData);
-                                                    agencyField.value = `${personName} (Individual)`;
-                                                    agencyField.style.color = 'var(--text-primary)';
-                                                } else if (serverData) {
-                                                    // Has registration but no identifiable info
-                                                    agencyField.value = 'Registered User (No agency specified)';
-                                                    agencyField.style.color = 'var(--text-primary)';
+                                                if (window.tronWeb && window.tronWeb.defaultAddress) {
+                                                    const walletAddress = window.tronWeb.defaultAddress.base58;
+                                                    const serverRegistrations = JSON.parse(localStorage.getItem('processServerRegistrations') || '{}');
+                                                    const serverData = serverRegistrations[walletAddress];
+                                                    const agencyName = serverData?.agency || serverData?.agency_name || serverData?.agencyName;
+                                                    const personName = serverData?.name || serverData?.server_name || serverData?.serverName;
+                                                    
+                                                    if (serverData && agencyName) {
+                                                        agencyField.value = agencyName;
+                                                        agencyField.style.color = 'var(--text-primary)';
+                                                    } else if (serverData && personName) {
+                                                        agencyField.value = `${personName} (Individual)`;
+                                                        agencyField.style.color = 'var(--text-primary)';
+                                                    } else if (serverData) {
+                                                        agencyField.value = 'Registered User (No agency specified)';
+                                                        agencyField.style.color = 'var(--text-primary)';
+                                                    } else {
+                                                        agencyField.value = 'No registration found - Please register first';
+                                                        agencyField.style.color = 'var(--danger)';
+                                                    }
                                                 } else {
-                                                    agencyField.value = 'No registration found - Please register first';
-                                                    agencyField.style.color = 'var(--danger)';
+                                                    agencyField.value = 'Connect wallet to load agency';
+                                                    agencyField.style.color = 'var(--warning)';
                                                 }
-                                            } else {
-                                                agencyField.value = 'Connect wallet to load agency';
-                                                agencyField.style.color = 'var(--warning)';
                                             }
+                                            
+                                            // Set immediately
+                                            setIssuingAgency();
+                                            
+                                            // Update when DOM is loaded
+                                            document.addEventListener('DOMContentLoaded', setIssuingAgency);
+                                            
+                                            // Update when wallet connects or changes
+                                            window.addEventListener('walletConnected', setIssuingAgency);
+                                            window.addEventListener('walletChanged', setIssuingAgency);
                                         }
-                                        
-                                        // Set immediately
-                                        setIssuingAgency();
-                                        
-                                        // Update when DOM is loaded
-                                        document.addEventListener('DOMContentLoaded', setIssuingAgency);
-                                        
-                                        // Update when wallet connects or changes
-                                        window.addEventListener('walletConnected', setIssuingAgency);
-                                        window.addEventListener('walletChanged', setIssuingAgency);
-                                        
-                                        // Update when modal is shown
-                                        document.addEventListener('click', function(e) {
-                                            if (e.target && (e.target.id === 'navCreateNotice' || 
-                                                e.target.closest('#navCreateNotice') ||
-                                                e.target.textContent.includes('Create Legal Notice'))) {
-                                                setTimeout(setIssuingAgency, 100);
-                                            }
-                                        });
                                         
                                         // Make function globally available
                                         window.setIssuingAgency = setIssuingAgency;
@@ -10257,11 +10242,129 @@ function useConnectedAddressForFeeCollector() {
             // Update token prefix based on user role
             await updateTokenPrefix();
             
-            // Setup upload area for this modal instance - delay to ensure DOM is ready
-            setTimeout(() => {
-                setupUploadAreaForModal();
-            }, 100);
+            // Show Step 1 (Case Details) first
+            showCaseDetails();
             
+            // Set issuing agency when opening modal
+            if (typeof setIssuingAgency === 'function') {
+                setIssuingAgency();
+            }
+            
+            // Focus on case number field
+            setTimeout(() => {
+                const caseNumberField = document.getElementById('mintCaseNumber');
+                if (caseNumberField) {
+                    caseNumberField.focus();
+                }
+            }, 100);
+        }
+        
+        // Navigation function: Show Case Details (Step 1)
+        function showCaseDetails() {
+            console.log('📋 Showing Step 1: Case Details');
+            document.getElementById('mintStep1').style.display = 'block';
+            document.getElementById('mintStep2').style.display = 'none';
+            document.getElementById('mintStep3').style.display = 'none';
+        }
+        
+        // Navigation function: Show Document Upload (Step 2)
+        function showDocumentUpload() {
+            console.log('📄 Showing Step 2: Document Upload');
+            
+            // Validate case details first
+            const caseNumber = document.getElementById('mintCaseNumber').value;
+            if (!caseNumber || caseNumber.trim() === '') {
+                uiManager.showNotification('warning', 'Please enter a case number');
+                return;
+            }
+            
+            // Hide Step 1, show Step 2
+            document.getElementById('mintStep1').style.display = 'none';
+            document.getElementById('mintStep2').style.display = 'block';
+            document.getElementById('mintStep3').style.display = 'none';
+            
+            // Setup upload area if function exists
+            if (window.setupUploadAreaForModal) {
+                setTimeout(() => {
+                    window.setupUploadAreaForModal();
+                }, 100);
+            }
+            
+            // Check for existing case if workflow manager exists
+            if (window.caseWorkflowManager) {
+                window.caseWorkflowManager.checkForExistingCase(caseNumber);
+            }
+        }
+        
+        // Navigation function: Show Recipients (Step 3)  
+        function showRecipients() {
+            console.log('👥 Showing Step 3: Recipients and Delivery');
+            
+            // Check if we have documents
+            if (!window.uploadedDocumentsList || window.uploadedDocumentsList.length === 0) {
+                uiManager.showNotification('warning', 'Please upload documents first');
+                return;
+            }
+            
+            document.getElementById('mintStep1').style.display = 'none';
+            document.getElementById('mintStep2').style.display = 'none';
+            document.getElementById('mintStep3').style.display = 'block';
+            
+            // Update token name based on case info
+            if (typeof updateTokenName === 'function') {
+                updateTokenName();
+            }
+        }
+        
+        // Check for existing case by case number
+        async function checkForExistingCase(caseNumber) {
+            const indicator = document.getElementById('caseStatusIndicator');
+            if (!indicator) return;
+            
+            if (!caseNumber || caseNumber.trim() === '') {
+                indicator.innerHTML = '';
+                return;
+            }
+            
+            caseNumber = caseNumber.trim();
+            
+            try {
+                // Check backend for existing case
+                const serverAddress = window.tronWeb?.defaultAddress?.base58 || 'VIEW';
+                const response = await fetch(
+                    `${window.BACKEND_API_URL || 'https://nftserviceapp.onrender.com'}/api/cases/by-number/${encodeURIComponent(caseNumber)}?serverAddress=${serverAddress}`
+                );
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.case) {
+                        // Found existing case
+                        indicator.innerHTML = `
+                            <span style="color: #10b981;">
+                                <i class="fas fa-folder-open"></i> 
+                                Existing case found - ${data.case.metadata?.noticeCount || 0} notice(s) already created
+                            </span>
+                        `;
+                        console.log(`📂 Found existing case: ${caseNumber}`, data.case);
+                        return data.case;
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking for existing case:', error);
+            }
+            
+            // No existing case found
+            indicator.innerHTML = `
+                <span style="color: #3b82f6;">
+                    <i class="fas fa-plus-circle"></i> 
+                    New case will be created
+                </span>
+            `;
+            return null;
+        }
+        
+        // Disable auto-creation of cases
+        window.AUTO_CREATE_CASE = false;
             
         async function calculateFeeForDisplay(userAddress, deliveryMethod) {
             try {
@@ -20737,12 +20840,15 @@ document.addEventListener('keydown', function(event) {
         window.createLegalNotice = createLegalNotice;
         window.previewNFT = previewNFT;
         
-        // Show mint step 2
+        // Show mint step 2 (now Step 3 - Recipients)
         async function showMintStep2() {
+            // This is the old Step 2, now it's Step 3 (Recipients)
+            // Show Step 3 instead
             document.getElementById('mintStep1').style.display = 'none';
-            document.getElementById('mintStep2').style.display = 'block';
+            document.getElementById('mintStep2').style.display = 'none';
+            document.getElementById('mintStep3').style.display = 'block';
             
-            // Set issuing agency when showing step 2
+            // Set issuing agency when showing step 3
             if (typeof setIssuingAgency === 'function') {
                 setIssuingAgency();
             } else if (window.setIssuingAgency) {
@@ -21074,8 +21180,8 @@ document.addEventListener('keydown', function(event) {
                 
                 updateCompressionProgress(100, `${window.uploadedDocumentsList.length} document(s) ready for encrypted delivery`);
                 
-                // Show proceed button
-                document.getElementById('proceedToStep2').style.display = 'block';
+                // Show proceed button to Step 3 (Recipients)
+                document.getElementById('proceedToStep3').style.display = 'block';
                 
                 // Hide progress after delay
                 setTimeout(() => {
@@ -21743,8 +21849,8 @@ document.addEventListener('keydown', function(event) {
                 // Mark documents as processed
                 window.documentsProcessed = true;
                 
-                // Show proceed button
-                document.getElementById('proceedToStep2').style.display = 'block';
+                // Show proceed button to Step 3 (Recipients)
+                document.getElementById('proceedToStep3').style.display = 'block';
                 
                 // Hide processing status after delay
                 setTimeout(() => {
@@ -30462,8 +30568,7 @@ console.log('To switch to old flow: toggleTransactionFlow()');
 <script src="js/case-management-client.js"></script>
 <!-- Case Integration - Connects document upload to case management -->
 <script src="js/case-integration.js"></script>
-<script src="js/case-workflow-fix.js"></script>
-<script src="js/fix-mint-modal-workflow.js"></script>
+<!-- Case workflow and modal workflow fixed directly in HTML - bandaid scripts removed -->
 <script type="text/javascript">
 (function() {
     console.log('Initializing case management functions...');
