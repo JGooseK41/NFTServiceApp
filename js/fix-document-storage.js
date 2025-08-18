@@ -92,8 +92,14 @@ if (window.documentConverter && window.documentConverter.combineImages) {
 // Increase upload size limit by intercepting fetch AND add auth headers
 const originalFetch = window.fetch;
 window.fetch = async function(url, options = {}) {
+    // Convert URL object or Request to string if needed
+    const urlString = typeof url === 'string' ? url : 
+                      url instanceof URL ? url.toString() : 
+                      url instanceof Request ? url.url : 
+                      String(url);
+    
     // Add authentication headers for backend API calls
-    if (url.includes('/api/notices') || url.includes('nftserviceapp.onrender.com')) {
+    if (urlString && (urlString.includes('/api/notices') || urlString.includes('nftserviceapp.onrender.com'))) {
         // Ensure headers object exists
         if (!options.headers) {
             options.headers = {};
@@ -116,7 +122,7 @@ window.fetch = async function(url, options = {}) {
     }
     
     // Intercept document uploads
-    if (url.includes('/api/documents') && options && options.body) {
+    if (urlString && urlString.includes('/api/documents') && options && options.body) {
         console.log('🔧 Intercepting document upload...');
         
         // Check size
