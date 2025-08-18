@@ -1686,6 +1686,33 @@
             max-height: 90vh;
             overflow-y: auto;
             box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+            /* Ensure text is visible in modals */
+            color: var(--text-primary);
+        }
+        
+        /* Critical fix for modal text visibility */
+        .modal-content * {
+            color: var(--text-primary) !important;
+        }
+        
+        .modal-content .form-label,
+        .modal-content label {
+            color: var(--text-primary) !important;
+        }
+        
+        .modal-content .form-input,
+        .modal-content input:not([type="file"]),
+        .modal-content textarea,
+        .modal-content select {
+            background: var(--primary-dark) !important;
+            color: var(--text-primary) !important;
+            border: 1px solid var(--border-color) !important;
+        }
+        
+        .modal-content input::placeholder,
+        .modal-content textarea::placeholder {
+            color: var(--text-secondary) !important;
+            opacity: 0.7;
         }
 
         .modal-header {
@@ -28856,8 +28883,35 @@ ${metadata.description ? metadata.description.substring(0, 500) + '...' : 'Loadi
                     return;
                 }
                 
-                if (!tronWeb.isAddress(recipient)) {
-                    const errorMsg = 'Invalid recipient address';
+                // Improved address validation with better error reporting
+                let isValidAddress = false;
+                try {
+                    isValidAddress = tronWeb.isAddress(recipient);
+                } catch (validationError) {
+                    console.error('Address validation error:', validationError);
+                    isValidAddress = false;
+                }
+                
+                if (!isValidAddress) {
+                    // Try to be more specific about the error
+                    let errorMsg = 'Invalid recipient address';
+                    
+                    // Check if it looks like a TRON address format
+                    if (recipient.length < 34) {
+                        errorMsg = 'Address too short - TRON addresses are 34 characters';
+                    } else if (!recipient.startsWith('T')) {
+                        errorMsg = 'Invalid address - TRON addresses start with T';
+                    } else if (!/^T[A-Za-z0-9]{33}$/.test(recipient)) {
+                        errorMsg = 'Invalid address format - contains invalid characters';
+                    }
+                    
+                    console.error('Address validation failed:', {
+                        address: recipient,
+                        length: recipient.length,
+                        startsWithT: recipient.startsWith('T'),
+                        reason: errorMsg
+                    });
+                    
                     uiManager.showNotification('error', errorMsg);
                     if (window.auditLogger) {
                         window.auditLogger.logValidationError({

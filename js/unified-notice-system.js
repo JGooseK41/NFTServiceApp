@@ -601,10 +601,33 @@ class UnifiedNoticeSystem {
                     
                     // Get alert data (using alerts mapping)
                     const alertData = await window.legalContract.alerts(i).call();
-                    const alertServer = tronWeb.address.fromHex(alertData[0]);
+                    
+                    // Safely convert server address - handle different formats
+                    let alertServer;
+                    try {
+                        const serverValue = alertData[0];
+                        
+                        // Check if it's already a base58 address
+                        if (typeof serverValue === 'string' && serverValue.startsWith('T')) {
+                            alertServer = serverValue;
+                        } 
+                        // Check if it's a hex address with 0x prefix
+                        else if (typeof serverValue === 'string' && serverValue.startsWith('0x')) {
+                            // Remove 0x and add TRON prefix 41
+                            const hexAddress = serverValue.replace('0x', '');
+                            alertServer = tronWeb.address.fromHex('41' + hexAddress);
+                        }
+                        // Otherwise assume it's a hex address
+                        else {
+                            alertServer = tronWeb.address.fromHex(serverValue);
+                        }
+                    } catch (e) {
+                        console.warn(`Could not parse server address for alert ${i}:`, alertData[0]);
+                        continue;
+                    }
                     
                     // Check if this alert belongs to our server
-                    if (this.serverAddress && 
+                    if (this.serverAddress && alertServer &&
                         (alertServer.toLowerCase() === this.serverAddress.toLowerCase() || 
                          alertServer === 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb')) { // null address
                         

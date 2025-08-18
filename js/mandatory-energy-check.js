@@ -75,7 +75,7 @@ function overrideFunctions() {
     };
     
     window.createLegalNoticeWithStaging = async function() {
-        console.log('🚨 MANDATORY ENERGY CHECK INITIATED (Staging)');
+        console.log('🚨 STAGING FLOW - Energy check will happen AFTER review');
         
         // Check wallet connection first
         if (!window.legalContract || !window.tronWeb?.defaultAddress) {
@@ -84,6 +84,16 @@ function overrideFunctions() {
             }
             return;
         }
+        
+        // For staging flow, skip the energy check and go straight to the original function
+        // The energy check will happen later when the user confirms the transaction
+        if (_originalCreateLegalNoticeWithStaging) {
+            console.log('📋 Proceeding to staging flow for document review...');
+            return await _originalCreateLegalNoticeWithStaging.call(this);
+        }
+        
+        // Fallback if original function not found
+        console.log('⚠️ Original staging function not found, using regular flow');
         
         // Calculate document size - check multiple sources
         const documentInput = document.getElementById('documentUploadInput');

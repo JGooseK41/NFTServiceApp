@@ -124,19 +124,45 @@ window.DocumentStorageAssurance = {
             hasDocument: !!docData.fullDocument
         });
         
-        // Try multiple endpoints for redundancy
+        // Use the working images endpoint that already exists
         const endpoints = [
-            `${window.BACKEND_API_URL}/api/documents/upload`,
-            `${window.BACKEND_API_URL}/api/notice/documents`,
-            `${window.BACKEND_API_URL}/api/documents/notice/${noticeData.alertId || noticeData.documentId}/components`
+            `${window.BACKEND_API_URL}/api/images`,  // Primary endpoint that works
+            `${window.BACKEND_API_URL}/api/documents/notice/${noticeData.alertId || noticeData.documentId}/components`  // Fallback
         ];
         
         for (const endpoint of endpoints) {
             try {
-                const response = await fetch(endpoint, {
-                    method: 'POST',
-                    body: formData
-                });
+                let response;
+                
+                // Use JSON for /api/images endpoint
+                if (endpoint.includes('/api/images')) {
+                    // Convert to JSON format expected by /api/images
+                    const jsonData = {
+                        notice_id: noticeData.alertId || noticeData.documentId || noticeData.noticeId,
+                        server_address: window.tronWeb?.defaultAddress?.base58 || '',
+                        recipient_address: noticeData.recipientAddress || '',
+                        alert_image: docData.thumbnail || null,
+                        document_image: docData.fullDocument || null,
+                        alert_thumbnail: docData.thumbnail || null,
+                        document_thumbnail: docData.thumbnail || null,
+                        transaction_hash: noticeData.transactionHash || null,
+                        case_number: noticeData.caseNumber || ''
+                    };
+                    
+                    response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(jsonData)
+                    });
+                } else {
+                    // Use FormData for other endpoints
+                    response = await fetch(endpoint, {
+                        method: 'POST',
+                        body: formData
+                    });
+                }
                 
                 if (response.ok) {
                     const result = await response.json();
