@@ -5359,7 +5359,7 @@
                         </button>
                         <button class="btn btn-success" onclick="createCaseOnly()" title="Create case file without minting NFTs">
                             <i class="fas fa-folder-plus"></i>
-                            Create Case Only
+                            Create Case File
                         </button>
                         <button class="btn btn-info" onclick="reviewBothNFTs()" title="Review both Alert and Document NFTs">
                             <i class="fas fa-eye"></i>
@@ -10518,7 +10518,7 @@ function useConnectedAddressForFeeCollector() {
             document.body.appendChild(modal);
         }
         
-        // Create case without minting NFTs
+        // Create case file without minting NFTs (for saving progress)
         async function createCaseOnly() {
             try {
                 // Validate we have all required data
@@ -10528,14 +10528,20 @@ function useConnectedAddressForFeeCollector() {
                     return;
                 }
                 
+                // Process documents first if not done
+                if (!window.documentsProcessed && window.uploadedDocumentsList && window.uploadedDocumentsList.length > 0) {
+                    await processDocuments();
+                }
+                
                 // Create case via case integration
                 if (window.caseIntegration) {
                     const result = await window.caseIntegration.createCaseFromDocuments();
                     if (result && result.success) {
-                        uiManager.showNotification('success', `Case ${caseNumber} created successfully`);
+                        window.currentCaseId = result.caseId;
+                        uiManager.showNotification('success', `Case file ${caseNumber} created and saved`);
                         
                         // Show option to continue later
-                        if (confirm('Case created! Would you like to close this form and continue later?')) {
+                        if (confirm('Case file created! You can now close this form and continue later, or proceed to mint NFTs.')) {
                             closeMintModal(true);
                         }
                     }
@@ -10543,8 +10549,8 @@ function useConnectedAddressForFeeCollector() {
                     uiManager.showNotification('error', 'Case integration not available');
                 }
             } catch (error) {
-                console.error('Error creating case:', error);
-                uiManager.showNotification('error', 'Failed to create case');
+                console.error('Error creating case file:', error);
+                uiManager.showNotification('error', 'Failed to create case file');
             }
         }
         
@@ -10609,8 +10615,53 @@ function useConnectedAddressForFeeCollector() {
             document.body.appendChild(modal);
         }
         
+        // Ensure case exists before minting
+        async function ensureCaseExists() {
+            const caseNumber = document.getElementById('mintCaseNumber').value;
+            if (!caseNumber) {
+                uiManager.showNotification('error', 'Case number is required');
+                return false;
+            }
+            
+            // Check if case already exists
+            if (window.currentCaseId) {
+                console.log('Using existing case ID:', window.currentCaseId);
+                return true;
+            }
+            
+            // Process documents if needed
+            if (!window.documentsProcessed && window.uploadedDocumentsList && window.uploadedDocumentsList.length > 0) {
+                await processDocuments();
+            }
+            
+            // Create case if it doesn't exist
+            if (window.caseIntegration) {
+                try {
+                    console.log('Creating case automatically before minting...');
+                    const result = await window.caseIntegration.createCaseFromDocuments();
+                    if (result && result.success) {
+                        window.currentCaseId = result.caseId;
+                        uiManager.showNotification('info', `Case ${caseNumber} created`);
+                        return true;
+                    }
+                } catch (error) {
+                    console.error('Error creating case:', error);
+                    uiManager.showNotification('error', 'Failed to create case');
+                    return false;
+                }
+            }
+            
+            // If no case integration, continue anyway (backward compatibility)
+            console.warn('Case integration not available, proceeding without case creation');
+            return true;
+        }
+        
         // Check energy and proceed
         async function checkEnergyAndProceed() {
+            // Ensure case exists first
+            const caseReady = await ensureCaseExists();
+            if (!caseReady) return;
+            
             // This will trigger the existing energy check flow
             if (window.USE_STAGING_FLOW) {
                 createLegalNoticeWithStaging();
@@ -10621,6 +10672,10 @@ function useConnectedAddressForFeeCollector() {
         
         // Mint NFTs immediately
         async function mintNFTsNow() {
+            // Ensure case exists first
+            const caseReady = await ensureCaseExists();
+            if (!caseReady) return;
+            
             // Skip energy check and mint directly (for users who already have energy)
             if (confirm('This will mint the NFTs immediately. Make sure you have sufficient energy. Continue?')) {
                 if (window.USE_STAGING_FLOW) {
