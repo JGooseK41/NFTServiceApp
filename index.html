@@ -1716,6 +1716,52 @@
             color: var(--text-secondary) !important;
             opacity: 0.7;
         }
+        
+        /* Fix for mint modal specifically - dark text on light background */
+        #mintModal .modal-content {
+            background: #f8f9fa !important;
+            color: #1e293b !important;
+        }
+        
+        #mintModal .form-label,
+        #mintModal label,
+        #mintModal h4,
+        #mintModal h5,
+        #mintModal .modal-title {
+            color: #1e293b !important;
+        }
+        
+        #mintModal .form-input,
+        #mintModal input:not([type="file"]),
+        #mintModal textarea,
+        #mintModal select {
+            background: white !important;
+            color: #1e293b !important;
+            border: 1px solid #cbd5e1 !important;
+        }
+        
+        #mintModal .form-input:focus,
+        #mintModal input:focus,
+        #mintModal textarea:focus,
+        #mintModal select:focus {
+            background: white !important;
+            color: #1e293b !important;
+            border-color: #3b82f6 !important;
+            outline: 2px solid rgba(59, 130, 246, 0.2);
+        }
+        
+        #mintModal input::placeholder,
+        #mintModal textarea::placeholder {
+            color: #94a3b8 !important;
+        }
+        
+        #mintModal .form-help {
+            color: #64748b !important;
+        }
+        
+        #mintModal .alert {
+            color: #1e293b !important;
+        }
 
         .modal-header {
             display: flex;
