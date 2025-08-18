@@ -81,14 +81,15 @@ window.FastPDFHandler = {
                     isEvalSupported: false  // Faster without eval
                 });
                 
-                // Quick timeout - we just need page count
+                // Very quick timeout - we just need page count and first page
                 const timeout = setTimeout(() => {
+                    console.log('⚡ PDF info timeout - using fallback');
                     loadingTask.destroy();
                     resolve({
                         pageCount: 1,
                         preview: this.createPlaceholderPreview(file.name)
                     });
-                }, 3000);
+                }, 2000); // Reduced to 2 seconds
                 
                 const pdf = await loadingTask.promise;
                 clearTimeout(timeout);
@@ -217,18 +218,36 @@ window.FastPDFHandler = {
     }
 };
 
-// Override the slow document converter
-if (window.DocumentConverter) {
-    const originalConvertPDF = window.DocumentConverter.convertPDF;
-    
-    window.DocumentConverter.convertPDF = async function(file) {
-        console.log('🔄 Redirecting to FastPDFHandler...');
-        return await window.FastPDFHandler.processPDF(file);
-    };
-    
-    console.log('✅ Fast PDF Handler installed - PDFs will now load instantly');
-} else {
-    console.log('⚠️ DocumentConverter not found, FastPDFHandler available as standalone');
-}
+// Override the slow document converter more aggressively
+// Wait a bit for DocumentConverter to load, then override it
+setTimeout(() => {
+    if (window.DocumentConverter && window.DocumentConverter.convertPDF) {
+        // Store original if needed for debugging
+        window.DocumentConverter.originalConvertPDF = window.DocumentConverter.convertPDF;
+        
+        // Replace with fast version
+        window.DocumentConverter.convertPDF = async function(file) {
+            console.log('⚡ Using FastPDFHandler instead of slow converter');
+            return await window.FastPDFHandler.processPDF(file);
+        };
+        
+        // Also override convertDocument to intercept PDFs
+        const originalConvertDocument = window.DocumentConverter.convertDocument;
+        window.DocumentConverter.convertDocument = async function(file) {
+            if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+                console.log('⚡ Intercepting PDF for fast processing');
+                return await window.FastPDFHandler.processPDF(file);
+            }
+            // Non-PDFs use original
+            return await originalConvertDocument.call(this, file);
+        };
+        
+        console.log('✅ Fast PDF Handler installed - DocumentConverter overridden');
+    } else {
+        console.log('⚠️ DocumentConverter not ready, trying again...');
+        // Try again in a moment
+        setTimeout(arguments.callee, 500);
+    }
+}, 100);
 
 console.log('⚡ Fast PDF Handler ready - use FastPDFHandler.processPDF(file)');
