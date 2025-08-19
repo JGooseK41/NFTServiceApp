@@ -3,6 +3,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const { Pool } = require('pg');
 const path = require('path');
+const DiskStorageManager = require('./disk-storage-manager');
 require('dotenv').config();
 
 const app = express();
@@ -56,8 +57,15 @@ app.use(cors({
 app.use(express.json());
 app.use(morgan('combined'));
 
-// Serve uploaded files
+// Serve uploaded files from both local and mounted disk
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Serve files from mounted Render disk if available
+const DISK_MOUNT_PATH = process.env.DISK_MOUNT_PATH || '/var/data';
+if (require('fs').existsSync(DISK_MOUNT_PATH)) {
+    app.use('/disk-uploads', express.static(path.join(DISK_MOUNT_PATH, 'uploads')));
+    console.log('✅ Serving files from mounted disk:', DISK_MOUNT_PATH);
+}
 
 // Make pool available to routes
 app.locals.pool = pool;
@@ -1393,11 +1401,34 @@ async function initializeBlockchainSync() {
   }
 }
 
+// Initialize disk storage if mounted
+async function initializeDiskStorage() {
+  try {
+    const diskManager = new DiskStorageManager();
+    await diskManager.initialize();
+    app.locals.diskManager = diskManager;
+    console.log('✅ Disk storage initialized successfully at:', diskManager.basePath);
+    return true;
+  } catch (error) {
+    console.warn('⚠️ Disk storage not available:', error.message);
+    console.log('Continuing without mounted disk storage...');
+    return false;
+  }
+}
+
 // Start server
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log('Server version: 2024.08.11.02');
+  
+  // Initialize disk storage
+  const diskAvailable = await initializeDiskStorage();
+  if (diskAvailable) {
+    console.log('📁 PDF uploads will use mounted disk storage');
+  } else {
+    console.log('📁 PDF uploads will use local storage (not persistent)');
+  }
   
   // Initialize database tables
   await initializeDatabase();

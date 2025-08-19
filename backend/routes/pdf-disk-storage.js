@@ -17,12 +17,16 @@ const pool = new Pool({
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-// Configure multer for PDF uploads to disk
+// Use Render mounted disk path
+const DISK_MOUNT_PATH = process.env.DISK_MOUNT_PATH || '/var/data';
+const PDF_UPLOAD_DIR = path.join(DISK_MOUNT_PATH, 'uploads', 'pdfs');
+
+// Configure multer for PDF uploads to mounted disk
 const storage = multer.diskStorage({
     destination: async (req, file, cb) => {
-        const uploadDir = path.join(__dirname, '../uploads/pdfs');
+        const uploadDir = PDF_UPLOAD_DIR;
         await fs.mkdir(uploadDir, { recursive: true });
-        console.log(`📁 Upload directory: ${uploadDir}`);
+        console.log(`📁 Upload directory (mounted disk): ${uploadDir}`);
         cb(null, uploadDir);
     },
     filename: (req, file, cb) => {
@@ -93,7 +97,9 @@ router.post('/upload-pdf', upload.single('document'), async (req, res) => {
             RETURNING *
         `;
 
-        const filePath = `/uploads/pdfs/${req.file.filename}`;
+        // Store the actual disk path and a URL path for serving
+        const diskPath = req.file.path;
+        const servePath = `/api/documents/serve-pdf/${req.file.filename}`;
         
         await pool.query(query, [
             noticeId,
@@ -101,7 +107,7 @@ router.post('/upload-pdf', upload.single('document'), async (req, res) => {
             serverAddress,
             recipientAddress,
             fileName || req.file.originalname,
-            filePath,
+            diskPath,  // Store actual disk path
             req.file.size,
             fileType || 'application/pdf',
             req.file.filename
@@ -109,10 +115,11 @@ router.post('/upload-pdf', upload.single('document'), async (req, res) => {
 
         res.json({
             success: true,
-            documentUrl: filePath,
+            documentUrl: servePath,  // URL for serving the file
+            diskPath: diskPath,       // Actual disk location
             fileId: req.file.filename,
             fileSize: req.file.size,
-            message: 'PDF stored on disk successfully'
+            message: 'PDF stored on Render disk successfully'
         });
 
     } catch (error) {
@@ -121,6 +128,30 @@ router.post('/upload-pdf', upload.single('document'), async (req, res) => {
             success: false,
             error: 'Failed to upload PDF',
             message: error.message 
+        });
+    }
+});
+
+/**
+ * Serve PDF file from disk by filename
+ * GET /api/documents/serve-pdf/:filename
+ */
+router.get('/serve-pdf/:filename', async (req, res) => {
+    try {
+        const { filename } = req.params;
+        const filePath = path.join(PDF_UPLOAD_DIR, filename);
+        
+        // Check if file exists
+        await fs.access(filePath);
+        
+        // Send the PDF file
+        res.sendFile(filePath);
+        
+    } catch (error) {
+        console.error('Error serving PDF:', error);
+        res.status(404).json({ 
+            success: false,
+            error: 'PDF not found' 
         });
     }
 });
