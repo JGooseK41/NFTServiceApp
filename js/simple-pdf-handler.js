@@ -21,6 +21,15 @@ class SimplePDFHandler {
         const mergedPdf = await PDFDocument.create();
         
         // Just merge all PDFs - no complex processing
+        console.log('Documents to merge:', documents);
+        console.log('Document structure:', documents.map(d => ({
+            name: d.name,
+            hasFile: !!d.file,
+            hasData: !!d.data,
+            fileType: d.file?.type || d.type,
+            size: d.file?.size || d.size
+        })));
+        
         for (let i = 0; i < documents.length; i++) {
             const doc = documents[i];
             console.log(`Merging document ${i + 1}: ${doc.name}`);
@@ -51,15 +60,26 @@ class SimplePDFHandler {
                 console.error(`Failed to load PDF ${doc.name}:`, loadError);
                 console.log('First 100 bytes of PDF:', pdfBytes.slice(0, 100));
                 console.log('PDF starts with:', String.fromCharCode(...pdfBytes.slice(0, 4)));
-                // Try without the ignoreEncryption option as fallback
-                try {
-                    pdf = await PDFDocument.load(pdfBytes);
-                } catch (fallbackError) {
-                    console.error('Fallback also failed:', fallbackError);
-                    throw loadError; // Re-throw original error
-                }
+                // Skip this document if we can't load it
+                console.warn(`Skipping document ${doc.name} due to load error`);
+                continue;
             }
-            const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+            
+            // Make sure we have a valid PDF before trying to copy pages
+            if (!pdf) {
+                console.error(`PDF is undefined for document ${doc.name} - skipping`);
+                continue;
+            }
+            
+            try {
+                const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+                
+                // Add all pages to merged document
+                pages.forEach(page => mergedPdf.addPage(page));
+            } catch (copyError) {
+                console.error(`Failed to copy pages from ${doc.name}:`, copyError);
+                continue;
+            }
             
             // Add separator page between documents (not before first)
             if (i > 0) {

@@ -21,6 +21,7 @@
     "@poanet/solidity-flattener": "^3.0.9",
     "form-data": "^4.0.4",
     "node-fetch": "^2.7.0",
+    "pdf-lib": "^1.17.1",
     "solc": "^0.8.20",
     "tronbox": "^3.2.0",
     "truffle-flattener": "^1.6.0"

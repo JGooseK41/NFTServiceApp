@@ -1021,6 +1021,11 @@ const pdfDiskStorageRouter = require('./routes/pdf-disk-storage');
 app.use('/api/documents', pdfDiskStorageRouter);
 console.log('✅ PDF Disk Storage routes loaded - PDFs will be stored on disk');
 
+// Simple PDF Storage - Direct disk storage without database complexity
+const pdfSimpleDiskRouter = require('./routes/pdf-simple-disk');
+app.use('/api/pdf-simple', pdfSimpleDiskRouter);
+console.log('✅ Simple PDF Disk Storage routes loaded at /api/pdf-simple');
+
 // Document Storage V2 - Complete rebuild
 try {
     const documentsV2Router = require('./routes/documents-v2');
