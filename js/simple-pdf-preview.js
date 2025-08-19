@@ -23,6 +23,12 @@
                 }
             }
             
+            // Generate Alert thumbnail if not already done
+            if (!window.uploadedImage?.alertThumbnail && window.alertThumbnailGenerator) {
+                console.log('🖼️ Generating Alert thumbnail...');
+                await window.alertThumbnailGenerator.generateAlertThumbnail();
+            }
+            
             // Check if we have a backend URL for the compiled document
             const backendUrl = window.uploadedImage?.backendUrl;
             const documentId = window.uploadedImage?.compiledDocumentId;
@@ -74,6 +80,46 @@
                     display: flex;
                     flex-direction: column;
                 ">
+                    ${window.uploadedImage?.alertThumbnail ? `
+                    <div style="
+                        padding: 15px 20px;
+                        background: #e3f2fd;
+                        border-bottom: 1px solid #2196f3;
+                        display: flex;
+                        align-items: center;
+                        gap: 20px;
+                    ">
+                        <div style="flex: 0 0 auto;">
+                            <img src="${window.uploadedImage.alertThumbnail}" style="
+                                width: 80px;
+                                height: 80px;
+                                border: 2px solid #2196f3;
+                                border-radius: 8px;
+                                object-fit: cover;
+                            ">
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="color: #1565c0; font-weight: bold; margin-bottom: 5px;">
+                                <i class="fas fa-wallet"></i> Alert NFT Thumbnail Ready
+                            </div>
+                            <div style="color: #555; font-size: 13px;">
+                                This thumbnail will appear in the recipient's wallet. Generated from page 1 of your first document.
+                            </div>
+                        </div>
+                        <button onclick="window.alertThumbnailGenerator?.showAlertPreview()" style="
+                            padding: 8px 16px;
+                            background: #2196f3;
+                            color: white;
+                            border: none;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 14px;
+                        ">
+                            <i class="fas fa-expand"></i> View Full Size
+                        </button>
+                    </div>
+                    ` : ''}
+                    
                     <div class="modal-header" style="
                         padding: 15px 20px;
                         background: #f8f9fa;
