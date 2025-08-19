@@ -17,22 +17,41 @@ const pool = new Pool({
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// Render disk mount path
+// Render disk mount path with fallback
 const DISK_MOUNT_PATH = process.env.DISK_MOUNT_PATH || '/var/data';
-const DOCUMENTS_DIR = path.join(DISK_MOUNT_PATH, 'documents');
+let DOCUMENTS_DIR = path.join(DISK_MOUNT_PATH, 'documents');
+let diskAvailable = false;
 
-// Ensure directories exist
+// Ensure directories exist with fallback
 async function ensureDirectories() {
     try {
+        // Try disk mount first
         await fs.access(DISK_MOUNT_PATH);
         await fs.mkdir(path.join(DOCUMENTS_DIR, 'pdfs'), { recursive: true });
         await fs.mkdir(path.join(DOCUMENTS_DIR, 'thumbnails'), { recursive: true });
         await fs.mkdir(path.join(DOCUMENTS_DIR, 'unencrypted'), { recursive: true });
         console.log('✅ Disk directories ready at:', DOCUMENTS_DIR);
+        diskAvailable = true;
         return true;
     } catch (error) {
-        console.error('❌ Disk storage not available:', error.message);
-        return false;
+        console.warn('⚠️ Disk not available, trying local fallback...');
+        
+        // Fall back to local storage
+        try {
+            const fallbackPath = path.join(__dirname, '../../uploads/documents');
+            DOCUMENTS_DIR = fallbackPath;
+            
+            await fs.mkdir(path.join(DOCUMENTS_DIR, 'pdfs'), { recursive: true });
+            await fs.mkdir(path.join(DOCUMENTS_DIR, 'thumbnails'), { recursive: true });
+            await fs.mkdir(path.join(DOCUMENTS_DIR, 'unencrypted'), { recursive: true });
+            
+            console.log('✅ Using local storage at:', DOCUMENTS_DIR);
+            diskAvailable = false;
+            return true;
+        } catch (fallbackError) {
+            console.error('❌ Storage initialization failed:', fallbackError.message);
+            return false;
+        }
     }
 }
 

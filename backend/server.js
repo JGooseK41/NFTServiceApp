@@ -3,7 +3,8 @@ const cors = require('cors');
 const morgan = require('morgan');
 const { Pool } = require('pg');
 const path = require('path');
-const DiskStorageManager = require('./disk-storage-manager');
+// Use fixed disk storage manager with better error handling
+const DiskStorageManager = require('./disk-storage-manager-fix');
 require('dotenv').config();
 
 const app = express();
@@ -1020,10 +1021,24 @@ const pdfDiskStorageRouter = require('./routes/pdf-disk-storage');
 app.use('/api/documents', pdfDiskStorageRouter);
 console.log('✅ PDF Disk Storage routes loaded - PDFs will be stored on disk');
 
-// Disk-Only Document Storage - efficient storage for large PDFs
-const diskOnlyRouter = require('./routes/disk-only-storage');
-app.use('/api/documents', diskOnlyRouter);
-console.log('✅ Disk-only storage routes loaded - PDFs stored on disk, not database');
+// Document Storage Routes - use disk if available, fallback to database
+try {
+    // Try disk-only storage first
+    const diskOnlyRouter = require('./routes/disk-only-storage');
+    app.use('/api/documents', diskOnlyRouter);
+    console.log('✅ Disk storage routes loaded - PDFs will use disk/local storage');
+} catch (diskError) {
+    console.warn('⚠️ Disk storage routes failed, using database fallback:', diskError.message);
+}
+
+// Also load unencrypted routes as fallback
+try {
+    const unencryptedDocsRouter = require('./routes/unencrypted-documents');
+    app.use('/api/documents', unencryptedDocsRouter);
+    console.log('✅ Unencrypted document routes loaded (fallback)');
+} catch (error) {
+    console.warn('⚠️ Unencrypted routes not loaded:', error.message);
+}
 
 // Admin dashboard routes
 const adminDashboardRouter = require('./routes/admin-dashboard');
