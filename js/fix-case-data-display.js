@@ -230,16 +230,28 @@ window.viewCaseDetails = async function(caseId) {
                                     ${doc.alert_id ? `<br><small style="color: #666;">Alert ID: ${doc.alert_id}</small>` : ''}
                                     ${doc.document_id ? `<br><small style="color: #666;">Doc ID: ${doc.document_id}</small>` : ''}
                                 </div>
-                                ${doc.url ? `
-                                    <button onclick="window.open('${doc.url}', '_blank')" style="
-                                        padding: 5px 10px;
-                                        background: #007bff;
-                                        color: white;
-                                        border: none;
-                                        border-radius: 3px;
-                                        cursor: pointer;
-                                    ">View</button>
-                                ` : ''}
+                                <div style="display: flex; gap: 5px;">
+                                    ${doc.url ? `
+                                        <button onclick="window.open('${doc.url}', '_blank')" style="
+                                            padding: 5px 10px;
+                                            background: #007bff;
+                                            color: white;
+                                            border: none;
+                                            border-radius: 3px;
+                                            cursor: pointer;
+                                        ">View</button>
+                                    ` : ''}
+                                    ${doc.alert_id || doc.document_id ? `
+                                        <button onclick="viewCaseDocument('${caseId}', '${doc.alert_id || doc.document_id}')" style="
+                                            padding: 5px 10px;
+                                            background: #28a745;
+                                            color: white;
+                                            border: none;
+                                            border-radius: 3px;
+                                            cursor: pointer;
+                                        ">View PDF</button>
+                                    ` : ''}
+                                </div>
                             </div>
                         `).join('')}
                     </div>
