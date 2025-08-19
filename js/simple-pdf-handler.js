@@ -29,10 +29,13 @@ class SimplePDFHandler {
             let pdfBytes;
             if (doc.file) {
                 // New binary mode - doc.file is a File object
+                console.log(`Processing binary file: ${doc.name}, size: ${doc.file.size} bytes`);
                 const arrayBuffer = await doc.file.arrayBuffer();
                 pdfBytes = new Uint8Array(arrayBuffer);
+                console.log(`Converted to Uint8Array: ${pdfBytes.length} bytes`);
             } else if (doc.data) {
                 // Old base64 mode
+                console.log(`Processing base64 data for: ${doc.name}`);
                 const base64Data = doc.data.split(',')[1];
                 pdfBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
             } else {

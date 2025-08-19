@@ -52,8 +52,8 @@ class BinaryPDFHandler {
             const arrayBuffer = await doc.file.arrayBuffer();
             const pdfBytes = new Uint8Array(arrayBuffer);
             
-            // Load and merge
-            const pdf = await PDFDocument.load(pdfBytes);
+            // Load and merge - handle any PDF issues
+            const pdf = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
             const pageCount = pdf.getPageCount();
             
             // Add separator if not first document
