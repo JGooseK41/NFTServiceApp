@@ -47,6 +47,7 @@
                 fileType: doc.fileType || 'application/pdf',
                 fileSize: doc.fileSize,
                 preview: doc.preview,
+                alertThumbnail: doc.alertThumbnail || doc.preview, // Alert image with legal notice overlay
                 data: doc.data || doc.fullDocument,
                 pageCount: doc.pageCount || 1,
                 timestamp: doc.timestamp || Date.now(),

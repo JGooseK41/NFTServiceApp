@@ -21403,64 +21403,87 @@ document.addEventListener('keydown', function(event) {
                                 if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
                                     updateCompressionProgress(baseProgress + 40, `Processing PDF ${i + 1}...`);
                                     
-                                    // PDFs are stored as-is, not converted
-                                    documentData.data = e.target.result; // The full PDF as base64
+                                    // Store PDF on Render disk backend, NOT as base64
                                     documentData.fileType = 'application/pdf';
                                     documentData.originalType = 'application/pdf';
                                     documentData.convertedType = null; // NOT converted
                                     documentData.pageCount = 1; // We'll get actual count later if needed
                                     
-                                    // Create a simple preview placeholder for UI display (not the actual alert image)
-                                    const canvas = document.createElement('canvas');
-                                    canvas.width = 400;
-                                    canvas.height = 500;
-                                    const ctx = canvas.getContext('2d');
+                                    // Store the actual file reference for disk upload
+                                    documentData.file = file; // Keep the actual File object
+                                    documentData.data = null; // Don't store base64 - will upload to disk instead
+                                    documentData.pendingDiskUpload = true; // Flag for disk upload
                                     
-                                    // White background
-                                    ctx.fillStyle = 'white';
-                                    ctx.fillRect(0, 0, 400, 500);
+                                    // Create alert image with legal notice overlay immediately
+                                    // This will be stored in backend and used as the NFT thumbnail
+                                    console.log('🎨 Creating alert image thumbnail for PDF...');
                                     
-                                    // Border
-                                    ctx.strokeStyle = '#e5e7eb';
-                                    ctx.lineWidth = 2;
-                                    ctx.strokeRect(10, 10, 380, 480);
+                                    if (window.createAlertImageAtTransaction) {
+                                        try {
+                                            // Generate alert image with legal notice overlay
+                                            const alertImage = await window.createAlertImageAtTransaction(e.target.result);
+                                            documentData.preview = alertImage;
+                                            documentData.alertThumbnail = alertImage;
+                                            console.log('✅ Alert image created with legal notice overlay');
+                                        } catch (error) {
+                                            console.error('Failed to create alert image:', error);
+                                            // Fallback - create basic alert notice
+                                            documentData.preview = await createBasicAlertImage(file.name, file.size);
+                                            documentData.alertThumbnail = documentData.preview;
+                                        }
+                                    } else {
+                                        // Fallback - create basic alert notice
+                                        documentData.preview = await createBasicAlertImage(file.name, file.size);
+                                        documentData.alertThumbnail = documentData.preview;
+                                    }
                                     
-                                    // PDF icon
-                                    ctx.fillStyle = '#dc2626';
-                                    ctx.font = 'bold 72px Arial';
-                                    ctx.textAlign = 'center';
-                                    ctx.fillText('📄', 200, 150);
-                                    
-                                    // Title
-                                    ctx.fillStyle = '#111827';
-                                    ctx.font = 'bold 24px Arial';
-                                    ctx.fillText('PDF Document', 200, 220);
-                                    
-                                    // File name (truncated if too long)
-                                    ctx.fillStyle = '#6b7280';
-                                    ctx.font = '16px Arial';
-                                    const maxNameLength = 30;
-                                    const displayName = file.name.length > maxNameLength ? 
-                                        file.name.substring(0, maxNameLength - 3) + '...' : file.name;
-                                    ctx.fillText(displayName, 200, 260);
-                                    
-                                    // File size
-                                    ctx.font = '14px Arial';
-                                    const sizeInKB = Math.round(file.size / 1024);
-                                    ctx.fillText(`${sizeInKB} KB`, 200, 290);
-                                    
-                                    // Status
-                                    ctx.fillStyle = '#10b981';
-                                    ctx.font = 'bold 18px Arial';
-                                    ctx.fillText('✓ Ready for Upload', 200, 350);
-                                    
-                                    // Note
-                                    ctx.fillStyle = '#9ca3af';
-                                    ctx.font = '12px Arial';
-                                    ctx.fillText('Alert image will be created', 200, 400);
-                                    ctx.fillText('at transaction time', 200, 420);
-                                    
-                                    documentData.preview = canvas.toDataURL('image/png', 0.7);
+                                    // Helper function for basic alert image
+                                    async function createBasicAlertImage(fileName, fileSize) {
+                                        const canvas = document.createElement('canvas');
+                                        canvas.width = 600;
+                                        canvas.height = 800;
+                                        const ctx = canvas.getContext('2d');
+                                        
+                                        // White background
+                                        ctx.fillStyle = 'white';
+                                        ctx.fillRect(0, 0, 600, 800);
+                                        
+                                        // Red border (legal notice style)
+                                        ctx.strokeStyle = '#dc2626';
+                                        ctx.lineWidth = 8;
+                                        ctx.strokeRect(4, 4, 592, 792);
+                                        
+                                        // Header bar
+                                        ctx.fillStyle = '#dc2626';
+                                        ctx.fillRect(0, 0, 600, 100);
+                                        
+                                        // Header text
+                                        ctx.fillStyle = 'white';
+                                        ctx.font = 'bold 48px Arial';
+                                        ctx.textAlign = 'center';
+                                        ctx.fillText('LEGAL NOTICE', 300, 65);
+                                        
+                                        // Document info
+                                        ctx.fillStyle = '#111827';
+                                        ctx.font = '24px Arial';
+                                        ctx.fillText('Official Document', 300, 200);
+                                        
+                                        ctx.font = '18px Arial';
+                                        ctx.fillStyle = '#6b7280';
+                                        const displayName = fileName.length > 40 ? 
+                                            fileName.substring(0, 37) + '...' : fileName;
+                                        ctx.fillText(displayName, 300, 250);
+                                        
+                                        // Footer
+                                        ctx.fillStyle = 'rgba(220, 38, 38, 0.9)';
+                                        ctx.fillRect(0, 720, 600, 80);
+                                        
+                                        ctx.fillStyle = 'white';
+                                        ctx.font = '24px Arial';
+                                        ctx.fillText('Blockchain Service Document', 300, 765);
+                                        
+                                        return canvas.toDataURL('image/jpeg', 0.85);
+                                    }
                                     
                                     console.log(`PDF stored as-is: ${file.name}, ${documentData.pageCount} pages`);
                                     
@@ -21571,6 +21594,59 @@ document.addEventListener('keydown', function(event) {
             }
             
             console.log(`Upload complete. Total documents: ${window.uploadedDocumentsList.length}`);
+            
+            // Upload PDFs to disk storage
+            for (const doc of window.uploadedDocumentsList) {
+                if (doc.pendingDiskUpload && doc.file) {
+                    try {
+                        console.log(`📤 Uploading PDF to Render disk: ${doc.fileName}`);
+                        
+                        // Initialize PDF disk storage if needed
+                        if (!window.pdfDiskStorage) {
+                            window.pdfDiskStorage = new PDFDiskStorage();
+                        }
+                        
+                        // Upload to disk
+                        const uploadResult = await window.pdfDiskStorage.uploadPDFToDisk(
+                            doc.file,
+                            Date.now().toString(),
+                            {
+                                caseNumber: document.getElementById('mintCaseNumber')?.value || '',
+                                serverAddress: window.tronWeb?.defaultAddress?.base58 || '',
+                                recipientAddress: '' // Will be set later
+                            }
+                        );
+                        
+                        // Store disk reference instead of base64
+                        doc.diskUrl = uploadResult.diskUrl;
+                        doc.fullDiskUrl = uploadResult.fullUrl;
+                        doc.fileId = uploadResult.fileId;
+                        doc.pendingDiskUpload = false;
+                        doc.storedOnDisk = true;
+                        
+                        // Store alert thumbnail to backend as base64
+                        if (doc.alertThumbnail && window.simpleImageSystem) {
+                            const imageId = Date.now().toString();
+                            await window.simpleImageSystem.storeImage(
+                                imageId,
+                                doc.alertThumbnail,
+                                'alert_thumbnail'
+                            );
+                            doc.alertThumbnailId = imageId;
+                        }
+                        
+                        console.log(`✅ PDF stored on disk: ${uploadResult.diskUrl}`);
+                    } catch (error) {
+                        console.error(`Failed to upload PDF to disk:`, error);
+                        // Fall back to base64 if disk upload fails
+                        const reader = new FileReader();
+                        doc.data = await new Promise((resolve) => {
+                            reader.onload = (e) => resolve(e.target.result);
+                            reader.readAsDataURL(doc.file);
+                        });
+                    }
+                }
+            }
             
             if (window.uploadedDocumentsList.length > 0) {
                 // For backward compatibility, set the first document as the main one
