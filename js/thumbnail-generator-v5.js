@@ -338,12 +338,7 @@ const ThumbnailGenerator = {
             // Determine document type and preview
             let documentType = 'document';
             let documentPreview = null;
-            
-            // First check if we have a preview from document conversion
-            if (window.uploadedImage && window.uploadedImage.preview) {
-                console.log('Using preview from uploadedImage');
-                documentPreview = window.uploadedImage.preview;
-            }
+            let alertImage = null;
             
             // Handle document data that might be an object
             let dataToCheck = documentData;
@@ -351,21 +346,43 @@ const ThumbnailGenerator = {
                 dataToCheck = documentData.data;
             }
             
-            if (dataToCheck && typeof dataToCheck === 'string' && dataToCheck.startsWith('data:image')) {
-                documentType = 'image';
-                // If no preview, use the image itself
-                if (!documentPreview) {
-                    documentPreview = dataToCheck;
-                }
-            } else if (dataToCheck && typeof dataToCheck === 'string' && dataToCheck.startsWith('data:application/pdf')) {
+            // Check if this is a PDF
+            if (dataToCheck && typeof dataToCheck === 'string' && dataToCheck.startsWith('data:application/pdf')) {
                 documentType = 'pdf';
+                console.log('📄 PDF detected - creating alert image at transaction time');
+                
+                // For PDFs, create alert image now (at transaction time) using pdf-preserve-handler
+                if (window.createAlertImageAtTransaction) {
+                    try {
+                        alertImage = await window.createAlertImageAtTransaction(dataToCheck);
+                        console.log('✅ Alert image created from PDF first page with overlay');
+                        documentPreview = alertImage;
+                    } catch (error) {
+                        console.error('Failed to create alert image from PDF:', error);
+                        // Fall back to simple preview
+                        documentPreview = window.uploadedImage?.preview || null;
+                    }
+                } else {
+                    console.warn('createAlertImageAtTransaction not available, using preview');
+                    documentPreview = window.uploadedImage?.preview || null;
+                }
+            } else if (dataToCheck && typeof dataToCheck === 'string' && dataToCheck.startsWith('data:image')) {
+                documentType = 'image';
+                // For images, use the image itself as preview
+                documentPreview = dataToCheck;
+            } else {
+                // For other types, check if we have a preview
+                if (window.uploadedImage && window.uploadedImage.preview) {
+                    console.log('Using preview from uploadedImage');
+                    documentPreview = window.uploadedImage.preview;
+                }
             }
             
             // Generate sealed thumbnail with instructions
             const thumbnailData = await this.generateSealedThumbnail(
                 documentData || '', 
                 documentType,
-                documentPreview
+                documentPreview || alertImage  // Use alert image if available
             );
             
             // Upload thumbnail to IPFS

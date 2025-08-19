@@ -69,13 +69,15 @@
     <!-- FINAL WORKING CASE MODAL - Simple modal that works -->
     <script src="js/final-case-modal-working.js"></script>
     <!-- PROPER CASE CLICK HANDLER - Only attaches to actual case elements -->
-    <script src="js/proper-case-click-handler.js"></script>
+    <!-- Disabled: bandaid fix for case clicks -->
+    <!-- <script src="js/proper-case-click-handler.js"></script> -->
     <!-- FIX CASE DATA DISPLAY - Shows case info properly -->
     <script src="js/fix-case-data-display.js"></script>
     <!-- CASE BACKEND API - Proper backend communication -->
     <script src="js/case-backend-api.js"></script>
     <!-- FIX CASE WORKFLOW - Proper new vs resume handling -->
-    <script src="js/fix-case-workflow-complete.js"></script>
+    <!-- Disabled: bandaid fix for case workflow -->
+    <!-- <script src="js/fix-case-workflow-complete.js"></script> -->
     <!-- Previous versions:
          - optimized-transaction-core.js (broken - wrong parameters)
          - v5-contract-fix.js (renamed to contract-fix-v001.js for versioning)
@@ -138,10 +140,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <script src="js/documentConverter.js"></script>
     <!-- DISABLED: Was creating placeholder images instead of actual PDF content
-    <script src="js/ultra-fast-pdf-handler.js"></script>
+    <!-- Disabled: was creating placeholder images instead of actual PDFs -->
+    <!-- <script src="js/ultra-fast-pdf-handler.js"></script> -->
     -->
     <!-- PROPER PDF HANDLER - Actually renders PDF content -->
-    <script src="js/proper-pdf-handler.js"></script>
+    <!-- Disabled: was adding alert overlay during upload instead of at transaction time -->
+    <!-- <script src="js/proper-pdf-handler.js"></script> -->
+    
+    <!-- PDF Preserve Handler - keeps PDFs as PDFs, creates alert image only at transaction time -->
+    <script src="js/pdf-preserve-handler.js"></script>
     <script src="js/document-preview-system.js"></script>
     <!-- Complete Image Handler - Restored for reliable document uploads -->
     <script src="js/complete-image-handler.js"></script>
@@ -21396,49 +21403,52 @@ document.addEventListener('keydown', function(event) {
                                     order: window.uploadedDocumentsList.length
                                 };
                                 
-                                // If it's a PDF or Word doc, convert to images
-                                if (file.type === 'application/pdf' || 
-                                    file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-                                    file.type === 'application/msword' ||
-                                    file.name.endsWith('.pdf') || 
-                                    file.name.endsWith('.doc') || 
-                                    file.name.endsWith('.docx')) {
+                                // Handle PDFs - DO NOT CONVERT TO IMAGES
+                                if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+                                    updateCompressionProgress(baseProgress + 40, `Processing PDF ${i + 1}...`);
                                     
-                                    updateCompressionProgress(baseProgress + 40, `Converting document ${i + 1} to images...`);
+                                    // PDFs are stored as-is, not converted
+                                    documentData.data = e.target.result; // The full PDF as base64
+                                    documentData.preview = e.target.result; // For now, will create thumbnail at display time
+                                    documentData.fileType = 'application/pdf';
+                                    documentData.originalType = 'application/pdf';
+                                    documentData.convertedType = null; // NOT converted
+                                    
+                                    // Try to get page count if PDF.js is available
+                                    try {
+                                        if (typeof pdfjsLib !== 'undefined') {
+                                            const base64Data = e.target.result.split(',')[1];
+                                            const binaryString = atob(base64Data);
+                                            const bytes = new Uint8Array(binaryString.length);
+                                            for (let j = 0; j < binaryString.length; j++) {
+                                                bytes[j] = binaryString.charCodeAt(j);
+                                            }
+                                            const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+                                            documentData.pageCount = pdf.numPages;
+                                            pdf.destroy();
+                                        }
+                                    } catch (err) {
+                                        console.log('Could not get page count:', err);
+                                        documentData.pageCount = 1;
+                                    }
+                                    
+                                    console.log(`PDF stored as-is: ${file.name}, ${documentData.pageCount} pages`);
+                                    
+                                // Handle Word docs - these DO need conversion
+                                } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+                                           file.type === 'application/msword' ||
+                                           file.name.endsWith('.doc') || 
+                                           file.name.endsWith('.docx')) {
+                                    
+                                    updateCompressionProgress(baseProgress + 40, `Converting Word document ${i + 1} to images...`);
                                     
                                     try {
-                                        // Use UltraFastPDFHandler for PDFs
-                                        let converted;
-                                        if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-                                            console.log('⚡ Using UltraFastPDFHandler for:', file.name);
-                                            
-                                            // Use UltraFastPDFHandler if available
-                                            if (window.UltraFastPDFHandler) {
-                                                converted = await window.UltraFastPDFHandler.processPDF(file);
-                                            } else {
-                                                // Simple fallback - just store the PDF
-                                                console.log('Using simple PDF storage');
-                                                const base64 = e.target.result; // Already read as data URL
-                                                converted = {
-                                                    data: base64,
-                                                    fullDocument: base64,
-                                                    preview: base64,
-                                                    thumbnail: base64,
-                                                    pageCount: 1,
-                                                    fileName: file.name,
-                                                    fileSize: file.size,
-                                                    fileType: 'application/pdf',
-                                                    allPagePreviews: []
-                                                };
-                                            }
-                                        } else {
-                                            // For Word docs, use DocumentConverter
-                                            if (!window.documentConverter) {
-                                                window.documentConverter = new DocumentConverter();
-                                                await window.documentConverter.init();
-                                            }
-                                            converted = await window.documentConverter.convertDocument(file);
+                                        // For Word docs, use DocumentConverter
+                                        if (!window.documentConverter) {
+                                            window.documentConverter = new DocumentConverter();
+                                            await window.documentConverter.init();
                                         }
+                                        const converted = await window.documentConverter.convertDocument(file);
                                         
                                         // Use the converted data
                                         if (converted.fullDocument && typeof converted.fullDocument === 'object') {
@@ -30943,7 +30953,8 @@ console.log('To switch to old flow: toggleTransactionFlow()');
 <!-- Case Integration - Connects document upload to case management -->
 <script src="js/case-integration.js"></script>
 <!-- CRITICAL: Disable auto-loading - MUST load AFTER case-integration.js -->
-<script src="js/disable-case-autoload.js"></script>
+<!-- Disabled: bandaid fix for case autoload -->
+<!-- <script src="js/disable-case-autoload.js"></script> -->
 <!-- Case workflow and modal workflow fixed directly in HTML - bandaid scripts removed -->
 <script type="text/javascript">
 (function() {
