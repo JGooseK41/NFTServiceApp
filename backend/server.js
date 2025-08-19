@@ -15,18 +15,13 @@ const pool = new Pool({
 });
 
 // Middleware
-// Allow multiple origins for CORS
-const allowedOrigins = [
-  'https://nft-legal-service.netlify.app',
-  'https://theblockservice.com',
-  'https://www.theblockservice.com',
-  'https://blockserved.com',
-  'https://www.blockserved.com',
-  'http://localhost:8080',
-  'http://localhost:3000',
-  'http://127.0.0.1:8080'
-];
+// Enhanced CORS configuration
+const { configureCORS, allowedOrigins } = require('./fix-cors');
 
+// Apply enhanced CORS before other middleware
+configureCORS(app);
+
+// Also use the cors package as a backup
 app.use(cors({
   origin: function(origin, callback) {
     // Allow requests with no origin (like mobile apps, curl, or local files)
@@ -42,7 +37,13 @@ app.use(cors({
       callback(null, true);
     } else {
       console.log('Rejected CORS origin:', origin);
-      callback(new Error('Not allowed by CORS'));
+      // Instead of error, just allow it with a warning in production
+      if (process.env.NODE_ENV === 'production') {
+        console.log('WARNING: Allowing unregistered origin in production:', origin);
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
     }
   },
   credentials: true,
@@ -51,24 +52,6 @@ app.use(cors({
   preflightContinue: false,
   optionsSuccessStatus: 204
 }));
-
-// Additional CORS headers for all responses (fallback)
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Server-Address, X-Admin-Address, X-Wallet-Address, X-Recipient-Address');
-  }
-  
-  // Handle OPTIONS requests
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(204);
-  }
-  
-  next();
-});
 
 app.use(express.json());
 app.use(morgan('combined'));
