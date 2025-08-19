@@ -77,9 +77,7 @@ window.openMintModal = async function() {
     }
     
     // Clear other fields
-    const fieldsToC
-
-lear = ['mintCaseTitle', 'mintNoticeType', 'issuingAgency'];
+    const fieldsToClear = ['mintCaseTitle', 'mintNoticeType', 'issuingAgency'];
     fieldsToClear.forEach(fieldId => {
         const field = document.getElementById(fieldId);
         if (field) field.value = field.tagName === 'SELECT' ? field.options[0].value : '';

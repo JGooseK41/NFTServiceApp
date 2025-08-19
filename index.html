@@ -11278,14 +11278,26 @@ function useConnectedAddressForFeeCollector() {
         
         // Reset mint form to initial state
         function resetMintForm() {
+            // Clear any stored case data FIRST
+            window.currentCaseId = null;
+            window.currentCaseData = null;
+            window.currentSelectedCase = null;
+            window.uploadedDocumentsList = [];
+            
             // Reset to step 1
             document.getElementById('mintStep1').style.display = 'block';
             document.getElementById('mintStep2').style.display = 'none';
+            document.getElementById('mintStep3').style.display = 'none';
             
-            // Clear form fields
+            // Clear form fields - INCLUDING CASE FIELDS
             const fieldsToReset = [
+                'mintCaseNumber',      // Case number field
+                'mintCaseTitle',       // Case title field  
+                'mintNoticeType',      // Notice type field
+                'issuingAgency',       // Issuing agency field
                 'documentUpload',
                 'recipientAddress',
+                'mintRecipient',       // Recipient field in Step 3
                 'noticeText',
                 'noticeType',
                 'agencyName',
