@@ -44,7 +44,21 @@ class SimplePDFHandler {
             }
             
             // Load and copy pages - handle encrypted PDFs
-            const pdf = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
+            let pdf;
+            try {
+                pdf = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
+            } catch (loadError) {
+                console.error(`Failed to load PDF ${doc.name}:`, loadError);
+                console.log('First 100 bytes of PDF:', pdfBytes.slice(0, 100));
+                console.log('PDF starts with:', String.fromCharCode(...pdfBytes.slice(0, 4)));
+                // Try without the ignoreEncryption option as fallback
+                try {
+                    pdf = await PDFDocument.load(pdfBytes);
+                } catch (fallbackError) {
+                    console.error('Fallback also failed:', fallbackError);
+                    throw loadError; // Re-throw original error
+                }
+            }
             const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
             
             // Add separator page between documents (not before first)
