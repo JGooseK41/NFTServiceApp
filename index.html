@@ -21472,7 +21472,8 @@ document.addEventListener('keydown', function(event) {
                                     documentData.pageCount = 1; // We'll get actual count later if needed
                                     
                                     // Store the actual file reference for disk upload
-                                    documentData.file = file; // Keep the actual File object
+                                    documentData.originalFile = file; // Keep the actual File object (backend expects 'originalFile')
+                                    documentData.file = file; // Also keep as 'file' for backward compatibility
                                     documentData.data = null; // Don't store base64 - will upload to disk instead
                                     documentData.pendingDiskUpload = true; // Flag for disk upload
                                     
@@ -22269,6 +22270,9 @@ document.addEventListener('keydown', function(event) {
                             console.log(`✅ Merged ${sortedDocs.length} PDFs into ${totalPages} pages`);
                             
                             // Create merged document object
+                            // Convert merged bytes to File object for disk upload
+                            const mergedFile = new File([mergedPdfBytes], `merged_${sortedDocs.length}_documents.pdf`, { type: 'application/pdf' });
+                            
                             uploadedImage = {
                                 id: Date.now(),
                                 fileName: `merged_${sortedDocs.length}_documents.pdf`,
@@ -22280,7 +22284,9 @@ document.addEventListener('keydown', function(event) {
                                 pageCount: totalPages,
                                 order: 0,
                                 allDocuments: sortedDocs,
-                                isMerged: true
+                                isMerged: true,
+                                originalFile: mergedFile, // Store File object for disk upload
+                                file: mergedFile // Backward compatibility
                             };
                             window.uploadedImage = uploadedImage;
                             
@@ -22313,8 +22319,12 @@ document.addEventListener('keydown', function(event) {
                     
                     updateCompressionProgress(70, 'Documents merged successfully');
                 } else {
-                    // Single document
+                    // Single document - ensure file references are preserved
                     uploadedImage = sortedDocs[0];
+                    // Ensure both originalFile and file are set
+                    if (uploadedImage.file && !uploadedImage.originalFile) {
+                        uploadedImage.originalFile = uploadedImage.file;
+                    }
                     window.uploadedImage = uploadedImage;
                 }
                 
@@ -22328,10 +22338,11 @@ document.addEventListener('keydown', function(event) {
                     }
                     
                     // Upload the final document to disk
-                    if (uploadedImage && uploadedImage.file) {
+                    if (uploadedImage && (uploadedImage.originalFile || uploadedImage.file)) {
                         // If we have the original file object
+                        const fileToUpload = uploadedImage.originalFile || uploadedImage.file;
                         const uploadResult = await window.pdfDiskStorage.uploadPDFToDisk(
-                            uploadedImage.file,
+                            fileToUpload,
                             Date.now().toString(),
                             {
                                 caseNumber: document.getElementById('mintCaseNumber')?.value || '',
@@ -22342,29 +22353,34 @@ document.addEventListener('keydown', function(event) {
                         uploadedImage.fullDiskUrl = uploadResult.fullUrl;
                         uploadedImage.fileId = uploadResult.fileId;
                         uploadedImage.storedOnDisk = true;
-                    } else if (uploadedImage && uploadedImage.data) {
-                        // Convert base64 to file for disk upload
-                        const base64Data = uploadedImage.data.split(',')[1] || uploadedImage.data;
-                        const binaryString = atob(base64Data);
-                        const bytes = new Uint8Array(binaryString.length);
-                        for (let i = 0; i < binaryString.length; i++) {
-                            bytes[i] = binaryString.charCodeAt(i);
+                    } else if (uploadedImage && !uploadedImage.originalFile && !uploadedImage.file) {
+                        // No file object available, try to create from data if exists
+                        if (uploadedImage.data) {
+                            // Convert base64 to file for disk upload
+                            const base64Data = uploadedImage.data.split(',')[1] || uploadedImage.data;
+                            const binaryString = atob(base64Data);
+                            const bytes = new Uint8Array(binaryString.length);
+                            for (let i = 0; i < binaryString.length; i++) {
+                                bytes[i] = binaryString.charCodeAt(i);
+                            }
+                            const blob = new Blob([bytes], { type: uploadedImage.fileType || 'application/pdf' });
+                            const file = new File([blob], uploadedImage.fileName || 'document.pdf', { type: blob.type });
+                            
+                            const uploadResult = await window.pdfDiskStorage.uploadPDFToDisk(
+                                file,
+                                Date.now().toString(),
+                                {
+                                    caseNumber: document.getElementById('mintCaseNumber')?.value || '',
+                                    serverAddress: window.tronWeb?.defaultAddress?.base58 || ''
+                                }
+                            );
+                            uploadedImage.diskUrl = uploadResult.diskUrl;
+                            uploadedImage.fullDiskUrl = uploadResult.fullUrl;
+                            uploadedImage.fileId = uploadResult.fileId;
+                            uploadedImage.storedOnDisk = true;
+                        } else {
+                            console.log('No document data available for upload, will handle at transaction time');
                         }
-                        const blob = new Blob([bytes], { type: uploadedImage.fileType || 'application/pdf' });
-                        const file = new File([blob], uploadedImage.fileName || 'document.pdf', { type: blob.type });
-                        
-                        const uploadResult = await window.pdfDiskStorage.uploadPDFToDisk(
-                            file,
-                            Date.now().toString(),
-                            {
-                                caseNumber: document.getElementById('mintCaseNumber')?.value || '',
-                                serverAddress: window.tronWeb?.defaultAddress?.base58 || ''
-                            }
-                        );
-                        uploadedImage.diskUrl = uploadResult.diskUrl;
-                        uploadedImage.fullDiskUrl = uploadResult.fullUrl;
-                        uploadedImage.fileId = uploadResult.fileId;
-                        uploadedImage.storedOnDisk = true;
                     }
                     
                     updateCompressionProgress(90, 'Creating alert thumbnail...');
