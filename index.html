@@ -21357,13 +21357,9 @@ document.addEventListener('keydown', function(event) {
                 }
             }
             
-            // Log which handler will be used for PDFs
+            // Log PDF processing mode
             if (files.some(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'))) {
-                if (window.UltraFastPDFHandler) {
-                    console.log('✅ UltraFastPDFHandler available for PDF processing');
-                } else {
-                    console.log('⚠️ UltraFastPDFHandler not available, will use simple fallback');
-                }
+                console.log('📄 PDF files will be stored as-is without conversion');
             }
             
             // Process each file
@@ -21409,28 +21405,62 @@ document.addEventListener('keydown', function(event) {
                                     
                                     // PDFs are stored as-is, not converted
                                     documentData.data = e.target.result; // The full PDF as base64
-                                    documentData.preview = e.target.result; // For now, will create thumbnail at display time
                                     documentData.fileType = 'application/pdf';
                                     documentData.originalType = 'application/pdf';
                                     documentData.convertedType = null; // NOT converted
+                                    documentData.pageCount = 1; // We'll get actual count later if needed
                                     
-                                    // Try to get page count if PDF.js is available
-                                    try {
-                                        if (typeof pdfjsLib !== 'undefined') {
-                                            const base64Data = e.target.result.split(',')[1];
-                                            const binaryString = atob(base64Data);
-                                            const bytes = new Uint8Array(binaryString.length);
-                                            for (let j = 0; j < binaryString.length; j++) {
-                                                bytes[j] = binaryString.charCodeAt(j);
-                                            }
-                                            const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
-                                            documentData.pageCount = pdf.numPages;
-                                            pdf.destroy();
-                                        }
-                                    } catch (err) {
-                                        console.log('Could not get page count:', err);
-                                        documentData.pageCount = 1;
-                                    }
+                                    // Create a simple preview placeholder for UI display (not the actual alert image)
+                                    const canvas = document.createElement('canvas');
+                                    canvas.width = 400;
+                                    canvas.height = 500;
+                                    const ctx = canvas.getContext('2d');
+                                    
+                                    // White background
+                                    ctx.fillStyle = 'white';
+                                    ctx.fillRect(0, 0, 400, 500);
+                                    
+                                    // Border
+                                    ctx.strokeStyle = '#e5e7eb';
+                                    ctx.lineWidth = 2;
+                                    ctx.strokeRect(10, 10, 380, 480);
+                                    
+                                    // PDF icon
+                                    ctx.fillStyle = '#dc2626';
+                                    ctx.font = 'bold 72px Arial';
+                                    ctx.textAlign = 'center';
+                                    ctx.fillText('📄', 200, 150);
+                                    
+                                    // Title
+                                    ctx.fillStyle = '#111827';
+                                    ctx.font = 'bold 24px Arial';
+                                    ctx.fillText('PDF Document', 200, 220);
+                                    
+                                    // File name (truncated if too long)
+                                    ctx.fillStyle = '#6b7280';
+                                    ctx.font = '16px Arial';
+                                    const maxNameLength = 30;
+                                    const displayName = file.name.length > maxNameLength ? 
+                                        file.name.substring(0, maxNameLength - 3) + '...' : file.name;
+                                    ctx.fillText(displayName, 200, 260);
+                                    
+                                    // File size
+                                    ctx.font = '14px Arial';
+                                    const sizeInKB = Math.round(file.size / 1024);
+                                    ctx.fillText(`${sizeInKB} KB`, 200, 290);
+                                    
+                                    // Status
+                                    ctx.fillStyle = '#10b981';
+                                    ctx.font = 'bold 18px Arial';
+                                    ctx.fillText('✓ Ready for Upload', 200, 350);
+                                    
+                                    // Note
+                                    ctx.fillStyle = '#9ca3af';
+                                    ctx.font = '12px Arial';
+                                    ctx.fillText('Alert image will be created', 200, 400);
+                                    ctx.fillText('at transaction time', 200, 420);
+                                    
+                                    documentData.preview = canvas.toDataURL('image/png', 0.7);
                                     
                                     console.log(`PDF stored as-is: ${file.name}, ${documentData.pageCount} pages`);
                                     
