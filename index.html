@@ -10643,18 +10643,23 @@ function useConnectedAddressForFeeCollector() {
                 return false;
             }
             
-            // Check if case already exists
+            // DISABLED: Do NOT auto-use existing case ID
+            // This was causing the auto-load problem
+            /*
             if (window.currentCaseId) {
                 console.log('Using existing case ID:', window.currentCaseId);
                 return true;
             }
+            */
             
             // Process documents if needed
             if (!window.documentsProcessed && window.uploadedDocumentsList && window.uploadedDocumentsList.length > 0) {
                 await processDocuments();
             }
             
-            // Create case if it doesn't exist
+            // DISABLED: Do NOT auto-create cases
+            // User should explicitly save case if they want case management
+            /*
             if (window.caseIntegration) {
                 try {
                     console.log('Creating case automatically before minting...');
@@ -10670,6 +10675,7 @@ function useConnectedAddressForFeeCollector() {
                     return false;
                 }
             }
+            */
             
             // If no case integration, continue anyway (backward compatibility)
             console.warn('Case integration not available, proceeding without case creation');
@@ -30918,6 +30924,8 @@ console.log('To switch to old flow: toggleTransactionFlow()');
 <script src="js/case-management-client.js"></script>
 <!-- Case Integration - Connects document upload to case management -->
 <script src="js/case-integration.js"></script>
+<!-- CRITICAL: Disable auto-loading - MUST load AFTER case-integration.js -->
+<script src="js/disable-case-autoload.js"></script>
 <!-- Case workflow and modal workflow fixed directly in HTML - bandaid scripts removed -->
 <script type="text/javascript">
 (function() {
