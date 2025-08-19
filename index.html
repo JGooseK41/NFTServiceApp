@@ -146,6 +146,8 @@
     <!-- PROPER PDF HANDLER - Actually renders PDF content -->
     <!-- Disabled: was adding alert overlay during upload instead of at transaction time -->
     <!-- <script src="js/proper-pdf-handler.js"></script> -->
+    <!-- PDF RENDERER - Extracts actual PDF pages instead of placeholders -->
+    <script src="js/pdf-renderer.js"></script>
     
     <!-- PDF Preserve Handler - keeps PDFs as PDFs, creates alert image only at transaction time -->
     <script src="js/pdf-preserve-handler.js"></script>
@@ -21461,65 +21463,67 @@ document.addEventListener('keydown', function(event) {
                                     order: window.uploadedDocumentsList.length
                                 };
                                 
-                                // Handle PDFs - DO NOT CONVERT TO IMAGES
+                                // Handle PDFs - Extract actual content instead of placeholder
                                 if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
                                     updateCompressionProgress(baseProgress + 40, `Processing PDF ${i + 1}...`);
                                     
-                                    // Store PDF on Render disk backend, NOT as base64
-                                    documentData.fileType = 'application/pdf';
-                                    documentData.originalType = 'application/pdf';
-                                    documentData.convertedType = null; // NOT converted
-                                    documentData.pageCount = 1; // We'll get actual count later if needed
+                                    // Use PDF renderer to extract actual content
+                                    if (window.pdfRenderer) {
+                                        try {
+                                            console.log('🎨 Rendering PDF pages...');
+                                            const pdfResult = await window.pdfRenderer.processPDF(file);
+                                            
+                                            // Store the full PDF data
+                                            documentData.data = pdfResult.fullPdfData; // Full PDF as base64
+                                            documentData.fileType = 'application/pdf';
+                                            documentData.originalType = 'application/pdf';
+                                            documentData.convertedType = null;
+                                            documentData.pageCount = pdfResult.pageCount;
+                                            
+                                            // Store rendered first page as preview
+                                            documentData.preview = pdfResult.alertThumbnail || pdfResult.pageImages[0];
+                                            
+                                            // Store all page images for multi-page preview
+                                            documentData.pageImages = pdfResult.pageImages;
+                                            
+                                            // Keep file reference for disk upload if needed
+                                            documentData.originalFile = file;
+                                            documentData.file = file;
+                                            
+                                            console.log(`✅ PDF rendered: ${file.name}, ${pdfResult.pageCount} pages`);
+                                            
+                                        } catch (renderError) {
+                                            console.error('Failed to render PDF:', renderError);
+                                            // Fallback: read as base64 without rendering
+                                            const reader = new FileReader();
+                                            const base64 = await new Promise((resolve, reject) => {
+                                                reader.onload = e => resolve(e.target.result);
+                                                reader.onerror = reject;
+                                                reader.readAsDataURL(file);
+                                            });
+                                            documentData.data = base64;
+                                            documentData.preview = base64; // Use PDF itself as preview
+                                            documentData.fileType = 'application/pdf';
+                                            documentData.originalFile = file;
+                                            documentData.file = file;
+                                        }
+                                    } else {
+                                        // Fallback if renderer not available
+                                        console.warn('PDF renderer not available, reading as base64');
+                                        const reader = new FileReader();
+                                        const base64 = await new Promise((resolve, reject) => {
+                                            reader.onload = e => resolve(e.target.result);
+                                            reader.onerror = reject;
+                                            reader.readAsDataURL(file);
+                                        });
+                                        documentData.data = base64;
+                                        documentData.preview = base64;
+                                        documentData.fileType = 'application/pdf';
+                                        documentData.originalFile = file;
+                                        documentData.file = file;
+                                    }
                                     
-                                    // Store the actual file reference for disk upload
-                                    documentData.originalFile = file; // Keep the actual File object (backend expects 'originalFile')
-                                    documentData.file = file; // Also keep as 'file' for backward compatibility
-                                    documentData.data = null; // Don't store base64 - will upload to disk instead
-                                    documentData.pendingDiskUpload = true; // Flag for disk upload
-                                    
-                                    // Create a simple preview for UI display only
-                                    // Alert thumbnail will be generated later when documents are processed
-                                    const canvas = document.createElement('canvas');
-                                    canvas.width = 400;
-                                    canvas.height = 500;
-                                    const ctx = canvas.getContext('2d');
-                                    
-                                    // White background
-                                    ctx.fillStyle = '#f8f9fa';
-                                    ctx.fillRect(0, 0, 400, 500);
-                                    
-                                    // Border
-                                    ctx.strokeStyle = '#dee2e6';
-                                    ctx.lineWidth = 1;
-                                    ctx.strokeRect(10, 10, 380, 480);
-                                    
-                                    // PDF icon
-                                    ctx.fillStyle = '#6c757d';
-                                    ctx.font = '48px Arial';
-                                    ctx.textAlign = 'center';
-                                    ctx.fillText('📄', 200, 150);
-                                    
-                                    // File name
-                                    ctx.fillStyle = '#212529';
-                                    ctx.font = '18px Arial';
-                                    const maxLen = 35;
-                                    const displayName = file.name.length > maxLen ? 
-                                        file.name.substring(0, maxLen - 3) + '...' : file.name;
-                                    ctx.fillText(displayName, 200, 220);
-                                    
-                                    // File size
-                                    ctx.fillStyle = '#6c757d';
-                                    ctx.font = '14px Arial';
-                                    ctx.fillText(`${Math.round(file.size / 1024)} KB`, 200, 250);
-                                    
-                                    // Status
-                                    ctx.fillStyle = '#28a745';
-                                    ctx.font = '16px Arial';
-                                    ctx.fillText('✓ Uploaded', 200, 300);
-                                    
-                                    documentData.preview = canvas.toDataURL('image/png', 0.7);
-                                    
-                                    console.log(`PDF stored as-is: ${file.name}, ${documentData.pageCount} pages`);
+                                    console.log(`PDF processed: ${file.name}, has data: ${!!documentData.data}, has preview: ${!!documentData.preview}`);
                                     
                                 // Handle Word docs - these DO need conversion
                                 } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
@@ -22385,13 +22389,25 @@ document.addEventListener('keydown', function(event) {
                     
                     updateCompressionProgress(90, 'Creating alert thumbnail...');
                     
-                    // Generate alert thumbnail from first page with legal notice overlay
-                    if (window.createAlertImageAtTransaction && uploadedImage) {
+                    // Use existing alert thumbnail if already created, or generate new one
+                    if (uploadedImage) {
                         try {
-                            const documentData = uploadedImage.data || uploadedImage.fullDocument;
-                            const alertImage = await window.createAlertImageAtTransaction(documentData);
-                            uploadedImage.alertThumbnail = alertImage;
-                            window.uploadedImage.alertThumbnail = alertImage;
+                            // If we already have a preview from PDF rendering, use it
+                            if (uploadedImage.preview && uploadedImage.preview.startsWith('data:image')) {
+                                uploadedImage.alertThumbnail = uploadedImage.preview;
+                                window.uploadedImage.alertThumbnail = uploadedImage.preview;
+                                console.log('✅ Using rendered PDF preview as alert thumbnail');
+                            } 
+                            // Otherwise try to generate one
+                            else if (window.createAlertImageAtTransaction) {
+                                const documentData = uploadedImage.data || uploadedImage.fullDocument;
+                                if (documentData) {
+                                    const alertImage = await window.createAlertImageAtTransaction(documentData);
+                                    uploadedImage.alertThumbnail = alertImage;
+                                    window.uploadedImage.alertThumbnail = alertImage;
+                                    console.log('✅ Generated alert thumbnail from document');
+                                }
+                            }
                             
                             // Store alert thumbnail in backend
                             if (window.simpleImageSystem) {
