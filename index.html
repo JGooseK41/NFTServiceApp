@@ -146,8 +146,8 @@
     <!-- PROPER PDF HANDLER - Actually renders PDF content -->
     <!-- Disabled: was adding alert overlay during upload instead of at transaction time -->
     <!-- <script src="js/proper-pdf-handler.js"></script> -->
-    <!-- PDF RENDERER - Extracts actual PDF pages instead of placeholders -->
-    <script src="js/pdf-renderer.js"></script>
+    <!-- Simple PDF Handler - Efficient PDF processing -->
+    <script src="js/pdf-simple-handler.js"></script>
     
     <!-- PDF Preserve Handler - keeps PDFs as PDFs, creates alert image only at transaction time -->
     <script src="js/pdf-preserve-handler.js"></script>
@@ -21463,67 +21463,60 @@ document.addEventListener('keydown', function(event) {
                                     order: window.uploadedDocumentsList.length
                                 };
                                 
-                                // Handle PDFs - Extract actual content instead of placeholder
+                                // Handle PDFs - Simple processing for efficiency
                                 if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
                                     updateCompressionProgress(baseProgress + 40, `Processing PDF ${i + 1}...`);
                                     
-                                    // Use PDF renderer to extract actual content
-                                    if (window.pdfRenderer) {
+                                    // Use simple PDF handler
+                                    if (window.simplePDFHandler) {
                                         try {
-                                            console.log('🎨 Rendering PDF pages...');
-                                            const pdfResult = await window.pdfRenderer.processPDF(file);
+                                            const pdfResult = await window.simplePDFHandler.processPDF(file);
                                             
-                                            // Store the full PDF data
-                                            documentData.data = pdfResult.fullPdfData; // Full PDF as base64
+                                            // Store PDF data for IPFS upload
+                                            documentData.data = pdfResult.pdfData; // PDF as base64 for IPFS
                                             documentData.fileType = 'application/pdf';
                                             documentData.originalType = 'application/pdf';
-                                            documentData.convertedType = null;
-                                            documentData.pageCount = pdfResult.pageCount;
                                             
-                                            // Store rendered first page as preview
-                                            documentData.preview = pdfResult.alertThumbnail || pdfResult.pageImages[0];
+                                            // Store thumbnail (first page with overlay)
+                                            documentData.preview = pdfResult.thumbnail;
+                                            documentData.alertThumbnail = pdfResult.thumbnail;
                                             
-                                            // Store all page images for multi-page preview
-                                            documentData.pageImages = pdfResult.pageImages;
-                                            
-                                            // Keep file reference for disk upload if needed
+                                            // Keep file reference for disk upload
                                             documentData.originalFile = file;
                                             documentData.file = file;
                                             
-                                            console.log(`✅ PDF rendered: ${file.name}, ${pdfResult.pageCount} pages`);
+                                            console.log(`✅ PDF processed: ${file.name}`);
                                             
-                                        } catch (renderError) {
-                                            console.error('Failed to render PDF:', renderError);
-                                            // Fallback: read as base64 without rendering
+                                        } catch (error) {
+                                            console.error('PDF processing error:', error);
+                                            // Fallback: just read the PDF
                                             const reader = new FileReader();
-                                            const base64 = await new Promise((resolve, reject) => {
+                                            documentData.data = await new Promise((resolve, reject) => {
                                                 reader.onload = e => resolve(e.target.result);
                                                 reader.onerror = reject;
                                                 reader.readAsDataURL(file);
                                             });
-                                            documentData.data = base64;
-                                            documentData.preview = base64; // Use PDF itself as preview
+                                            documentData.preview = null; // Will create placeholder later
                                             documentData.fileType = 'application/pdf';
                                             documentData.originalFile = file;
                                             documentData.file = file;
                                         }
                                     } else {
-                                        // Fallback if renderer not available
-                                        console.warn('PDF renderer not available, reading as base64');
+                                        // No handler available - just read the file
+                                        console.log('Simple handler not available, reading PDF directly');
                                         const reader = new FileReader();
-                                        const base64 = await new Promise((resolve, reject) => {
+                                        documentData.data = await new Promise((resolve, reject) => {
                                             reader.onload = e => resolve(e.target.result);
                                             reader.onerror = reject;
                                             reader.readAsDataURL(file);
                                         });
-                                        documentData.data = base64;
-                                        documentData.preview = base64;
+                                        documentData.preview = null;
                                         documentData.fileType = 'application/pdf';
                                         documentData.originalFile = file;
                                         documentData.file = file;
                                     }
                                     
-                                    console.log(`PDF processed: ${file.name}, has data: ${!!documentData.data}, has preview: ${!!documentData.preview}`);
+                                    console.log(`PDF stored: ${file.name}, has data: ${!!documentData.data}, has thumbnail: ${!!documentData.preview}`);
                                     
                                 // Handle Word docs - these DO need conversion
                                 } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
