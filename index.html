@@ -21977,12 +21977,14 @@ document.addEventListener('keydown', function(event) {
         }
         
         // Old processDocuments function - removed, using multiDocHandler.compileDocuments() instead
-        /*
+        /* Commented out old code - removed for simplicity
             if (window.uploadedDocumentsList.length === 0) {
                 uiManager.showNotification('warning', 'No documents to process');
                 return;
             }
-            
+        */
+        
+        /* REMOVED OLD DUPLICATE processDocuments function - everything below was duplicate
             try {
                 // Show processing status
                 document.getElementById('compressionStatus').style.display = 'block';
@@ -22213,6 +22215,8 @@ document.addEventListener('keydown', function(event) {
                 document.getElementById('compressionStatus').style.display = 'none';
             }
         }
+        END OF REMOVED DUPLICATE CODE */
+        
         window.openAuditModal = openAuditModal;
         window.closeAuditModal = closeAuditModal;
         window.openAcceptModal = openAcceptModal;
