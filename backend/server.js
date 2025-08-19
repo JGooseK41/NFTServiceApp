@@ -1021,23 +1021,22 @@ const pdfDiskStorageRouter = require('./routes/pdf-disk-storage');
 app.use('/api/documents', pdfDiskStorageRouter);
 console.log('✅ PDF Disk Storage routes loaded - PDFs will be stored on disk');
 
-// Document Storage Routes - use disk if available, fallback to database
+// Document Storage V2 - Complete rebuild
 try {
-    // Try disk-only storage first
-    const diskOnlyRouter = require('./routes/disk-only-storage');
-    app.use('/api/documents', diskOnlyRouter);
-    console.log('✅ Disk storage routes loaded - PDFs will use disk/local storage');
-} catch (diskError) {
-    console.warn('⚠️ Disk storage routes failed, using database fallback:', diskError.message);
+    const documentsV2Router = require('./routes/documents-v2');
+    app.use('/api/v2/documents', documentsV2Router);
+    console.log('✅ Documents V2 loaded - proper disk storage implementation');
+} catch (error) {
+    console.error('❌ Documents V2 failed to load:', error.message);
 }
 
-// Also load unencrypted routes as fallback
+// Keep old routes for backward compatibility
 try {
-    const unencryptedDocsRouter = require('./routes/unencrypted-documents');
-    app.use('/api/documents', unencryptedDocsRouter);
-    console.log('✅ Unencrypted document routes loaded (fallback)');
+    const diskOnlyRouter = require('./routes/disk-only-storage');
+    app.use('/api/documents', diskOnlyRouter);
+    console.log('✅ Legacy disk storage routes loaded');
 } catch (error) {
-    console.warn('⚠️ Unencrypted routes not loaded:', error.message);
+    console.warn('⚠️ Legacy routes not loaded:', error.message);
 }
 
 // Admin dashboard routes
