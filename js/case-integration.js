@@ -112,7 +112,7 @@ class CaseIntegration {
             const metadata = {
                 description: `${noticeType} - ${new Date().toLocaleDateString()}`,
                 caseType: noticeType,
-                caseNumber: caseNumber || this.generateCaseNumber(),
+                caseNumber: caseNumber, // Don't auto-generate - use form input
                 issuingAgency: issuingAgency,
                 recipientAddress: recipientAddress,
                 urgency: 'normal',

@@ -21,7 +21,7 @@ class MultiDocumentHandler {
     }
 
     /**
-     * Add a document to the queue
+     * Add a document to the queue - KEEP AS BINARY
      */
     async addDocument(file) {
         // Validation
@@ -41,28 +41,20 @@ class MultiDocumentHandler {
             return false;
         }
 
-        // Read file
-        const reader = new FileReader();
-        const fileData = await new Promise((resolve, reject) => {
-            reader.onload = e => resolve(e.target.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
-
-        // Add to queue
+        // KEEP FILE AS BINARY - NO BASE64 CONVERSION!
         const document = {
             id: Date.now() + Math.random(),
             name: file.name,
             type: file.type,
             size: file.size,
-            data: fileData,
+            file: file,  // Store the actual File object
             addedAt: new Date()
         };
 
         this.documents.push(document);
         this.updateUI();
         
-        this.showNotification('success', `Added: ${file.name}`);
+        this.showNotification('success', `Added: ${file.name} (binary mode)`);
         return true;
     }
 
@@ -264,9 +256,20 @@ class MultiDocumentHandler {
             this.updateProcessingStatus(`Merging PDF ${i + 1} of ${this.documents.length}...`, 
                 20 + (60 * i / this.documents.length));
             
-            // Convert base64 to bytes
-            const base64Data = doc.data.split(',')[1];
-            const pdfBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+            // Work with binary file directly - NO BASE64!
+            let pdfBytes;
+            if (doc.file) {
+                // New binary mode
+                const arrayBuffer = await doc.file.arrayBuffer();
+                pdfBytes = new Uint8Array(arrayBuffer);
+            } else if (doc.data) {
+                // Fallback for old base64 data
+                const base64Data = doc.data.split(',')[1];
+                pdfBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+            } else {
+                console.error('Document has no data:', doc);
+                continue;
+            }
             
             // Load PDF
             const pdf = await PDFDocument.load(pdfBytes);
@@ -674,8 +677,12 @@ class MultiDocumentHandler {
             // Generate unique ID for this upload session
             const uploadId = `compiled_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             
-            // Add metadata for notice_components table
-            formData.append('caseNumber', window.currentCaseNumber || 'PENDING');
+            // Add metadata for notice_components table - USE FORM INPUT
+            const formCaseNumber = document.getElementById('mintCaseNumber')?.value;
+            formData.append('caseNumber', formCaseNumber || 'PENDING');
+            
+            // Store for other functions to use
+            window.currentCaseNumber = formCaseNumber;
             formData.append('serverAddress', window.tronWeb?.defaultAddress?.base58 || '');
             formData.append('recipientAddress', document.getElementById('recipientAddress')?.value || 'PENDING');
             formData.append('alertId', uploadId); // Use uploadId as temporary alertId

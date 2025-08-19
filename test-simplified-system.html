@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Simplified PDF System</title>
+    <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+</head>
+<body>
+    <h1>Test Simplified PDF System</h1>
+    
+    <div>
+        <h2>Step 1: Enter Case Number</h2>
+        <input type="text" id="mintCaseNumber" value="CASE-2024-TEST-001" style="width: 300px; padding: 5px;">
+    </div>
+    
+    <div style="margin-top: 20px;">
+        <h2>Step 2: Upload Multiple PDFs</h2>
+        <input type="file" id="fileInput" multiple accept=".pdf" />
+        <button onclick="testUpload()">Upload PDFs</button>
+    </div>
+    
+    <div style="margin-top: 20px;">
+        <h2>Step 3: Preview Merged Document</h2>
+        <button onclick="testPreview()">Preview Merged PDF</button>
+    </div>
+    
+    <div id="output" style="margin-top: 20px; padding: 20px; background: #f0f0f0;"></div>
+
+    <script>
+        // Mock the backend URL
+        window.BACKEND_API_URL = 'https://nftserviceapp.onrender.com';
+        
+        // Mock documents for testing
+        window.uploadedDocumentsList = [];
+        window.multiDocHandler = {
+            documents: [],
+            compileDocuments: async function() {
+                console.log('Compiling documents...');
+                return { success: true };
+            }
+        };
+        
+        async function testUpload() {
+            const files = document.getElementById('fileInput').files;
+            if (files.length === 0) {
+                alert('Please select PDF files');
+                return;
+            }
+            
+            // Read files and add to mock handler
+            for (let file of files) {
+                const reader = new FileReader();
+                const data = await new Promise((resolve) => {
+                    reader.onload = e => resolve(e.target.result);
+                    reader.readAsDataURL(file);
+                });
+                
+                window.multiDocHandler.documents.push({
+                    name: file.name,
+                    data: data,
+                    size: file.size,
+                    type: 'application/pdf'
+                });
+            }
+            
+            document.getElementById('output').innerHTML = `
+                <h3>✅ Uploaded ${files.length} PDF(s)</h3>
+                <ul>
+                    ${Array.from(files).map(f => `<li>${f.name} (${(f.size/1024).toFixed(1)} KB)</li>`).join('')}
+                </ul>
+            `;
+        }
+        
+        async function testPreview() {
+            if (window.multiDocHandler.documents.length === 0) {
+                alert('No documents to preview');
+                return;
+            }
+            
+            // Test the simple PDF handler
+            if (window.PDFLib) {
+                const { PDFDocument } = window.PDFLib;
+                const mergedPdf = await PDFDocument.create();
+                
+                let totalPages = 0;
+                for (let doc of window.multiDocHandler.documents) {
+                    const base64Data = doc.data.split(',')[1];
+                    const pdfBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+                    const pdf = await PDFDocument.load(pdfBytes);
+                    const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+                    pages.forEach(page => mergedPdf.addPage(page));
+                    totalPages += pages.length;
+                }
+                
+                const mergedBytes = await mergedPdf.save();
+                const blob = new Blob([mergedBytes], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+                
+                // Show in iframe
+                document.getElementById('output').innerHTML = `
+                    <h3>✅ Merged PDF Preview</h3>
+                    <p>Case Number: ${document.getElementById('mintCaseNumber').value}</p>
+                    <p>Total Pages: ${totalPages}</p>
+                    <p>Documents: ${window.multiDocHandler.documents.length}</p>
+                    <iframe src="${url}" style="width: 100%; height: 600px; border: 1px solid #ccc;"></iframe>
+                `;
+            } else {
+                alert('PDF library not loaded');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -252,18 +252,10 @@
     <!-- Cleanup Test Cases -->
     <!-- <script src="js/cleanup-test-cases.js?v=1"></script> Removed: test script -->
     <!-- Multi-document upload handler -->
-    <script src="js/multi-document-handler.js?v=1"></script>
-    <!-- Simple PDF Preview - Shows actual PDF from backend -->
-    <script src="js/simple-pdf-preview.js"></script>
-    <!-- Alert Thumbnail Generator - Creates proper Alert NFT thumbnails -->
-    <script src="js/alert-thumbnail-generator.js"></script>
-    <!-- Unified Preview System - Clean, consistent document preview -->
-    <script src="js/unified-preview-system.js"></script>
-    <!-- Fix Critical Issues - Case numbers and preview -->
-    <script src="js/fix-critical-issues.js"></script>
-    <!-- Fix Preview Pages - Show all actual PDF pages -->
-    <script src="js/fix-preview-pages.js"></script>
+    <script src="js/multi-document-handler.js?v=2"></script>
     <script src="js/multi-document-mode-toggle.js?v=1"></script>
+    <script src="js/simple-pdf-handler.js?v=1"></script>
+    <script src="js/binary-pdf-handler.js?v=1"></script>
     <script src="js/unified-notice-system.js?v=11"></script>
     <script src="js/document-access-control.js?v=1"></script>
     <script src="js/audit-tracker.js?v=1"></script>
@@ -21962,247 +21954,30 @@ document.addEventListener('keydown', function(event) {
             return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
         }
         
-        // Preview merged document - shows ALL pages
+        // Preview merged document - shows actual PDF
         async function previewMergedDocument() {
-            if (window.uploadedDocumentsList.length === 0) {
-                uiManager.showNotification('warning', 'No documents to preview');
-                return;
-            }
-            
             try {
-                // Show loading
-                uiManager.showNotification('info', 'Generating full preview...');
-                
-                // Sort documents by order
-                const sortedDocs = [...window.uploadedDocumentsList].sort((a, b) => a.order - b.order);
-                
-                // Calculate total pages
-                const totalPages = sortedDocs.reduce((sum, doc) => sum + (doc.pageCount || 1), 0);
-                
-                // Create preview modal
-                const modal = document.createElement('div');
-                modal.className = 'modal';
-                modal.style.display = 'block';
-                modal.innerHTML = `
-                    <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
-                        <div class="modal-header">
-                            <h3>Full Document Preview - ${sortedDocs.length} Document(s), ${totalPages} Total Page(s)</h3>
-                            <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
-                        </div>
-                        <div class="modal-body">
-                            <!-- Alert NFT Thumbnail Preview -->
-                            <div style="background: #e3f2fd; border: 2px solid #2196f3; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
-                                <h4 style="color: #1565c0; margin-bottom: 15px;">
-                                    <i class="fas fa-wallet"></i> Alert NFT Preview - What Recipients Will See in Their Wallet
-                                </h4>
-                                <div style="display: flex; gap: 20px; align-items: start;">
-                                    <div style="flex: 0 0 250px;">
-                                        <div style="background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                                            ${sortedDocs[0] && sortedDocs[0].preview ? 
-                                                `<img src="${sortedDocs[0].preview}" style="width: 100%; height: auto; border-radius: 4px;">
-                                                <p style="text-align: center; margin-top: 10px; font-size: 0.85rem; color: #666;">
-                                                    Alert NFT Thumbnail<br>
-                                                    <small>(Generated from first document, page 1)</small>
-                                                </p>` :
-                                                `<div style="height: 250px; display: flex; align-items: center; justify-content: center; background: #f5f5f5; border-radius: 4px;">
-                                                    <div style="text-align: center;">
-                                                        <i class="fas fa-image" style="font-size: 48px; color: #ccc;"></i>
-                                                        <p style="margin-top: 10px; color: #999;">No preview available</p>
-                                                    </div>
-                                                </div>`
-                                            }
-                                        </div>
-                                    </div>
-                                    <div style="flex: 1;">
-                                        <h5 style="color: #1565c0; margin-bottom: 10px;">About the Alert NFT:</h5>
-                                        <ul style="margin: 0; padding-left: 20px; color: #555;">
-                                            <li>This thumbnail will appear in the recipient's TronLink wallet</li>
-                                            <li>It's generated from the <strong>first page of the first document</strong></li>
-                                            <li>Recipients click this to view the full encrypted document</li>
-                                            <li style="color: #d32f2f; font-weight: 600;">
-                                                <i class="fas fa-exclamation-circle"></i> 
-                                                To change the thumbnail, reorder documents so your preferred page is first
-                                            </li>
-                                        </ul>
-                                        ${sortedDocs.length > 1 ? 
-                                            `<div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 4px;">
-                                                <i class="fas fa-lightbulb" style="color: #856404;"></i>
-                                                <span style="color: #856404;">
-                                                    <strong>Tip:</strong> Use the up/down arrows to reorder documents and change which page becomes the thumbnail.
-                                                </span>
-                                            </div>` : ''
-                                        }
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div style="background: #fffbf0; border: 2px solid #f0ad4e; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-                                <h4 style="color: #8a6d3b; margin-bottom: 10px;">
-                                    <i class="fas fa-exclamation-triangle"></i> Important: All Pages Will Be Uploaded
-                                </h4>
-                                <p style="color: #8a6d3b; margin: 0;">
-                                    This preview shows the first page of each document for brevity, but <strong>ALL ${totalPages} pages</strong> 
-                                    from all documents will be encrypted and uploaded to the blockchain. The full document data has been 
-                                    extracted and will be securely stored.
-                                </p>
-                            </div>
-                            
-                            <p style="color: var(--text-muted); margin-bottom: 20px;">
-                                Documents will be merged in this order when encrypted:
-                            </p>
-                            
-                            <!-- Full Document Preview as Continuous Scroll -->
-                            <div style="background: white; border: 2px solid var(--border-color); border-radius: 8px; padding: 20px; margin-bottom: 20px;">
-                                <h4 style="color: var(--text-primary); margin-bottom: 15px; text-align: center;">
-                                    <i class="fas fa-file-alt"></i> Complete Document Preview - Scroll to Review All Pages
-                                </h4>
-                                <div style="text-align: center; margin-bottom: 15px; color: var(--text-muted);">
-                                    Total: ${totalPages} content page(s) from ${sortedDocs.length} document(s)
-                                    ${sortedDocs.length > 1 ? `<br><small>(Plus ${sortedDocs.length - 1} separator page(s) between documents)</small>` : ''}
-                                </div>
-                                
-                                <!-- Single combined document view -->
-                                <div style="max-height: 600px; overflow-y: auto; border: 1px solid #ddd; background: #f5f5f5; padding: 20px;">
-                                    <div style="background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                                        ${(() => {
-                                            let pageCounter = 0;
-                                            let allPagesHtml = [];
-                                            
-                                            // Collect all pages from all documents into a single array
-                                            sortedDocs.forEach((doc, docIndex) => {
-                                                // Add separator page between documents (except before first document)
-                                                if (docIndex > 0) {
-                                                    pageCounter++;
-                                                    allPagesHtml.push(`
-                                                        <div style="page-break-after: always; min-height: 1100px; padding: 40px; position: relative; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                                                            <div style="position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.9); color: #333; padding: 5px 10px; border-radius: 4px; font-size: 0.8rem;">
-                                                                Page ${pageCounter} of ${totalPages + sortedDocs.length - 1}
-                                                            </div>
-                                                            <div style="display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column;">
-                                                                <div style="text-align: center; color: white;">
-                                                                    <i class="fas fa-file-import" style="font-size: 64px; margin-bottom: 30px; opacity: 0.9;"></i>
-                                                                    <h2 style="font-size: 2.5rem; margin-bottom: 20px; font-weight: 300;">DOCUMENT ${docIndex + 1}</h2>
-                                                                    <div style="width: 100px; height: 2px; background: white; margin: 20px auto;"></div>
-                                                                    <p style="font-size: 1.2rem; margin-bottom: 10px; font-weight: 600;">
-                                                                        ${doc.fileName}
-                                                                    </p>
-                                                                    <p style="font-size: 1rem; opacity: 0.9;">
-                                                                        ${doc.pageCount > 1 ? `${doc.pageCount} pages` : '1 page'} • ${formatFileSize(doc.fileSize)}
-                                                                    </p>
-                                                                    <p style="font-size: 0.9rem; margin-top: 30px; opacity: 0.8;">
-                                                                        The following ${doc.pageCount > 1 ? 'pages contain' : 'page contains'} the content of this document
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    `);
-                                                }
-                                                
-                                                const pagesToShow = doc.allPages && doc.allPages.length > 0 ? doc.allPages : 
-                                                                   (doc.preview ? [doc.preview] : []);
-                                                
-                                                if (pagesToShow.length === 0) {
-                                                    pageCounter++;
-                                                    allPagesHtml.push(`
-                                                        <div style="page-break-after: always; min-height: 1100px; padding: 40px; position: relative;">
-                                                            <div style="position: absolute; top: 10px; right: 10px; color: #999; font-size: 0.8rem;">
-                                                                Page ${pageCounter} of ${totalPages + sortedDocs.length - 1}
-                                                            </div>
-                                                            <div style="display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column;">
-                                                                <i class="fas fa-file" style="font-size: 48px; color: #ccc;"></i>
-                                                                <p style="margin-top: 10px; color: #999;">Preview not available</p>
-                                                                <p style="font-size: 0.8rem; color: #999;">${doc.fileName}</p>
-                                                            </div>
-                                                        </div>
-                                                    `);
-                                                } else {
-                                                    pagesToShow.forEach((pageImg, pageIndex) => {
-                                                        pageCounter++;
-                                                        allPagesHtml.push(`
-                                                            <div style="page-break-after: always; position: relative;">
-                                                                <!-- Page number in corner -->
-                                                                <div style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); color: white; padding: 5px 10px; border-radius: 4px; font-size: 0.8rem; z-index: 10;">
-                                                                    Page ${pageCounter} of ${totalPages + sortedDocs.length - 1}
-                                                                </div>
-                                                                
-                                                                <!-- Page content - full bleed -->
-                                                                <img src="${pageImg}" style="width: 100%; height: auto; display: block;">
-                                                                
-                                                                <!-- Page break line (except for last page) -->
-                                                                ${pageCounter < totalPages + sortedDocs.length - 1 ? 
-                                                                    `<div style="border-bottom: 1px dashed #ccc; margin: 20px 0;"></div>` : ''
-                                                                }
-                                                            </div>
-                                                        `);
-                                                    });
-                                                }
-                                            });
-                                            
-                                            return allPagesHtml.join('');
-                                        })()}
-                                    </div>
-                                </div>
-                                
-                                <div style="text-align: center; margin-top: 15px; color: var(--text-muted);">
-                                    <i class="fas fa-info-circle"></i> This is exactly how the document will appear when decrypted by the recipient
-                                </div>
-                            </div>
-                            
-                            <!-- Document List Summary -->
-                            ${sortedDocs.map((doc, docIndex) => `
-                                <div style="margin-bottom: 15px; padding: 15px; background: var(--card-bg); border-radius: 8px;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <div>
-                                            <strong>Document ${docIndex + 1}:</strong> ${doc.fileName}
-                                            ${doc.pageCount > 1 ? 
-                                                `<span style="background: #28a745; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; margin-left: 10px;">
-                                                    ${doc.pageCount} pages
-                                                </span>` : ''
-                                            }
-                                        </div>
-                                        <div style="font-size: 0.85rem; color: var(--text-muted);">
-                                            ${formatFileSize(doc.fileSize)}
-                                        </div>
-                                    </div>
-                                    ${doc.data ? 
-                                        `<div style="margin-top: 5px; font-size: 0.85rem; color: #28a745;">
-                                            <i class="fas fa-check-circle"></i> Data loaded successfully
-                                        </div>` : ''
-                                    }
-                                </div>
-                            `).join('')}
-                            
-                            <div style="background: #d4edda; border: 1px solid #c3e6cb; border-radius: 8px; padding: 15px; margin-top: 20px;">
-                                <h5 style="color: #155724; margin-bottom: 10px;">
-                                    <i class="fas fa-info-circle"></i> Summary
-                                </h5>
-                                <ul style="margin: 0; padding-left: 20px; color: #155724;">
-                                    <li>Total Documents: ${sortedDocs.length}</li>
-                                    <li>Total Pages: ${totalPages}</li>
-                                    <li>Total Size: ${formatFileSize(sortedDocs.reduce((sum, doc) => sum + doc.fileSize, 0))}</li>
-                                    <li>All pages from all documents will be encrypted and uploaded</li>
-                                </ul>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
-                            <button class="btn btn-primary" onclick="this.closest('.modal').remove(); processDocuments()">
-                                <i class="fas fa-file-export"></i> Process & Encrypt All ${totalPages} Pages
-                            </button>
-                        </div>
-                    </div>
-                `;
-                
-                document.body.appendChild(modal);
-                
+                // Use the simple PDF handler for direct preview
+                await window.previewMergedDocumentSimple();
             } catch (error) {
-                console.error('Error generating preview:', error);
-                uiManager.showNotification('error', 'Failed to generate preview');
+                console.error('Preview error:', error);
+                uiManager.showNotification('error', 'Failed to preview: ' + error.message);
+            }
+            return;
+        }
+        
+        // Removed old complex preview code - now using simple handler
+        
+        // Process documents - simplified
+        async function processDocuments() {
+            // Use the multi-document handler's compile function
+            if (window.multiDocHandler) {
+                await window.multiDocHandler.compileDocuments();
             }
         }
         
-        // Process documents for encryption
-        async function processDocuments() {
+        // Old processDocuments function - removed, using multiDocHandler.compileDocuments() instead
+        /*
             if (window.uploadedDocumentsList.length === 0) {
                 uiManager.showNotification('warning', 'No documents to process');
                 return;
