@@ -271,8 +271,8 @@ class MultiDocumentHandler {
                 continue;
             }
             
-            // Load PDF
-            const pdf = await PDFDocument.load(pdfBytes);
+            // Load PDF - handle encrypted PDFs
+            const pdf = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
             const pageCount = pdf.getPageCount();
             console.log(`Document ${i + 1}: ${doc.name} has ${pageCount} pages`);
             

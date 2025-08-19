@@ -40,8 +40,8 @@ class SimplePDFHandler {
                 continue;
             }
             
-            // Load and copy pages
-            const pdf = await PDFDocument.load(pdfBytes);
+            // Load and copy pages - handle encrypted PDFs
+            const pdf = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
             const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
             
             // Add separator page between documents (not before first)
