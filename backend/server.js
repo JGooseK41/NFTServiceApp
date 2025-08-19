@@ -1020,10 +1020,10 @@ const pdfDiskStorageRouter = require('./routes/pdf-disk-storage');
 app.use('/api/documents', pdfDiskStorageRouter);
 console.log('✅ PDF Disk Storage routes loaded - PDFs will be stored on disk');
 
-// Unencrypted Document Storage - for case manager access
-const unencryptedDocsRouter = require('./routes/unencrypted-documents');
-app.use('/api/documents', unencryptedDocsRouter);
-console.log('✅ Unencrypted document routes loaded - process servers can view documents');
+// Disk-Only Document Storage - efficient storage for large PDFs
+const diskOnlyRouter = require('./routes/disk-only-storage');
+app.use('/api/documents', diskOnlyRouter);
+console.log('✅ Disk-only storage routes loaded - PDFs stored on disk, not database');
 
 // Admin dashboard routes
 const adminDashboardRouter = require('./routes/admin-dashboard');

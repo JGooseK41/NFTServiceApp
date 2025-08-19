@@ -78,12 +78,13 @@ window.viewCaseDocument = async function(caseId, documentId) {
         const backend = window.BACKEND_API_URL || 'https://nftserviceapp.onrender.com';
         const serverAddress = window.tronWeb?.defaultAddress?.base58 || '';
         
-        // Try multiple endpoints to find the document
+        // Try disk storage first, then fallback to other endpoints
         const endpoints = [
+            `/api/documents/case/${documentId}`,  // Disk storage endpoint
+            `/api/documents/serve/${documentId}`,  // Direct file serve
             `/api/documents/notice/${documentId}/unencrypted`,
             `/api/documents/notice/${documentId}/full`,
-            `/api/documents/${documentId}/document`,
-            `/api/cases/${caseId}/documents/${documentId}`
+            `/api/documents/${documentId}/document`
         ];
         
         let documentData = null;
@@ -119,16 +120,29 @@ window.viewCaseDocument = async function(caseId, documentId) {
                 const data = documentData.documentData || documentData.document_data;
                 const mimeType = documentData.mimeType || documentData.mime_type || 'application/pdf';
                 
-                if (mimeType === 'application/pdf' || data.startsWith('data:application/pdf')) {
-                    // Display PDF in iframe
-                    docContainer.innerHTML = `
-                        <iframe src="${data}" style="
-                            width: 100%;
-                            height: 100%;
-                            border: none;
-                            background: white;
-                        "></iframe>
-                    `;
+                if (mimeType === 'application/pdf') {
+                    // For disk-stored PDFs, use the serve endpoint
+                    if (documentData.filePath || documentData.fileId) {
+                        const servePath = documentData.filePath || `/api/documents/serve/${documentData.fileId}`;
+                        docContainer.innerHTML = `
+                            <iframe src="${backend}${servePath}" style="
+                                width: 100%;
+                                height: 100%;
+                                border: none;
+                                background: white;
+                            "></iframe>
+                        `;
+                    } else if (data.startsWith('data:application/pdf')) {
+                        // Fallback for base64 PDFs (shouldn't happen with disk storage)
+                        docContainer.innerHTML = `
+                            <iframe src="${data}" style="
+                                width: 100%;
+                                height: 100%;
+                                border: none;
+                                background: white;
+                            "></iframe>
+                        `;
+                    }
                 } else if (mimeType.startsWith('image/') || data.startsWith('data:image')) {
                     // Display image
                     docContainer.innerHTML = `

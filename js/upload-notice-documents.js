@@ -69,48 +69,50 @@ async function uploadNoticeDocuments(noticeData, maxRetries = 3) {
                                                          doc.fileName?.toLowerCase().endsWith('.pdf')));
                 
                 if (pdfDoc) {
-                    // Upload thumbnail (alert image) - this should be the rendered first page
-                    if (pdfDoc.preview && pdfDoc.preview.startsWith('data:image')) {
-                        console.log('✅ Using rendered PDF page as thumbnail');
-                        const thumbnailBlob = await dataURLtoBlob(pdfDoc.preview);
-                        formData.append('thumbnail', thumbnailBlob, 'thumbnail.png');
-                    } else if (pdfDoc.alertThumbnail) {
-                        console.log('✅ Using alert thumbnail');
-                        const thumbnailBlob = await dataURLtoBlob(pdfDoc.alertThumbnail);
-                        formData.append('thumbnail', thumbnailBlob, 'thumbnail.png');
+                    // PDFs should already be on disk if processed correctly
+                    if (pdfDoc.storedOnDisk && pdfDoc.diskPath) {
+                        console.log('✅ PDF already stored on disk');
+                        formData.append('documentDiskPath', pdfDoc.diskPath);
+                        formData.append('documentFileId', pdfDoc.diskFileId || '');
+                        formData.append('documentViewUrl', pdfDoc.viewUrl || '');
+                    } 
+                    // If not on disk yet, upload now
+                    else if (pdfDoc.originalFile || pdfDoc.file) {
+                        const file = pdfDoc.originalFile || pdfDoc.file;
+                        console.log('📤 Uploading PDF to disk now...');
+                        
+                        if (window.pdfDiskHandler) {
+                            try {
+                                const uploadResult = await window.pdfDiskHandler.uploadToDisk(
+                                    file,
+                                    noticeId,
+                                    {
+                                        caseNumber: noticeData.caseNumber,
+                                        serverAddress: noticeData.serverAddress || tronWeb.defaultAddress.base58
+                                    }
+                                );
+                                
+                                console.log('✅ PDF uploaded to disk:', uploadResult);
+                                formData.append('documentDiskPath', uploadResult.filePath);
+                                formData.append('documentFileId', uploadResult.fileId);
+                                formData.append('documentViewUrl', uploadResult.viewUrl);
+                            } catch (error) {
+                                console.error('Disk upload failed:', error);
+                            }
+                        }
                     }
                     
-                    // Upload the full PDF document
-                    if (pdfDoc.data && pdfDoc.data.startsWith('data:application/pdf')) {
-                        console.log('✅ Uploading full PDF document');
-                        const documentBlob = await dataURLtoBlob(pdfDoc.data);
-                        formData.append('unencryptedDocument', documentBlob, pdfDoc.fileName || 'document.pdf');
-                        formData.append('documentFileType', 'application/pdf');
-                    } 
-                    // Try disk storage as fallback
-                    else if (pdfDoc.originalFile && window.pdfDiskStorage) {
-                        try {
-                            const diskResult = await window.pdfDiskStorage.uploadPDFToDisk(
-                                pdfDoc.originalFile, 
-                                noticeId,
-                                {
-                                    caseNumber: noticeData.caseNumber,
-                                    serverAddress: noticeData.serverAddress || tronWeb.defaultAddress.base58,
-                                    recipientAddress: noticeData.recipient || noticeData.recipientAddress
-                                }
-                            );
-                            
-                            console.log('✅ PDF uploaded to disk:', diskResult);
-                            formData.append('documentUrl', diskResult.diskUrl);
-                            formData.append('documentFullUrl', diskResult.fullUrl);
-                        } catch (error) {
-                            console.error('Disk upload failed:', error);
-                        }
+                    // Upload thumbnail (small, OK for database)
+                    if (pdfDoc.preview && pdfDoc.preview.startsWith('data:image')) {
+                        console.log('✅ Uploading thumbnail');
+                        const thumbnailBlob = await dataURLtoBlob(pdfDoc.preview);
+                        formData.append('thumbnail', thumbnailBlob, 'thumbnail.png');
                     }
                     
                     // Add metadata
                     formData.append('documentFileName', pdfDoc.fileName || 'document.pdf');
                     formData.append('documentFileSize', (pdfDoc.fileSize || 0).toString());
+                    formData.append('documentStorageType', 'disk');
                 } else {
                     console.warn('PDF document not found');
                 }

@@ -146,10 +146,8 @@
     <!-- PROPER PDF HANDLER - Actually renders PDF content -->
     <!-- Disabled: was adding alert overlay during upload instead of at transaction time -->
     <!-- <script src="js/proper-pdf-handler.js"></script> -->
-    <!-- Simple PDF Handler - Efficient PDF processing -->
-    <script src="js/pdf-simple-handler.js"></script>
-    <!-- Ensure Unencrypted Storage - Store documents for case manager access -->
-    <script src="js/ensure-unencrypted-storage.js"></script>
+    <!-- PDF Disk Handler - Store PDFs on disk, not database -->
+    <script src="js/pdf-disk-handler.js"></script>
     <!-- Case Document Viewer - View unencrypted documents in case manager -->
     <script src="js/case-document-viewer.js"></script>
     
@@ -21467,21 +21465,22 @@ document.addEventListener('keydown', function(event) {
                                     order: window.uploadedDocumentsList.length
                                 };
                                 
-                                // Handle PDFs - Simple processing for efficiency
+                                // Handle PDFs - Disk storage for efficiency
                                 if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
                                     updateCompressionProgress(baseProgress + 40, `Processing PDF ${i + 1}...`);
                                     
-                                    // Use simple PDF handler
-                                    if (window.simplePDFHandler) {
+                                    // Use disk handler for PDFs
+                                    if (window.pdfDiskHandler) {
                                         try {
-                                            const pdfResult = await window.simplePDFHandler.processPDF(file);
+                                            const pdfResult = await window.pdfDiskHandler.processPDF(file);
                                             
-                                            // Store PDF data for IPFS upload
-                                            documentData.data = pdfResult.pdfData; // PDF as base64 for IPFS
+                                            // NO data field - PDF will be uploaded to disk
+                                            documentData.data = null; // Don't store in memory
+                                            documentData.requiresDiskStorage = true;
                                             documentData.fileType = 'application/pdf';
                                             documentData.originalType = 'application/pdf';
                                             
-                                            // Store thumbnail (first page with overlay)
+                                            // Store thumbnail only (small, OK for database)
                                             documentData.preview = pdfResult.thumbnail;
                                             documentData.alertThumbnail = pdfResult.thumbnail;
                                             
@@ -21489,38 +21488,30 @@ document.addEventListener('keydown', function(event) {
                                             documentData.originalFile = file;
                                             documentData.file = file;
                                             
-                                            console.log(`✅ PDF processed: ${file.name}`);
+                                            console.log(`✅ PDF ready for disk storage: ${file.name}`);
                                             
                                         } catch (error) {
                                             console.error('PDF processing error:', error);
-                                            // Fallback: just read the PDF
-                                            const reader = new FileReader();
-                                            documentData.data = await new Promise((resolve, reject) => {
-                                                reader.onload = e => resolve(e.target.result);
-                                                reader.onerror = reject;
-                                                reader.readAsDataURL(file);
-                                            });
-                                            documentData.preview = null; // Will create placeholder later
+                                            // Fallback: still use disk storage
+                                            documentData.data = null;
+                                            documentData.requiresDiskStorage = true;
+                                            documentData.preview = window.pdfDiskHandler.createPlaceholderThumbnail(file.name, file.size);
                                             documentData.fileType = 'application/pdf';
                                             documentData.originalFile = file;
                                             documentData.file = file;
                                         }
                                     } else {
-                                        // No handler available - just read the file
-                                        console.log('Simple handler not available, reading PDF directly');
-                                        const reader = new FileReader();
-                                        documentData.data = await new Promise((resolve, reject) => {
-                                            reader.onload = e => resolve(e.target.result);
-                                            reader.onerror = reject;
-                                            reader.readAsDataURL(file);
-                                        });
+                                        // No handler - mark for disk storage anyway
+                                        console.log('Disk handler not available, marking for disk storage');
+                                        documentData.data = null;
+                                        documentData.requiresDiskStorage = true;
                                         documentData.preview = null;
                                         documentData.fileType = 'application/pdf';
                                         documentData.originalFile = file;
                                         documentData.file = file;
                                     }
                                     
-                                    console.log(`PDF stored: ${file.name}, has data: ${!!documentData.data}, has thumbnail: ${!!documentData.preview}`);
+                                    console.log(`PDF marked for disk: ${file.name}, requires disk: ${documentData.requiresDiskStorage}`);
                                     
                                 // Handle Word docs - these DO need conversion
                                 } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
@@ -22329,59 +22320,46 @@ document.addEventListener('keydown', function(event) {
                     window.uploadedImage = uploadedImage;
                 }
                 
-                updateCompressionProgress(80, 'Uploading documents to backend...');
+                updateCompressionProgress(80, 'Uploading documents to backend disk...');
                 
-                // Now upload to backend disk storage and create alert thumbnail
+                // Upload PDFs to disk storage
                 try {
-                    // Initialize storage systems if needed
-                    if (!window.pdfDiskStorage) {
-                        window.pdfDiskStorage = new PDFDiskStorage();
-                    }
+                    const noticeId = Date.now().toString();
+                    const metadata = {
+                        caseNumber: document.getElementById('mintCaseNumber')?.value || '',
+                        serverAddress: window.tronWeb?.defaultAddress?.base58 || ''
+                    };
                     
-                    // Upload the final document to disk
-                    if (uploadedImage && (uploadedImage.originalFile || uploadedImage.file)) {
-                        // If we have the original file object
+                    // Check if document requires disk storage (PDFs)
+                    if (uploadedImage && uploadedImage.requiresDiskStorage && (uploadedImage.originalFile || uploadedImage.file)) {
                         const fileToUpload = uploadedImage.originalFile || uploadedImage.file;
-                        const uploadResult = await window.pdfDiskStorage.uploadPDFToDisk(
+                        
+                        console.log('📁 Uploading PDF to disk storage...');
+                        const uploadResult = await window.pdfDiskHandler.uploadToDisk(
                             fileToUpload,
-                            Date.now().toString(),
-                            {
-                                caseNumber: document.getElementById('mintCaseNumber')?.value || '',
-                                serverAddress: window.tronWeb?.defaultAddress?.base58 || ''
-                            }
+                            noticeId,
+                            metadata
                         );
-                        uploadedImage.diskUrl = uploadResult.diskUrl;
-                        uploadedImage.fullDiskUrl = uploadResult.fullUrl;
-                        uploadedImage.fileId = uploadResult.fileId;
+                        
+                        // Store disk reference
+                        uploadedImage.diskPath = uploadResult.filePath;
+                        uploadedImage.diskFileId = uploadResult.fileId;
+                        uploadedImage.viewUrl = uploadResult.viewUrl;
                         uploadedImage.storedOnDisk = true;
-                    } else if (uploadedImage && !uploadedImage.originalFile && !uploadedImage.file) {
-                        // No file object available, try to create from data if exists
-                        if (uploadedImage.data) {
-                            // Convert base64 to file for disk upload
-                            const base64Data = uploadedImage.data.split(',')[1] || uploadedImage.data;
-                            const binaryString = atob(base64Data);
-                            const bytes = new Uint8Array(binaryString.length);
-                            for (let i = 0; i < binaryString.length; i++) {
-                                bytes[i] = binaryString.charCodeAt(i);
-                            }
-                            const blob = new Blob([bytes], { type: uploadedImage.fileType || 'application/pdf' });
-                            const file = new File([blob], uploadedImage.fileName || 'document.pdf', { type: blob.type });
-                            
-                            const uploadResult = await window.pdfDiskStorage.uploadPDFToDisk(
-                                file,
-                                Date.now().toString(),
-                                {
-                                    caseNumber: document.getElementById('mintCaseNumber')?.value || '',
-                                    serverAddress: window.tronWeb?.defaultAddress?.base58 || ''
-                                }
-                            );
-                            uploadedImage.diskUrl = uploadResult.diskUrl;
-                            uploadedImage.fullDiskUrl = uploadResult.fullUrl;
-                            uploadedImage.fileId = uploadResult.fileId;
-                            uploadedImage.storedOnDisk = true;
-                        } else {
-                            console.log('No document data available for upload, will handle at transaction time');
+                        
+                        // Upload thumbnail separately
+                        if (uploadedImage.preview) {
+                            await window.pdfDiskHandler.uploadThumbnail(uploadedImage.preview, noticeId);
                         }
+                        
+                        console.log('✅ PDF stored on disk, not in database');
+                        
+                    } else if (uploadedImage && !uploadedImage.requiresDiskStorage && uploadedImage.data) {
+                        // Non-PDF documents (images) can still use base64
+                        console.log('📷 Storing image document (not PDF)...');
+                        // Images are small enough for database storage
+                    } else {
+                        console.log('⚠️ No document to upload');
                     }
                     
                     updateCompressionProgress(90, 'Creating alert thumbnail...');
