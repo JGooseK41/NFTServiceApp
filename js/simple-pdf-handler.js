@@ -25,9 +25,20 @@ class SimplePDFHandler {
             const doc = documents[i];
             console.log(`Merging document ${i + 1}: ${doc.name}`);
             
-            // Get PDF bytes
-            const base64Data = doc.data.split(',')[1];
-            const pdfBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+            // Get PDF bytes - handle both binary and base64
+            let pdfBytes;
+            if (doc.file) {
+                // New binary mode - doc.file is a File object
+                const arrayBuffer = await doc.file.arrayBuffer();
+                pdfBytes = new Uint8Array(arrayBuffer);
+            } else if (doc.data) {
+                // Old base64 mode
+                const base64Data = doc.data.split(',')[1];
+                pdfBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+            } else {
+                console.error('Document has no data:', doc);
+                continue;
+            }
             
             // Load and copy pages
             const pdf = await PDFDocument.load(pdfBytes);
