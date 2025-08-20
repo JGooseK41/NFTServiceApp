@@ -764,8 +764,42 @@ window.app = {
             
             for (let docIndex = 0; docIndex < this.state.fileQueue.length; docIndex++) {
                 const fileItem = this.state.fileQueue[docIndex];
+                console.log(`Processing document ${docIndex + 1}: ${fileItem.name}`);
+                
                 const arrayBuffer = await fileItem.file.arrayBuffer();
-                const pdf = await PDFLib.PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+                let pdf;
+                
+                try {
+                    // Try loading with ignoreEncryption and updateMetadata options
+                    pdf = await PDFLib.PDFDocument.load(arrayBuffer, { 
+                        ignoreEncryption: true,
+                        updateMetadata: false 
+                    });
+                } catch (loadError) {
+                    console.error(`Failed to load ${fileItem.name}:`, loadError);
+                    // Add error page for this document
+                    const errorPage = mergedPdf.addPage();
+                    const { width, height } = errorPage.getSize();
+                    const helvetica = await mergedPdf.embedFont(PDFLib.StandardFonts.Helvetica);
+                    
+                    errorPage.drawText('Failed to load document', {
+                        x: width / 2 - 100,
+                        y: height / 2,
+                        size: 16,
+                        font: helvetica,
+                        color: PDFLib.rgb(0.8, 0, 0)
+                    });
+                    
+                    errorPage.drawText(fileItem.name, {
+                        x: width / 2 - 150,
+                        y: height / 2 - 30,
+                        size: 12,
+                        font: helvetica,
+                        color: PDFLib.rgb(0.3, 0.3, 0.3)
+                    });
+                    
+                    continue; // Skip to next document
+                }
                 
                 // Add separator page between documents (except before first document)
                 if (docIndex > 0) {
@@ -805,18 +839,48 @@ window.app = {
                 
                 // Copy all pages from the document
                 try {
-                    const pageIndices = pdf.getPageIndices();
-                    const pages = await mergedPdf.copyPages(pdf, pageIndices);
-                    pages.forEach(page => mergedPdf.addPage(page));
+                    const pageCount = pdf.getPageCount();
+                    console.log(`Document has ${pageCount} pages`);
+                    
+                    // Try to copy pages one by one to isolate issues
+                    for (let pageNum = 0; pageNum < pageCount; pageNum++) {
+                        try {
+                            const [page] = await mergedPdf.copyPages(pdf, [pageNum]);
+                            mergedPdf.addPage(page);
+                            console.log(`Successfully copied page ${pageNum + 1}`);
+                        } catch (pageError) {
+                            console.error(`Failed to copy page ${pageNum + 1}:`, pageError);
+                            // Add a placeholder page for the failed page
+                            const placeholderPage = mergedPdf.addPage();
+                            const { width, height } = placeholderPage.getSize();
+                            const helvetica = await mergedPdf.embedFont(PDFLib.StandardFonts.Helvetica);
+                            
+                            placeholderPage.drawText(`Page ${pageNum + 1} could not be loaded`, {
+                                x: width / 2 - 120,
+                                y: height / 2,
+                                size: 14,
+                                font: helvetica,
+                                color: PDFLib.rgb(0.5, 0.5, 0.5)
+                            });
+                            
+                            placeholderPage.drawText('(Permission-protected content)', {
+                                x: width / 2 - 100,
+                                y: height / 2 - 25,
+                                size: 12,
+                                font: helvetica,
+                                color: PDFLib.rgb(0.7, 0.7, 0.7)
+                            });
+                        }
+                    }
                 } catch (pageError) {
-                    console.error(`Error copying pages from ${fileItem.name}:`, pageError);
-                    // Add error page instead
+                    console.error(`Error processing pages from ${fileItem.name}:`, pageError);
+                    // Add single error page for entire document
                     const errorPage = mergedPdf.addPage();
                     const { width, height } = errorPage.getSize();
                     const helvetica = await mergedPdf.embedFont(PDFLib.StandardFonts.Helvetica);
                     
-                    errorPage.drawText('Error loading document', {
-                        x: width / 2 - 100,
+                    errorPage.drawText('Document could not be processed', {
+                        x: width / 2 - 130,
                         y: height / 2,
                         size: 16,
                         font: helvetica,
@@ -829,6 +893,14 @@ window.app = {
                         size: 12,
                         font: helvetica,
                         color: PDFLib.rgb(0.3, 0.3, 0.3)
+                    });
+                    
+                    errorPage.drawText('The document may have permission restrictions', {
+                        x: width / 2 - 150,
+                        y: height / 2 - 55,
+                        size: 10,
+                        font: helvetica,
+                        color: PDFLib.rgb(0.5, 0.5, 0.5)
                     });
                 }
             }
