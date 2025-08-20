@@ -686,25 +686,25 @@ window.app = {
             
             // Use pdf.js to render to canvas (we'll use a simpler approach)
             // For now, we'll create a styled canvas representation
-            const canvas = document.getElementById('alertPreviewCanvas');
-            const ctx = canvas.getContext('2d');
+            const alertCanvas = document.getElementById('alertPreviewCanvas');
+            const ctx = alertCanvas.getContext('2d');
             
             // Set canvas size (standard letter size ratio)
-            canvas.width = 400;
-            canvas.height = 520;
+            alertCanvas.width = 400;
+            alertCanvas.height = 520;
             
             // Draw white background
             ctx.fillStyle = 'white';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillRect(0, 0, alertCanvas.width, alertCanvas.height);
             
             // Draw document preview (simplified representation)
             ctx.fillStyle = '#f8f9fa';
-            ctx.fillRect(20, 160, canvas.width - 40, canvas.height - 180);
+            ctx.fillRect(20, 160, alertCanvas.width - 40, alertCanvas.height - 180);
             
             // Draw some fake document lines
             ctx.fillStyle = '#dee2e6';
             for (let i = 0; i < 10; i++) {
-                ctx.fillRect(40, 180 + i * 25, canvas.width - 80, 2);
+                ctx.fillRect(40, 180 + i * 25, alertCanvas.width - 80, 2);
             }
             
             // NOTE: This section is being removed as we're now rendering actual PDF
@@ -715,19 +715,19 @@ window.app = {
             // LEGAL NOTICE title
             context.fillStyle = '#cc0000';
             context.font = 'bold 32px Arial';
-            context.fillText('LEGAL NOTICE', canvas.width / 2, 35);
+            context.fillText('LEGAL NOTICE', alertCanvas.width / 2, 35);
             
             // Notice type if provided
             if (this.pendingFormData?.noticeType) {
                 context.fillStyle = '#000000';
                 context.font = 'bold 18px Arial';
-                context.fillText(this.pendingFormData.noticeType.toUpperCase(), canvas.width / 2, 60);
+                context.fillText(this.pendingFormData.noticeType.toUpperCase(), alertCanvas.width / 2, 60);
             }
             
             // Website reference
             context.fillStyle = '#0066cc';
             context.font = 'bold 16px Arial';
-            context.fillText('www.blockserved.com', canvas.width / 2, 85);
+            context.fillText('www.blockserved.com', alertCanvas.width / 2, 85);
             
             // Store the base64 image
             this.alertNFTImage = canvas.toDataURL('image/png', 0.9);
@@ -737,27 +737,27 @@ window.app = {
             const previewCanvas = document.getElementById('alertPreviewCanvas');
             if (previewCanvas) {
                 const previewCtx = previewCanvas.getContext('2d');
-                previewCanvas.width = canvas.width;
-                previewCanvas.height = canvas.height;
+                previewCanvas.width = alertCanvas.width;
+                previewCanvas.height = alertCanvas.height;
                 previewCtx.drawImage(canvas, 0, 0);
             }
             
         } catch (error) {
             console.error('Alert NFT preview error:', error);
             // Show error in canvas
-            const canvas = document.getElementById('alertPreviewCanvas');
-            if (canvas) {
-                const ctx = canvas.getContext('2d');
-                canvas.width = 400;
-                canvas.height = 520;
+            const errorCanvas = document.getElementById('alertPreviewCanvas');
+            if (errorCanvas) {
+                const ctx = errorCanvas.getContext('2d');
+                errorCanvas.width = 400;
+                errorCanvas.height = 520;
                 ctx.fillStyle = '#f8d7da';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillRect(0, 0, errorCanvas.width, errorCanvas.height);
                 ctx.fillStyle = '#721c24';
                 ctx.font = '14px Arial';
                 ctx.textAlign = 'center';
-                ctx.fillText('Failed to generate Alert preview', canvas.width / 2, 260);
+                ctx.fillText('Failed to generate Alert preview', errorCanvas.width / 2, 260);
                 ctx.font = '12px Arial';
-                ctx.fillText(error.message, canvas.width / 2, 280);
+                ctx.fillText(error.message, errorCanvas.width / 2, 280);
             }
         }
     },
