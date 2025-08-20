@@ -160,7 +160,8 @@ window.cases = {
             
             if (window.wallet && window.wallet.connected) {
                 try {
-                    const response = await fetch(`${getConfig('backend.url')}/api/cases/${caseNumber}`, {
+                    const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+                    const response = await fetch(`${backendUrl}/api/cases/${caseNumber}`, {
                         headers: {
                             'X-Server-Address': window.wallet.address
                         }
@@ -243,7 +244,8 @@ window.cases = {
             const caseId = caseData.id || caseData.caseId || caseData.caseNumber;
             
             // Fetch PDF from backend
-            const response = await fetch(`${getConfig('backend.url')}/api/cases/${caseId}/pdf`, {
+            const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+            const response = await fetch(`${backendUrl}/api/cases/${caseId}/pdf`, {
                 headers: {
                     'X-Server-Address': window.wallet.address
                 }

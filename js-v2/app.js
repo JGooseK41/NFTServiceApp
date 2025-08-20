@@ -949,7 +949,8 @@ window.app = {
             }
             
             // Save to backend with multipart form data
-            const apiUrl = `${getConfig('backend.url')}/api/cases`;
+            const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+            const apiUrl = `${backendUrl}/api/cases`;
             console.log('Saving case to:', apiUrl);
             console.log('Server address:', window.tronWeb.defaultAddress.base58);
             
@@ -1030,7 +1031,8 @@ window.app = {
             
             for (const doc of this.state.fileQueue) {
                 const arrayBuffer = await doc.file.arrayBuffer();
-                const pdf = await PDFLib.PDFDocument.load(arrayBuffer);
+                // Load with ignoreEncryption to handle protected PDFs
+                const pdf = await PDFLib.PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
                 const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
                 pages.forEach(page => mergedPdf.addPage(page));
             }
