@@ -616,76 +616,43 @@ window.app = {
             }).promise;
             
             // Add smaller, more transparent overlay at the top
-            const overlayHeight = 100; // Smaller overlay
+            const overlayHeight = 150; // Overlay height
             
             // Semi-transparent gradient overlay
             const gradient = context.createLinearGradient(0, 0, 0, overlayHeight);
-            gradient.addColorStop(0, 'rgba(255, 215, 0, 0.7)'); // More transparent
-            gradient.addColorStop(1, 'rgba(255, 215, 0, 0.5)');
+            gradient.addColorStop(0, 'rgba(255, 215, 0, 0.9)'); // Golden yellow
+            gradient.addColorStop(1, 'rgba(255, 215, 0, 0.7)');
             context.fillStyle = gradient;
             context.fillRect(0, 0, canvas.width, overlayHeight);
             
             // Add border around the overlay
-            page.drawRectangle({
-                x: 0,
-                y: height - 150,
-                width: width,
-                height: 150,
-                borderColor: PDFLib.rgb(0.8, 0, 0), // Dark red border
-                borderWidth: 3,
-                opacity: 0
-            });
+            context.strokeStyle = 'rgb(204, 0, 0)'; // Dark red border
+            context.lineWidth = 3;
+            context.strokeRect(0, 0, canvas.width, overlayHeight);
             
-            // Add "LEGAL NOTICE" text
-            const helveticaBold = await singlePagePdf.embedFont(PDFLib.StandardFonts.HelveticaBold);
-            const helvetica = await singlePagePdf.embedFont(PDFLib.StandardFonts.Helvetica);
-            
-            // Main title
-            page.drawText('LEGAL NOTICE', {
-                x: width / 2 - 120,
-                y: height - 60,
-                size: 36,
-                font: helveticaBold,
-                color: PDFLib.rgb(0.8, 0, 0) // Dark red
-            });
+            // Add "LEGAL NOTICE" text using canvas context
+            context.fillStyle = 'rgb(204, 0, 0)'; // Dark red
+            context.font = 'bold 48px Arial';
+            context.textAlign = 'center';
+            context.fillText('LEGAL NOTICE', canvas.width / 2, 50);
             
             // Subtitle
-            page.drawText('DELIVERED VIA BLOCKCHAIN', {
-                x: width / 2 - 140,
-                y: height - 90,
-                size: 18,
-                font: helvetica,
-                color: PDFLib.rgb(0, 0, 0)
-            });
+            context.fillStyle = 'rgb(0, 0, 0)'; // Black
+            context.font = '24px Arial';
+            context.fillText('DELIVERED VIA BLOCKCHAIN', canvas.width / 2, 90);
             
-            // Case number
-            page.drawText(`Case: ${this.pendingFormData.caseNumber}`, {
-                x: width / 2 - 100,
-                y: height - 115,
-                size: 14,
-                font: helvetica,
-                color: PDFLib.rgb(0, 0, 0)
-            });
+            // Date and time
+            context.font = '18px Arial';
+            context.fillText(new Date().toLocaleString(), canvas.width / 2, 120);
             
-            // Website
-            page.drawText('View at: www.blockserved.com', {
-                x: width / 2 - 100,
-                y: height - 135,
-                size: 12,
-                font: helvetica,
-                color: PDFLib.rgb(0, 0, 0.8) // Blue
-            });
+            // Case number (if available)
+            if (this.pendingFormData && this.pendingFormData.caseNumber) {
+                context.fillStyle = 'rgb(0, 0, 0)';
+                context.font = '16px Arial';
+                context.fillText(`Case: ${this.pendingFormData.caseNumber}`, canvas.width / 2, 140);
+            }
             
-            // Convert to bytes
-            const pdfBytes = await singlePagePdf.save();
-            
-            // Convert PDF to image using canvas
-            // First create a blob URL for the PDF
-            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-            const url = URL.createObjectURL(blob);
-            
-            // Use pdf.js to render to canvas (we'll use a simpler approach)
-            // For now, we'll create a styled canvas representation
+            // Get the alert preview canvas
             const alertCanvas = document.getElementById('alertPreviewCanvas');
             const ctx = alertCanvas.getContext('2d');
             
@@ -707,40 +674,20 @@ window.app = {
                 ctx.fillRect(40, 180 + i * 25, alertCanvas.width - 80, 2);
             }
             
-            // NOTE: This section is being removed as we're now rendering actual PDF
+            // Copy the rendered PDF page with overlay to the alert canvas
+            // Scale down to fit
+            const scale = Math.min(alertCanvas.width / canvas.width, (alertCanvas.height - 100) / canvas.height);
+            const scaledWidth = canvas.width * scale;
+            const scaledHeight = canvas.height * scale;
+            const xOffset = (alertCanvas.width - scaledWidth) / 2;
+            const yOffset = 100; // Leave space for header
             
-            // Add text to overlay with better positioning
-            context.textAlign = 'center';
-            
-            // LEGAL NOTICE title
-            context.fillStyle = '#cc0000';
-            context.font = 'bold 32px Arial';
-            context.fillText('LEGAL NOTICE', alertCanvas.width / 2, 35);
-            
-            // Notice type if provided
-            if (this.pendingFormData?.noticeType) {
-                context.fillStyle = '#000000';
-                context.font = 'bold 18px Arial';
-                context.fillText(this.pendingFormData.noticeType.toUpperCase(), alertCanvas.width / 2, 60);
-            }
-            
-            // Website reference
-            context.fillStyle = '#0066cc';
-            context.font = 'bold 16px Arial';
-            context.fillText('www.blockserved.com', alertCanvas.width / 2, 85);
+            // Draw the PDF preview with overlay
+            ctx.drawImage(canvas, xOffset, yOffset, scaledWidth, scaledHeight);
             
             // Store the base64 image
-            this.alertNFTImage = canvas.toDataURL('image/png', 0.9);
+            this.alertNFTImage = alertCanvas.toDataURL('image/png', 0.9);
             console.log('Alert NFT image generated successfully');
-            
-            // Display the canvas in the preview modal
-            const previewCanvas = document.getElementById('alertPreviewCanvas');
-            if (previewCanvas) {
-                const previewCtx = previewCanvas.getContext('2d');
-                previewCanvas.width = alertCanvas.width;
-                previewCanvas.height = alertCanvas.height;
-                previewCtx.drawImage(canvas, 0, 0);
-            }
             
         } catch (error) {
             console.error('Alert NFT preview error:', error);
