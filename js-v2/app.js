@@ -923,10 +923,17 @@ window.app = {
             const recipients = this.getRecipientAddresses();
             formData.append('recipients', JSON.stringify(recipients));
             
+            // Debug: Log what we're sending
+            console.log('FormData contents:');
+            console.log('- Case number:', caseNumber);
+            console.log('- Recipients:', recipients);
+            console.log('- File count:', this.state.fileQueue.length);
+            
             // Add all PDF files
             for (let i = 0; i < this.state.fileQueue.length; i++) {
                 const doc = this.state.fileQueue[i];
                 formData.append('documents', doc.file, doc.file.name);
+                console.log(`- Added file ${i + 1}: ${doc.file.name} (${doc.file.size} bytes)`);
             }
             
             // First, process documents to generate merged PDF and Alert NFT preview
@@ -942,7 +949,11 @@ window.app = {
             }
             
             // Save to backend with multipart form data
-            const response = await fetch(`${getConfig('backend.url')}/api/cases`, {
+            const apiUrl = `${getConfig('backend.url')}/api/cases`;
+            console.log('Saving case to:', apiUrl);
+            console.log('Server address:', window.tronWeb.defaultAddress.base58);
+            
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'X-Server-Address': window.tronWeb.defaultAddress.base58
@@ -952,8 +963,33 @@ window.app = {
             });
             
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to save case');
+                // Try to get error message
+                const contentType = response.headers.get('content-type');
+                let errorMessage = 'Failed to save case';
+                
+                if (contentType && contentType.includes('application/json')) {
+                    try {
+                        const error = await response.json();
+                        errorMessage = error.message || errorMessage;
+                    } catch (e) {
+                        // JSON parse failed
+                    }
+                } else {
+                    // Got HTML or other content - likely a 404 or server error
+                    const text = await response.text();
+                    console.error('Server returned non-JSON response:', text.substring(0, 200));
+                    errorMessage = `Server error (${response.status}): ${response.statusText}`;
+                }
+                
+                throw new Error(errorMessage);
+            }
+            
+            // Parse response
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                console.error('Expected JSON but got:', text.substring(0, 200));
+                throw new Error('Server returned invalid response format');
             }
             
             const result = await response.json();
