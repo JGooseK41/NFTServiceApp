@@ -258,9 +258,31 @@ Enter your wallet address to access your documents. You may need to digitally si
 
                                     <!-- Action Buttons -->
                                     <div class="d-grid gap-2">
+                                        <!-- Resource Management Buttons -->
+                                        <div class="row g-2 mb-2">
+                                            <div class="col-6">
+                                                <button type="button" class="btn btn-warning w-100" onclick="app.checkWalletResourcesMain()">
+                                                    <i class="bi bi-lightning-charge"></i> Check Resources
+                                                </button>
+                                            </div>
+                                            <div class="col-6">
+                                                <button type="button" class="btn btn-info w-100" onclick="app.rentEnergyDirect()">
+                                                    <i class="bi bi-battery-charging"></i> Rent Energy
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Case Management Button -->
+                                        <button type="button" class="btn btn-success" onclick="app.saveToCase()">
+                                            <i class="bi bi-folder-plus"></i> Save to Case Manager
+                                        </button>
+                                        
+                                        <!-- Preview Button -->
                                         <button type="button" class="btn btn-outline-primary" onclick="app.previewNotice()">
                                             <i class="bi bi-eye"></i> Preview Before Minting
                                         </button>
+                                        
+                                        <!-- Main Submit Button -->
                                         <button type="submit" class="btn btn-primary">
                                             Create Legal Service Package (Alert + Document)
                                         </button>

@@ -853,6 +853,134 @@ window.app = {
         }
     },
     
+    // Check wallet resources from main form
+    async checkWalletResourcesMain() {
+        // Same as checkWalletResources but can be called from main form
+        return this.checkWalletResources();
+    },
+    
+    // Rent energy directly from main form
+    async rentEnergyDirect() {
+        try {
+            // Check if wallet is connected
+            if (!window.tronWeb || !window.tronWeb.defaultAddress.base58) {
+                this.showError('Please connect your wallet first');
+                return;
+            }
+            
+            // Get current energy
+            const address = window.tronWeb.defaultAddress.base58;
+            const resources = await window.tronWeb.trx.getAccountResources(address);
+            const energyTotal = resources.EnergyLimit || 0;
+            const energyUsed = resources.EnergyUsed || 0;
+            const energyAvailable = energyTotal - energyUsed;
+            
+            // Calculate document size if files are uploaded
+            let totalSizeMB = 0;
+            if (this.documentQueue && this.documentQueue.length > 0) {
+                for (const doc of this.documentQueue) {
+                    totalSizeMB += (doc.file.size / (1024 * 1024));
+                }
+            } else {
+                totalSizeMB = 2.5; // Default estimate
+            }
+            
+            // Show energy rental modal directly
+            if (window.StreamlinedEnergyFlow) {
+                window.StreamlinedEnergyFlow.showEnergyModal({
+                    currentEnergy: energyAvailable,
+                    energyDetails: {
+                        total: Math.max(3000000, Math.ceil(totalSizeMB * 1400000)),
+                        estimatedTRXBurn: (Math.max(3000000, Math.ceil(totalSizeMB * 1400000)) * 0.00042).toFixed(2)
+                    },
+                    documentSizeMB: totalSizeMB,
+                    onComplete: () => {
+                        console.log('Energy rental completed');
+                        this.showSuccess('Energy rental completed! You can now proceed with creating notices.');
+                    }
+                });
+            } else {
+                this.showError('Energy rental system not loaded');
+            }
+            
+        } catch (error) {
+            console.error('Error opening energy rental:', error);
+            this.showError('Failed to open energy rental: ' + error.message);
+        }
+    },
+    
+    // Save current form to case manager
+    async saveToCase() {
+        try {
+            // Check if wallet is connected
+            if (!window.tronWeb || !window.tronWeb.defaultAddress.base58) {
+                this.showError('Please connect your wallet to save cases');
+                return;
+            }
+            
+            // Validate basic fields
+            const caseNumber = document.getElementById('caseNumber')?.value?.trim();
+            if (!caseNumber) {
+                this.showError('Please enter a case number before saving');
+                return;
+            }
+            
+            // Collect form data
+            const formData = {
+                caseNumber: caseNumber,
+                noticeText: document.getElementById('noticeText')?.value || '',
+                issuingAgency: document.getElementById('issuingAgency')?.value || '',
+                noticeType: document.getElementById('noticeType')?.value || '',
+                caseDetails: document.getElementById('caseDetails')?.value || '',
+                responseDeadline: document.getElementById('responseDeadline')?.value || '',
+                legalRights: document.getElementById('legalRights')?.value || '',
+                recipients: this.getRecipientAddresses(),
+                serverAddress: window.tronWeb.defaultAddress.base58,
+                status: 'draft',
+                createdAt: new Date().toISOString()
+            };
+            
+            // Add document info if files are uploaded
+            if (this.documentQueue && this.documentQueue.length > 0) {
+                formData.documents = this.documentQueue.map(doc => ({
+                    name: doc.file.name,
+                    size: doc.file.size,
+                    type: doc.file.type
+                }));
+                formData.documentCount = this.documentQueue.length;
+            }
+            
+            // Save to backend
+            const response = await fetch(`${getConfig('backend.url')}/api/cases/create`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Wallet-Address': window.tronWeb.defaultAddress.base58
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Failed to save case');
+            }
+            
+            const result = await response.json();
+            
+            // Show success message
+            this.showSuccess(`Case "${caseNumber}" saved successfully!`);
+            
+            // Store case ID for later use
+            this.currentCaseId = result.caseId;
+            
+            return result;
+            
+        } catch (error) {
+            console.error('Error saving to case manager:', error);
+            this.showError('Failed to save case: ' + error.message);
+        }
+    },
+    
     // Check wallet resources
     async checkWalletResources() {
         try {
@@ -1314,9 +1442,12 @@ window.app = {
             this.handleFileSelect(files);
         });
         
-        // Also make the drop zone clickable
-        dropZone.addEventListener('click', () => {
-            document.getElementById('fileInput').click();
+        // Also make the drop zone clickable (but not if clicking the file input itself)
+        dropZone.addEventListener('click', (e) => {
+            // Don't trigger if clicking on the actual file input or its label
+            if (!e.target.closest('#fileInput') && !e.target.closest('label[for="fileInput"]')) {
+                document.getElementById('fileInput').click();
+            }
         });
     },
     
