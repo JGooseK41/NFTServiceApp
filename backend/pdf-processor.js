@@ -6,6 +6,7 @@
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const sharp = require('sharp');
 const pdf2pic = require('pdf2pic');
+const PDFCleaner = require('./pdf-cleaner');
 
 class PDFProcessor {
     constructor() {
@@ -17,13 +18,24 @@ class PDFProcessor {
             width: 800,
             height: 1200
         };
+        this.pdfCleaner = new PDFCleaner();
     }
 
     /**
      * Merge multiple PDFs into one document with separators and page numbers
      */
     async mergePDFs(pdfBuffers, fileInfo = []) {
-        console.log(`📑 Merging ${pdfBuffers.length} PDFs into one document`);
+        console.log(`📑 Processing ${pdfBuffers.length} PDFs for merging`);
+        
+        // Use PDFCleaner to strip permissions and merge
+        try {
+            const cleanedAndMerged = await this.pdfCleaner.cleanAndMergePDFs(pdfBuffers, fileInfo);
+            console.log('✅ Successfully cleaned and merged PDFs');
+            return cleanedAndMerged;
+        } catch (cleanError) {
+            console.error('⚠️ PDF cleaning failed, falling back to standard merge:', cleanError.message);
+            // Fall back to original merge logic if cleaning fails
+        }
         
         const mergedPdf = await PDFDocument.create();
         const helveticaBold = await mergedPdf.embedFont(StandardFonts.HelveticaBold);

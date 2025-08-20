@@ -755,6 +755,15 @@ window.app = {
     // Create merged PDF preview with separators
     async createMergedPDFPreview() {
         try {
+            // If we have a consolidated PDF from backend, display it
+            if (this.consolidatedPDFUrl) {
+                const iframe = document.getElementById('pdfPreviewFrame');
+                iframe.src = this.consolidatedPDFUrl;
+                console.log('📄 Displaying server-processed consolidated PDF');
+                return;
+            }
+            
+            // Otherwise, try client-side merge as fallback
             // Check if PDFLib is loaded
             if (!window.PDFLib) {
                 throw new Error('PDF library not loaded. Please refresh the page.');
@@ -1100,8 +1109,14 @@ window.app = {
             
             const result = await response.json();
             
+            // If backend returned a consolidated PDF URL, store it
+            if (result.consolidatedPdfUrl) {
+                this.consolidatedPDFUrl = `${backendUrl}${result.consolidatedPdfUrl}`;
+                console.log('✅ Received cleaned consolidated PDF from server');
+            }
+            
             // Show success message
-            this.showSuccess(`Case "${caseNumber}" saved successfully! You can access it from any device.`);
+            this.showSuccess(`Case "${caseNumber}" saved successfully! PDFs cleaned and consolidated on server.`);
             
             // Store case ID for later use
             this.currentCaseId = result.caseId;

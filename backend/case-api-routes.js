@@ -90,12 +90,17 @@ router.post('/cases', verifyServer, upload.array('documents', 10), async (req, r
         );
         
         if (result.success) {
+            // Generate URL for consolidated PDF
+            const consolidatedPdfUrl = `/api/cases/${result.caseId}/pdf`;
+            
             res.json({
                 success: true,
                 caseId: result.caseId,
                 case: result.case,
                 pdfInfo: result.pdfInfo,
-                alertPreview: result.alertPreview
+                alertPreview: result.alertPreview,
+                consolidatedPdfUrl: consolidatedPdfUrl,
+                message: 'PDFs cleaned and consolidated successfully'
             });
         } else {
             res.status(500).json(result);
