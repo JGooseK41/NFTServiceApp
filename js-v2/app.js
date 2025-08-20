@@ -969,10 +969,10 @@ window.app = {
             }
             
             // Save to backend with multipart form data
-            const response = await fetch(`${getConfig('backend.url')}/api/cases/create`, {
+            const response = await fetch(`${getConfig('backend.url')}/api/cases`, {
                 method: 'POST',
                 headers: {
-                    'X-Wallet-Address': window.tronWeb.defaultAddress.base58
+                    'X-Server-Address': window.tronWeb.defaultAddress.base58
                     // Don't set Content-Type, let browser set it for FormData
                 },
                 body: formData

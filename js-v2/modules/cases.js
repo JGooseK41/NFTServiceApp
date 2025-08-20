@@ -17,7 +17,7 @@ window.cases = {
             if (window.wallet && window.wallet.connected) {
                 const response = await fetch(getApiUrl('getCases'), {
                     headers: {
-                        'X-Wallet-Address': window.wallet.address
+                        'X-Server-Address': window.wallet.address
                     }
                 });
                 
@@ -130,7 +130,7 @@ window.cases = {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-Wallet-Address': window.wallet.address
+                        'X-Server-Address': window.wallet.address
                     },
                     body: JSON.stringify(caseData)
                 });
@@ -160,9 +160,9 @@ window.cases = {
             
             if (window.wallet && window.wallet.connected) {
                 try {
-                    const response = await fetch(`${getConfig('backend.url')}/api/cases/get/${caseNumber}`, {
+                    const response = await fetch(`${getConfig('backend.url')}/api/cases/${caseNumber}`, {
                         headers: {
-                            'X-Wallet-Address': window.wallet.address
+                            'X-Server-Address': window.wallet.address
                         }
                     });
                     
@@ -243,9 +243,9 @@ window.cases = {
             const caseId = caseData.id || caseData.caseId || caseData.caseNumber;
             
             // Fetch PDF from backend
-            const response = await fetch(`${getConfig('backend.url')}/api/cases/pdf/${caseId}`, {
+            const response = await fetch(`${getConfig('backend.url')}/api/cases/${caseId}/pdf`, {
                 headers: {
-                    'X-Wallet-Address': window.wallet.address
+                    'X-Server-Address': window.wallet.address
                 }
             });
             
