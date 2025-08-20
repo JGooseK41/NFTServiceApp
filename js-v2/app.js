@@ -290,17 +290,21 @@ window.app = {
         // File input change handler
         const fileInput = document.getElementById('fileInput');
         if (fileInput) {
-            // Remove any existing listeners to prevent duplicates
-            const newFileInput = fileInput.cloneNode(true);
-            fileInput.parentNode.replaceChild(newFileInput, fileInput);
+            // Remove any existing change listeners
+            fileInput.removeEventListener('change', this.fileInputHandler);
             
-            newFileInput.addEventListener('change', (e) => {
-                e.stopPropagation(); // Prevent event bubbling
+            // Create bound handler
+            this.fileInputHandler = (e) => {
                 if (e.target.files && e.target.files.length > 0) {
                     this.handleFileSelect(e.target.files);
-                    e.target.value = ''; // Clear input for re-selection
+                    // Clear input for re-selection after a small delay
+                    setTimeout(() => {
+                        e.target.value = '';
+                    }, 100);
                 }
-            });
+            };
+            
+            fileInput.addEventListener('change', this.fileInputHandler);
         }
     },
     
@@ -480,6 +484,21 @@ window.app = {
         `;
         
         recipientsList.appendChild(newField);
+    },
+    
+    // Get all recipient addresses from the form
+    getRecipientAddresses() {
+        const recipientInputs = document.querySelectorAll('.recipient-input');
+        const addresses = [];
+        
+        recipientInputs.forEach(input => {
+            const value = input.value.trim();
+            if (value) {
+                addresses.push(value);
+            }
+        });
+        
+        return addresses;
     },
     
     // Preview notice before minting
@@ -1509,45 +1528,63 @@ window.app = {
             this.handleFileSelect(files);
         });
         
-        // Also make the drop zone clickable (but not if clicking the file input itself)
+        // Also make the drop zone clickable (but not if clicking the browse button or file input)
         dropZone.addEventListener('click', (e) => {
-            // Don't trigger if clicking on the actual file input or its label
-            if (!e.target.closest('#fileInput') && !e.target.closest('label[for="fileInput"]')) {
-                e.preventDefault();
-                e.stopPropagation();
-                const fileInput = document.getElementById('fileInput');
-                if (fileInput) {
-                    fileInput.click();
-                }
+            // Don't trigger if clicking on the button, file input, or any interactive element
+            if (e.target.closest('button') || 
+                e.target.closest('#fileInput') || 
+                e.target.closest('label[for="fileInput"]')) {
+                return; // Let the button's own onclick handle it
+            }
+            
+            // Otherwise, trigger file selection
+            e.preventDefault();
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput) {
+                fileInput.click();
             }
         });
     },
     
     // Handle file selection
     handleFileSelect(files) {
-        // Filter for PDF files only
-        const pdfFiles = Array.from(files).filter(file => file.type === 'application/pdf');
-        
-        if (pdfFiles.length === 0) {
-            this.showError('Please select PDF files only');
-            return;
+        // Debounce to prevent double processing
+        if (this.fileSelectTimeout) {
+            clearTimeout(this.fileSelectTimeout);
         }
         
-        // Add files to queue
-        pdfFiles.forEach(file => {
-            // Check if file already exists in queue
-            if (!this.state.fileQueue.find(f => f.name === file.name && f.size === file.size)) {
-                this.state.fileQueue.push({
-                    file: file,
-                    name: file.name,
-                    size: file.size,
-                    id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-                });
+        this.fileSelectTimeout = setTimeout(() => {
+            // Filter for PDF files only
+            const pdfFiles = Array.from(files).filter(file => file.type === 'application/pdf');
+            
+            if (pdfFiles.length === 0) {
+                this.showError('Please select PDF files only');
+                return;
             }
-        });
-        
-        // Update display
-        this.displayFileQueue();
+            
+            // Add files to queue
+            let filesAdded = 0;
+            pdfFiles.forEach(file => {
+                // Check if file already exists in queue
+                if (!this.state.fileQueue.find(f => f.name === file.name && f.size === file.size)) {
+                    this.state.fileQueue.push({
+                        file: file,
+                        name: file.name,
+                        size: file.size,
+                        id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+                    });
+                    filesAdded++;
+                }
+            });
+            
+            // Update display
+            this.displayFileQueue();
+            
+            // Show success message if files were added
+            if (filesAdded > 0) {
+                this.showSuccess(`Added ${filesAdded} file${filesAdded > 1 ? 's' : ''} to queue`);
+            }
+        }, 50); // Small delay to debounce
     },
     
     // Display file queue
