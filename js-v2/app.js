@@ -925,39 +925,57 @@ window.app = {
                 return;
             }
             
-            // Collect form data
-            const formData = {
-                caseNumber: caseNumber,
-                noticeText: document.getElementById('noticeText')?.value || '',
-                issuingAgency: document.getElementById('issuingAgency')?.value || '',
-                noticeType: document.getElementById('noticeType')?.value || '',
-                caseDetails: document.getElementById('caseDetails')?.value || '',
-                responseDeadline: document.getElementById('responseDeadline')?.value || '',
-                legalRights: document.getElementById('legalRights')?.value || '',
-                recipients: this.getRecipientAddresses(),
-                serverAddress: window.tronWeb.defaultAddress.base58,
-                status: 'draft',
-                createdAt: new Date().toISOString()
-            };
-            
-            // Add document info if files are uploaded
-            if (this.documentQueue && this.documentQueue.length > 0) {
-                formData.documents = this.documentQueue.map(doc => ({
-                    name: doc.file.name,
-                    size: doc.file.size,
-                    type: doc.file.type
-                }));
-                formData.documentCount = this.documentQueue.length;
+            // Check if documents are uploaded
+            if (!this.documentQueue || this.documentQueue.length === 0) {
+                this.showError('Please upload at least one document before saving');
+                return;
             }
             
-            // Save to backend
+            this.showInfo('Processing documents and creating case...');
+            
+            // Create FormData for multipart upload
+            const formData = new FormData();
+            
+            // Add metadata
+            formData.append('caseNumber', caseNumber);
+            formData.append('noticeText', document.getElementById('noticeText')?.value || '');
+            formData.append('issuingAgency', document.getElementById('issuingAgency')?.value || '');
+            formData.append('noticeType', document.getElementById('noticeType')?.value || '');
+            formData.append('caseDetails', document.getElementById('caseDetails')?.value || '');
+            formData.append('responseDeadline', document.getElementById('responseDeadline')?.value || '');
+            formData.append('legalRights', document.getElementById('legalRights')?.value || 'View full notice at www.blockserved.com');
+            formData.append('serverAddress', window.tronWeb.defaultAddress.base58);
+            
+            // Add recipients as JSON
+            const recipients = this.getRecipientAddresses();
+            formData.append('recipients', JSON.stringify(recipients));
+            
+            // Add all PDF files
+            for (let i = 0; i < this.documentQueue.length; i++) {
+                const doc = this.documentQueue[i];
+                formData.append('documents', doc.file, doc.file.name);
+            }
+            
+            // First, process documents to generate merged PDF and Alert NFT preview
+            const processedDocs = await this.processDocumentsForCase();
+            if (processedDocs) {
+                // Add processed data
+                if (processedDocs.mergedPDF) {
+                    formData.append('mergedPDF', processedDocs.mergedPDF, 'merged.pdf');
+                }
+                if (processedDocs.alertPreview) {
+                    formData.append('alertPreview', processedDocs.alertPreview);
+                }
+            }
+            
+            // Save to backend with multipart form data
             const response = await fetch(`${getConfig('backend.url')}/api/cases/create`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
                     'X-Wallet-Address': window.tronWeb.defaultAddress.base58
+                    // Don't set Content-Type, let browser set it for FormData
                 },
-                body: JSON.stringify(formData)
+                body: formData
             });
             
             if (!response.ok) {
@@ -968,16 +986,111 @@ window.app = {
             const result = await response.json();
             
             // Show success message
-            this.showSuccess(`Case "${caseNumber}" saved successfully!`);
+            this.showSuccess(`Case "${caseNumber}" saved successfully! You can access it from any device.`);
             
             // Store case ID for later use
             this.currentCaseId = result.caseId;
+            
+            // Optionally refresh the cases list if on cases page
+            if (window.cases) {
+                await window.cases.loadCases();
+            }
             
             return result;
             
         } catch (error) {
             console.error('Error saving to case manager:', error);
             this.showError('Failed to save case: ' + error.message);
+        }
+    },
+    
+    // Process documents for case creation
+    async processDocumentsForCase() {
+        try {
+            if (!this.documentQueue || this.documentQueue.length === 0) {
+                return null;
+            }
+            
+            // Load PDF-lib if not loaded
+            if (!window.PDFLib) {
+                await this.loadPDFLib();
+            }
+            
+            // Merge all PDFs into one
+            const mergedPdf = await PDFLib.PDFDocument.create();
+            
+            for (const doc of this.documentQueue) {
+                const arrayBuffer = await doc.file.arrayBuffer();
+                const pdf = await PDFLib.PDFDocument.load(arrayBuffer);
+                const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+                pages.forEach(page => mergedPdf.addPage(page));
+            }
+            
+            const mergedBytes = await mergedPdf.save();
+            const mergedBlob = new Blob([mergedBytes], { type: 'application/pdf' });
+            
+            // Generate Alert NFT preview (first page with overlay)
+            const alertPreview = await this.generateAlertPreview(mergedBytes);
+            
+            return {
+                mergedPDF: mergedBlob,
+                alertPreview: alertPreview
+            };
+            
+        } catch (error) {
+            console.error('Error processing documents:', error);
+            return null;
+        }
+    },
+    
+    // Generate alert preview for case
+    async generateAlertPreview(pdfBytes) {
+        try {
+            // Load PDF.js if needed
+            await this.loadPDFJS();
+            
+            // Create canvas for first page
+            const pdf = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+            const page = await pdf.getPage(1);
+            
+            const viewport = page.getViewport({ scale: 1.5 });
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            
+            // Render first page
+            await page.render({
+                canvasContext: context,
+                viewport: viewport
+            }).promise;
+            
+            // Add overlay
+            const overlayHeight = 100;
+            const gradient = context.createLinearGradient(0, 0, 0, overlayHeight);
+            gradient.addColorStop(0, 'rgba(255, 215, 0, 0.7)');
+            gradient.addColorStop(1, 'rgba(255, 215, 0, 0.5)');
+            
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, canvas.width, overlayHeight);
+            
+            // Add text
+            context.fillStyle = '#8B0000';
+            context.font = 'bold 36px Arial';
+            context.textAlign = 'center';
+            context.fillText('LEGAL NOTICE', canvas.width / 2, 45);
+            
+            context.fillStyle = '#000';
+            context.font = '18px Arial';
+            context.fillText('www.blockserved.com', canvas.width / 2, 75);
+            
+            // Convert to base64
+            return canvas.toDataURL('image/png');
+            
+        } catch (error) {
+            console.error('Error generating alert preview:', error);
+            return null;
         }
     },
     

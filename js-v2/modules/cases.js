@@ -154,25 +154,125 @@ window.cases = {
     
     // Resume existing case
     async resumeCase(caseNumber) {
-        const caseData = window.storage.getCase(caseNumber);
-        
-        if (!caseData) {
-            window.app.showError('Case not found');
-            return;
+        try {
+            // First try to get from backend if connected
+            let caseData = null;
+            
+            if (window.wallet && window.wallet.connected) {
+                try {
+                    const response = await fetch(`${getConfig('backend.url')}/api/cases/get/${caseNumber}`, {
+                        headers: {
+                            'X-Wallet-Address': window.wallet.address
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        caseData = result.case;
+                    }
+                } catch (error) {
+                    console.error('Failed to load case from backend:', error);
+                }
+            }
+            
+            // Fall back to local storage if not found
+            if (!caseData) {
+                caseData = window.storage.getCase(caseNumber);
+            }
+            
+            if (!caseData) {
+                window.app.showError('Case not found');
+                return;
+            }
+            
+            this.currentCase = caseData;
+            
+            // Navigate to serve page
+            window.app.navigate('serve');
+            
+            // Pre-fill all form fields from saved case
+            if (caseData.metadata) {
+                const fields = ['caseNumber', 'noticeText', 'issuingAgency', 'noticeType', 
+                               'caseDetails', 'responseDeadline', 'legalRights'];
+                
+                fields.forEach(field => {
+                    const input = document.getElementById(field);
+                    if (input && caseData.metadata[field]) {
+                        input.value = caseData.metadata[field];
+                    }
+                });
+                
+                // Load recipients
+                if (caseData.metadata.recipients && Array.isArray(caseData.metadata.recipients)) {
+                    // Clear existing recipients
+                    const recipientInputs = document.querySelectorAll('.recipient-input');
+                    recipientInputs.forEach(input => input.value = '');
+                    
+                    // Add saved recipients
+                    caseData.metadata.recipients.forEach((recipient, index) => {
+                        if (index === 0) {
+                            document.getElementById('recipientAddress').value = recipient;
+                        } else {
+                            // Add additional recipient fields if needed
+                            window.app.addRecipient();
+                            const inputs = document.querySelectorAll('.recipient-input');
+                            if (inputs[index]) {
+                                inputs[index].value = recipient;
+                            }
+                        }
+                    });
+                }
+            }
+            
+            // Load documents if case has PDF
+            if (caseData.pdf_path) {
+                await this.loadCaseDocuments(caseData);
+            }
+            
+            window.app.showSuccess(`Resumed case: ${caseNumber} - All data loaded from cloud`);
+            
+        } catch (error) {
+            console.error('Error resuming case:', error);
+            window.app.showError('Failed to resume case: ' + error.message);
         }
-        
-        this.currentCase = caseData;
-        
-        // Navigate to serve page
-        window.app.navigate('serve');
-        
-        // Pre-fill case number
-        const caseInput = document.getElementById('caseNumber');
-        if (caseInput) {
-            caseInput.value = caseNumber;
+    },
+    
+    // Load documents from saved case
+    async loadCaseDocuments(caseData) {
+        try {
+            const caseId = caseData.id || caseData.caseId || caseData.caseNumber;
+            
+            // Fetch PDF from backend
+            const response = await fetch(`${getConfig('backend.url')}/api/cases/pdf/${caseId}`, {
+                headers: {
+                    'X-Wallet-Address': window.wallet.address
+                }
+            });
+            
+            if (!response.ok) {
+                console.error('Failed to load case PDF');
+                return;
+            }
+            
+            const blob = await response.blob();
+            const file = new File([blob], `${caseData.caseNumber || 'case'}.pdf`, { type: 'application/pdf' });
+            
+            // Add to document queue
+            if (window.app && window.app.documentQueue) {
+                window.app.documentQueue = [{
+                    file: file,
+                    id: Date.now(),
+                    name: file.name
+                }];
+                
+                // Update UI to show loaded document
+                window.app.updateDocumentQueue();
+                window.app.showInfo('Documents loaded from saved case');
+            }
+            
+        } catch (error) {
+            console.error('Error loading case documents:', error);
         }
-        
-        window.app.showInfo(`Resumed case: ${caseNumber}`);
     },
     
     // View case details
