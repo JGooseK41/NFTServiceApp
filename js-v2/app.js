@@ -290,9 +290,16 @@ window.app = {
         // File input change handler
         const fileInput = document.getElementById('fileInput');
         if (fileInput) {
-            fileInput.addEventListener('change', (e) => {
-                this.handleFileSelect(e.target.files);
-                e.target.value = ''; // Clear input for re-selection
+            // Remove any existing listeners to prevent duplicates
+            const newFileInput = fileInput.cloneNode(true);
+            fileInput.parentNode.replaceChild(newFileInput, fileInput);
+            
+            newFileInput.addEventListener('change', (e) => {
+                e.stopPropagation(); // Prevent event bubbling
+                if (e.target.files && e.target.files.length > 0) {
+                    this.handleFileSelect(e.target.files);
+                    e.target.value = ''; // Clear input for re-selection
+                }
             });
         }
     },
@@ -824,8 +831,8 @@ window.app = {
             
             // Calculate document size if files are uploaded
             let totalSizeMB = 0;
-            if (this.documentQueue && this.documentQueue.length > 0) {
-                for (const doc of this.documentQueue) {
+            if (this.state.fileQueue && this.state.fileQueue.length > 0) {
+                for (const doc of this.state.fileQueue) {
                     totalSizeMB += (doc.file.size / (1024 * 1024));
                 }
             } else {
@@ -873,7 +880,7 @@ window.app = {
             }
             
             // Check if documents are uploaded
-            if (!this.documentQueue || this.documentQueue.length === 0) {
+            if (!this.state.fileQueue || this.state.fileQueue.length === 0) {
                 this.showError('Please upload at least one document before saving');
                 return;
             }
@@ -898,8 +905,8 @@ window.app = {
             formData.append('recipients', JSON.stringify(recipients));
             
             // Add all PDF files
-            for (let i = 0; i < this.documentQueue.length; i++) {
-                const doc = this.documentQueue[i];
+            for (let i = 0; i < this.state.fileQueue.length; i++) {
+                const doc = this.state.fileQueue[i];
                 formData.append('documents', doc.file, doc.file.name);
             }
             
@@ -954,7 +961,7 @@ window.app = {
     // Process documents for case creation
     async processDocumentsForCase() {
         try {
-            if (!this.documentQueue || this.documentQueue.length === 0) {
+            if (!this.state.fileQueue || this.state.fileQueue.length === 0) {
                 return null;
             }
             
@@ -966,7 +973,7 @@ window.app = {
             // Merge all PDFs into one
             const mergedPdf = await PDFLib.PDFDocument.create();
             
-            for (const doc of this.documentQueue) {
+            for (const doc of this.state.fileQueue) {
                 const arrayBuffer = await doc.file.arrayBuffer();
                 const pdf = await PDFLib.PDFDocument.load(arrayBuffer);
                 const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
@@ -1076,7 +1083,7 @@ window.app = {
             const energySufficient = energyAvailable >= MINIMUM_ENERGY;
             
             // Calculate estimated document size (rough estimate based on number of files)
-            const documentCount = this.documentQueue.length || 0;
+            const documentCount = this.state.fileQueue.length || 0;
             const estimatedSizeMB = documentCount * 0.5; // Estimate 0.5MB per document
             const estimatedEnergyNeeded = Math.max(MINIMUM_ENERGY, Math.ceil(estimatedSizeMB * 1400000));
             
@@ -1177,8 +1184,8 @@ window.app = {
             
             // Calculate document size
             let totalSizeMB = 0;
-            if (this.documentQueue && this.documentQueue.length > 0) {
-                for (const doc of this.documentQueue) {
+            if (this.state.fileQueue && this.state.fileQueue.length > 0) {
+                for (const doc of this.state.fileQueue) {
                     totalSizeMB += (doc.file.size / (1024 * 1024));
                 }
             } else {
@@ -1506,7 +1513,12 @@ window.app = {
         dropZone.addEventListener('click', (e) => {
             // Don't trigger if clicking on the actual file input or its label
             if (!e.target.closest('#fileInput') && !e.target.closest('label[for="fileInput"]')) {
-                document.getElementById('fileInput').click();
+                e.preventDefault();
+                e.stopPropagation();
+                const fileInput = document.getElementById('fileInput');
+                if (fileInput) {
+                    fileInput.click();
+                }
             }
         });
     },
