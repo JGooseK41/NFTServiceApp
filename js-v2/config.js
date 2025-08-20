@@ -20,7 +20,7 @@ window.AppConfig = {
         // Using relative URLs to work with your existing backend
         baseUrl: window.location.hostname === 'localhost' 
             ? 'http://localhost:3001' 
-            : 'https://nft-legal-service-backend.onrender.com',
+            : 'https://nftserviceapp.onrender.com',
         endpoints: {
             // Notice endpoints
             createNotice: '/api/notices',
