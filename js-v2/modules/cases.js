@@ -294,7 +294,8 @@ window.cases = {
             }
             
             const blob = await response.blob();
-            const file = new File([blob], `${caseData.caseNumber || 'case'}.pdf`, { type: 'application/pdf' });
+            const fileName = `${caseData.id || caseData.caseNumber || 'case'}_consolidated.pdf`;
+            const file = new File([blob], fileName, { type: 'application/pdf' });
             
             // Add to file queue (not documentQueue)
             if (window.app && window.app.state) {

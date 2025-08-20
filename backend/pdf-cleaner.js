@@ -297,11 +297,19 @@ class PDFCleaner {
             }
         }
         
-        console.log(`✅ Created consolidated PDF with ${totalPages} pages`);
+        console.log(`✅ Created consolidated PDF with ${totalPages} pages from ${pdfBuffers.length} documents`);
+        
+        // Log document breakdown
+        console.log('📋 Document breakdown:');
+        for (let i = 0; i < pdfBuffers.length; i++) {
+            console.log(`  - Document ${i + 1}: ${fileInfo[i]?.fileName || 'Unknown'}`);
+        }
         
         // Save the merged PDF
         const mergedBytes = await mergedPdf.save();
-        return Buffer.from(mergedBytes);
+        const finalBuffer = Buffer.from(mergedBytes);
+        console.log(`💾 Final merged PDF size: ${(finalBuffer.length / 1024 / 1024).toFixed(2)}MB`);
+        return finalBuffer;
     }
 }
 

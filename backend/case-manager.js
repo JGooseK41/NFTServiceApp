@@ -102,6 +102,8 @@ class CaseManager {
             const pdfBuffers = [];
             const fileInfo = [];
             
+            console.log(`📂 Processing ${uploadedFiles.length} uploaded files for case ${caseId}`);
+            
             for (const file of uploadedFiles) {
                 if (file.buffer) {
                     pdfBuffers.push(file.buffer);
@@ -109,6 +111,7 @@ class CaseManager {
                         fileName: file.originalname || file.filename || `Document ${pdfBuffers.length}`,
                         size: file.size || file.buffer.length
                     });
+                    console.log(`  ✓ Added file: ${file.originalname} (${file.size} bytes)`);
                 } else if (file.data) {
                     // Handle base64 data
                     const base64Data = file.data.replace(/^data:application\/pdf;base64,/, '');
@@ -118,7 +121,13 @@ class CaseManager {
                         fileName: file.name || `Document ${pdfBuffers.length}`,
                         size: buffer.length
                     });
+                    console.log(`  ✓ Added base64 file: ${file.name} (${buffer.length} bytes)`);
                 }
+            }
+            
+            console.log(`📊 Total PDFs to merge: ${pdfBuffers.length}`);
+            if (pdfBuffers.length === 0) {
+                throw new Error('No valid PDF files to process');
             }
             
             // Merge PDFs into one document with separators and page numbers
