@@ -1073,17 +1073,9 @@ window.app = {
                 console.log(`- Added file ${i + 1}: ${doc.file.name} (${doc.file.size} bytes)`);
             }
             
-            // First, process documents to generate merged PDF and Alert NFT preview
-            const processedDocs = await this.processDocumentsForCase();
-            if (processedDocs) {
-                // Add processed data
-                if (processedDocs.mergedPDF) {
-                    formData.append('mergedPDF', processedDocs.mergedPDF, 'merged.pdf');
-                }
-                if (processedDocs.alertPreview) {
-                    formData.append('alertPreview', processedDocs.alertPreview);
-                }
-            }
+            // Skip client-side processing - let server handle PDF cleaning and merging
+            // The server will process these PDFs with the PDFCleaner
+            console.log('📤 Sending PDFs to server for cleaning and consolidation...');
             
             // Save to backend with multipart form data
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
