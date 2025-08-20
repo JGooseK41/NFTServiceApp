@@ -218,6 +218,13 @@ window.cases = {
             
             this.currentCase = caseData;
             
+            // Set the currentCaseId in app so preview knows it's already saved
+            if (window.app) {
+                window.app.currentCaseId = caseData.id || caseData.caseId || caseNumber;
+                window.app.consolidatedPDFUrl = `${getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com'}/api/cases/${window.app.currentCaseId}/pdf`;
+                console.log('Set currentCaseId for resumed case:', window.app.currentCaseId);
+            }
+            
             // Navigate to serve page
             window.app.navigate('serve');
             
@@ -289,16 +296,17 @@ window.cases = {
             const blob = await response.blob();
             const file = new File([blob], `${caseData.caseNumber || 'case'}.pdf`, { type: 'application/pdf' });
             
-            // Add to document queue
-            if (window.app && window.app.documentQueue) {
-                window.app.documentQueue = [{
+            // Add to file queue (not documentQueue)
+            if (window.app && window.app.state) {
+                window.app.state.fileQueue = [{
                     file: file,
                     id: Date.now(),
-                    name: file.name
+                    name: file.name,
+                    size: file.size
                 }];
                 
                 // Update UI to show loaded document
-                window.app.updateDocumentQueue();
+                window.app.displayFileQueue();
                 window.app.showInfo('Documents loaded from saved case');
             }
             
