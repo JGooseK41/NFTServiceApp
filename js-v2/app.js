@@ -504,6 +504,22 @@ window.app = {
     // Preview notice before minting
     async previewNotice() {
         try {
+            // Check if case has been saved first (for server-side PDF cleaning)
+            if (!this.currentCaseId || !this.consolidatedPDFUrl) {
+                this.showError('Please save to Case Manager first. This will clean and consolidate your PDFs on the server.');
+                
+                // Highlight the Save to Case Manager button
+                const saveButton = document.querySelector('button[onclick*="saveToCase"]');
+                if (saveButton) {
+                    saveButton.classList.add('animate-pulse');
+                    saveButton.style.animation = 'pulse 1s 3';
+                    setTimeout(() => {
+                        saveButton.style.animation = '';
+                    }, 3000);
+                }
+                return;
+            }
+            
             // Validate we have documents
             if (this.state.fileQueue.length === 0) {
                 this.showError('Please upload at least one PDF document');

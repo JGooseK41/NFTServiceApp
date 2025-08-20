@@ -22,7 +22,16 @@ window.cases = {
                 });
                 
                 if (response.ok) {
-                    const backendCases = await response.json();
+                    const backendResponse = await response.json();
+                    console.log('Backend cases response:', backendResponse);
+                    
+                    // Extract cases array from response
+                    let backendCases = [];
+                    if (backendResponse.success && backendResponse.cases) {
+                        backendCases = backendResponse.cases;
+                    } else if (Array.isArray(backendResponse)) {
+                        backendCases = backendResponse;
+                    }
                     
                     // Merge cases
                     const merged = this.mergeCases(localCases, backendCases);
@@ -43,6 +52,17 @@ window.cases = {
     // Merge local and backend cases
     mergeCases(local, backend) {
         const merged = [...local];
+        
+        // Ensure backend is an array
+        if (!Array.isArray(backend)) {
+            console.warn('Backend response is not an array:', backend);
+            // If backend returned an object with cases array, use that
+            if (backend && backend.cases && Array.isArray(backend.cases)) {
+                backend = backend.cases;
+            } else {
+                return merged; // Return local cases only
+            }
+        }
         
         backend.forEach(bCase => {
             const exists = merged.find(c => c.caseNumber === bCase.caseNumber);
@@ -71,30 +91,40 @@ window.cases = {
             return;
         }
         
-        tbody.innerHTML = cases.map(c => `
-            <tr>
-                <td>
-                    <a href="#" onclick="cases.viewCase('${c.caseNumber}'); return false;">
-                        ${c.caseNumber}
-                    </a>
-                </td>
-                <td>${new Date(c.createdAt).toLocaleDateString()}</td>
-                <td>${c.documentCount || 0} documents</td>
-                <td>
-                    <span class="badge bg-${this.getStatusColor(c.status)}">
-                        ${c.status || 'Active'}
-                    </span>
-                </td>
-                <td>
-                    <button class="btn btn-sm btn-primary" onclick="cases.resumeCase('${c.caseNumber}')">
-                        Resume
-                    </button>
-                    <button class="btn btn-sm btn-info" onclick="cases.viewReceipts('${c.caseNumber}')">
-                        Receipts
-                    </button>
-                </td>
-            </tr>
-        `).join('');
+        tbody.innerHTML = cases.map(c => {
+            // Handle different case formats from backend and local storage
+            const caseId = c.id || c.caseNumber || 'Unknown';
+            const createdDate = c.created_at || c.createdAt || Date.now();
+            const pageCount = c.page_count || c.pageCount || c.documentCount || 0;
+            const status = c.status || 'Active';
+            
+            return `
+                <tr>
+                    <td>
+                        <a href="#" onclick="cases.viewCase('${caseId}'); return false;">
+                            ${caseId.substring(0, 8)}${caseId.length > 8 ? '...' : ''}
+                        </a>
+                    </td>
+                    <td>${new Date(createdDate).toLocaleDateString()}</td>
+                    <td>${pageCount} pages</td>
+                    <td>
+                        <span class="badge bg-${this.getStatusColor(status)}">
+                            ${status}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="cases.resumeCase('${caseId}')">
+                            <i class="bi bi-arrow-clockwise"></i> Resume
+                        </button>
+                        ${c.served_at ? `
+                            <button class="btn btn-sm btn-success" onclick="cases.viewReceipts('${caseId}')">
+                                <i class="bi bi-receipt"></i> Receipt
+                            </button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `;
+        }).join('');
     },
     
     // Get status color
