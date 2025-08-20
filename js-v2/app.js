@@ -772,11 +772,16 @@ window.app = {
                     const separatorPage = mergedPdf.addPage();
                     const { width, height } = separatorPage.getSize();
                     
+                    // Embed font for separator page
+                    const helveticaBold = await mergedPdf.embedFont(PDFLib.StandardFonts.HelveticaBold);
+                    const helvetica = await mergedPdf.embedFont(PDFLib.StandardFonts.Helvetica);
+                    
                     // Draw separator content
                     separatorPage.drawText(`DOCUMENT ${docIndex + 1}`, {
                         x: width / 2 - 100,
                         y: height / 2 + 50,
                         size: 30,
+                        font: helveticaBold,
                         color: PDFLib.rgb(0, 0, 0)
                     });
                     
@@ -784,20 +789,48 @@ window.app = {
                         x: width / 2 - 150,
                         y: height / 2,
                         size: 14,
+                        font: helvetica,
                         color: PDFLib.rgb(0.3, 0.3, 0.3)
                     });
                     
-                    separatorPage.drawLine({
-                        start: { x: 50, y: height / 2 - 30 },
-                        end: { x: width - 50, y: height / 2 - 30 },
-                        thickness: 2,
+                    // Draw a line using a rectangle
+                    separatorPage.drawRectangle({
+                        x: 50,
+                        y: height / 2 - 30,
+                        width: width - 100,
+                        height: 2,
                         color: PDFLib.rgb(0.7, 0.7, 0.7)
                     });
                 }
                 
                 // Copy all pages from the document
-                const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-                pages.forEach(page => mergedPdf.addPage(page));
+                try {
+                    const pageIndices = pdf.getPageIndices();
+                    const pages = await mergedPdf.copyPages(pdf, pageIndices);
+                    pages.forEach(page => mergedPdf.addPage(page));
+                } catch (pageError) {
+                    console.error(`Error copying pages from ${fileItem.name}:`, pageError);
+                    // Add error page instead
+                    const errorPage = mergedPdf.addPage();
+                    const { width, height } = errorPage.getSize();
+                    const helvetica = await mergedPdf.embedFont(PDFLib.StandardFonts.Helvetica);
+                    
+                    errorPage.drawText('Error loading document', {
+                        x: width / 2 - 100,
+                        y: height / 2,
+                        size: 16,
+                        font: helvetica,
+                        color: PDFLib.rgb(0.8, 0, 0)
+                    });
+                    
+                    errorPage.drawText(fileItem.name, {
+                        x: width / 2 - 150,
+                        y: height / 2 - 30,
+                        size: 12,
+                        font: helvetica,
+                        color: PDFLib.rgb(0.3, 0.3, 0.3)
+                    });
+                }
             }
             
             // Convert to blob and display in iframe
