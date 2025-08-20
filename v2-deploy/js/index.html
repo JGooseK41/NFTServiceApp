@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LegalNotice v2 - Blockchain Legal Service</title>
+    
+    <!-- Core CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/main.css">
+    
+    <!-- Core Configuration -->
+    <script src="js/config.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">LegalNotice v2</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="serve">Serve Notice</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="cases">Cases</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="receipts">Receipts</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="admin">Admin</a>
+                    </li>
+                </ul>
+                <div class="ms-3">
+                    <button id="connectWallet" class="btn btn-primary btn-sm">Connect Wallet</button>
+                    <span id="walletAddress" class="text-white ms-2" style="display:none;"></span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container mt-4">
+        <!-- Status Messages -->
+        <div id="alertContainer"></div>
+        
+        <!-- Main Content Area -->
+        <div id="mainContent">
+            <!-- Welcome Section -->
+            <div id="welcomePage" class="page-content">
+                <div class="row">
+                    <div class="col-lg-8 mx-auto">
+                        <div class="card">
+                            <div class="card-body text-center py-5">
+                                <h1 class="display-4 mb-4">LegalNotice v2</h1>
+                                <p class="lead mb-4">Blockchain-powered legal document service on TRON</p>
+                                
+                                <div class="row mt-5">
+                                    <div class="col-md-4 mb-3">
+                                        <div class="card h-100">
+                                            <div class="card-body">
+                                                <h5>Serve Documents</h5>
+                                                <p>Create legally-binding NFT notices</p>
+                                                <button class="btn btn-primary" onclick="app.navigate('serve')">Start</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <div class="card h-100">
+                                            <div class="card-body">
+                                                <h5>Manage Cases</h5>
+                                                <p>Track and manage your legal cases</p>
+                                                <button class="btn btn-primary" onclick="app.navigate('cases')">View</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <div class="card h-100">
+                                            <div class="card-body">
+                                                <h5>View Receipts</h5>
+                                                <p>Access proof of service receipts</p>
+                                                <button class="btn btn-primary" onclick="app.navigate('receipts')">Browse</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Serve Notice Page -->
+            <div id="servePage" class="page-content" style="display:none;">
+                <div class="row">
+                    <div class="col-lg-8 mx-auto">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4>Serve Legal Notice</h4>
+                            </div>
+                            <div class="card-body">
+                                <form id="serveForm">
+                                    <!-- Service Info -->
+                                    <div class="alert alert-info mb-3">
+                                        <strong>Complete Legal Service Package</strong><br>
+                                        <small>This will create both:
+                                        <ul class="mb-0">
+                                            <li>Alert NFT - Notification with thumbnail preview</li>
+                                            <li>Document NFT - Full encrypted document on IPFS</li>
+                                        </ul>
+                                        </small>
+                                    </div>
+
+                                    <!-- Recipient Addresses (Multiple) -->
+                                    <div class="mb-3">
+                                        <label class="form-label">Recipient Wallet Addresses (Max 10)</label>
+                                        <div id="recipientsList">
+                                            <div class="input-group mb-2">
+                                                <input type="text" class="form-control recipient-input" 
+                                                       placeholder="T... (Recipient 1)" required>
+                                                <button type="button" class="btn btn-success" onclick="app.addRecipientField()">
+                                                    + Add
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <small class="text-muted">Add up to 10 recipients. They will all receive the same document package.</small>
+                                    </div>
+
+                                    <!-- Case Number -->
+                                    <div class="mb-3">
+                                        <label class="form-label">Case Number</label>
+                                        <input type="text" id="caseNumber" class="form-control" 
+                                               placeholder="2024-CV-001" required>
+                                    </div>
+
+                                    <!-- Notice Text -->
+                                    <div class="mb-3">
+                                        <label class="form-label">Notice Description</label>
+                                        <textarea id="noticeText" class="form-control" rows="3" 
+                                                  placeholder="Brief description of the notice" required></textarea>
+                                    </div>
+
+                                    <!-- Document Upload with Drag & Drop -->
+                                    <div id="documentSection" class="mb-3">
+                                        <label class="form-label">Upload Legal Documents (PDFs will be consolidated)</label>
+                                        
+                                        <!-- Drag & Drop Zone -->
+                                        <div id="dropZone" class="border-2 border-dashed rounded p-4 text-center mb-3" 
+                                             style="border-color: #dee2e6; background: #f8f9fa; cursor: pointer;">
+                                            <svg width="48" height="48" fill="#6c757d" class="mb-2">
+                                                <path d="M24 32l8-8h-6V8h-4v16h-6l8 8zm16-24v28H8V8h32zm4-4H4c-1.1 0-2 .9-2 2v32c0 1.1.9 2 2 2h40c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z"/>
+                                            </svg>
+                                            <p class="mb-2"><strong>Drag & drop PDFs here</strong></p>
+                                            <p class="text-muted small mb-2">or</p>
+                                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="document.getElementById('fileInput').click()">
+                                                Browse Files
+                                            </button>
+                                            <input type="file" id="fileInput" accept=".pdf" multiple style="display: none;">
+                                        </div>
+                                        
+                                        <!-- File Queue (hidden initially) -->
+                                        <div id="fileQueue" style="display: none;">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <h6 class="mb-0">Documents Queue (<span id="fileCount">0</span> files)</h6>
+                                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="app.clearFileQueue()">
+                                                    Clear All
+                                                </button>
+                                            </div>
+                                            
+                                            <div id="fileList" class="list-group">
+                                                <!-- Files will be added here -->
+                                            </div>
+                                            
+                                            <small class="text-muted mt-2 d-block">
+                                                <i>Drag files to reorder. First file's first page becomes the preview thumbnail.</i>
+                                            </small>
+                                        </div>
+                                        
+                                        <!-- Hidden input for form validation -->
+                                        <input type="hidden" id="documentFile" required>
+                                        
+                                        <!-- Encryption option -->
+                                        <div class="form-check mt-3">
+                                            <input class="form-check-input" type="checkbox" id="encryptDocument" checked>
+                                            <label class="form-check-label" for="encryptDocument">
+                                                Encrypt document for recipients (recommended)
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Fee Display -->
+                                    <div class="alert alert-info">
+                                        <small>
+                                            <strong>Cost Calculation:</strong><br>
+                                            Recipients: <span id="recipientCount">1</span><br>
+                                            Per Recipient: <span id="perRecipientFee">10</span> TRX (Alert + Document)<br>
+                                            <strong>Total Cost: <span id="totalFee">10</span> TRX</strong><br>
+                                            Energy Required: ~<span id="energyEstimate">140,000</span>
+                                        </small>
+                                    </div>
+
+                                    <!-- Submit Button -->
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        Create Legal Service Package (Alert + Document)
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cases Page -->
+            <div id="casesPage" class="page-content" style="display:none;">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h4>Case Management</h4>
+                        <button class="btn btn-sm btn-primary" onclick="app.cases.newCase()">New Case</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="casesList" class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Case Number</th>
+                                        <th>Created</th>
+                                        <th>Documents</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="casesTableBody">
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted">No cases found</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Receipts Page -->
+            <div id="receiptsPage" class="page-content" style="display:none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h4>Service Receipts</h4>
+                    </div>
+                    <div class="card-body">
+                        <div id="receiptsList" class="row">
+                            <div class="col-12 text-center text-muted">
+                                <p>No receipts found. Receipts will appear here after serving notices.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Page -->
+            <div id="adminPage" class="page-content" style="display:none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h4>Administration</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Contract Settings</h5>
+                                <div class="mb-3">
+                                    <label class="form-label">Service Fee (TRX)</label>
+                                    <div class="input-group">
+                                        <input type="number" id="newServiceFee" class="form-control" step="0.1">
+                                        <button class="btn btn-outline-secondary" onclick="app.admin.updateFee()">Update</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Server Registration</h5>
+                                <div class="mb-3">
+                                    <label class="form-label">Server ID</label>
+                                    <input type="text" id="serverId" class="form-control" readonly>
+                                    <small class="text-muted">Your server is automatically registered</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal fade" id="processingModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center py-4">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h5 id="processingMessage">Processing transaction...</h5>
+                    <p id="processingDetails" class="text-muted small"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Core Modules -->
+    <script src="js/modules/wallet.js"></script>
+    <script src="js/modules/contract.js"></script>
+    <script src="js/modules/notices.js"></script>
+    <script src="js/modules/cases.js"></script>
+    <script src="js/modules/receipts.js"></script>
+    <script src="js/modules/admin.js"></script>
+    <script src="js/modules/storage.js"></script>
+    <script src="js/modules/energy.js"></script>
+    
+    <!-- Main App -->
+    <script src="js/app.js"></script>
+</body>
+</html>

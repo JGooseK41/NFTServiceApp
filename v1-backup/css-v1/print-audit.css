@@ -1,0 +1,412 @@
+/**
+ * Print Styles for Court-Admissible Audit Reports
+ * Optimized for legal documentation requirements
+ */
+
+@media print {
+    /* Reset and base styles */
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    
+    body {
+        font-family: 'Times New Roman', Times, serif;
+        font-size: 12pt;
+        line-height: 1.5;
+        color: #000;
+        background: white;
+    }
+    
+    /* Hide non-printable elements */
+    .modal-footer,
+    .btn,
+    button,
+    .no-print,
+    .modal-close,
+    .fa-sync,
+    .fa-download {
+        display: none !important;
+    }
+    
+    /* Page setup */
+    @page {
+        size: letter;
+        margin: 1in;
+        
+        @top-center {
+            content: "AUDIT TRAIL REPORT - LEGAL NOTICE SERVICE";
+            font-size: 10pt;
+            font-weight: bold;
+        }
+        
+        @bottom-center {
+            content: "Page " counter(page) " of " counter(pages);
+            font-size: 10pt;
+        }
+        
+        @bottom-left {
+            content: "Confidential Legal Document";
+            font-size: 9pt;
+            font-style: italic;
+        }
+        
+        @bottom-right {
+            content: "Generated: " attr(data-date);
+            font-size: 9pt;
+        }
+    }
+    
+    /* Document header */
+    .audit-header {
+        text-align: center;
+        margin-bottom: 30pt;
+        border-bottom: 3pt double #000;
+        padding-bottom: 20pt;
+    }
+    
+    .audit-header h1 {
+        font-size: 18pt;
+        font-weight: bold;
+        margin-bottom: 10pt;
+        text-transform: uppercase;
+    }
+    
+    .audit-header h2 {
+        font-size: 14pt;
+        font-weight: normal;
+        margin-bottom: 5pt;
+    }
+    
+    /* Case information box */
+    .case-info-box {
+        border: 2pt solid #000;
+        padding: 10pt;
+        margin-bottom: 20pt;
+        page-break-inside: avoid;
+    }
+    
+    .case-info-box h3 {
+        font-size: 14pt;
+        font-weight: bold;
+        margin-bottom: 10pt;
+        text-decoration: underline;
+    }
+    
+    .case-info-box dl {
+        display: grid;
+        grid-template-columns: 150pt auto;
+        gap: 5pt;
+    }
+    
+    .case-info-box dt {
+        font-weight: bold;
+    }
+    
+    .case-info-box dd {
+        margin: 0;
+    }
+    
+    /* Statistics section */
+    .statistics-section {
+        margin-bottom: 20pt;
+        page-break-inside: avoid;
+    }
+    
+    .statistics-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10pt;
+        margin-top: 10pt;
+    }
+    
+    .stat-item {
+        border: 1pt solid #000;
+        padding: 8pt;
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 16pt;
+        font-weight: bold;
+    }
+    
+    .stat-label {
+        font-size: 10pt;
+        text-transform: uppercase;
+    }
+    
+    /* Event log table */
+    .event-log-section {
+        margin-top: 30pt;
+    }
+    
+    .event-log-section h3 {
+        font-size: 14pt;
+        font-weight: bold;
+        margin-bottom: 10pt;
+        text-decoration: underline;
+    }
+    
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 10pt;
+        page-break-inside: auto;
+    }
+    
+    thead {
+        display: table-header-group;
+    }
+    
+    tbody {
+        display: table-row-group;
+    }
+    
+    tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+    
+    th {
+        background-color: #f0f0f0 !important;
+        border: 1pt solid #000;
+        padding: 5pt;
+        text-align: left;
+        font-weight: bold;
+        font-size: 10pt;
+    }
+    
+    td {
+        border: 1pt solid #000;
+        padding: 4pt;
+        font-size: 9pt;
+        vertical-align: top;
+    }
+    
+    /* Ensure headers repeat on each page */
+    thead {
+        display: table-header-group;
+    }
+    
+    /* Wallet addresses - monospace for accuracy */
+    .wallet-address {
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 8pt;
+    }
+    
+    /* IP addresses */
+    .ip-address {
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 9pt;
+    }
+    
+    /* Timestamps */
+    .timestamp {
+        font-weight: bold;
+    }
+    
+    /* Legal notices and declarations */
+    .legal-notice {
+        margin-top: 30pt;
+        padding: 10pt;
+        border: 2pt solid #000;
+        page-break-inside: avoid;
+    }
+    
+    .legal-notice h4 {
+        font-size: 12pt;
+        font-weight: bold;
+        margin-bottom: 10pt;
+    }
+    
+    .legal-notice p {
+        text-align: justify;
+        margin-bottom: 8pt;
+    }
+    
+    /* Certification section */
+    .certification-section {
+        margin-top: 40pt;
+        page-break-inside: avoid;
+        page-break-before: auto;
+    }
+    
+    .certification-section h3 {
+        font-size: 14pt;
+        font-weight: bold;
+        margin-bottom: 20pt;
+        text-align: center;
+        text-decoration: underline;
+    }
+    
+    .certification-text {
+        text-align: justify;
+        margin-bottom: 30pt;
+        line-height: 1.8;
+    }
+    
+    .signature-block {
+        margin-top: 50pt;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30pt;
+    }
+    
+    .signature-line {
+        border-bottom: 1pt solid #000;
+        margin-bottom: 5pt;
+        min-height: 30pt;
+    }
+    
+    .signature-label {
+        font-size: 10pt;
+    }
+    
+    /* Evidence attachments section */
+    .attachments-section {
+        page-break-before: always;
+        margin-top: 30pt;
+    }
+    
+    .attachments-section h3 {
+        font-size: 14pt;
+        font-weight: bold;
+        margin-bottom: 10pt;
+        text-decoration: underline;
+    }
+    
+    .attachment-item {
+        margin-bottom: 10pt;
+        padding-left: 20pt;
+    }
+    
+    /* Exhibit markers */
+    .exhibit-marker {
+        display: inline-block;
+        font-weight: bold;
+        margin-right: 10pt;
+        text-decoration: underline;
+    }
+    
+    /* Chain of custody table */
+    .chain-of-custody {
+        page-break-before: always;
+    }
+    
+    .chain-of-custody h3 {
+        font-size: 14pt;
+        font-weight: bold;
+        margin-bottom: 10pt;
+        text-decoration: underline;
+    }
+    
+    /* Color coding for print (grayscale) */
+    .status-delivered {
+        background-color: #e8e8e8 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .status-viewed {
+        background-color: #d0d0d0 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .status-accepted {
+        background-color: #b8b8b8 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    /* Blockchain verification stamps */
+    .blockchain-stamp {
+        border: 2pt solid #000;
+        padding: 5pt;
+        margin: 10pt 0;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 8pt;
+        page-break-inside: avoid;
+    }
+    
+    /* Footer for each page */
+    .page-footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 50pt;
+        border-top: 1pt solid #000;
+        padding-top: 10pt;
+        font-size: 9pt;
+        text-align: center;
+    }
+    
+    /* Ensure images print properly */
+    img {
+        max-width: 100%;
+        page-break-inside: avoid;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    /* Notice images when included */
+    .notice-image {
+        page-break-before: always;
+        text-align: center;
+    }
+    
+    .notice-image img {
+        max-width: 90%;
+        max-height: 9in;
+        border: 1pt solid #000;
+    }
+    
+    /* Hide modal styling, show content only */
+    .modal-overlay {
+        position: static !important;
+        background: none !important;
+    }
+    
+    .modal-content {
+        position: static !important;
+        transform: none !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+    }
+    
+    .modal-header {
+        display: none !important;
+    }
+    
+    .modal-body {
+        max-height: none !important;
+        overflow: visible !important;
+        padding: 0 !important;
+    }
+    
+    /* Force background colors to print */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+    }
+}
+
+/* Special class for elements that should only appear in print */
+@media screen {
+    .print-only {
+        display: none !important;
+    }
+}
+
+@media print {
+    .print-only {
+        display: block !important;
+    }
+}

@@ -1,0 +1,306 @@
+/**
+ * Modal Style Fix
+ * Fixes grayed out appearance, purple backgrounds, and contrast issues
+ */
+
+/* Remove any gray overlays and purple backgrounds from modals */
+.modal-overlay,
+.document-modal,
+#documentModal,
+.notice-modal,
+#noticeModal,
+.modal-backdrop {
+    /* Remove any filters or opacity */
+    filter: none !important;
+    opacity: 1 !important;
+}
+
+/* Fix modal backgrounds - pure white, no purple */
+.modal-content,
+.modal-body,
+.document-viewer,
+.notice-viewer,
+.image-viewer-modal,
+.audit-modal,
+.receipt-modal {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    /* Remove any background images or gradients */
+    background-image: none !important;
+}
+
+/* Fix modal overlay - semi-transparent black, not purple */
+.modal-overlay,
+.modal-backdrop,
+.document-modal,
+#documentModal {
+    background: rgba(0, 0, 0, 0.5) !important;
+    background-color: rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: blur(2px);
+}
+
+/* Modal content should be fully opaque */
+.modal-content,
+.modal-dialog,
+.modal-inner {
+    background: #ffffff !important;
+    opacity: 1 !important;
+    filter: none !important;
+}
+
+/* Ensure proper text contrast */
+.modal-content,
+.modal-content * {
+    color: #212529 !important;
+}
+
+/* Headers should have subtle background */
+.modal-header {
+    background: #f8f9fa !important;
+    border-bottom: 2px solid #dee2e6 !important;
+    color: #212529 !important;
+}
+
+.modal-header h1,
+.modal-header h2,
+.modal-header h3,
+.modal-header h4,
+.modal-header h5,
+.modal-header h6,
+.modal-title {
+    color: #212529 !important;
+    font-weight: 600 !important;
+}
+
+/* Footer styling */
+.modal-footer {
+    background: #f8f9fa !important;
+    border-top: 2px solid #dee2e6 !important;
+}
+
+/* Buttons in modals */
+.modal-content .btn,
+.modal-footer .btn,
+.modal-footer button {
+    /* Primary buttons */
+    background: #0d6efd !important;
+    color: #ffffff !important;
+    border: 1px solid #0d6efd !important;
+}
+
+.modal-content .btn-secondary,
+.modal-footer .btn-secondary {
+    background: #6c757d !important;
+    color: #ffffff !important;
+    border: 1px solid #6c757d !important;
+}
+
+.modal-content .btn-danger,
+.modal-footer .btn-danger {
+    background: #dc3545 !important;
+    color: #ffffff !important;
+    border: 1px solid #dc3545 !important;
+}
+
+.modal-content .btn-success,
+.modal-footer .btn-success {
+    background: #198754 !important;
+    color: #ffffff !important;
+    border: 1px solid #198754 !important;
+}
+
+/* Close button */
+.modal-close,
+.btn-close,
+.close {
+    color: #000000 !important;
+    opacity: 0.5 !important;
+    font-size: 1.5rem !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0.5rem !important;
+}
+
+.modal-close:hover,
+.btn-close:hover,
+.close:hover {
+    opacity: 1 !important;
+    color: #000000 !important;
+}
+
+/* Document viewer specific */
+.document-viewer,
+#documentViewer {
+    background: #ffffff !important;
+    padding: 1rem !important;
+    overflow: auto !important;
+}
+
+.document-viewer img,
+#documentViewer img {
+    max-width: 100% !important;
+    height: auto !important;
+    display: block !important;
+    margin: 0 auto !important;
+}
+
+/* Remove any purple tints from specific elements */
+.modal-content[style*="background: #"],
+.modal-content[style*="background-color: #"] {
+    background: #ffffff !important;
+}
+
+/* Fix notice cards in modals */
+.modal-content .notice-card,
+.modal-content .case-card {
+    background: #ffffff !important;
+    border: 1px solid #dee2e6 !important;
+}
+
+/* Ensure all text is readable */
+.modal-content p,
+.modal-content span,
+.modal-content div,
+.modal-content li,
+.modal-content td,
+.modal-content th {
+    color: #212529 !important;
+}
+
+/* Labels should be slightly muted but still readable */
+.modal-content label,
+.modal-content .label,
+.modal-content .text-muted {
+    color: #6c757d !important;
+}
+
+/* Links in modals */
+.modal-content a {
+    color: #0d6efd !important;
+}
+
+.modal-content a:hover {
+    color: #0a58ca !important;
+}
+
+/* Code blocks in modals */
+.modal-content code,
+.modal-content pre {
+    background: #f8f9fa !important;
+    color: #212529 !important;
+    border: 1px solid #dee2e6 !important;
+}
+
+/* Tables in modals */
+.modal-content table {
+    background: #ffffff !important;
+}
+
+.modal-content th {
+    background: #f8f9fa !important;
+    color: #212529 !important;
+    font-weight: 600 !important;
+}
+
+.modal-content td {
+    background: #ffffff !important;
+    color: #212529 !important;
+}
+
+/* Input fields in modals */
+.modal-content input,
+.modal-content textarea,
+.modal-content select {
+    background: #ffffff !important;
+    color: #212529 !important;
+    border: 1px solid #ced4da !important;
+}
+
+.modal-content input:focus,
+.modal-content textarea:focus,
+.modal-content select:focus {
+    background: #ffffff !important;
+    border-color: #86b7fe !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+}
+
+/* Alerts in modals */
+.modal-content .alert-danger {
+    background: #f8d7da !important;
+    color: #721c24 !important;
+    border: 1px solid #f5c6cb !important;
+}
+
+.modal-content .alert-success {
+    background: #d4edda !important;
+    color: #155724 !important;
+    border: 1px solid #c3e6cb !important;
+}
+
+.modal-content .alert-warning {
+    background: #fff3cd !important;
+    color: #856404 !important;
+    border: 1px solid #ffeeba !important;
+}
+
+.modal-content .alert-info {
+    background: #d1ecf1 !important;
+    color: #0c5460 !important;
+    border: 1px solid #bee5eb !important;
+}
+
+/* Loading spinners in modals */
+.modal-content .spinner,
+.modal-content .loading {
+    color: #0d6efd !important;
+}
+
+/* Ensure modals are above other content */
+.modal-overlay,
+.document-modal,
+#documentModal {
+    z-index: 9999 !important;
+}
+
+.modal-content {
+    z-index: 10000 !important;
+}
+
+/* Remove any box shadows that might cause gray appearance */
+.modal-content {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Specific fix for document modals */
+.document-modal.active {
+    display: flex !important;
+    background: rgba(0, 0, 0, 0.5) !important;
+}
+
+.document-modal .modal-content {
+    background: #ffffff !important;
+    max-width: 90% !important;
+    max-height: 90vh !important;
+    margin: auto !important;
+}
+
+/* Fix for any inline styles */
+[style*="background: purple"],
+[style*="background-color: purple"],
+[style*="background: #800080"],
+[style*="background-color: #800080"],
+[style*="background: #663399"],
+[style*="background-color: #663399"],
+[style*="background: #6b46c1"],
+[style*="background-color: #6b46c1"],
+[style*="background: #9333ea"],
+[style*="background-color: #9333ea"] {
+    background: #ffffff !important;
+}
+
+/* Ensure images in modals are not affected by filters */
+.modal-content img {
+    filter: none !important;
+    opacity: 1 !important;
+}

@@ -3,7 +3,11 @@ services:
     name: nft-legal-service-backend
     runtime: node
     buildCommand: npm install
-    startCommand: npm start
+    startCommand: node server.js
+    disk:
+      name: pdf-storage
+      mountPath: /var/data
+      sizeGB: 10
     envVars:
       - key: NODE_ENV
         value: production
@@ -13,6 +17,10 @@ services:
           property: connectionString
       - key: FRONTEND_URL
         value: https://nft-legal-service.netlify.app
+      - key: DISK_MOUNT_PATH
+        value: /var/data
+      - key: PORT
+        value: 3001
     
 databases:
   - name: nft-legal-service-db
