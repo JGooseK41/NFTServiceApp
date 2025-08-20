@@ -774,8 +774,15 @@ window.app = {
             // If we have a consolidated PDF from backend, display it
             if (this.consolidatedPDFUrl) {
                 const iframe = document.getElementById('pdfPreviewFrame');
-                iframe.src = this.consolidatedPDFUrl;
+                
+                // Add authentication header by appending server address as query param
+                const urlWithAuth = this.consolidatedPDFUrl + 
+                    (this.consolidatedPDFUrl.includes('?') ? '&' : '?') + 
+                    'serverAddress=' + encodeURIComponent(window.tronWeb.defaultAddress.base58);
+                
+                iframe.src = urlWithAuth;
                 console.log('📄 Displaying server-processed consolidated PDF');
+                console.log('   URL:', urlWithAuth);
                 return;
             }
             
@@ -1125,17 +1132,25 @@ window.app = {
             
             const result = await response.json();
             
+            console.log('Save case response:', result);
+            
+            // Store case ID for later use
+            this.currentCaseId = result.caseId || result.id;
+            
             // If backend returned a consolidated PDF URL, store it
             if (result.consolidatedPdfUrl) {
                 this.consolidatedPDFUrl = `${backendUrl}${result.consolidatedPdfUrl}`;
                 console.log('✅ Received cleaned consolidated PDF from server');
+                console.log('   Case ID:', this.currentCaseId);
+                console.log('   PDF URL:', this.consolidatedPDFUrl);
+            } else if (this.currentCaseId) {
+                // Construct the URL if not provided
+                this.consolidatedPDFUrl = `${backendUrl}/api/cases/${this.currentCaseId}/pdf`;
+                console.log('📄 Constructed PDF URL:', this.consolidatedPDFUrl);
             }
             
             // Show success message
             this.showSuccess(`Case "${caseNumber}" saved successfully! PDFs cleaned and consolidated on server.`);
-            
-            // Store case ID for later use
-            this.currentCaseId = result.caseId;
             
             // Optionally refresh the cases list if on cases page
             if (window.cases) {
