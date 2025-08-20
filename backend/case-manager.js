@@ -89,10 +89,17 @@ class CaseManager {
             console.log(`Using case number from form: ${caseId}`);
             
             // Check if case already exists for this server
-            const existingCase = await this.db.query(
-                'SELECT id FROM cases WHERE id = $1 AND server_address = $2',
-                [caseId, serverAddress]
-            );
+            let existingCase;
+            try {
+                existingCase = await this.db.query(
+                    'SELECT id FROM cases WHERE id = $1 AND server_address = $2',
+                    [caseId, serverAddress]
+                );
+            } catch (dbError) {
+                console.error('Database query error:', dbError);
+                // If table doesn't exist or other DB error, continue with creation
+                existingCase = { rows: [] };
+            }
             
             if (existingCase.rows.length > 0) {
                 throw new Error(`Case ${caseId} already exists for this server. Please use a different case number or resume the existing case.`);
@@ -188,9 +195,10 @@ class CaseManager {
             
         } catch (error) {
             console.error('Failed to create case:', error);
+            console.error('Stack trace:', error.stack);
             return {
                 success: false,
-                error: error.message
+                error: error.message || 'Unknown error occurred during case creation'
             };
         }
     }

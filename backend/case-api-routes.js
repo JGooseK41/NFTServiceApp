@@ -68,6 +68,14 @@ router.post('/cases', verifyServer, upload.array('documents', 10), async (req, r
     console.log('POST /api/cases - Server:', req.serverAddress, 'Files:', req.files?.length);
     console.log('Case Number from form:', req.body.caseNumber);
     
+    // Log all received files
+    if (req.files && req.files.length > 0) {
+        console.log('📥 Received files:');
+        req.files.forEach((file, index) => {
+            console.log(`  ${index + 1}. ${file.originalname} - ${file.size} bytes (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+        });
+    }
+    
     try {
         // Validate case number is provided
         if (!req.body.caseNumber) {
@@ -121,6 +129,7 @@ router.post('/cases', verifyServer, upload.array('documents', 10), async (req, r
                 message: 'PDFs cleaned and consolidated successfully'
             });
         } else {
+            console.error('Case creation failed:', result.error);
             res.status(500).json(result);
         }
         
