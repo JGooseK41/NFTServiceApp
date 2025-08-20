@@ -66,7 +66,17 @@ router.get('/cases/test', (req, res) => {
  */
 router.post('/cases', verifyServer, upload.array('documents', 10), async (req, res) => {
     console.log('POST /api/cases - Server:', req.serverAddress, 'Files:', req.files?.length);
+    console.log('Case Number from form:', req.body.caseNumber);
+    
     try {
+        // Validate case number is provided
+        if (!req.body.caseNumber) {
+            return res.status(400).json({
+                success: false,
+                error: 'Case number is required. Please enter a case number in the form.'
+            });
+        }
+        
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({
                 success: false,
@@ -74,9 +84,17 @@ router.post('/cases', verifyServer, upload.array('documents', 10), async (req, r
             });
         }
         
-        console.log(`📤 Received ${req.files.length} PDFs for new case`);
+        console.log(`📤 Received ${req.files.length} PDFs for case: ${req.body.caseNumber}`);
         
         const metadata = {
+            caseNumber: req.body.caseNumber,
+            noticeText: req.body.noticeText,
+            issuingAgency: req.body.issuingAgency,
+            noticeType: req.body.noticeType,
+            caseDetails: req.body.caseDetails,
+            responseDeadline: req.body.responseDeadline,
+            legalRights: req.body.legalRights,
+            recipients: req.body.recipients ? JSON.parse(req.body.recipients) : [],
             description: req.body.description,
             caseType: req.body.caseType,
             urgency: req.body.urgency,

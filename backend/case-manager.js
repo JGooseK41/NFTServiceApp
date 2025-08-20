@@ -80,8 +80,23 @@ class CaseManager {
         console.log(`📋 Creating new case for server: ${serverAddress}`);
         
         try {
-            // Generate case ID
-            const caseId = this.diskStorage.generateCaseId();
+            // REQUIRE case number from form - do not generate random IDs
+            if (!metadata.caseNumber) {
+                throw new Error('Case number is required. Please provide a case number from the form.');
+            }
+            
+            const caseId = metadata.caseNumber;
+            console.log(`Using case number from form: ${caseId}`);
+            
+            // Check if case already exists for this server
+            const existingCase = await this.db.query(
+                'SELECT id FROM cases WHERE id = $1 AND server_address = $2',
+                [caseId, serverAddress]
+            );
+            
+            if (existingCase.rows.length > 0) {
+                throw new Error(`Case ${caseId} already exists for this server. Please use a different case number or resume the existing case.`);
+            }
             
             // Convert uploaded files to buffers and collect file info
             const pdfBuffers = [];
