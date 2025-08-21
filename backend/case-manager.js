@@ -89,20 +89,31 @@ class CaseManager {
             console.log(`Using case number from form: ${caseId}`);
             
             // Check if case already exists for this server
-            let existingCase;
+            let existingCase = { rows: [] };
             try {
+                // First ensure the table exists
+                await this.createTablesIfNeeded();
+                
                 existingCase = await this.db.query(
                     'SELECT id FROM cases WHERE id = $1 AND server_address = $2',
                     [caseId, serverAddress]
                 );
             } catch (dbError) {
-                console.error('Database query error:', dbError);
+                console.error('Database query error (will continue with creation):', dbError.message);
                 // If table doesn't exist or other DB error, continue with creation
                 existingCase = { rows: [] };
             }
             
             if (existingCase.rows.length > 0) {
-                throw new Error(`Case ${caseId} already exists for this server. Please use a different case number or resume the existing case.`);
+                console.log(`Case ${caseId} already exists, attempting to delete old version first`);
+                // Delete the existing case first
+                try {
+                    await this.db.query('DELETE FROM cases WHERE id = $1 AND server_address = $2', [caseId, serverAddress]);
+                    console.log('Deleted existing case, will recreate');
+                } catch (deleteError) {
+                    console.error('Could not delete existing case:', deleteError.message);
+                    throw new Error(`Case ${caseId} already exists for this server. Please use a different case number.`);
+                }
             }
             
             // Convert uploaded files to buffers and collect file info
