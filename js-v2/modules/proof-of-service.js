@@ -365,33 +365,140 @@ This NFT represents legal service of process. You have been officially notified 
             // Load the PDF
             const arrayBuffer = await pdfBlob.arrayBuffer();
             const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+            
+            // Create alert NFT info page as first page
+            const alertPage = pdfDoc.insertPage(0, [612, 792]); // Letter size
+            const { width: pageWidth, height: pageHeight } = alertPage.getSize();
+            
+            // Add title
+            alertPage.drawText('LEGAL NOTICE DELIVERY CONFIRMATION', {
+                x: 50,
+                y: pageHeight - 80,
+                size: 18,
+                color: PDFLib.rgb(0, 0, 0)
+            });
+            
+            // Add alert NFT thumbnail if available
+            const alertImage = caseData.alertImage || caseData.alertPreview || caseData.alert_preview;
+            if (alertImage) {
+                try {
+                    // Convert base64 to image
+                    const imageData = alertImage.replace(/^data:image\/\w+;base64,/, '');
+                    const imageBytes = Uint8Array.from(atob(imageData), c => c.charCodeAt(0));
+                    
+                    // Embed as PNG or JPEG
+                    let embeddedImage;
+                    if (alertImage.includes('image/png')) {
+                        embeddedImage = await pdfDoc.embedPng(imageBytes);
+                    } else {
+                        embeddedImage = await pdfDoc.embedJpg(imageBytes);
+                    }
+                    
+                    // Draw the image (scale to fit)
+                    const imgDims = embeddedImage.scale(0.4);
+                    alertPage.drawImage(embeddedImage, {
+                        x: pageWidth / 2 - imgDims.width / 2,
+                        y: pageHeight - 400,
+                        width: imgDims.width,
+                        height: imgDims.height
+                    });
+                } catch (imgError) {
+                    console.error('Failed to embed alert image:', imgError);
+                }
+            }
+            
+            // Add NFT details
+            const detailsY = alertImage ? pageHeight - 450 : pageHeight - 150;
+            const details = [
+                'ALERT NFT INFORMATION',
+                '═══════════════════════════════════════════════════',
+                '',
+                `Token ID: #${caseData.alertTokenId || 'N/A'}`,
+                `Case Number: ${caseData.caseNumber}`,
+                `Service Date: ${new Date(caseData.servedAt).toLocaleString()}`,
+                `Issuing Agency: ${caseData.agency || 'The Block Audit'}`,
+                `Notice Type: ${caseData.noticeType || 'Legal Notice'}`,
+                '',
+                'BLOCKCHAIN VERIFICATION',
+                '═══════════════════════════════════════════════════',
+                '',
+                `Transaction Hash:`,
+                `${caseData.transactionHash}`,
+                '',
+                'INSTRUCTIONS FOR RECIPIENTS',
+                '═══════════════════════════════════════════════════',
+                '',
+                '1. This Alert NFT serves as proof of delivery for the attached legal documents.',
+                '2. The NFT has been permanently recorded on the TRON blockchain.',
+                '3. You can verify this transaction on TronScan using the transaction hash above.',
+                '4. The following pages contain the served legal documents.',
+                '5. If action is required, please refer to the document contents.',
+                '',
+                'IMPORTANT: This is an official legal notice. The Alert NFT in your wallet',
+                'confirms delivery. Please review the attached documents carefully.'
+            ];
+            
+            let yPosition = detailsY;
+            for (const line of details) {
+                const fontSize = line.includes('═') ? 10 : 
+                               line.includes('INSTRUCTIONS') || line.includes('BLOCKCHAIN') || line.includes('ALERT NFT') ? 12 : 10;
+                const fontColor = line.includes('═') ? PDFLib.rgb(0.5, 0.5, 0.5) :
+                                 line.includes('INSTRUCTIONS') || line.includes('BLOCKCHAIN') || line.includes('ALERT NFT') ? PDFLib.rgb(0, 0, 0.8) :
+                                 PDFLib.rgb(0, 0, 0);
+                
+                alertPage.drawText(line, {
+                    x: 50,
+                    y: yPosition,
+                    size: fontSize,
+                    color: fontColor
+                });
+                yPosition -= fontSize + 6;
+            }
+            
+            // Get all existing pages
             const pages = pdfDoc.getPages();
             
-            // Stamp each page
-            const stampText = `DELIVERED via BlockServed™\nDate: ${new Date(caseData.servedAt).toLocaleDateString()}\nTX: ${caseData.transactionHash}\nCase: ${caseData.caseNumber}`;
-            
-            for (const page of pages) {
+            // Stamp each page (skip the first alert page)
+            for (let i = 1; i < pages.length; i++) {
+                const page = pages[i];
                 const { width, height } = page.getSize();
                 
-                // Add red stamp box in top right corner
+                // Add wider stamp box to accommodate long transaction hash
+                const stampWidth = 320; // Increased from 180
+                const stampHeight = 65; // Slightly taller
+                const stampX = 50; // Moved to left side
+                const stampY = height - 90;
+                
+                // Add red stamp box
                 page.drawRectangle({
-                    x: width - 200,
-                    y: height - 80,
-                    width: 180,
-                    height: 60,
+                    x: stampX,
+                    y: stampY,
+                    width: stampWidth,
+                    height: stampHeight,
                     borderColor: PDFLib.rgb(1, 0, 0),
                     borderWidth: 2,
-                    color: PDFLib.rgb(1, 1, 0.9)
+                    color: PDFLib.rgb(1, 1, 0.95)
                 });
                 
-                // Add stamp text
-                page.drawText(stampText, {
-                    x: width - 190,
-                    y: height - 30,
-                    size: 8,
-                    color: PDFLib.rgb(0.8, 0, 0),
-                    lineHeight: 12
-                });
+                // Add stamp text with better formatting
+                const lines = [
+                    'DELIVERED via BlockServed™',
+                    `Date: ${new Date(caseData.servedAt).toLocaleDateString()}`,
+                    `Case: ${caseData.caseNumber}`,
+                    `TX: ${caseData.transactionHash?.substring(0, 32)}`,
+                    `    ${caseData.transactionHash?.substring(32)}`
+                ];
+                
+                let textY = stampY + stampHeight - 15;
+                for (const line of lines) {
+                    page.drawText(line, {
+                        x: stampX + 10,
+                        y: textY,
+                        size: 8,
+                        color: PDFLib.rgb(0.8, 0, 0)
+                    });
+                    textY -= 11;
+                }
             }
             
             // Save the stamped PDF
@@ -456,8 +563,99 @@ This NFT represents legal service of process. You have been officially notified 
         return bytes.buffer;
     },
     
+    // Show PDF in modal with print/save options
+    showPDFModal(pdfBlob, caseNumber) {
+        // Create modal HTML
+        const modalHTML = `
+            <div id="pdfModal" class="modal fade show" style="display: block; background: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Stamped Legal Documents - Case ${caseNumber}</h5>
+                            <button type="button" class="btn-close" onclick="document.getElementById('pdfModal').remove()"></button>
+                        </div>
+                        <div class="modal-body">
+                            <iframe id="pdfFrame" style="width: 100%; height: 500px; border: 1px solid #ddd;"></iframe>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-primary" id="printPdfBtn">
+                                <i class="bi bi-printer"></i> Print Document
+                            </button>
+                            <button type="button" class="btn btn-success" id="savePdfBtn">
+                                <i class="bi bi-download"></i> Save to Computer
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="document.getElementById('pdfModal').remove()">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Add modal to page
+        const modalDiv = document.createElement('div');
+        modalDiv.innerHTML = modalHTML;
+        document.body.appendChild(modalDiv.firstElementChild);
+        
+        // Load PDF in iframe
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        document.getElementById('pdfFrame').src = pdfUrl;
+        
+        // Print button handler
+        document.getElementById('printPdfBtn').onclick = () => {
+            const printWindow = window.open(pdfUrl, '_blank');
+            printWindow.onload = () => {
+                printWindow.print();
+            };
+        };
+        
+        // Save button handler
+        document.getElementById('savePdfBtn').onclick = () => {
+            const a = document.createElement('a');
+            a.href = pdfUrl;
+            a.download = `stamped-${caseNumber}.pdf`;
+            a.click();
+        };
+        
+        // Clean up object URL when modal is closed
+        const modal = document.getElementById('pdfModal');
+        const observer = new MutationObserver(() => {
+            if (!document.contains(modal)) {
+                URL.revokeObjectURL(pdfUrl);
+                observer.disconnect();
+            }
+        });
+        observer.observe(document.body, { childList: true });
+    },
+    
+    // Show loading indicator
+    showLoading(message = 'Generating stamped documents...') {
+        const loadingDiv = document.createElement('div');
+        loadingDiv.id = 'stampedDocLoading';
+        loadingDiv.className = 'alert alert-info position-fixed top-50 start-50 translate-middle';
+        loadingDiv.style.cssText = 'z-index: 9999; min-width: 300px; text-align: center;';
+        loadingDiv.innerHTML = `
+            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+            <span>${message}</span>
+        `;
+        document.body.appendChild(loadingDiv);
+        return loadingDiv;
+    },
+    
+    // Hide loading indicator
+    hideLoading() {
+        const loadingDiv = document.getElementById('stampedDocLoading');
+        if (loadingDiv) {
+            loadingDiv.remove();
+        }
+    },
+    
     // Export stamped documents
     async exportStampedDocuments(caseData) {
+        // Show loading indicator
+        this.showLoading('Preparing stamped documents...');
+        
         try {
             let pdfBlob = null;
             const caseId = caseData.caseNumber || caseData.case_number || caseData.id;
@@ -466,6 +664,7 @@ This NFT represents legal service of process. You have been officially notified 
             // First try IPFS if we have a hash (since IPFS contains the encrypted binary)
             if (ipfsHash) {
                 try {
+                    this.showLoading('Fetching document from IPFS...');
                     console.log('Fetching encrypted PDF from IPFS:', ipfsHash);
                     const ipfsGateway = 'https://gateway.pinata.cloud/ipfs/';
                     const ipfsResponse = await fetch(ipfsGateway + ipfsHash);
@@ -516,6 +715,7 @@ This NFT represents legal service of process. You have been officially notified 
             
             // If IPFS didn't work, try backend
             if (!pdfBlob) {
+                this.showLoading('Fetching document from server...');
                 const backendUrl = 'https://nftserviceapp.onrender.com';
                 const pdfUrl = `${backendUrl}/api/cases/${caseId}/pdf`;
                 
@@ -559,19 +759,24 @@ This NFT represents legal service of process. You have been officially notified 
                 throw new Error('No document data available');
             }
             
+            // Update loading message
+            this.showLoading('Generating stamps and adding delivery confirmation...');
+            
             // Generate stamped version
             const stampedBlob = await this.generateStampedDocuments(caseData, pdfBlob);
             
-            // Download
-            const url = URL.createObjectURL(stampedBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `stamped-${caseData.caseNumber}.pdf`;
-            a.click();
-            URL.revokeObjectURL(url);
+            // Hide loading indicator
+            this.hideLoading();
+            
+            // Show in modal with print/save options
+            this.showPDFModal(stampedBlob, caseData.caseNumber);
             
         } catch (error) {
             console.error('Failed to export stamped documents:', error);
+            
+            // Hide loading indicator if visible
+            this.hideLoading();
+            
             alert('Failed to export stamped documents. Please ensure the case has valid document data.');
         }
     }
