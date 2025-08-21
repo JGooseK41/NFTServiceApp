@@ -128,6 +128,17 @@ router.post('/cases', verifyServer, upload.array('documents', 10), async (req, r
                 consolidatedPdfUrl: consolidatedPdfUrl,
                 message: 'PDFs cleaned and consolidated successfully'
             });
+        } else if (result.exists) {
+            // Case already exists - return with special status
+            console.log('Case already exists:', result.caseId);
+            res.status(409).json({
+                success: false,
+                exists: true,
+                caseId: result.caseId,
+                case: result.case,
+                message: result.message,
+                error: 'CASE_EXISTS'
+            });
         } else {
             console.error('Case creation failed:', result.error);
             res.status(500).json(result);
@@ -135,6 +146,49 @@ router.post('/cases', verifyServer, upload.array('documents', 10), async (req, r
         
     } catch (error) {
         console.error('Case creation error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
+ * AMEND/UPDATE CASE
+ * PUT /api/cases/:caseId
+ * Update an existing case with new files or metadata
+ */
+router.put('/cases/:caseId', verifyServer, upload.array('documents', 10), async (req, res) => {
+    console.log('PUT /api/cases/:caseId - Case:', req.params.caseId, 'Server:', req.serverAddress);
+    
+    try {
+        const metadata = {
+            caseNumber: req.body.caseNumber || req.params.caseId,
+            noticeText: req.body.noticeText,
+            issuingAgency: req.body.issuingAgency,
+            noticeType: req.body.noticeType,
+            caseDetails: req.body.caseDetails,
+            responseDeadline: req.body.responseDeadline,
+            legalRights: req.body.legalRights,
+            recipients: req.body.recipients ? JSON.parse(req.body.recipients) : [],
+            amendedAt: new Date().toISOString()
+        };
+        
+        const result = await caseManager.amendCase(
+            req.params.caseId,
+            req.serverAddress,
+            req.files,
+            metadata
+        );
+        
+        if (result.success) {
+            res.json(result);
+        } else {
+            res.status(400).json(result);
+        }
+        
+    } catch (error) {
+        console.error('Case amendment error:', error);
         res.status(500).json({
             success: false,
             error: error.message

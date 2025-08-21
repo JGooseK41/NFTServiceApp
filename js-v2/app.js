@@ -1151,6 +1151,42 @@ window.app = {
                 if (contentType && contentType.includes('application/json')) {
                     try {
                         const error = await response.json();
+                        
+                        // Check if case already exists (409 Conflict)
+                        if (response.status === 409 || error.error === 'CASE_EXISTS' || error.exists) {
+                            const choice = confirm(
+                                `Case ${caseNumber} already exists.\n\n` +
+                                `Would you like to:\n` +
+                                `OK - Resume/amend the existing case\n` +
+                                `Cancel - Use a different case number`
+                            );
+                            
+                            if (choice) {
+                                // Store the existing case data
+                                this.currentCaseId = error.caseId || caseNumber;
+                                if (error.case && error.case.pdf_path) {
+                                    this.consolidatedPDFUrl = `${backendUrl}/api/cases/${this.currentCaseId}/pdf`;
+                                }
+                                
+                                this.showSuccess(`Resuming existing case ${caseNumber}`);
+                                
+                                // The case exists, so we can proceed with preview
+                                return {
+                                    success: true,
+                                    exists: true,
+                                    caseId: this.currentCaseId,
+                                    case: error.case,
+                                    message: 'Using existing case'
+                                };
+                            } else {
+                                // User wants to use a different case number
+                                document.getElementById('caseNumber').focus();
+                                document.getElementById('caseNumber').select();
+                                this.showError('Please use a different case number');
+                                return;
+                            }
+                        }
+                        
                         errorMessage = error.message || errorMessage;
                     } catch (e) {
                         // JSON parse failed
@@ -1160,21 +1196,6 @@ window.app = {
                     const text = await response.text();
                     console.error('Server returned non-JSON response:', text.substring(0, 200));
                     errorMessage = `Server error (${response.status}): ${response.statusText}`;
-                    
-                    // Check if it's a duplicate case error
-                    if (errorMessage.includes('already exists')) {
-                        const shouldResume = confirm(`${errorMessage}\n\nWould you like to resume the existing case?`);
-                        if (shouldResume) {
-                            // Navigate to cases page
-                            window.location.hash = '#cases';
-                            setTimeout(() => {
-                                if (window.cases && window.cases.resumeCase) {
-                                    window.cases.resumeCase(caseNumber);
-                                }
-                            }, 500);
-                            return;
-                        }
-                    }
                 }
                 
                 throw new Error(errorMessage);

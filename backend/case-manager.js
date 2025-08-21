@@ -95,7 +95,7 @@ class CaseManager {
                 await this.createTablesIfNeeded();
                 
                 existingCase = await this.db.query(
-                    'SELECT id FROM cases WHERE id = $1 AND server_address = $2',
+                    'SELECT * FROM cases WHERE id = $1 AND server_address = $2',
                     [caseId, serverAddress]
                 );
             } catch (dbError) {
@@ -105,15 +105,16 @@ class CaseManager {
             }
             
             if (existingCase.rows.length > 0) {
-                console.log(`Case ${caseId} already exists, attempting to delete old version first`);
-                // Delete the existing case first
-                try {
-                    await this.db.query('DELETE FROM cases WHERE id = $1 AND server_address = $2', [caseId, serverAddress]);
-                    console.log('Deleted existing case, will recreate');
-                } catch (deleteError) {
-                    console.error('Could not delete existing case:', deleteError.message);
-                    throw new Error(`Case ${caseId} already exists for this server. Please use a different case number.`);
-                }
+                console.log(`Case ${caseId} already exists for server ${serverAddress}`);
+                // Return the existing case with a flag indicating it exists
+                return {
+                    success: false,
+                    exists: true,
+                    caseId: caseId,
+                    case: existingCase.rows[0],
+                    message: `Case ${caseId} already exists. Would you like to resume or amend it?`,
+                    error: 'CASE_EXISTS'
+                };
             }
             
             // Convert uploaded files to buffers and collect file info
@@ -523,6 +524,91 @@ class CaseManager {
         } catch (error) {
             console.error('Failed to mark case as served:', error);
             return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Amend/Update an existing case
+     */
+    async amendCase(caseId, serverAddress, uploadedFiles, metadata = {}) {
+        console.log(`Amending case ${caseId} for server: ${serverAddress}`);
+        
+        try {
+            // Check if case exists
+            const existingCase = await this.db.query(
+                'SELECT * FROM cases WHERE id = $1 AND server_address = $2',
+                [caseId, serverAddress]
+            );
+            
+            if (existingCase.rows.length === 0) {
+                return {
+                    success: false,
+                    error: 'Case not found to amend'
+                };
+            }
+            
+            // Process new PDFs if provided
+            let pdfPath = existingCase.rows[0].pdf_path;
+            let alertPreview = existingCase.rows[0].alert_preview;
+            
+            if (uploadedFiles && uploadedFiles.length > 0) {
+                console.log(`Processing ${uploadedFiles.length} new files for case amendment`);
+                
+                // Convert uploaded files to buffers
+                const pdfBuffers = [];
+                for (const file of uploadedFiles) {
+                    if (file.buffer) {
+                        pdfBuffers.push(file.buffer);
+                    }
+                }
+                
+                // Clean and merge PDFs
+                const { consolidatedPdf, pageCount } = await this.pdfProcessor.processMultiplePDFs(pdfBuffers);
+                
+                // Store the consolidated PDF
+                pdfPath = await this.diskStorage.storePDF(caseId, consolidatedPdf, 'consolidated.pdf');
+                
+                // Generate new preview if needed
+                alertPreview = await this.pdfProcessor.generateAlertPreview({
+                    ...metadata,
+                    pageCount
+                });
+            }
+            
+            // Update case metadata
+            const updateQuery = `
+                UPDATE cases 
+                SET 
+                    metadata = $3,
+                    pdf_path = $4,
+                    alert_preview = $5,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = $1 AND server_address = $2
+                RETURNING *
+            `;
+            
+            const result = await this.db.query(updateQuery, [
+                caseId,
+                serverAddress,
+                JSON.stringify({...metadata, amended: true, amendedAt: new Date().toISOString()}),
+                pdfPath,
+                alertPreview
+            ]);
+            
+            return {
+                success: true,
+                amended: true,
+                caseId,
+                case: result.rows[0],
+                message: 'Case successfully amended'
+            };
+            
+        } catch (error) {
+            console.error('Failed to amend case:', error);
+            return {
+                success: false,
+                error: error.message
+            };
         }
     }
 
