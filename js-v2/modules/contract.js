@@ -366,30 +366,22 @@ window.contract = {
         try {
             console.log('Creating batch notices for recipients:', data.recipients);
             
-            // Prepare metadata
+            // OPTIMIZATION: Don't include base64 image in on-chain metadata (too large!)
+            // Instead, reference the image URL or IPFS hash
+            const imageUrl = data.ipfsHash ? 
+                `ipfs://${data.ipfsHash}` : 
+                `https://blockserved.com/api/thumbnail/${data.noticeId}`;
+            
+            // Minimal metadata to reduce bandwidth
             const metadata = {
-                name: `Legal Notice Batch - ${data.caseNumber}`,
-                description: data.noticeText,
-                image: data.thumbnail,
-                external_url: `https://blockserved.com/notice/${data.noticeId}`,
-                attributes: [
-                    { trait_type: "Type", value: "Batch Notice" },
-                    { trait_type: "Recipients", value: data.recipients.length },
-                    { trait_type: "Case Number", value: data.caseNumber },
-                    { trait_type: "Timestamp", value: new Date().toISOString() }
-                ],
-                access_info: {
-                    portal: "https://blockserved.com",
-                    notice_id: data.noticeId,
-                    encrypted: data.encrypted,
-                    ipfs_hash: data.ipfsHash
-                }
+                name: `Notice #${data.caseNumber}`,
+                description: data.noticeText ? data.noticeText.substring(0, 100) + '...' : 'Legal Notice',
+                image: imageUrl,  // URL reference, not base64 data!
+                external_url: `https://blockserved.com/notice/${data.noticeId}`
             };
             
-            // Ensure metadata is always valid
-            const metadataUri = metadata ? 
-                'data:application/json;base64,' + btoa(JSON.stringify(metadata)) :
-                'data:application/json;base64,e30=';  // e30= is {} in base64
+            // Keep metadata small - no base64 encoding needed for small JSON
+            const metadataUri = 'data:application/json,' + encodeURIComponent(JSON.stringify(metadata));
             
             // Build batch notice array - try matching v1 exactly
             const batchNotices = data.recipients.map(recipient => {
@@ -403,18 +395,18 @@ window.contract = {
                 const ipfsHash = data.ipfsHash || '';
                 const encryptionKey = data.encryptionKey || '';
                 
-                // Ensure we're sending valid data types the contract expects
+                // OPTIMIZE: Use minimal data to reduce bandwidth
                 return {
                     recipient: recipientAddress,
-                    encryptedIPFS: ipfsHash || data.diskUrl || '',  // Empty string instead of 'none'
-                    encryptionKey: encryptionKey || '',              // Empty string instead of 'none'
-                    issuingAgency: data.agency || 'Legal Services',
-                    noticeType: data.noticeType || 'legal_notice',  // Dynamic, not hardcoded
+                    encryptedIPFS: ipfsHash || '',                   // Empty string if no IPFS
+                    encryptionKey: encryptionKey || '',              // Empty string if not encrypted
+                    issuingAgency: data.agency || 'Legal Services',  
+                    noticeType: 'legal',                             // Shorter type
                     caseNumber: data.caseNumber || '',
-                    caseDetails: data.noticeText || 'View Complete Documents at www.BlockServed.com',
-                    legalRights: 'View full document at www.BlockServed.com for info on your rights and next steps',  // Hardcoded
-                    sponsorFees: Boolean(data.sponsorFees),
-                    metadataURI: metadataUri || 'data:application/json;base64,e30='  // Empty JSON object as base64
+                    caseDetails: (data.noticeText || '').substring(0, 50),  // Limit to 50 chars
+                    legalRights: 'See BlockServed.com',              // Much shorter!
+                    sponsorFees: false,                              // Always false for now
+                    metadataURI: metadataUri                         // Already optimized above
                 };
             });
             

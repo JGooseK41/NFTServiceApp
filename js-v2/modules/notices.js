@@ -49,8 +49,12 @@ window.notices = {
                 type: 'legal_document'
             });
             
-            const thumbnail = documentData.thumbnail;
-            console.log('Documents consolidated into single PDF:', documentData);
+            // Don't pass base64 thumbnail to contract - too large for blockchain!
+            const thumbnail = null; // We'll use IPFS or URL reference instead
+            console.log('Documents consolidated into single PDF (thumbnail excluded for bandwidth):', {
+                ...documentData,
+                thumbnail: '[EXCLUDED - too large for chain]'
+            });
             
             // Step 5: Skip storing notice in backend - Case Manager already has everything
             // The actual notice will be tracked after blockchain confirmation
