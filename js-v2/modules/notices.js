@@ -198,24 +198,48 @@ window.notices = {
             // Mark case as served if we have a case ID
             if (window.app && window.app.currentCaseId) {
                 try {
-                    // Initialize case management client if needed
-                    if (!window.caseManager) {
-                        const CaseManagementClient = window.CaseManagementClient || (await import('/js/case-management-client.js')).default;
-                        window.caseManager = new CaseManagementClient();
-                    }
-                    
                     // Store alert image for receipt
                     const alertImage = thumbnail;
                     
-                    // Mark the case as served with actual data
-                    const servedResult = await window.caseManager.markCaseAsServed(
-                        window.app.currentCaseId,
-                        txResult.alertTx,     // Transaction hash
-                        alertTokenId,         // Alert NFT token ID
-                        documentTokenId       // Document NFT token ID
-                    );
+                    // Send complete service data to backend
+                    const backendUrl = window.config?.backendUrl || 'https://nftserviceapp.onrender.com';
+                    const serviceUpdateResponse = await fetch(`${backendUrl}/api/cases/${window.app.currentCaseId}/service-complete`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Server-Address': window.wallet?.address || window.serverAddress
+                        },
+                        body: JSON.stringify({
+                            transactionHash: txResult.alertTx,
+                            alertTokenId: alertTokenId,
+                            documentTokenId: documentTokenId,
+                            alertImage: alertImage, // Base64 image
+                            ipfsHash: documentData.ipfsHash,
+                            encryptionKey: documentData.encryptionKey || '',
+                            recipients: data.recipients || [data.recipient],
+                            agency: data.issuingAgency || data.agency || 'The Block Service',
+                            noticeType: data.noticeType || 'Legal Notice',
+                            pageCount: documentData.pageCount || 1,
+                            servedAt: new Date().toISOString(),
+                            serverAddress: window.wallet?.address || window.serverAddress,
+                            metadata: {
+                                noticeText: data.noticeText,
+                                caseDetails: data.caseDetails,
+                                deadline: data.deadline || '',
+                                thumbnailUrl: documentData.thumbnailUrl,
+                                diskUrl: documentData.diskUrl
+                            }
+                        })
+                    });
                     
-                    // Also update local storage with complete data
+                    if (serviceUpdateResponse.ok) {
+                        const result = await serviceUpdateResponse.json();
+                        console.log('✅ Case service data stored in backend:', result);
+                    } else {
+                        console.error('Failed to update backend:', await serviceUpdateResponse.text());
+                    }
+                    
+                    // Also update local storage as a cache (but backend is source of truth)
                     const cases = JSON.parse(localStorage.getItem('legalnotice_cases') || '[]');
                     const caseIndex = cases.findIndex(c => 
                         c.caseNumber === window.app.currentCaseId || 
@@ -230,16 +254,11 @@ window.notices = {
                         cases[caseIndex].documentTokenId = documentTokenId;
                         cases[caseIndex].alertImage = alertImage;
                         cases[caseIndex].recipients = data.recipients || [data.recipient];
-                        cases[caseIndex].agency = data.issuingAgency || data.agency;
-                        cases[caseIndex].noticeType = data.noticeType;
                         localStorage.setItem('legalnotice_cases', JSON.stringify(cases));
                     }
                     
-                    if (servedResult && servedResult.success) {
-                        console.log('✅ Case marked as served:', window.app.currentCaseId);
-                    }
                 } catch (error) {
-                    console.error('Failed to mark case as served:', error);
+                    console.error('Failed to update case service data:', error);
                     // Don't fail the whole transaction, just log the error
                 }
             }

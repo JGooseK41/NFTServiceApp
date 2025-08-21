@@ -986,6 +986,10 @@ app.use('/api', casesRouter);
 const simpleCasesRouter = require('./routes/simple-cases');
 app.use('/api', simpleCasesRouter);
 
+// Case service update routes (for storing complete service data)
+const caseServiceUpdateRouter = require('./routes/case-service-update');
+app.use('/api', caseServiceUpdateRouter);
+
 // Blockchain sync routes
 const blockchainSyncRouter = require('./routes/blockchain-sync');
 app.use('/api', blockchainSyncRouter);
