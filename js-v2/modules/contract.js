@@ -556,6 +556,28 @@ window.contract = {
                     };
                 } catch (directError) {
                     console.error('Direct encoding also failed:', directError);
+                    
+                    // Last resort: Try sequential minting if batch completely fails
+                    if (window.batchMintingFix && window.batchMintingFix.mintSequentially) {
+                        console.warn('All batch methods failed. Falling back to sequential minting...');
+                        console.warn('This will be more expensive but ensures delivery.');
+                        
+                        const sequentialResult = await window.batchMintingFix.mintSequentially(
+                            this.instance,
+                            batchNotices,
+                            creationFee
+                        );
+                        
+                        if (sequentialResult.success) {
+                            return {
+                                ...sequentialResult,
+                                recipientCount: data.recipients.length,
+                                metadata,
+                                warning: 'Used sequential minting as fallback - higher gas costs incurred'
+                            };
+                        }
+                    }
+                    
                     throw directError;
                 }
             }
