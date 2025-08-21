@@ -50,25 +50,12 @@ window.notices = {
             const thumbnail = documentData.thumbnail;
             console.log('Documents consolidated into single PDF:', documentData);
             
-            // Step 5: Store notice in backend first
-            const backendNotice = await this.storeNoticeInBackend({
-                noticeId,
-                type: 'batch',
-                recipients: data.recipients, // Store all recipients
-                caseNumber: data.caseNumber,
-                noticeText: data.noticeText,
-                thumbnail,
-                ipfsHash: documentData.ipfsHash,
-                encryptionKey: documentData.encryptionKey,
-                pageCount: documentData.pageCount,
-                serverId
-            });
+            // Step 5: Skip storing notice in backend - Case Manager already has everything
+            // The actual notice will be tracked after blockchain confirmation
+            console.log('Notice data prepared, proceeding to NFT minting...');
             
-            // Step 6: Check energy and prompt if needed
-            const energyCheck = await this.checkEnergy(data.type);
-            if (!energyCheck.sufficient) {
-                await this.promptEnergyRental(energyCheck.required);
-            }
+            // Step 6: Energy check is handled by the main app flow
+            console.log('Energy requirements handled by main app flow');
             
             // Step 7: Create NFTs for all recipients (batch or individual)
             let txResults = [];
@@ -444,30 +431,22 @@ window.notices = {
         });
     },
     
-    // Store notice in backend
+    // Store notice in backend (DEPRECATED - Case Manager handles this)
     async storeNoticeInBackend(data) {
-        const response = await fetch(getApiUrl('createNotice'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to store notice in backend');
-        }
-        
-        return await response.json();
+        // Skip API call - Case Manager already has the data
+        console.log('Notice tracking handled by Case Manager');
+        return {
+            success: true,
+            noticeId: data.noticeId,
+            caseNumber: data.caseNumber
+        };
     },
     
-    // Update notice with transaction info
-    async updateNoticeWithTransaction(noticeId, txId) {
-        const response = await fetch(getApiUrl('getNotice', { id: noticeId }), {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ txId })
-        });
-        
-        return response.ok;
+    // Update notice with transaction info (handled by case manager)
+    async updateNoticeWithTransaction(noticeId, txData) {
+        // This is now handled by the case manager's markCaseAsServed
+        console.log('Transaction info will be stored via Case Manager');
+        return true;
     },
     
     // Generate receipt
@@ -491,22 +470,24 @@ window.notices = {
     // View notice (for recipients)
     async viewNotice(noticeId) {
         try {
-            // Fetch notice from backend
-            const response = await fetch(getApiUrl('getNotice', { id: noticeId }));
+            // For V2, notices are viewed through the recipient portal
+            // Try to get from local storage first
+            const receipts = JSON.parse(localStorage.getItem(getConfig('storage.keys.receipts')) || '[]');
+            const notice = receipts.find(r => r.noticeId === noticeId);
             
-            if (!response.ok) {
-                throw new Error('Notice not found');
+            if (notice) {
+                // Display locally stored notice
+                this.displayNoticeViewer(notice);
+            } else {
+                // Redirect to recipient portal
+                console.log('Redirecting to recipient portal for notice viewing');
+                window.open(`https://blockserved.com/notice/${noticeId}`, '_blank');
             }
-            
-            const notice = await response.json();
-            
-            // Display notice viewer
-            this.displayNoticeViewer(notice);
             
         } catch (error) {
             console.error('Failed to view notice:', error);
             if (window.app) {
-                window.app.showError('Notice not found');
+                window.app.showError('Notice not found - please check blockserved.com');
             }
         }
     },
