@@ -64,9 +64,19 @@ window.contract = {
         }
         
         try {
-            // Create contract instance
+            // Create contract instance EXACTLY as v1 does
             this.instance = await this.tronWeb.contract(this.abi, this.address);
             console.log('Contract initialized at:', this.address);
+            
+            // Verify serveNoticeBatch is available
+            if (this.instance.serveNoticeBatch) {
+                console.log('✓ serveNoticeBatch method found on contract instance');
+                // Check the method signature
+                const methodSig = this.instance.serveNoticeBatch.toString();
+                console.log('Method signature:', methodSig.substring(0, 100) + '...');
+            } else {
+                console.error('✗ serveNoticeBatch method NOT found on contract instance');
+            }
             
             // Get contract owner for admin check
             await this.checkAdminRole();
@@ -444,20 +454,24 @@ window.contract = {
             console.log('Calling serveNoticeBatch with', batchNotices.length, 'notices');
             console.log('First notice structure:', JSON.stringify(batchNotices[0], null, 2));
             
-            // Debug: let's see what the contract method looks like
-            console.log('Contract instance type:', typeof this.instance);
-            console.log('serveNoticeBatch type:', typeof this.instance.serveNoticeBatch);
-            
-            // The issue is that TronWeb isn't recognizing the array of structs properly
-            // Let's verify the ABI is correct first
-            const batchMethod = this.abi.find(m => m.name === 'serveNoticeBatch');
-            console.log('serveNoticeBatch ABI:', batchMethod);
-            
-            if (!batchMethod) {
-                throw new Error('serveNoticeBatch not found in ABI');
+            // Verify the contract has the batch method
+            if (!this.instance.serveNoticeBatch) {
+                throw new Error('serveNoticeBatch method not found in contract instance');
             }
             
-            // Try calling the method directly
+            // The issue is TronWeb is passing the array incorrectly
+            // In v1 it works, so the contract and method are fine
+            // The problem is likely with how TronWeb encodes the struct array
+            
+            // Try calling exactly as v1 does - direct call with array
+            console.log('Attempting batch transaction...');
+            console.log('TronWeb version:', this.tronWeb.version);
+            console.log('Contract address:', this.address);
+            
+            // Log exactly what we're sending
+            console.log('Batch array being sent:', batchNotices);
+            console.log('Total fee:', totalFee);
+            
             const tx = await this.instance.serveNoticeBatch(batchNotices).send({
                 feeLimit: 2000000000,  // Use same high limit as v1
                 callValue: totalFee,
