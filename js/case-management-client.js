@@ -318,17 +318,20 @@ class CaseManagementClient {
      */
     async markCaseAsServed(caseId, txHash, alertNftId, documentNftId) {
         try {
+            // Convert BigInt values to strings
+            const payload = {
+                txHash: typeof txHash === 'bigint' ? txHash.toString() : txHash,
+                alertNftId: typeof alertNftId === 'bigint' ? alertNftId.toString() : alertNftId,
+                documentNftId: typeof documentNftId === 'bigint' ? documentNftId.toString() : documentNftId
+            };
+            
             const response = await fetch(`${this.apiUrl}/api/cases/${caseId}/served`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Server-Address': this.serverAddress
                 },
-                body: JSON.stringify({
-                    txHash,
-                    alertNftId,
-                    documentNftId
-                })
+                body: JSON.stringify(payload)
             });
             
             const result = await response.json();

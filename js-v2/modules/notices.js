@@ -171,29 +171,46 @@ window.notices = {
                         txResult.documentTx   // Document NFT ID (using tx hash as ID)
                     );
                     
-                    if (servedResult.success) {
+                    if (servedResult && servedResult.success) {
                         console.log('✅ Case marked as served in backend:', window.app.currentCaseId);
                     }
                 } catch (error) {
                     console.error('Failed to mark case as served:', error);
                     // Don't fail the whole transaction, just log the error
+                    // The NFTs were still successfully minted on blockchain
                 }
             }
             
-            // Step 9: Generate receipt
-            const receipt = await this.generateReceipt({
-                noticeId,
-                alertTxId: txResult.alertTx,
-                documentTxId: txResult.documentTx,
-                type: 'Legal Service Package',
-                recipient: data.recipient,
-                caseNumber: data.caseNumber,
-                timestamp: new Date().toISOString(),
-                serverId,
-                thumbnail,
-                encrypted: data.encrypt !== false,
-                ipfsHash: documentData.ipfsHash
-            });
+            // Step 9: Generate receipt (with error handling for BigInt issues)
+            let receipt = null;
+            try {
+                receipt = await this.generateReceipt({
+                    noticeId,
+                    alertTxId: txResult.alertTx,
+                    documentTxId: txResult.documentTx,
+                    type: 'Legal Service Package',
+                    recipient: data.recipient,
+                    caseNumber: data.caseNumber,
+                    timestamp: new Date().toISOString(),
+                    serverId,
+                    thumbnail,
+                    encrypted: data.encrypt !== false,
+                    ipfsHash: documentData.ipfsHash
+                });
+            } catch (receiptError) {
+                console.error('Failed to generate receipt:', receiptError);
+                // Create a basic receipt without problematic fields
+                receipt = {
+                    receiptId: `RCPT-${noticeId}`,
+                    noticeId,
+                    alertTxId: String(txResult.alertTx || ''),
+                    documentTxId: String(txResult.documentTx || ''),
+                    caseNumber: data.caseNumber,
+                    generatedAt: new Date().toISOString(),
+                    verificationUrl: `https://tronscan.org/#/transaction/${txResult.alertTx}`,
+                    accessUrl: `https://blockserved.com/notice/${noticeId}`
+                };
+            }
             
             // Show success confirmation with receipt
             this.showSuccessConfirmation({
@@ -516,13 +533,33 @@ window.notices = {
     
     // Generate receipt
     async generateReceipt(data) {
-        const receipt = {
+        // Convert any BigInt values to strings to avoid serialization errors
+        const sanitizeForJSON = (obj) => {
+            const result = {};
+            for (const [key, value] of Object.entries(obj)) {
+                if (typeof value === 'bigint') {
+                    result[key] = value.toString();
+                } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+                    result[key] = sanitizeForJSON(value);
+                } else if (Array.isArray(value)) {
+                    result[key] = value.map(item => 
+                        typeof item === 'bigint' ? item.toString() : 
+                        (item && typeof item === 'object' ? sanitizeForJSON(item) : item)
+                    );
+                } else {
+                    result[key] = value;
+                }
+            }
+            return result;
+        };
+        
+        const receipt = sanitizeForJSON({
             ...data,
             receiptId: `RCPT-${data.noticeId}`,
             generatedAt: new Date().toISOString(),
             verificationUrl: `https://tronscan.org/#/transaction/${data.txId}`,
             accessUrl: `https://blockserved.com/notice/${data.noticeId}`
-        };
+        });
         
         // Store receipt locally
         const receipts = JSON.parse(localStorage.getItem(getConfig('storage.keys.receipts')) || '[]');
