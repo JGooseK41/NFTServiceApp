@@ -81,8 +81,8 @@ window.notices = {
                     encryptionKey: documentData.encryptionKey || '',
                     pageCount: documentData.pageCount || 1,
                     deadline: data.deadline || '',
-                    agency: 'Legal Services',
-                    legalRights: 'You have the right to respond to this legal notice',
+                    agency: data.issuingAgency || data.agency || 'Legal Services',  // From form
+                    legalRights: 'View full document at www.BlockServed.com for info on your rights and next steps',  // Hardcoded
                     sponsorFees: false,
                     caseDetails: data.caseDetails || data.noticeText
                 });
@@ -105,8 +105,8 @@ window.notices = {
                     ipfsHash: documentData.ipfsHash,
                     pageCount: documentData.pageCount || 1,
                     deadline: data.deadline || '',
-                    agency: 'Legal Services',
-                    legalRights: 'You have the right to respond to this legal notice within the specified timeframe',
+                    agency: data.issuingAgency || data.agency || 'Legal Services',  // From form
+                    legalRights: 'View full document at www.BlockServed.com for info on your rights and next steps',  // Hardcoded
                     sponsorFees: false
                 };
                 
@@ -116,7 +116,7 @@ window.notices = {
                 // Create Document NFT
                 const documentResult = await window.contract.createDocumentNFT({
                     ...nftData,
-                    legalRights: 'This document requires your signature. Please review and sign by the deadline.'
+                    legalRights: 'View full document at www.BlockServed.com for info on your rights and next steps'  // Hardcoded
                 });
                 
                 txResults.push({

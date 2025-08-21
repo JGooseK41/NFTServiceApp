@@ -412,7 +412,7 @@ window.contract = {
                     noticeType: data.noticeType || 'legal_notice',  // Dynamic, not hardcoded
                     caseNumber: data.caseNumber || '',
                     caseDetails: data.noticeText || 'View Complete Documents at www.BlockServed.com',
-                    legalRights: data.legalRights || 'You have the right to respond within 30 days',
+                    legalRights: 'View full document at www.BlockServed.com for info on your rights and next steps',  // Hardcoded
                     sponsorFees: Boolean(data.sponsorFees),
                     metadataURI: metadataUri || 'data:application/json;base64,e30='  // Empty JSON object as base64
                 };
