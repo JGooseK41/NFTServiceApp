@@ -1158,14 +1158,24 @@ window.app = {
             console.log('Saving case to:', apiUrl);
             console.log('Server address:', serverAddress);
             
+            // Add timeout to prevent hanging
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+            
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'X-Server-Address': serverAddress
                     // Don't set Content-Type, let browser set it for FormData
                 },
-                body: formData
+                body: formData,
+                signal: controller.signal
+            }).finally(() => {
+                clearTimeout(timeoutId);
             });
+            
+            console.log('Response received:', response.status, response.statusText);
+            console.log('Response headers:', response.headers.get('content-type'));
             
             if (!response.ok) {
                 // Try to get error message
@@ -1233,9 +1243,23 @@ window.app = {
                 throw new Error('Server returned invalid response format');
             }
             
-            const result = await response.json();
-            
-            console.log('Save case response:', result);
+            let result;
+            try {
+                result = await response.json();
+                console.log('Save case response:', result);
+            } catch (parseError) {
+                console.error('Failed to parse response:', parseError);
+                // If we can't parse the response but got 200, assume success with case number
+                if (response.ok) {
+                    result = {
+                        success: true,
+                        caseId: caseNumber,
+                        message: 'Case saved (response parse failed)'
+                    };
+                } else {
+                    throw new Error('Invalid response from server');
+                }
+            }
             
             // Check if the backend actually returned a successful response
             if (!result.success) {
