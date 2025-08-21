@@ -27,7 +27,7 @@ router.get('/cases/by-number/:caseNumber', async (req, res) => {
 
         // Query to find case by case number
         const query = `
-            SELECT DISTINCT
+            SELECT 
                 case_number,
                 server_address,
                 notice_type,
@@ -36,8 +36,8 @@ router.get('/cases/by-number/:caseNumber', async (req, res) => {
                 MAX(updated_at) as updated_at,
                 COUNT(DISTINCT recipient_address) as recipient_count,
                 COUNT(*) as notice_count,
-                json_agg(DISTINCT recipient_address) as recipients,
-                json_agg(DISTINCT recipient_name) as recipient_names
+                array_agg(DISTINCT recipient_address) as recipients,
+                array_agg(DISTINCT recipient_name) as recipient_names
             FROM served_notices
             WHERE case_number = $1 
             AND ($2::text IS NULL OR server_address = $2)

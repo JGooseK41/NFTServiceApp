@@ -36,7 +36,7 @@ window.AppConfig = {
             // Case endpoints
             createCase: '/api/cases',
             getCase: '/api/cases/:id',
-            getCases: '/api/cases',
+            getCases: '/api/servers/:serverAddress/simple-cases',
             
             // Server registration
             registerServer: '/api/server/register',
