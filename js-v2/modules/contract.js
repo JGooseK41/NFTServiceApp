@@ -287,7 +287,10 @@ window.contract = {
             };
             
             // Convert metadata to Base64 data URI
-            const metadataUri = 'data:application/json;base64,' + btoa(JSON.stringify(metadata));
+            // Ensure metadata is always valid
+            const metadataUri = metadata ? 
+                'data:application/json;base64,' + btoa(JSON.stringify(metadata)) :
+                'data:application/json;base64,e30=';  // e30= is {} in base64
             
             // Validate recipient address
             if (!data.recipient) {
@@ -383,7 +386,10 @@ window.contract = {
                 }
             };
             
-            const metadataUri = 'data:application/json;base64,' + btoa(JSON.stringify(metadata));
+            // Ensure metadata is always valid
+            const metadataUri = metadata ? 
+                'data:application/json;base64,' + btoa(JSON.stringify(metadata)) :
+                'data:application/json;base64,e30=';  // e30= is {} in base64
             
             // Build batch notice array - try matching v1 exactly
             const batchNotices = data.recipients.map(recipient => {
@@ -397,17 +403,18 @@ window.contract = {
                 const ipfsHash = data.ipfsHash || '';
                 const encryptionKey = data.encryptionKey || '';
                 
+                // Ensure we're sending valid data types the contract expects
                 return {
                     recipient: recipientAddress,
-                    encryptedIPFS: ipfsHash || data.diskUrl || 'none',  // IPFS hash preferred
-                    encryptionKey: encryptionKey || 'none',              // Encryption key for IPFS content
+                    encryptedIPFS: ipfsHash || data.diskUrl || '',  // Empty string instead of 'none'
+                    encryptionKey: encryptionKey || '',              // Empty string instead of 'none'
                     issuingAgency: data.agency || 'Legal Services',
-                    noticeType: 'alert',
+                    noticeType: data.noticeType || 'legal_notice',  // Dynamic, not hardcoded
                     caseNumber: data.caseNumber || '',
                     caseDetails: data.noticeText || 'View Complete Documents at www.BlockServed.com',
-                    legalRights: data.legalRights || 'You have the right to respond',
+                    legalRights: data.legalRights || 'You have the right to respond within 30 days',
                     sponsorFees: Boolean(data.sponsorFees),
-                    metadataURI: metadataUri || ''
+                    metadataURI: metadataUri || 'data:application/json;base64,e30='  // Empty JSON object as base64
                 };
             });
             
@@ -634,7 +641,10 @@ window.contract = {
                 }
             };
             
-            const metadataUri = 'data:application/json;base64,' + btoa(JSON.stringify(metadata));
+            // Ensure metadata is always valid
+            const metadataUri = metadata ? 
+                'data:application/json;base64,' + btoa(JSON.stringify(metadata)) :
+                'data:application/json;base64,e30=';  // e30= is {} in base64
             
             // Validate recipient address
             if (!data.recipient) {
