@@ -106,15 +106,37 @@ class CaseManager {
             
             if (existingCase.rows.length > 0) {
                 console.log(`Case ${caseId} already exists for server ${serverAddress}`);
-                // Return the existing case with a flag indicating it exists
-                return {
-                    success: false,
-                    exists: true,
-                    caseId: caseId,
-                    case: existingCase.rows[0],
-                    message: `Case ${caseId} already exists. Would you like to resume or amend it?`,
-                    error: 'CASE_EXISTS'
-                };
+                
+                // Check if this is an orphaned case (exists in cases but not in served_notices)
+                console.log(`Checking if case ${caseId} is orphaned...`);
+                const servedCheck = await this.db.query(
+                    'SELECT id FROM served_notices WHERE case_number = $1 AND server_address = $2 LIMIT 1',
+                    [caseId, serverAddress]
+                );
+                
+                if (servedCheck.rows.length === 0) {
+                    // This is an orphaned case - clean it up
+                    console.log(`⚠️ Orphaned case detected - exists in cases table but not in served_notices`);
+                    console.log(`🧹 Cleaning up orphaned case ${caseId}...`);
+                    
+                    await this.db.query(
+                        'DELETE FROM cases WHERE id = $1 AND server_address = $2',
+                        [caseId, serverAddress]
+                    );
+                    
+                    console.log(`✅ Orphaned case cleaned up. Proceeding with new case creation.`);
+                    // Continue with case creation below
+                } else {
+                    // Case exists properly - prompt to resume/amend
+                    return {
+                        success: false,
+                        exists: true,
+                        caseId: caseId,
+                        case: existingCase.rows[0],
+                        message: `Case ${caseId} already exists. Would you like to resume or amend it?`,
+                        error: 'CASE_EXISTS'
+                    };
+                }
             }
             
             // Convert uploaded files to buffers and collect file info

@@ -38,8 +38,9 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
         // Get a client from the pool
         client = await pool.connect();
         
-        // Simple query without joins (removed page_count as it doesn't exist in served_notices)
+        // Query to get cases from both served_notices and cases tables
         const query = `
+            -- Get cases from served_notices table
             SELECT 
                 case_number,
                 server_address,
@@ -51,11 +52,38 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
                 notice_id,
                 alert_id,
                 document_id,
-                accepted
+                accepted,
+                'served' as source
             FROM served_notices
             WHERE LOWER(server_address) = LOWER($1)
                 AND case_number IS NOT NULL
                 AND case_number != ''
+            
+            UNION ALL
+            
+            -- Get draft cases from cases table that aren't in served_notices
+            SELECT 
+                c.id as case_number,
+                c.server_address,
+                NULL as recipient_address,
+                NULL as recipient_name,
+                COALESCE((c.metadata->>'noticeType')::text, 'Legal Notice') as notice_type,
+                COALESCE((c.metadata->>'issuingAgency')::text, 'The Block Audit') as issuing_agency,
+                c.created_at,
+                NULL as notice_id,
+                NULL as alert_id,
+                NULL as document_id,
+                false as accepted,
+                'draft' as source
+            FROM cases c
+            WHERE LOWER(c.server_address) = LOWER($1)
+                AND c.status = 'draft'
+                AND NOT EXISTS (
+                    SELECT 1 FROM served_notices sn 
+                    WHERE sn.case_number = c.id 
+                    AND LOWER(sn.server_address) = LOWER($1)
+                )
+            
             ORDER BY created_at DESC
         `;
         
