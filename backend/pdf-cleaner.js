@@ -47,7 +47,19 @@ class PDFCleaner {
      * Process a single PDF with multiple fallback strategies
      */
     async processSinglePDF(pdfBuffer, index, fileName) {
-        const strategies = [
+        // Check if PDF is encrypted
+        const pdfText = pdfBuffer.toString('latin1').substring(0, 1024);
+        const isEncrypted = pdfText.includes('/Encrypt');
+        
+        // If encrypted, prioritize tools that can decrypt
+        const strategies = isEncrypted ? [
+            { name: 'Ghostscript', fn: () => this.tryGhostscript(pdfBuffer, index) },
+            { name: 'QPDF Clean', fn: () => this.tryQPDFClean(pdfBuffer, index) },
+            { name: 'Direct Load', fn: () => this.tryDirectLoad(pdfBuffer) },
+            { name: 'Ignore Encryption', fn: () => this.tryIgnoreEncryption(pdfBuffer) },
+            { name: 'Repair Corrupt', fn: () => this.tryRepairCorrupt(pdfBuffer, index) },
+            { name: 'Page-by-Page', fn: () => this.tryPageByPage(pdfBuffer) }
+        ] : [
             { name: 'Direct Load', fn: () => this.tryDirectLoad(pdfBuffer) },
             { name: 'Ignore Encryption', fn: () => this.tryIgnoreEncryption(pdfBuffer) },
             { name: 'Repair Corrupt', fn: () => this.tryRepairCorrupt(pdfBuffer, index) },
@@ -282,21 +294,40 @@ class PDFCleaner {
             await execPromise('which qpdf');
             
             const inputPath = path.join(this.tempDir, `input_${index}_${Date.now()}.pdf`);
+            const outputPath = path.join(this.tempDir, `output_${index}_${Date.now()}.pdf`);
             
             await fs.writeFile(inputPath, pdfBuffer);
-            await execPromise(`qpdf --decrypt --replace-input "${inputPath}"`);
             
-            const cleanedBuffer = await fs.readFile(inputPath);
-            await fs.unlink(inputPath).catch(() => {});
+            // Use qpdf to decrypt and clean the PDF
+            // --decrypt removes encryption
+            // --stream-data=uncompress decompresses streams for better processing
+            // --object-streams=disable makes the PDF structure simpler
+            const qpdfCommand = `qpdf --decrypt --stream-data=uncompress --object-streams=disable "${inputPath}" "${outputPath}" 2>&1 || true`;
             
-            const pdf = await PDFDocument.load(cleanedBuffer);
-            const pageCount = pdf.getPageCount();
-            
-            return {
-                success: true,
-                buffer: cleanedBuffer,
-                pageCount: pageCount
-            };
+            try {
+                await execPromise(qpdfCommand);
+                const cleanedBuffer = await fs.readFile(outputPath);
+                
+                // Clean up temp files
+                await fs.unlink(inputPath).catch(() => {});
+                await fs.unlink(outputPath).catch(() => {});
+                
+                // Verify the decrypted PDF
+                const pdf = await PDFDocument.load(cleanedBuffer);
+                const pageCount = pdf.getPageCount();
+                
+                console.log(`      QPDF decrypted: ${pageCount} pages`);
+                
+                return {
+                    success: true,
+                    buffer: cleanedBuffer,
+                    pageCount: pageCount
+                };
+            } catch (qpdfError) {
+                console.log(`      QPDF command failed: ${qpdfError.message}`);
+                await fs.unlink(inputPath).catch(() => {});
+                await fs.unlink(outputPath).catch(() => {});
+            }
         } catch (error) {
             // qpdf not available or failed
         }

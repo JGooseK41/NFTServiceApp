@@ -1,0 +1,14 @@
+# Dockerfile extension for PDF tools
+# Add this to your main Dockerfile or use as reference for Render
+
+# Install PDF processing tools
+RUN apt-get update && apt-get install -y \
+    ghostscript \
+    qpdf \
+    poppler-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# These tools enable:
+# - ghostscript: Re-render PDFs to bypass encryption
+# - qpdf: Decrypt and repair PDFs
+# - poppler-utils: Additional PDF utilities (pdfinfo, pdftocairo, etc.)
