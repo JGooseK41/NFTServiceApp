@@ -429,33 +429,69 @@ window.contract = {
                 }
             };
             
-            // ULTRA OPTIMIZATION: Use shortest possible metadata reference
+            // SOLUTION: Upload complete notice data to IPFS and reference it
             let metadataUri;
+            let noticeDataIpfsHash = null;
             
-            // Option 1: If we have IPFS hash, use that as metadata (super short)
-            if (data.thumbnailIpfsHash) {
-                metadataUri = `ipfs://${data.thumbnailIpfsHash}`;  // ~53 chars
-                console.log('Using IPFS hash as metadata (most efficient)');
-            }
-            // Option 2: Use shortened URL
-            else if (data.noticeId) {
-                // Use shortened endpoint
-                metadataUri = `https://blockserved.com/m/${data.noticeId}`;  // ~40 chars
-                console.log('Using short metadata URL');
-                
-                // Store metadata for retrieval
+            // Upload the complete legal notice data to IPFS
+            if (data.useIPFS !== false) {
                 try {
-                    await fetch('https://nft-legal-service.netlify.app/api/metadata/store', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ tokenId: data.noticeId, metadata })
-                    }).catch(e => console.log('Metadata store failed:', e));
-                } catch (e) {}
+                    console.log('Uploading complete notice data to IPFS for energy efficiency...');
+                    
+                    // Create SHARED notice data object (same for all recipients)
+                    // This gets stored ONCE on IPFS and referenced by all NFTs
+                    const sharedNoticeData = {
+                        // Essential legal information
+                        caseNumber: data.caseNumber,
+                        issuingAgency: data.agency || 'Legal Services',
+                        noticeType: 'Legal Notice',
+                        
+                        // Full notice details (not limited)
+                        noticeText: data.noticeText,
+                        caseDetails: data.caseDetails || data.noticeText,
+                        
+                        // Legal rights and instructions
+                        legalRights: 'View full document at www.BlockServed.com for info on your rights and next steps',
+                        portalUrl: 'https://www.BlockServed.com',
+                        
+                        // Document references
+                        encryptedDocumentIPFS: data.ipfsHash || null,
+                        encryptionKey: data.encryptionKey || null,
+                        thumbnailIPFS: data.thumbnailIpfsHash || null,
+                        
+                        // Metadata for display
+                        alertImage: imageData,
+                        metadata,
+                        
+                        // Service details
+                        serverId: data.serverId,
+                        timestamp: new Date().toISOString(),
+                        recipients: data.recipients.map(r => typeof r === 'string' ? r : r.address),
+                        totalRecipients: data.recipients.length
+                    };
+                    
+                    // Upload to IPFS
+                    const noticeBlob = new Blob([JSON.stringify(sharedNoticeData)], { type: 'application/json' });
+                    noticeDataIpfsHash = await window.documents.uploadToIPFS(noticeBlob, {
+                        type: 'notice_data',
+                        encrypt: false  // Public data
+                    });
+                    
+                    if (noticeDataIpfsHash) {
+                        metadataUri = `ipfs://${noticeDataIpfsHash}`;
+                        console.log('✅ Notice data on IPFS, using hash as reference:', noticeDataIpfsHash);
+                    }
+                } catch (ipfsError) {
+                    console.error('Failed to upload notice data to IPFS:', ipfsError);
+                }
             }
-            // Option 3: Absolute minimum
-            else {
-                metadataUri = '';  // Empty string - minimum energy
-                console.warn('Using empty metadata URI to save energy');
+            
+            // Fallback to URL if IPFS fails
+            if (!metadataUri) {
+                metadataUri = data.noticeId ? 
+                    `https://nft-legal-service.netlify.app/api/metadata/${data.noticeId}` :
+                    '';
+                console.log('Using backend URL for metadata:', metadataUri);
             }
             
             // Build batch notice array - try matching v1 exactly
@@ -470,20 +506,20 @@ window.contract = {
                 const ipfsHash = data.ipfsHash || '';
                 const encryptionKey = data.encryptionKey || '';
                 
-                // EXTREME OPTIMIZATION: Minimize all strings to reduce energy costs
+                // SMART OPTIMIZATION: Use IPFS hash for shared data, keep essentials on-chain
+                // The IPFS hash points to the SAME notice data for all recipients
+                // This way we store the data once, not 4 times!
                 return {
                     recipient: recipientAddress,
-                    encryptedIPFS: ipfsHash || '',              // Empty if no IPFS
-                    encryptionKey: encryptionKey || '',         // Empty if not encrypted  
-                    issuingAgency: 'Legal',                     // Super short!
-                    noticeType: 'L',                            // Single character!
-                    caseNumber: data.caseNumber || '',          // Keep case number
-                    caseDetails: '',                            // Empty - details in metadata
-                    legalRights: '',                            // Empty - in metadata
-                    sponsorFees: false,                         // Boolean
-                    metadataURI: metadataUri.length > 100 ? 
-                        metadataUri.substring(0, 80) :          // Truncate long URLs
-                        metadataUri
+                    encryptedIPFS: ipfsHash || '',                           // Document IPFS hash
+                    encryptionKey: '',                                       // Empty to save gas (in IPFS data)
+                    issuingAgency: data.agency || 'Legal Services',          // REQUIRED on-chain
+                    noticeType: 'Legal Notice',                              // Keep clear type
+                    caseNumber: data.caseNumber || '',                       // REQUIRED on-chain
+                    caseDetails: noticeDataIpfsHash ? `ipfs://${noticeDataIpfsHash}` : (data.noticeText || '').substring(0, 50),  // Reference IPFS for full details
+                    legalRights: 'View at BlockServed.com',                  // REQUIRED direction
+                    sponsorFees: false,                                      // Boolean
+                    metadataURI: metadataUri                                 // Points to shared metadata
                 };
             });
             
