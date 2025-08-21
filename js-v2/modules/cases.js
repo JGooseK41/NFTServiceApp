@@ -29,11 +29,16 @@ window.cases = {
             // Get backend cases if connected
             if (window.wallet && window.wallet.connected) {
                 const url = getApiUrl('getCases', { serverAddress: window.wallet.address });
+                console.log('Fetching cases from:', url);
+                console.log('Using server address:', window.wallet.address);
+                
                 const response = await fetch(url, {
                     headers: {
                         'X-Server-Address': window.wallet.address
                     }
                 });
+                
+                console.log('Cases fetch response:', response.status, response.statusText);
                 
                 if (response.ok) {
                     const backendResponse = await response.json();

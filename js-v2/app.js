@@ -1330,8 +1330,35 @@ window.app = {
             this.consolidatedPDFUrl = `${backendUrl}/api/cases/${this.currentCaseId}/pdf`;
             console.log('✅ Case saved/updated successfully');
             console.log('   Case ID:', this.currentCaseId);
+            console.log('   Server Address:', serverAddress);
             console.log('   PDF URL:', this.consolidatedPDFUrl);
             console.log('   Full result:', result);
+            
+            // Also save to local storage as backup
+            const caseData = {
+                caseNumber: this.currentCaseId,
+                serverAddress: serverAddress,
+                createdAt: Date.now(),
+                metadata: {
+                    caseNumber: caseNumber,
+                    noticeText: document.getElementById('noticeText')?.value,
+                    issuingAgency: document.getElementById('issuingAgency')?.value,
+                    noticeType: document.getElementById('noticeType')?.value,
+                    recipients: recipients
+                },
+                status: 'draft'
+            };
+            
+            // Store in local storage
+            const existingCases = window.storage.get('cases') || [];
+            const existingIndex = existingCases.findIndex(c => c.caseNumber === this.currentCaseId);
+            if (existingIndex >= 0) {
+                existingCases[existingIndex] = caseData;
+            } else {
+                existingCases.push(caseData);
+            }
+            window.storage.set('cases', existingCases);
+            console.log('   Also saved to local storage');
             
             // Mark that we now have the consolidated PDF ready
             this.hasConsolidatedPDF = true;
