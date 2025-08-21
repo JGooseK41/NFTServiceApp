@@ -3,12 +3,16 @@
 
 echo "📦 Installing Node dependencies and Puppeteer..."
 
-# Remove any Puppeteer cache to ensure clean install
-rm -rf ~/.cache/puppeteer
+# Set Puppeteer cache directory to a writable location
+export PUPPETEER_CACHE_DIR=/opt/render/project/.cache/puppeteer
+mkdir -p $PUPPETEER_CACHE_DIR
 
 # Install all dependencies including Puppeteer
 # This will download Chromium automatically
 npm ci
+
+# Ensure Chromium is downloaded
+npx puppeteer browsers install chrome || echo "⚠️ Chrome download failed, will use Ghostscript as fallback"
 
 # Try to install additional PDF tools if possible
 if command -v apt-get &> /dev/null; then

@@ -14,6 +14,11 @@ class PDFPrintProcessor {
             : '/tmp';
         this.browser = null;
         this.puppeteer = null;
+        
+        // Set Puppeteer cache directory for Render
+        if (!process.env.PUPPETEER_CACHE_DIR) {
+            process.env.PUPPETEER_CACHE_DIR = '/opt/render/project/.cache/puppeteer';
+        }
     }
     
     /**

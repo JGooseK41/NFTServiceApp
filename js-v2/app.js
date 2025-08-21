@@ -1176,6 +1176,7 @@ window.app = {
             
             console.log('Response received:', response.status, response.statusText);
             console.log('Response headers:', response.headers.get('content-type'));
+            console.log('Response size:', response.headers.get('content-length'), 'bytes');
             
             if (!response.ok) {
                 // Try to get error message
@@ -1246,7 +1247,14 @@ window.app = {
             let result;
             try {
                 result = await response.json();
-                console.log('Save case response:', result);
+                // Log only essential parts to avoid console overflow
+                console.log('Save case response:', {
+                    success: result.success,
+                    caseId: result.caseId,
+                    hasPdfInfo: !!result.pdfInfo,
+                    hasAlertPreview: !!result.alertPreview,
+                    message: result.message
+                });
             } catch (parseError) {
                 console.error('Failed to parse response:', parseError);
                 // If we can't parse the response but got 200, assume success with case number
@@ -1256,6 +1264,7 @@ window.app = {
                         caseId: caseNumber,
                         message: 'Case saved (response parse failed)'
                     };
+                    console.log('Using fallback result:', result);
                 } else {
                     throw new Error('Invalid response from server');
                 }
