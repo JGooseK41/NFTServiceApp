@@ -73,10 +73,10 @@ window.documents = {
             // Step 2: Extract ONLY first page as base64 for Alert NFT
             const alertNFTImage = await this.generateAlertNFTImage(consolidatedPDF, options);
             
-            // Step 3: Upload PDF to disk storage (NOT base64 converted)
+            // Step 3: Upload encrypted PDF to disk storage for fast retrieval
             const diskStorage = await this.uploadPDFToDisk(consolidatedPDF, options);
             
-            // Step 4: Optional - Upload encrypted version to IPFS for blockchain verification
+            // Step 4: Also upload encrypted version to IPFS for permanent blockchain record
             let ipfsHash = null;
             let encryptionKey = null;
             
@@ -204,9 +204,9 @@ window.documents = {
         return dataUri;
     },
     
-    // Upload PDF to disk storage (NOT converted to base64)
+    // Upload PDF to disk storage (encrypted for security)
     async uploadPDFToDisk(pdfBlob, options = {}) {
-        console.log('Uploading PDF to disk storage...');
+        console.log('Uploading encrypted PDF to disk storage...');
         
         // Check if we already have a saved case with cleaned PDFs
         if (window.app && window.app.currentCaseId && window.app.consolidatedPDFUrl) {
@@ -220,7 +220,7 @@ window.documents = {
             };
         }
         
-        // Otherwise try to upload directly
+        // Upload to encrypted storage endpoint
         try {
             const formData = new FormData();
             formData.append('document', pdfBlob, `notice_${Date.now()}.pdf`);
@@ -229,9 +229,13 @@ window.documents = {
             formData.append('serverAddress', window.wallet?.address || '');
             formData.append('recipientAddress', options.recipientAddress || '');
             
-            const response = await fetch(getApiUrl('uploadPDF'), {
+            // Use encrypted upload endpoint
+            const response = await fetch(getApiUrl('documents/upload-encrypted'), {
                 method: 'POST',
-                body: formData
+                body: formData,
+                headers: {
+                    'X-Server-Address': window.wallet?.address || ''
+                }
             });
             
             if (!response.ok) {
@@ -252,9 +256,11 @@ window.documents = {
             
             return {
                 success: true,
-                path: result.diskPath,
-                filename: result.filename,
+                path: result.filepath || result.diskPath,
+                filename: result.filename || `encrypted_${Date.now()}.pdf`,
                 url: result.url,
+                documentId: result.documentId,  // For retrieval
+                encrypted: true,
                 size: pdfBlob.size
             };
         } catch (error) {

@@ -1039,6 +1039,15 @@ try {
     console.error('⚠️ IPFS routes not loaded:', error.message);
 }
 
+// Encrypted Disk Storage for fast, secure document retrieval
+try {
+    const { setupEncryptedStorageRoutes } = require('./encrypted-disk-storage');
+    setupEncryptedStorageRoutes(app, pool);
+    console.log('✅ Encrypted disk storage configured for secure document access');
+} catch (error) {
+    console.error('⚠️ Encrypted storage routes not loaded:', error.message);
+}
+
 // Document Storage V2 - Complete rebuild
 try {
     const documentsV2Router = require('./routes/documents-v2');

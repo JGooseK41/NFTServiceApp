@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Batch Minting with IPFS</title>
+    <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        #output {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            margin-top: 20px;
+            min-height: 200px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Batch Minting with IPFS</h1>
+    
+    <div id="walletStatus" class="status disconnected">
+        Wallet not connected
+    </div>
+
+    <div class="info">
+        <strong>Test Recipients (Nile Testnet):</strong><br>
+        1. TKHjFUVMvQdG3YBx1TwuorTZ5LwKJwqKJg<br>
+        2. THKBsgyTFTgEL9rT7R3Pg5zY1SEYDaUgcL<br>
+        3. TJZY8v5VKLFtp8AFVgKCUJgktqVUZ5HqfW<br>
+        4. TAa6r7hBUcLW9kcPp2Xg2AsRw7QHAjTmrY
+    </div>
+
+    <button onclick="connectWallet()">1. Connect TronLink</button>
+    <button onclick="initializeModules()" disabled id="initBtn">2. Initialize Modules</button>
+    <button onclick="testBatchMinting()" disabled id="mintBtn">3. Test Batch Mint</button>
+    <button onclick="clearOutput()">Clear Output</button>
+
+    <pre id="output">Ready to start testing...</pre>
+
+    <!-- Load V5 Contract ABI -->
+    <script>
+        // Contract configuration
+        const CONTRACT_ADDRESS = 'TXNkwmWtXE92FK9BbfcrjYRTqVb7Hio8FZ';
+        let CONTRACT_ABI = null;
+        let modulesInitialized = false;
+        
+        // Load ABI
+        fetch('v2/js/v5-contract-abi.json')
+            .then(r => r.json())
+            .then(abi => {
+                CONTRACT_ABI = abi;
+                log('Contract ABI loaded');
+            })
+            .catch(err => log('Failed to load ABI: ' + err.message));
+    </script>
+
+    <!-- Load modules -->
+    <script src="js-v2/modules/documents.js"></script>
+    <script src="js-v2/modules/contract.js"></script>
+    <script src="js-v2/modules/notices.js"></script>
+
+    <script>
+        function log(message, isError = false) {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = isError ? '❌ ' : '✅ ';
+            output.textContent += `[${timestamp}] ${prefix}${message}\n`;
+            console.log(message);
+        }
+
+        function clearOutput() {
+            document.getElementById('output').textContent = 'Output cleared. Ready to test...\n';
+        }
+
+        async function connectWallet() {
+            try {
+                log('Connecting to TronLink...');
+                
+                // Check if TronLink is installed
+                if (!window.tronWeb) {
+                    log('TronLink not detected. Please install TronLink extension.', true);
+                    return;
+                }
+
+                // Wait for TronLink to be ready
+                let attempts = 0;
+                while (!window.tronWeb.ready && attempts < 10) {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    attempts++;
+                }
+
+                if (!window.tronWeb.ready) {
+                    log('Please unlock TronLink and connect to Nile testnet', true);
+                    return;
+                }
+
+                // Get wallet info
+                const address = window.tronWeb.defaultAddress.base58;
+                const balance = await window.tronWeb.trx.getBalance(address);
+                
+                log(`Connected to wallet: ${address}`);
+                log(`Balance: ${balance / 1e6} TRX`);
+                
+                // Check network
+                const nodeInfo = await window.tronWeb.trx.getNodeInfo();
+                log(`Network: ${JSON.stringify(nodeInfo.configNodeInfo?.network || 'Unknown')}`);
+                
+                // Update UI
+                document.getElementById('walletStatus').className = 'status connected';
+                document.getElementById('walletStatus').textContent = `Connected: ${address}`;
+                document.getElementById('initBtn').disabled = false;
+                
+                // Store wallet globally
+                window.wallet = {
+                    address: address,
+                    tronWeb: window.tronWeb
+                };
+                
+            } catch (error) {
+                log('Failed to connect wallet: ' + error.message, true);
+            }
+        }
+
+        async function initializeModules() {
+            try {
+                log('Initializing modules...');
+                
+                if (!window.tronWeb || !window.tronWeb.ready) {
+                    log('Wallet not connected', true);
+                    return;
+                }
+
+                // Initialize documents module
+                if (window.documents) {
+                    await window.documents.init();
+                    log('Documents module initialized');
+                }
+
+                // Initialize contract module with V5 ABI
+                if (window.contract) {
+                    // Override with V5 contract details
+                    window.contract.address = CONTRACT_ADDRESS;
+                    window.contract.abi = CONTRACT_ABI;
+                    window.contract.tronWeb = window.tronWeb;
+                    
+                    await window.contract.init();
+                    log('Contract module initialized with V5 at: ' + CONTRACT_ADDRESS);
+                    
+                    // Check contract
+                    const creationFee = await window.contract.instance.creationFee().call();
+                    log(`Contract creation fee: ${creationFee / 1e6} TRX`);
+                }
+
+                modulesInitialized = true;
+                document.getElementById('mintBtn').disabled = false;
+                log('All modules ready for testing!');
+                
+            } catch (error) {
+                log('Failed to initialize modules: ' + error.message, true);
+                console.error(error);
+            }
+        }
+
+        async function testBatchMinting() {
+            try {
+                if (!modulesInitialized) {
+                    log('Please initialize modules first', true);
+                    return;
+                }
+
+                log('\n========== STARTING BATCH MINT TEST ==========\n');
+                
+                // Create test PDF content
+                const pdfContent = `
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Times-Roman >> >> >> /MediaBox [0 0 612 792] /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 44 >>
+stream
+BT
+/F1 12 Tf
+100 700 Td
+(Test Legal Document) Tj
+ET
+endstream
+endobj
+xref
+0 5
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000274 00000 n 
+trailer
+<< /Size 5 /Root 1 0 R >>
+startxref
+365
+%%EOF`;
+                
+                const testPDF = new Blob([pdfContent], { type: 'application/pdf' });
+                const testFile = new File([testPDF], 'test-document.pdf', { type: 'application/pdf' });
+                
+                log('Created test PDF document');
+                
+                // Test recipients
+                const recipients = [
+                    'TKHjFUVMvQdG3YBx1TwuorTZ5LwKJwqKJg',
+                    'THKBsgyTFTgEL9rT7R3Pg5zY1SEYDaUgcL', 
+                    'TJZY8v5VKLFtp8AFVgKCUJgktqVUZ5HqfW',
+                    'TAa6r7hBUcLW9kcPp2Xg2AsRw7QHAjTmrY'
+                ];
+                
+                log(`Testing with ${recipients.length} recipients`);
+                
+                // Process documents with IPFS
+                log('Processing document with IPFS encryption...');
+                const documentData = await window.documents.processDocuments([testFile], {
+                    encrypt: true,
+                    useIPFS: true,
+                    caseNumber: `TEST_${Date.now()}`,
+                    noticeType: 'Test Notice',
+                    recipientAddress: recipients[0]
+                });
+                
+                log('Document processed successfully:');
+                log(`- IPFS Hash: ${documentData.ipfsHash || 'placeholder'}`);
+                log(`- Encryption Key: ${documentData.encryptionKey ? 'Generated' : 'None'}`);
+                log(`- Alert Image: ${documentData.alertNFTImage ? 'Generated' : 'Missing'}`);
+                log(`- Disk URL: ${documentData.diskUrl || 'None'}`);
+                
+                // Use the contract's createBatchNotices
+                log('\nCalling contract.createBatchNotices...');
+                
+                const noticeData = {
+                    recipients: recipients,
+                    caseNumber: documentData.caseNumber,
+                    noticeText: 'Test Legal Notice for Batch Minting',
+                    thumbnail: documentData.alertNFTImage,
+                    ipfsHash: documentData.ipfsHash || 'placeholder_ipfs_hash',
+                    encryptionKey: documentData.encryptionKey || 'placeholder_key',
+                    diskUrl: documentData.diskUrl,
+                    agency: 'Test Legal Services',
+                    legalRights: 'You have the right to respond within 30 days',
+                    sponsorFees: false,
+                    encrypted: true,
+                    noticeId: `notice_${Date.now()}`
+                };
+                
+                const result = await window.contract.createBatchNotices(noticeData);
+                
+                log('\n🎉 BATCH MINTING SUCCESSFUL!');
+                log(`Transaction ID: ${result.txId}`);
+                log(`Recipients: ${result.recipientCount}`);
+                log('\nView on TronScan: https://nile.tronscan.org/#/transaction/' + result.txId);
+                
+            } catch (error) {
+                log('\nBatch minting failed: ' + error.message, true);
+                log('\nFull error details:', true);
+                log(JSON.stringify(error, null, 2), true);
+                console.error('Full error:', error);
+            }
+        }
+
+        // Auto-check wallet on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                if (window.tronWeb && window.tronWeb.ready) {
+                    log('TronLink detected, click Connect to proceed');
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
