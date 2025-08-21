@@ -285,10 +285,34 @@ window.contract = {
             console.log('Creating Alert NFT for recipient:', recipientAddress);
             console.log('Data object:', data);
             
+            // Check if contract instance is initialized
+            if (!this.instance) {
+                throw new Error('Contract not initialized. Please connect wallet first.');
+            }
+            
+            // Check if serveNotice method exists
+            if (!this.instance.serveNotice) {
+                console.error('Available contract methods:', Object.keys(this.instance));
+                throw new Error('serveNotice method not found in contract');
+            }
+            
             // Calculate fees
             const creationFee = await this.instance.creationFee().call();
             const sponsorshipFee = data.sponsorFees ? await this.instance.sponsorshipFee().call() : 0;
             const totalFee = parseInt(creationFee) + parseInt(sponsorshipFee);
+            
+            console.log('Calling serveNotice with parameters:', {
+                recipient: recipientAddress,
+                ipfsHash: data.ipfsHash || '',
+                encryptionKey: data.encryptionKey || '',
+                agency: data.agency || 'Legal Services',
+                noticeType: 'alert',
+                caseNumber: data.caseNumber,
+                caseDetails: data.caseDetails || data.noticeText,
+                legalRights: data.legalRights || 'You have the right to respond within the specified deadline',
+                sponsorFees: data.sponsorFees || false,
+                metadataUri: metadataUri.substring(0, 100) + '...'
+            });
             
             // Use v5 serveNotice function
             const tx = await this.instance.serveNotice(
@@ -344,40 +368,141 @@ window.contract = {
             
             const metadataUri = 'data:application/json;base64,' + btoa(JSON.stringify(metadata));
             
-            // Build batch notice array for contract
-            const batchNotices = data.recipients.map(recipient => ({
-                recipient: recipient,
-                encryptedIPFS: data.ipfsHash || '',
-                encryptionKey: data.encryptionKey || '',
-                issuingAgency: data.agency || 'Legal Services',
-                noticeType: 'batch',
-                caseNumber: data.caseNumber,
-                caseDetails: data.noticeText,
-                legalRights: data.legalRights || 'You have the right to respond',
-                sponsorFees: data.sponsorFees || false,
-                metadataURI: metadataUri
-            }));
+            // Build batch notice array for contract - ensure addresses are strings
+            const batchNotices = data.recipients.map(recipient => {
+                // Ensure recipient is a string address
+                const recipientAddress = typeof recipient === 'object' ? 
+                    (recipient.address || recipient.toString()) : 
+                    recipient;
+                
+                console.log('Processing batch recipient:', recipientAddress);
+                
+                return {
+                    recipient: recipientAddress,
+                    encryptedIPFS: data.ipfsHash || '',
+                    encryptionKey: data.encryptionKey || '',
+                    issuingAgency: data.agency || 'Legal Services',
+                    noticeType: 'batch',
+                    caseNumber: data.caseNumber,
+                    caseDetails: data.noticeText,
+                    legalRights: data.legalRights || 'You have the right to respond',
+                    sponsorFees: data.sponsorFees || false,
+                    metadataURI: metadataUri
+                };
+            });
             
             // Calculate total fees
             const creationFee = await this.instance.creationFee().call();
             const totalFee = parseInt(creationFee) * data.recipients.length * 2; // x2 for Alert + Document
             
-            // Call batch function
-            const tx = await this.instance.serveNoticeBatch(batchNotices).send({
-                feeLimit: 300000000, // Higher limit for batch
-                callValue: totalFee,
-                shouldPollResponse: true
-            });
+            console.log('Calling serveNoticeBatch with:', batchNotices.length, 'notices');
+            console.log('First notice:', JSON.stringify(batchNotices[0], null, 2));
             
-            console.log('Batch notices created:', tx);
-            return {
-                success: true,
-                txId: tx,
-                alertTx: tx, // For compatibility
-                documentTx: tx,
-                recipientCount: data.recipients.length,
-                metadata
-            };
+            // Check if serveNoticeBatch exists
+            if (!this.instance.serveNoticeBatch) {
+                console.error('serveNoticeBatch not found. Available methods:', Object.keys(this.instance));
+                
+                // Fallback: Create individual notices instead of batch
+                console.log('Falling back to individual notice creation...');
+                const results = [];
+                for (const notice of batchNotices) {
+                    try {
+                        const tx = await this.instance.serveNotice(
+                            notice.recipient,
+                            notice.encryptedIPFS,
+                            notice.encryptionKey,
+                            notice.issuingAgency,
+                            notice.noticeType,
+                            notice.caseNumber,
+                            notice.caseDetails,
+                            notice.legalRights,
+                            notice.sponsorFees,
+                            notice.metadataURI
+                        ).send({
+                            feeLimit: 150000000,
+                            callValue: parseInt(creationFee) + (notice.sponsorFees ? parseInt(await this.instance.sponsorshipFee().call()) : 0),
+                            shouldPollResponse: true
+                        });
+                        results.push(tx);
+                    } catch (error) {
+                        console.error('Failed to create notice for recipient:', notice.recipient, error);
+                        throw error;
+                    }
+                }
+                
+                return {
+                    success: true,
+                    txId: results[0],
+                    alertTx: results[0],
+                    documentTx: results[0],
+                    recipientCount: data.recipients.length,
+                    metadata,
+                    allTransactions: results
+                };
+            }
+            
+            // Try to call batch function with proper array formatting
+            try {
+                const tx = await this.instance.serveNoticeBatch(batchNotices).send({
+                    feeLimit: 300000000, // Higher limit for batch
+                    callValue: totalFee,
+                    shouldPollResponse: true
+                });
+                
+                console.log('Batch notices created:', tx);
+                return {
+                    success: true,
+                    txId: tx,
+                    alertTx: tx, // For compatibility
+                    documentTx: tx,
+                    recipientCount: data.recipients.length,
+                    metadata
+                };
+            } catch (batchError) {
+                console.error('Batch call failed:', batchError);
+                console.log('Falling back to individual notice creation...');
+                
+                // Fallback to individual calls
+                const results = [];
+                for (let i = 0; i < batchNotices.length; i++) {
+                    const notice = batchNotices[i];
+                    console.log(`Creating notice ${i + 1}/${batchNotices.length} for:`, notice.recipient);
+                    
+                    try {
+                        const tx = await this.instance.serveNotice(
+                            notice.recipient,
+                            notice.encryptedIPFS,
+                            notice.encryptionKey,
+                            notice.issuingAgency,
+                            'alert', // Use 'alert' instead of 'batch' for individual calls
+                            notice.caseNumber,
+                            notice.caseDetails,
+                            notice.legalRights,
+                            notice.sponsorFees,
+                            notice.metadataURI
+                        ).send({
+                            feeLimit: 150000000,
+                            callValue: parseInt(creationFee) + (notice.sponsorFees ? parseInt(await this.instance.sponsorshipFee().call()) : 0),
+                            shouldPollResponse: true
+                        });
+                        results.push(tx);
+                        console.log(`Notice ${i + 1} created:`, tx);
+                    } catch (error) {
+                        console.error(`Failed to create notice ${i + 1} for recipient:`, notice.recipient, error);
+                        throw error;
+                    }
+                }
+                
+                return {
+                    success: true,
+                    txId: results[0],
+                    alertTx: results[0],
+                    documentTx: results[results.length - 1],
+                    recipientCount: data.recipients.length,
+                    metadata,
+                    allTransactions: results
+                };
+            }
             
         } catch (error) {
             console.error('Failed to create batch notices:', error);
