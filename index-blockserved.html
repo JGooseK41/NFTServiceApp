@@ -315,7 +315,8 @@
             // First try to fetch from backend
             try {
                 const backendUrl = 'https://nftserviceapp.onrender.com';
-                const response = await fetch(`${backendUrl}/api/recipient/notices/${walletAddress}`, {
+                // Use the correctly mounted endpoint
+                const response = await fetch(`${backendUrl}/api/recipient-access/recipient/${walletAddress}/notices`, {
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json',
@@ -334,9 +335,11 @@
                         displayNotices();
                         return;
                     }
+                } else {
+                    console.log('Backend returned:', response.status, 'for recipient notices');
                 }
             } catch (error) {
-                console.log('Backend fetch failed, using fallback data:', error);
+                console.log('Backend fetch failed, trying fallback:', error);
             }
             
             // Fallback to known recipients data
