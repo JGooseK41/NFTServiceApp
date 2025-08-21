@@ -65,6 +65,17 @@ window.notices = {
             // Check if we should use batch (multiple recipients)
             if (data.recipients.length > 1) {
                 console.log(`Creating batch notices for ${data.recipients.length} recipients...`);
+                console.log('window.contract available:', !!window.contract);
+                console.log('window.contract methods:', window.contract ? Object.keys(window.contract) : 'undefined');
+                
+                // Ensure contract module is available
+                if (!window.contract) {
+                    throw new Error('Contract module not initialized. Please ensure wallet is connected.');
+                }
+                
+                if (!window.contract.createBatchNotices) {
+                    throw new Error('createBatchNotices method not found in contract module');
+                }
                 
                 // Use v5 contract's batch function
                 const batchResult = await window.contract.createBatchNotices({
