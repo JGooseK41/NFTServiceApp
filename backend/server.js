@@ -898,6 +898,10 @@ app.use('/api/thumbnails', thumbnailRouter); // Alternative path
 const thumbnailUploadRouter = require('./thumbnail-upload');
 app.use('/api/thumbnail', thumbnailUploadRouter);
 
+// NFT Metadata Service
+const metadataRouter = require('./metadata-service');
+app.use('/api/metadata', metadataRouter);
+
 // Token Registry - Comprehensive token tracking system
 const tokenRegistryRouter = require('./routes/token-registry');
 app.use('/api/tokens', tokenRegistryRouter);

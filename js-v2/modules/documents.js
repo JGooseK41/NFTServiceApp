@@ -89,41 +89,80 @@ window.documents = {
             // Step 5: Skip storing document reference - Case Manager already handled this
             // The actual token IDs will come from the blockchain transaction
             
-            // Upload the exact thumbnail to backend that was shown in preview
+            // Handle Alert NFT image - ALWAYS upload to IPFS (unencrypted) for NFT display
             let thumbnailUrl;
+            let thumbnailIpfsHash = null;
+            
             try {
                 if (alertNFTImage) {
-                    // Send the exact preview image to backend
-                    const uploadResponse = await fetch('https://nft-legal-service.netlify.app/api/thumbnail/store-base64', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            noticeId: options.noticeId || options.caseNumber,
-                            caseNumber: options.caseNumber,
-                            thumbnailData: alertNFTImage // The exact base64 image shown in preview
-                        })
-                    });
+                    // Step 1: ALWAYS upload Alert NFT to IPFS (unencrypted) for wallet display
+                    if (options.useIPFS) {
+                        try {
+                            console.log('Uploading Alert NFT image to IPFS (unencrypted)...');
+                            
+                            // Convert base64 to blob for IPFS upload
+                            const base64Data = alertNFTImage.replace(/^data:image\/\w+;base64,/, '');
+                            const imageBlob = new Blob([Uint8Array.from(atob(base64Data), c => c.charCodeAt(0))], { type: 'image/png' });
+                            
+                            // Upload to IPFS WITHOUT encryption - this is the public display image
+                            thumbnailIpfsHash = await this.uploadToIPFS(imageBlob, {
+                                caseNumber: options.caseNumber,
+                                type: 'alert_nft_image',
+                                encrypt: false  // IMPORTANT: No encryption for display image
+                            });
+                            
+                            if (thumbnailIpfsHash) {
+                                // Use IPFS URL for NFT metadata
+                                thumbnailUrl = `ipfs://${thumbnailIpfsHash}`;  // Protocol URL for wallets
+                                console.log('✅ Alert NFT image uploaded to IPFS:', thumbnailIpfsHash);
+                                console.log('   Gateway URL:', `https://gateway.pinata.cloud/ipfs/${thumbnailIpfsHash}`);
+                            }
+                        } catch (ipfsError) {
+                            console.error('Failed to upload Alert NFT to IPFS:', ipfsError);
+                            // Will fallback to backend URL below
+                        }
+                    }
                     
-                    if (uploadResponse.ok) {
-                        const result = await uploadResponse.json();
-                        thumbnailUrl = result.thumbnailUrl;
-                        console.log('✅ Preview thumbnail uploaded and will be served:', thumbnailUrl);
-                    } else {
-                        // Fallback to default URL pattern
+                    // Step 2: ALWAYS store on backend for our records (regardless of IPFS success)
+                    try {
+                        const uploadResponse = await fetch('https://nft-legal-service.netlify.app/api/thumbnail/store-base64', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                noticeId: options.noticeId || options.caseNumber,
+                                caseNumber: options.caseNumber,
+                                thumbnailData: alertNFTImage,
+                                ipfsHash: thumbnailIpfsHash  // Store IPFS hash for reference
+                            })
+                        });
+                        
+                        if (uploadResponse.ok) {
+                            const result = await uploadResponse.json();
+                            console.log('✅ Alert NFT stored on backend for records');
+                            
+                            // Only use backend URL if IPFS failed
+                            if (!thumbnailUrl) {
+                                thumbnailUrl = result.thumbnailUrl;
+                                console.log('⚠️ Using backend URL as fallback (IPFS preferred)');
+                            }
+                        }
+                    } catch (backendError) {
+                        console.error('Failed to store on backend:', backendError);
+                    }
+                    
+                    // Final fallback
+                    if (!thumbnailUrl) {
                         thumbnailUrl = `https://nft-legal-service.netlify.app/api/thumbnail/${options.caseNumber || Date.now()}`;
                     }
                 } else {
                     // No preview generated, use default
-                    thumbnailUrl = `https://nft-legal-service.netlify.app/api/thumbnail/${options.caseNumber || Date.now()}`;
+                    thumbnailUrl = `https://nft-legal-service.netlify.app/api/thumbnail/default`;
                 }
             } catch (uploadError) {
-                console.error('Failed to upload thumbnail:', uploadError);
-                // Fallback URL
-                thumbnailUrl = ipfsHash ? 
-                    `https://gateway.pinata.cloud/ipfs/${ipfsHash}` :
-                    `https://nft-legal-service.netlify.app/api/thumbnail/${options.caseNumber || Date.now()}`;
+                console.error('Failed to process Alert NFT:', uploadError);
+                thumbnailUrl = `https://nft-legal-service.netlify.app/api/thumbnail/default`;
             }
             
             return {
@@ -131,10 +170,11 @@ window.documents = {
                 caseNumber: options.caseNumber, // Use actual case number
                 diskPath: diskStorage.path,
                 diskUrl: diskStorage.url,
-                ipfsHash,
+                ipfsHash,  // Encrypted document IPFS hash
                 alertNFTImage, // Keep for local UI display only
                 thumbnail: alertNFTImage, // Keep for local UI display
-                thumbnailUrl, // URL for NFT metadata (not base64!)
+                thumbnailUrl, // IPFS URL (ipfs://) or backend URL for NFT metadata
+                thumbnailIpfsHash, // Raw IPFS hash of Alert NFT image
                 encryptionKey,
                 pageCount: await this.getPageCount(consolidatedPDF),
                 size: consolidatedPDF.size

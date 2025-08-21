@@ -373,21 +373,37 @@ window.contract = {
             // Option 1: Use a standard legal notice thumbnail (small, reusable)
             const DEFAULT_LEGAL_THUMBNAIL = 'https://blockserved.com/images/legal-notice-thumb.png';
             
-            // Option 2: If thumbnailUrl is provided, use it
+            // Priority for image URL:
+            // 1. IPFS URL if provided (best for decentralization)
+            // 2. Backend URL as fallback
+            // 3. Default image as last resort
+            
             if (data.thumbnailUrl) {
-                imageData = data.thumbnailUrl;
+                // If it's an IPFS URL, use it directly (wallets understand ipfs:// protocol)
+                if (data.thumbnailUrl.startsWith('ipfs://')) {
+                    imageData = data.thumbnailUrl;  // Keep ipfs:// protocol
+                    console.log('Using IPFS URL for NFT image:', imageData);
+                } 
+                // If it's an IPFS hash, format it properly
+                else if (data.thumbnailUrl.length === 46 && data.thumbnailUrl.startsWith('Qm')) {
+                    imageData = `ipfs://${data.thumbnailUrl}`;
+                    console.log('Using IPFS hash for NFT image:', imageData);
+                }
+                // Otherwise use the provided URL
+                else {
+                    imageData = data.thumbnailUrl;
+                    console.log('Using provided URL for NFT image:', imageData);
+                }
             }
-            // Option 3: If we have IPFS, use IPFS gateway URL (works in most wallets)
-            else if (data.ipfsHash) {
-                imageData = `https://gateway.pinata.cloud/ipfs/${data.ipfsHash}`;
-            } 
-            // Option 4: Use our server's thumbnail endpoint
+            // Fallback to server endpoint
             else if (data.noticeId) {
                 imageData = `https://nft-legal-service.netlify.app/api/thumbnail/${data.noticeId}`;
+                console.log('Using backend URL for NFT image:', imageData);
             }
-            // Option 5: Use default thumbnail
+            // Last resort: default thumbnail
             else {
                 imageData = DEFAULT_LEGAL_THUMBNAIL;
+                console.log('Using default thumbnail');
             }
             
             // TRC-721 compliant metadata with proper image URL
@@ -396,15 +412,53 @@ window.contract = {
                 description: `${data.noticeText ? data.noticeText.substring(0, 100) : 'Legal Notice'} | ${data.recipients.length} recipients`,
                 image: imageData,  // Direct URL that wallets can fetch
                 external_url: `https://blockserved.com/notice/${data.noticeId}`,
+                animation_url: data.ipfsHash ? `https://gateway.pinata.cloud/ipfs/${data.ipfsHash}` : null, // Link to encrypted document
                 attributes: [
                     { trait_type: "Case", value: data.caseNumber },
                     { trait_type: "Recipients", value: data.recipients.length },
-                    { trait_type: "Type", value: "Legal Notice" }
-                ]
+                    { trait_type: "Type", value: "Legal Notice" },
+                    { trait_type: "Status", value: "Delivered" },
+                    { trait_type: "Blockchain", value: "TRON" }
+                ],
+                properties: {
+                    category: "legal",
+                    issuing_agency: data.agency || "Legal Services",
+                    encrypted: data.encrypted ? "true" : "false",
+                    ipfs_document: data.ipfsHash || null,
+                    server_id: data.serverId || null
+                }
             };
             
-            // Keep metadata small - no base64 encoding needed for small JSON
-            const metadataUri = 'data:application/json,' + encodeURIComponent(JSON.stringify(metadata));
+            // Option 1: Store metadata on server and use URL (better for complex metadata)
+            let metadataUri;
+            if (data.noticeId && window.location.hostname !== 'localhost') {
+                try {
+                    // Store metadata on server
+                    const metaResponse = await fetch('https://nft-legal-service.netlify.app/api/metadata/store', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            tokenId: data.noticeId,
+                            metadata
+                        })
+                    });
+                    
+                    if (metaResponse.ok) {
+                        const result = await metaResponse.json();
+                        metadataUri = result.metadataUrl;
+                        console.log('✅ Metadata stored at:', metadataUri);
+                    } else {
+                        // Fallback to inline
+                        metadataUri = 'data:application/json,' + encodeURIComponent(JSON.stringify(metadata));
+                    }
+                } catch (e) {
+                    // Fallback to inline
+                    metadataUri = 'data:application/json,' + encodeURIComponent(JSON.stringify(metadata));
+                }
+            } else {
+                // Option 2: Inline metadata (simpler, works offline)
+                metadataUri = 'data:application/json,' + encodeURIComponent(JSON.stringify(metadata));
+            }
             
             // Build batch notice array - try matching v1 exactly
             const batchNotices = data.recipients.map(recipient => {
