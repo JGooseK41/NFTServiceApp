@@ -5,22 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>BlockServed - View Your Legal Notices</title>
     <script>
-        // Immediate redirect to recipient portal
+        // Immediate redirect to appropriate interface
         (function() {
-            // Redirect to the recipient viewing interface
-            window.location.href = '/recipient-v2.html';
             const isTronLinkBrowser = window.tronWeb && window.tronWeb.ready;
             
             // Check if mobile device
             const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
                            window.innerWidth <= 768;
             
-            // If mobile or TronLink browser, redirect to properly branded mobile app
+            // If mobile or TronLink browser, redirect to mobile app
             if (isMobile || isTronLinkBrowser) {
                 window.location.replace('blockserved-app.html');
             } else {
-                // Desktop users go to main app
-                window.location.replace('index.html');
+                // Desktop users go to the new blockserved index
+                window.location.replace('blockserved-index.html');
             }
         })();
     </script>
