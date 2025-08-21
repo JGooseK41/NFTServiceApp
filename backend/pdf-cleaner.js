@@ -1,7 +1,7 @@
 /**
- * PDF Cleaner
- * Strips permissions and restrictions from PDFs
- * Creates clean, consolidated documents
+ * PDF Cleaner - Enhanced Version
+ * More robust handling of permission-protected PDFs
+ * Multiple fallback strategies for difficult documents
  */
 
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
@@ -20,73 +20,113 @@ class PDFCleaner {
     }
 
     /**
-     * Clean and merge PDFs, stripping all permissions
+     * Clean and merge PDFs with enhanced multi-strategy approach
      */
     async cleanAndMergePDFs(pdfBuffers, fileInfo = []) {
-        console.log(`🧹 Cleaning and merging ${pdfBuffers.length} PDFs`);
+        console.log(`🧹 Enhanced cleaning and merging ${pdfBuffers.length} PDFs`);
         
         // Ensure temp directory exists
         await fs.mkdir(this.tempDir, { recursive: true });
         
-        const cleanedBuffers = [];
+        const processedDocuments = [];
         
-        // Process each PDF to strip permissions
+        // Process each PDF with comprehensive strategies
         for (let i = 0; i < pdfBuffers.length; i++) {
-            console.log(`  Processing document ${i + 1}: ${fileInfo[i]?.fileName || 'Unknown'}`);
+            const fileName = fileInfo[i]?.fileName || `Document ${i + 1}`;
+            console.log(`\n  📄 Processing document ${i + 1}: ${fileName}`);
             
+            const result = await this.processSinglePDF(pdfBuffers[i], i, fileName);
+            processedDocuments.push(result);
+        }
+        
+        // Merge all processed PDFs with enhanced error handling
+        return await this.mergeProcessedPDFs(processedDocuments, fileInfo);
+    }
+    
+    /**
+     * Process a single PDF with multiple fallback strategies
+     */
+    async processSinglePDF(pdfBuffer, index, fileName) {
+        const strategies = [
+            { name: 'Direct Load', fn: () => this.tryDirectLoad(pdfBuffer) },
+            { name: 'Ignore Encryption', fn: () => this.tryIgnoreEncryption(pdfBuffer) },
+            { name: 'QPDF Clean', fn: () => this.tryQPDFClean(pdfBuffer, index) },
+            { name: 'Ghostscript', fn: () => this.tryGhostscript(pdfBuffer, index) },
+            { name: 'Page-by-Page', fn: () => this.tryPageByPage(pdfBuffer) }
+        ];
+        
+        for (const strategy of strategies) {
+            console.log(`    Trying ${strategy.name}...`);
             try {
-                // Try multiple methods to clean the PDF
-                let cleanedBuffer = null;
-                
-                // Method 1: Try with pdf-lib ignoreEncryption
-                cleanedBuffer = await this.cleanWithPDFLib(pdfBuffers[i]);
-                
-                if (!cleanedBuffer) {
-                    // Method 2: Try with qpdf if available
-                    cleanedBuffer = await this.cleanWithQPDF(pdfBuffers[i], i);
+                const result = await strategy.fn();
+                if (result && result.success) {
+                    console.log(`    ✅ Success with ${strategy.name}: ${result.pageCount} pages`);
+                    return {
+                        success: true,
+                        buffer: result.buffer,
+                        pageCount: result.pageCount,
+                        method: strategy.name,
+                        fileName: fileName
+                    };
                 }
-                
-                if (!cleanedBuffer) {
-                    // Method 3: Fallback to re-rendering
-                    cleanedBuffer = await this.cleanByRerendering(pdfBuffers[i]);
-                }
-                
-                if (cleanedBuffer) {
-                    cleanedBuffers.push(cleanedBuffer);
-                    console.log(`    ✓ Successfully cleaned document ${i + 1}`);
-                } else {
-                    console.log(`    ✗ Could not clean document ${i + 1}, using original`);
-                    cleanedBuffers.push(pdfBuffers[i]);
-                }
-                
             } catch (error) {
-                console.error(`    ✗ Error processing document ${i + 1}:`, error.message);
-                // Use original if cleaning fails
-                cleanedBuffers.push(pdfBuffers[i]);
+                console.log(`    ❌ ${strategy.name} failed: ${error.message}`);
             }
         }
         
-        // Now merge all cleaned PDFs
-        return await this.mergePDFs(cleanedBuffers, fileInfo);
+        // If all strategies fail, return original with warning
+        console.log(`    ⚠️ All strategies failed, using original PDF`);
+        return {
+            success: false,
+            buffer: pdfBuffer,
+            pageCount: 0,
+            method: 'Original (uncleaned)',
+            fileName: fileName,
+            error: 'Could not clean PDF - permissions may be preserved'
+        };
     }
-
+    
     /**
-     * Method 1: Clean with pdf-lib - Enhanced
+     * Strategy: Try direct load without special flags
      */
-    async cleanWithPDFLib(pdfBuffer) {
+    async tryDirectLoad(pdfBuffer) {
         try {
-            // Load with ignoreEncryption flag
+            const pdf = await PDFDocument.load(pdfBuffer);
+            const pageCount = pdf.getPageCount();
+            
+            if (pageCount > 0) {
+                const cleanPdf = await PDFDocument.create();
+                const pages = await cleanPdf.copyPages(pdf, pdf.getPageIndices());
+                pages.forEach(page => cleanPdf.addPage(page));
+                
+                const cleanedBytes = await cleanPdf.save();
+                return {
+                    success: true,
+                    buffer: Buffer.from(cleanedBytes),
+                    pageCount: pageCount
+                };
+            }
+        } catch (error) {
+            // Expected to fail for protected PDFs
+        }
+        return null;
+    }
+    
+    /**
+     * Strategy: Load with ignoreEncryption and try page-by-page
+     */
+    async tryIgnoreEncryption(pdfBuffer) {
+        try {
             const pdf = await PDFDocument.load(pdfBuffer, { 
                 ignoreEncryption: true,
                 updateMetadata: false,
-                throwOnInvalidObject: false
+                throwOnInvalidObject: false,
+                capNumbers: false
             });
             
-            // Create a new clean PDF
+            const pageCount = pdf.getPageCount();
             const cleanPdf = await PDFDocument.create();
             
-            // Try to copy pages one by one to handle partial failures
-            const pageCount = pdf.getPageCount();
             let successfulPages = 0;
             
             for (let i = 0; i < pageCount; i++) {
@@ -95,322 +135,371 @@ class PDFCleaner {
                     cleanPdf.addPage(page);
                     successfulPages++;
                 } catch (pageError) {
-                    console.log(`        Warning: Could not copy page ${i + 1}, will add placeholder`);
-                    // Add a placeholder page for failed pages
-                    const placeholderPage = cleanPdf.addPage([612, 792]);
-                    const helvetica = await cleanPdf.embedFont(StandardFonts.Helvetica);
-                    
-                    placeholderPage.drawText(`Page ${i + 1}`, {
-                        x: 50,
-                        y: 750,
-                        size: 12,
-                        font: helvetica,
-                        color: rgb(0.5, 0.5, 0.5)
-                    });
-                    
-                    placeholderPage.drawText('(Permission-protected - could not extract)', {
-                        x: 50,
-                        y: 400,
-                        size: 14,
-                        font: helvetica,
-                        color: rgb(0.7, 0.7, 0.7)
-                    });
+                    // Skip failed pages
                 }
             }
             
-            if (successfulPages === 0) {
-                console.log('      No pages could be copied with pdf-lib');
-                return null;
+            if (successfulPages > 0) {
+                const cleanedBytes = await cleanPdf.save();
+                return {
+                    success: true,
+                    buffer: Buffer.from(cleanedBytes),
+                    pageCount: successfulPages
+                };
             }
-            
-            // Save as new PDF (this removes all restrictions)
-            const cleanedBytes = await cleanPdf.save({
-                useObjectStreams: false,
-                addDefaultPage: false,
-                objectsPerTick: 50
-            });
-            
-            console.log(`      Cleaned ${successfulPages}/${pageCount} pages with pdf-lib`);
-            return Buffer.from(cleanedBytes);
-            
         } catch (error) {
-            console.log('      pdf-lib cleaning failed:', error.message);
-            return null;
+            // Continue to next strategy
         }
+        return null;
     }
-
+    
     /**
-     * Method 2: Clean with qpdf command line tool
+     * Strategy: Try QPDF command line tool
      */
-    async cleanWithQPDF(pdfBuffer, index) {
+    async tryQPDFClean(pdfBuffer, index) {
         try {
-            // Check if qpdf is available
-            try {
-                await execPromise('which qpdf');
-            } catch {
-                console.log('      qpdf not available');
-                return null;
-            }
+            await execPromise('which qpdf');
             
-            // Write temp files
-            const tempId = crypto.randomBytes(8).toString('hex');
-            const inputPath = path.join(this.tempDir, `input_${tempId}.pdf`);
-            const outputPath = path.join(this.tempDir, `output_${tempId}.pdf`);
+            const inputPath = path.join(this.tempDir, `input_${index}_${Date.now()}.pdf`);
+            
+            await fs.writeFile(inputPath, pdfBuffer);
+            await execPromise(`qpdf --decrypt --replace-input "${inputPath}"`);
+            
+            const cleanedBuffer = await fs.readFile(inputPath);
+            await fs.unlink(inputPath).catch(() => {});
+            
+            const pdf = await PDFDocument.load(cleanedBuffer);
+            const pageCount = pdf.getPageCount();
+            
+            return {
+                success: true,
+                buffer: cleanedBuffer,
+                pageCount: pageCount
+            };
+        } catch (error) {
+            // qpdf not available or failed
+        }
+        return null;
+    }
+    
+    /**
+     * Strategy: Try Ghostscript
+     */
+    async tryGhostscript(pdfBuffer, index) {
+        try {
+            await execPromise('which gs');
+            
+            const inputPath = path.join(this.tempDir, `gs_input_${index}_${Date.now()}.pdf`);
+            const outputPath = path.join(this.tempDir, `gs_output_${index}_${Date.now()}.pdf`);
             
             await fs.writeFile(inputPath, pdfBuffer);
             
-            // Use qpdf to decrypt and remove restrictions
-            const command = `qpdf --decrypt --replace-input "${inputPath}" && qpdf --linearize "${inputPath}" "${outputPath}"`;
+            const gsCommand = `gs -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -sOutputFile="${outputPath}" -f "${inputPath}"`;
+            await execPromise(gsCommand);
             
-            try {
-                await execPromise(command);
-                const cleanedBuffer = await fs.readFile(outputPath);
-                
-                // Cleanup temp files
-                await fs.unlink(inputPath).catch(() => {});
-                await fs.unlink(outputPath).catch(() => {});
-                
-                console.log('      ✓ Cleaned with qpdf');
-                return cleanedBuffer;
-                
-            } catch (error) {
-                // Cleanup on error
-                await fs.unlink(inputPath).catch(() => {});
-                await fs.unlink(outputPath).catch(() => {});
-                
-                console.log('      qpdf cleaning failed:', error.message);
-                return null;
-            }
+            const cleanedBuffer = await fs.readFile(outputPath);
             
+            await fs.unlink(inputPath).catch(() => {});
+            await fs.unlink(outputPath).catch(() => {});
+            
+            const pdf = await PDFDocument.load(cleanedBuffer);
+            const pageCount = pdf.getPageCount();
+            
+            return {
+                success: true,
+                buffer: cleanedBuffer,
+                pageCount: pageCount
+            };
         } catch (error) {
-            console.log('      qpdf method failed:', error.message);
-            return null;
+            // Ghostscript not available or failed
         }
+        return null;
     }
-
+    
     /**
-     * Method 3: Clean by re-rendering each page - Force extract
+     * Strategy: Try page-by-page extraction
      */
-    async cleanByRerendering(pdfBuffer) {
+    async tryPageByPage(pdfBuffer) {
         try {
-            console.log('      Attempting force re-render...');
-            
-            // Try loading with all possible options
             const pdf = await PDFDocument.load(pdfBuffer, { 
                 ignoreEncryption: true,
                 updateMetadata: false,
-                throwOnInvalidObject: false,
-                capNumbers: false
+                throwOnInvalidObject: false
             });
             
-            // Create a completely new PDF
-            const cleanPdf = await PDFDocument.create();
             const pageCount = pdf.getPageCount();
+            const cleanPdf = await PDFDocument.create();
             
-            console.log(`      Force re-rendering ${pageCount} pages...`);
+            let extractedPages = 0;
             
-            let renderedPages = 0;
-            
-            // Process each page individually with multiple attempts
             for (let i = 0; i < pageCount; i++) {
-                let pageAdded = false;
+                let pageExtracted = false;
                 
-                // Attempt 1: Direct copy
-                try {
-                    const [page] = await cleanPdf.copyPages(pdf, [i]);
-                    cleanPdf.addPage(page);
-                    pageAdded = true;
-                    renderedPages++;
-                } catch (e1) {
-                    console.log(`        Direct copy failed for page ${i + 1}`);
-                    
-                    // Attempt 2: Extract and recreate
+                // Try direct copy first
+                if (!pageExtracted) {
+                    try {
+                        const [page] = await cleanPdf.copyPages(pdf, [i]);
+                        cleanPdf.addPage(page);
+                        pageExtracted = true;
+                        extractedPages++;
+                    } catch (e) {
+                        // Try placeholder
+                    }
+                }
+                
+                // Add placeholder if copy failed
+                if (!pageExtracted) {
                     try {
                         const sourcePage = pdf.getPage(i);
                         const { width, height } = sourcePage.getSize();
                         const newPage = cleanPdf.addPage([width, height]);
                         
-                        // Try to extract text at least
                         const helvetica = await cleanPdf.embedFont(StandardFonts.Helvetica);
-                        newPage.drawText(`Page ${i + 1} from protected document`, {
+                        
+                        newPage.drawText(`Page ${i + 1}`, {
                             x: 50,
                             y: height - 50,
-                            size: 10,
+                            size: 12,
                             font: helvetica,
                             color: rgb(0.3, 0.3, 0.3)
                         });
                         
-                        newPage.drawText('Content extracted with limited permissions', {
+                        newPage.drawText('(Content protected - manual review required)', {
                             x: 50,
                             y: height / 2,
-                            size: 12,
+                            size: 14,
                             font: helvetica,
                             color: rgb(0.5, 0.5, 0.5)
                         });
                         
-                        pageAdded = true;
-                        renderedPages++;
-                    } catch (e2) {
-                        console.log(`        Extraction failed for page ${i + 1}`);
+                        extractedPages++;
+                    } catch (e) {
+                        // Skip this page
                     }
-                }
-                
-                // Final fallback: Add error page
-                if (!pageAdded) {
-                    const errorPage = cleanPdf.addPage([612, 792]);
-                    const helvetica = await cleanPdf.embedFont(StandardFonts.Helvetica);
-                    
-                    errorPage.drawText(`Page ${i + 1}`, {
-                        x: 50,
-                        y: 750,
-                        size: 12,
-                        font: helvetica,
-                        color: rgb(0.3, 0.3, 0.3)
-                    });
-                    
-                    errorPage.drawText('Document has strict permissions', {
-                        x: 50,
-                        y: 400,
-                        size: 16,
-                        font: helvetica,
-                        color: rgb(0.6, 0, 0)
-                    });
-                    
-                    errorPage.drawText('This page could not be extracted due to PDF restrictions.', {
-                        x: 50,
-                        y: 370,
-                        size: 12,
-                        font: helvetica,
-                        color: rgb(0.5, 0.5, 0.5)
-                    });
-                    
-                    errorPage.drawText('The original document will need to be provided without restrictions.', {
-                        x: 50,
-                        y: 350,
-                        size: 12,
-                        font: helvetica,
-                        color: rgb(0.5, 0.5, 0.5)
-                    });
                 }
             }
             
-            const cleanedBytes = await cleanPdf.save({
-                useObjectStreams: false
-            });
-            
-            console.log(`      ✓ Force re-rendered ${renderedPages}/${pageCount} pages`);
-            return Buffer.from(cleanedBytes);
-            
+            if (extractedPages > 0) {
+                const cleanedBytes = await cleanPdf.save();
+                return {
+                    success: true,
+                    buffer: Buffer.from(cleanedBytes),
+                    pageCount: extractedPages
+                };
+            }
         } catch (error) {
-            console.log('      Force re-rendering failed:', error.message);
-            return null;
+            // Strategy failed
         }
+        return null;
     }
 
     /**
-     * Merge cleaned PDFs with separators
+     * Merge processed PDFs with proper error handling
      */
-    async mergePDFs(pdfBuffers, fileInfo = []) {
-        console.log(`📑 Merging ${pdfBuffers.length} cleaned PDFs`);
+    async mergeProcessedPDFs(processedDocuments, fileInfo) {
+        console.log(`\n📑 Merging ${processedDocuments.length} processed documents`);
         
         const mergedPdf = await PDFDocument.create();
         const helveticaBold = await mergedPdf.embedFont(StandardFonts.HelveticaBold);
         const helvetica = await mergedPdf.embedFont(StandardFonts.Helvetica);
         
         let totalPages = 0;
+        let currentPageNum = 0;
         
-        for (let i = 0; i < pdfBuffers.length; i++) {
-            try {
-                const pdf = await PDFDocument.load(pdfBuffers[i], {
-                    ignoreEncryption: true,
-                    updateMetadata: false
+        for (let i = 0; i < processedDocuments.length; i++) {
+            const doc = processedDocuments[i];
+            const fileName = fileInfo[i]?.fileName || doc.fileName || `Document ${i + 1}`;
+            
+            console.log(`  Adding ${fileName} (${doc.method})`);
+            
+            // Add separator page (except before first document)
+            if (i > 0) {
+                const separatorPage = mergedPdf.addPage([612, 792]);
+                const { width, height } = separatorPage.getSize();
+                currentPageNum++;
+                
+                // Draw separator content
+                separatorPage.drawText(`DOCUMENT ${i + 1}`, {
+                    x: width / 2 - 100,
+                    y: height / 2 + 50,
+                    size: 30,
+                    font: helveticaBold,
+                    color: rgb(0, 0, 0)
                 });
                 
-                // Add separator page (except before first document)
-                if (i > 0) {
-                    const separatorPage = mergedPdf.addPage([612, 792]);
-                    const { width, height } = separatorPage.getSize();
-                    
-                    // Draw separator content
-                    separatorPage.drawText(`DOCUMENT ${i + 1}`, {
-                        x: width / 2 - 100,
-                        y: height / 2 + 50,
-                        size: 30,
-                        font: helveticaBold,
-                        color: rgb(0, 0, 0)
-                    });
-                    
-                    separatorPage.drawText(fileInfo[i]?.fileName || `Document ${i + 1}`, {
-                        x: width / 2 - 150,
-                        y: height / 2,
-                        size: 14,
-                        font: helvetica,
-                        color: rgb(0.3, 0.3, 0.3)
-                    });
-                    
-                    // Draw separator line
-                    separatorPage.drawRectangle({
-                        x: 50,
-                        y: height / 2 - 30,
-                        width: width - 100,
-                        height: 2,
-                        color: rgb(0.7, 0.7, 0.7)
-                    });
-                    
-                    totalPages++;
-                }
-                
-                // Copy all pages from the document
-                const pageCount = pdf.getPageCount();
-                const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-                pages.forEach(page => {
-                    mergedPdf.addPage(page);
-                    totalPages++;
-                });
-                
-                console.log(`  Added document ${i + 1}: ${pageCount} pages`);
-                
-            } catch (error) {
-                console.error(`  Failed to add document ${i + 1}:`, error.message);
-                
-                // Add error page
-                const errorPage = mergedPdf.addPage([612, 792]);
-                const { width, height } = errorPage.getSize();
-                const helvetica = await mergedPdf.embedFont(StandardFonts.Helvetica);
-                
-                errorPage.drawText('Document could not be processed', {
-                    x: width / 2 - 130,
+                separatorPage.drawText(fileName, {
+                    x: 50,
                     y: height / 2,
-                    size: 16,
-                    font: helvetica,
-                    color: rgb(0.8, 0, 0)
-                });
-                
-                errorPage.drawText(fileInfo[i]?.fileName || `Document ${i + 1}`, {
-                    x: width / 2 - 150,
-                    y: height / 2 - 30,
-                    size: 12,
+                    size: 14,
                     font: helvetica,
                     color: rgb(0.3, 0.3, 0.3)
                 });
                 
-                totalPages++;
+                separatorPage.drawText(`Processing method: ${doc.method}`, {
+                    x: 50,
+                    y: height / 2 - 20,
+                    size: 10,
+                    font: helvetica,
+                    color: rgb(0.5, 0.5, 0.5)
+                });
+                
+                if (!doc.success) {
+                    separatorPage.drawText('⚠️ This document had processing issues', {
+                        x: 50,
+                        y: height / 2 - 50,
+                        size: 12,
+                        font: helvetica,
+                        color: rgb(0.7, 0, 0)
+                    });
+                    
+                    if (doc.error) {
+                        separatorPage.drawText(doc.error, {
+                            x: 50,
+                            y: height / 2 - 70,
+                            size: 10,
+                            font: helvetica,
+                            color: rgb(0.5, 0.5, 0.5)
+                        });
+                    }
+                }
+                
+                separatorPage.drawText(`Page ${currentPageNum}`, {
+                    x: width / 2 - 30,
+                    y: 30,
+                    size: 10,
+                    font: helvetica,
+                    color: rgb(0.5, 0.5, 0.5)
+                });
+            }
+            
+            // Add document pages
+            try {
+                const pdf = await PDFDocument.load(doc.buffer, {
+                    ignoreEncryption: true,
+                    updateMetadata: false,
+                    throwOnInvalidObject: false
+                });
+                
+                const pageCount = pdf.getPageCount();
+                console.log(`    Adding ${pageCount} pages from ${fileName}`);
+                
+                // Try to copy all pages at once first
+                try {
+                    const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+                    pages.forEach((page, idx) => {
+                        mergedPdf.addPage(page);
+                        currentPageNum++;
+                        totalPages++;
+                    });
+                } catch (bulkError) {
+                    // Fall back to page-by-page
+                    console.log(`    Bulk copy failed, trying page-by-page`);
+                    
+                    for (let j = 0; j < pageCount; j++) {
+                        try {
+                            const [page] = await mergedPdf.copyPages(pdf, [j]);
+                            mergedPdf.addPage(page);
+                            currentPageNum++;
+                            totalPages++;
+                        } catch (pageError) {
+                            // Add error page for this specific page
+                            const errorPage = mergedPdf.addPage([612, 792]);
+                            currentPageNum++;
+                            totalPages++;
+                            
+                            errorPage.drawText(`${fileName} - Page ${j + 1}`, {
+                                x: 50,
+                                y: 750,
+                                size: 12,
+                                font: helvetica,
+                                color: rgb(0.3, 0.3, 0.3)
+                            });
+                            
+                            errorPage.drawText('This page could not be processed', {
+                                x: 50,
+                                y: 400,
+                                size: 14,
+                                font: helvetica,
+                                color: rgb(0.7, 0, 0)
+                            });
+                            
+                            errorPage.drawText('The document may have security restrictions.', {
+                                x: 50,
+                                y: 370,
+                                size: 12,
+                                font: helvetica,
+                                color: rgb(0.5, 0.5, 0.5)
+                            });
+                        }
+                    }
+                }
+                
+            } catch (error) {
+                console.error(`    ✗ Failed to add document ${i + 1}:`, error.message);
+                
+                // Add error page for entire document
+                const errorPage = mergedPdf.addPage([612, 792]);
+                currentPageNum++;
+                
+                errorPage.drawText(`DOCUMENT ${i + 1}: ${fileName}`, {
+                    x: 50,
+                    y: 700,
+                    size: 16,
+                    font: helveticaBold,
+                    color: rgb(0, 0, 0)
+                });
+                
+                errorPage.drawText('Document could not be processed', {
+                    x: 50,
+                    y: 400,
+                    size: 20,
+                    font: helveticaBold,
+                    color: rgb(0.7, 0, 0)
+                });
+                
+                errorPage.drawText(error.message, {
+                    x: 50,
+                    y: 350,
+                    size: 12,
+                    font: helvetica,
+                    color: rgb(0.5, 0.5, 0.5)
+                });
+                
+                errorPage.drawText('Please provide a PDF without security restrictions.', {
+                    x: 50,
+                    y: 320,
+                    size: 12,
+                    font: helvetica,
+                    color: rgb(0.5, 0.5, 0.5)
+                });
             }
         }
         
-        console.log(`✅ Created consolidated PDF with ${totalPages} pages from ${pdfBuffers.length} documents`);
-        
-        // Log document breakdown
-        console.log('📋 Document breakdown:');
-        for (let i = 0; i < pdfBuffers.length; i++) {
-            console.log(`  - Document ${i + 1}: ${fileInfo[i]?.fileName || 'Unknown'}`);
-        }
-        
         // Save the merged PDF
-        const mergedBytes = await mergedPdf.save();
-        const finalBuffer = Buffer.from(mergedBytes);
-        console.log(`💾 Final merged PDF size: ${(finalBuffer.length / 1024 / 1024).toFixed(2)}MB`);
-        return finalBuffer;
+        const mergedBytes = await mergedPdf.save({
+            useObjectStreams: false,
+            addDefaultPage: false,
+            objectsPerTick: 50
+        });
+        
+        console.log(`✅ Successfully merged ${totalPages} pages into consolidated PDF`);
+        return Buffer.from(mergedBytes);
+    }
+    
+    // Compatibility method - keep the old name but use new implementation
+    async mergePDFs(pdfBuffers, fileInfo = []) {
+        // This now just calls the new merge method after processing
+        const processedDocs = [];
+        for (let i = 0; i < pdfBuffers.length; i++) {
+            processedDocs.push({
+                success: true,
+                buffer: pdfBuffers[i],
+                pageCount: 0,
+                method: 'Direct',
+                fileName: fileInfo[i]?.fileName || `Document ${i + 1}`
+            });
+        }
+        return await this.mergeProcessedPDFs(processedDocs, fileInfo);
     }
 }
 
