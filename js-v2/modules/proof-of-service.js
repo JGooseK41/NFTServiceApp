@@ -404,48 +404,110 @@ This NFT represents legal service of process. You have been officially notified 
         }
     },
     
+    // Decrypt encrypted PDF data
+    decryptPDF(encryptedBuffer, key) {
+        const encrypted = new Uint8Array(encryptedBuffer);
+        const decrypted = new Uint8Array(encrypted.length);
+        
+        // Simple XOR decryption using server address as key
+        const keyBytes = new TextEncoder().encode(key);
+        for (let i = 0; i < encrypted.length; i++) {
+            decrypted[i] = encrypted[i] ^ keyBytes[i % keyBytes.length];
+        }
+        
+        return decrypted.buffer;
+    },
+    
     // Export stamped documents
     async exportStampedDocuments(caseData) {
         try {
-            // Try to get PDF URL from backend first
+            let pdfBlob = null;
             const caseId = caseData.caseNumber || caseData.case_number || caseData.id;
-            const backendUrl = 'https://nftserviceapp.onrender.com';
-            const pdfUrl = `${backendUrl}/api/cases/${caseId}/pdf`;
+            const ipfsHash = caseData.ipfsDocument || caseData.ipfsHash || caseData.metadata?.ipfsHash;
             
-            console.log('Fetching PDF from:', pdfUrl);
-            
-            // Fetch the PDF from backend
-            const response = await fetch(pdfUrl, {
-                headers: {
-                    'X-Server-Address': window.wallet?.address || 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY'
+            // First try IPFS if we have a hash (since IPFS contains the encrypted binary)
+            if (ipfsHash) {
+                try {
+                    console.log('Fetching encrypted PDF from IPFS:', ipfsHash);
+                    const ipfsGateway = 'https://gateway.pinata.cloud/ipfs/';
+                    const ipfsResponse = await fetch(ipfsGateway + ipfsHash);
+                    
+                    if (ipfsResponse.ok) {
+                        const encryptedData = await ipfsResponse.arrayBuffer();
+                        
+                        // Try decrypting with server address as key
+                        const serverAddress = window.wallet?.address || localStorage.getItem('serverAddress') || 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY';
+                        const decryptedData = this.decryptPDF(encryptedData, serverAddress);
+                        
+                        // Check if decrypted data is a valid PDF
+                        const bytes = new Uint8Array(decryptedData);
+                        const pdfHeader = [0x25, 0x50, 0x44, 0x46]; // %PDF
+                        const isPDF = bytes[0] === pdfHeader[0] && bytes[1] === pdfHeader[1] && 
+                                     bytes[2] === pdfHeader[2] && bytes[3] === pdfHeader[3];
+                        
+                        if (isPDF) {
+                            console.log('Successfully decrypted PDF from IPFS');
+                            pdfBlob = new Blob([decryptedData], { type: 'application/pdf' });
+                        } else {
+                            // Maybe it's not encrypted, try as raw PDF
+                            const rawBytes = new Uint8Array(encryptedData);
+                            const isRawPDF = rawBytes[0] === pdfHeader[0] && rawBytes[1] === pdfHeader[1] && 
+                                            rawBytes[2] === pdfHeader[2] && rawBytes[3] === pdfHeader[3];
+                            
+                            if (isRawPDF) {
+                                console.log('IPFS data is already a PDF (not encrypted)');
+                                pdfBlob = new Blob([encryptedData], { type: 'application/pdf' });
+                            }
+                        }
+                    }
+                } catch (ipfsError) {
+                    console.error('IPFS fetch/decrypt failed:', ipfsError);
                 }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Failed to fetch PDF from backend: ${response.status}`);
             }
             
-            const pdfBlob = await response.blob();
-            
-            // Verify it's actually a PDF
-            const arrayBuffer = await pdfBlob.slice(0, 5).arrayBuffer();
-            const header = new Uint8Array(arrayBuffer);
-            const pdfHeader = [0x25, 0x50, 0x44, 0x46]; // %PDF
-            const isPDF = header[0] === pdfHeader[0] && header[1] === pdfHeader[1] && 
-                         header[2] === pdfHeader[2] && header[3] === pdfHeader[3];
-            
-            if (!isPDF) {
-                console.error('Not a valid PDF file');
-                // Just download the original without stamping
-                const url = URL.createObjectURL(pdfBlob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `case-${caseId}-documents.pdf`;
-                a.click();
-                URL.revokeObjectURL(url);
+            // If IPFS didn't work, try backend
+            if (!pdfBlob) {
+                const backendUrl = 'https://nftserviceapp.onrender.com';
+                const pdfUrl = `${backendUrl}/api/cases/${caseId}/pdf`;
                 
-                alert('Downloaded original documents. Stamping is not available for this file format.');
-                return;
+                console.log('Fetching PDF from backend:', pdfUrl);
+                
+                const response = await fetch(pdfUrl, {
+                    headers: {
+                        'X-Server-Address': window.wallet?.address || 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch PDF: Backend returned ${response.status}`);
+                }
+                
+                pdfBlob = await response.blob();
+                
+                // Verify it's actually a PDF
+                const arrayBuffer = await pdfBlob.slice(0, 4).arrayBuffer();
+                const header = new Uint8Array(arrayBuffer);
+                const pdfHeader = [0x25, 0x50, 0x44, 0x46]; // %PDF
+                const isPDF = header[0] === pdfHeader[0] && header[1] === pdfHeader[1] && 
+                             header[2] === pdfHeader[2] && header[3] === pdfHeader[3];
+                
+                if (!isPDF) {
+                    console.error('Backend data is not a valid PDF');
+                    alert('The document is not in PDF format. Downloading original file.');
+                    
+                    // Just download the original
+                    const url = URL.createObjectURL(pdfBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `case-${caseId}-documents`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    return;
+                }
+            }
+            
+            if (!pdfBlob) {
+                throw new Error('No document data available');
             }
             
             // Generate stamped version
@@ -461,7 +523,7 @@ This NFT represents legal service of process. You have been officially notified 
             
         } catch (error) {
             console.error('Failed to export stamped documents:', error);
-            alert('Failed to export stamped documents. Please try again.');
+            alert('Failed to export stamped documents. Please ensure the case has valid document data.');
         }
     }
 };
