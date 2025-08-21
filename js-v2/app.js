@@ -1237,7 +1237,13 @@ window.app = {
             
             console.log('Save case response:', result);
             
-            // Store case ID for later use
+            // Check if the backend actually returned a successful response
+            if (!result.success) {
+                console.error('Backend returned unsuccessful response:', result);
+                throw new Error(result.error || 'Case save failed');
+            }
+            
+            // Store case ID for later use - backend returns caseId
             this.currentCaseId = result.caseId || result.id || caseNumber;
             
             // Always construct the PDF URL for consistency
@@ -1245,12 +1251,13 @@ window.app = {
             console.log('✅ Case saved/updated successfully');
             console.log('   Case ID:', this.currentCaseId);
             console.log('   PDF URL:', this.consolidatedPDFUrl);
+            console.log('   Full result:', result);
             
             // Mark that we now have the consolidated PDF ready
             this.hasConsolidatedPDF = true;
             
-            // Show success message
-            this.showSuccess(`Case "${caseNumber}" saved successfully! PDFs cleaned and consolidated on server.`);
+            // Show success message with case ID
+            this.showSuccess(`Case "${this.currentCaseId}" saved successfully! PDFs cleaned and consolidated on server.`);
             
             // Optionally refresh the cases list if on cases page
             if (window.cases) {
@@ -1261,6 +1268,17 @@ window.app = {
             
         } catch (error) {
             console.error('Error saving to case manager:', error);
+            console.error('Current state:', {
+                currentCaseId: this.currentCaseId,
+                consolidatedPDFUrl: this.consolidatedPDFUrl,
+                fileQueue: this.state.fileQueue.length
+            });
+            
+            // Clear any partial state on error
+            this.currentCaseId = null;
+            this.consolidatedPDFUrl = null;
+            this.hasConsolidatedPDF = false;
+            
             this.showError('Failed to save case: ' + error.message);
         }
     },
