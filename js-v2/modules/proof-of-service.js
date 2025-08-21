@@ -378,33 +378,77 @@ This NFT represents legal service of process. You have been officially notified 
                 color: PDFLib.rgb(0, 0, 0)
             });
             
-            // Add alert NFT thumbnail if available
-            const alertImage = caseData.alertImage || caseData.alertPreview || caseData.alert_preview;
+            // Add alert NFT thumbnail if available - check multiple possible locations
+            const alertImage = caseData.alertImage || 
+                             caseData.alertPreview || 
+                             caseData.alert_preview || 
+                             caseData.alert_image ||
+                             caseData.metadata?.alertImage;
+            
+            console.log('Alert image available:', !!alertImage);
+            
             if (alertImage) {
                 try {
-                    // Convert base64 to image
-                    const imageData = alertImage.replace(/^data:image\/\w+;base64,/, '');
-                    const imageBytes = Uint8Array.from(atob(imageData), c => c.charCodeAt(0));
+                    let imageBytes;
                     
-                    // Embed as PNG or JPEG
+                    // Check if it's a data URL or just base64
+                    if (alertImage.startsWith('data:image')) {
+                        // It's a data URL, extract the base64 part
+                        const base64Data = alertImage.split(',')[1];
+                        imageBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+                    } else if (alertImage.startsWith('/9j/') || alertImage.startsWith('iVBOR')) {
+                        // It's raw base64 (JPEG starts with /9j/, PNG with iVBOR)
+                        imageBytes = Uint8Array.from(atob(alertImage), c => c.charCodeAt(0));
+                    } else {
+                        // Assume it needs to be fetched or is already bytes
+                        console.log('Alert image format not recognized, skipping');
+                        throw new Error('Unrecognized image format');
+                    }
+                    
+                    // Determine image type and embed
                     let embeddedImage;
-                    if (alertImage.includes('image/png')) {
+                    // Check for PNG magic bytes (89 50 4E 47)
+                    if (imageBytes[0] === 0x89 && imageBytes[1] === 0x50) {
+                        console.log('Embedding as PNG');
                         embeddedImage = await pdfDoc.embedPng(imageBytes);
                     } else {
+                        // Assume JPEG
+                        console.log('Embedding as JPEG');
                         embeddedImage = await pdfDoc.embedJpg(imageBytes);
                     }
                     
-                    // Draw the image (scale to fit)
-                    const imgDims = embeddedImage.scale(0.4);
+                    // Calculate dimensions to fit nicely on page
+                    const maxWidth = pageWidth - 100; // Leave 50px margins
+                    const maxHeight = 250; // Max height for the image
+                    
+                    let scale = 1;
+                    const origWidth = embeddedImage.width;
+                    const origHeight = embeddedImage.height;
+                    
+                    if (origWidth > maxWidth) {
+                        scale = maxWidth / origWidth;
+                    }
+                    if (origHeight * scale > maxHeight) {
+                        scale = maxHeight / origHeight;
+                    }
+                    
+                    const imgDims = embeddedImage.scale(scale);
+                    
+                    // Center the image horizontally, position below title
                     alertPage.drawImage(embeddedImage, {
                         x: pageWidth / 2 - imgDims.width / 2,
-                        y: pageHeight - 400,
+                        y: pageHeight - 120 - imgDims.height, // Position below title
                         width: imgDims.width,
                         height: imgDims.height
                     });
+                    
+                    console.log('Alert NFT image successfully embedded');
                 } catch (imgError) {
                     console.error('Failed to embed alert image:', imgError);
+                    // Continue without image
                 }
+            } else {
+                console.log('No alert image found in case data');
             }
             
             // Add NFT details
@@ -463,41 +507,49 @@ This NFT represents legal service of process. You have been officially notified 
                 const page = pages[i];
                 const { width, height } = page.getSize();
                 
-                // Add wider stamp box to accommodate long transaction hash
-                const stampWidth = 320; // Increased from 180
-                const stampHeight = 65; // Slightly taller
-                const stampX = 50; // Moved to left side
-                const stampY = height - 90;
+                // Position stamp at bottom center
+                const stampWidth = 400; // Wide enough for transaction hash
+                const stampHeight = 70;
+                const stampX = (width - stampWidth) / 2; // Center horizontally
+                const stampY = 30; // 30px from bottom
                 
-                // Add red stamp box
+                // Add red stamp box with rounded appearance
                 page.drawRectangle({
                     x: stampX,
                     y: stampY,
                     width: stampWidth,
                     height: stampHeight,
-                    borderColor: PDFLib.rgb(1, 0, 0),
+                    borderColor: PDFLib.rgb(0.8, 0, 0),
                     borderWidth: 2,
-                    color: PDFLib.rgb(1, 1, 0.95)
+                    color: PDFLib.rgb(1, 0.98, 0.98)
                 });
                 
-                // Add stamp text with better formatting
+                // Add stamp text centered
                 const lines = [
                     'DELIVERED via BlockServed™',
-                    `Date: ${new Date(caseData.servedAt).toLocaleDateString()}`,
-                    `Case: ${caseData.caseNumber}`,
-                    `TX: ${caseData.transactionHash?.substring(0, 32)}`,
-                    `    ${caseData.transactionHash?.substring(32)}`
+                    `Date: ${new Date(caseData.servedAt).toLocaleDateString()} | Case: ${caseData.caseNumber}`,
+                    `Transaction Hash:`,
+                    `${caseData.transactionHash || 'Not Available'}`
                 ];
                 
-                let textY = stampY + stampHeight - 15;
-                for (const line of lines) {
+                // Calculate text positioning for centering
+                let textY = stampY + stampHeight - 18;
+                for (let j = 0; j < lines.length; j++) {
+                    const line = lines[j];
+                    const fontSize = j === 0 ? 10 : 8; // Larger font for title
+                    const isBold = j === 0 || j === 2; // Bold for title and "Transaction Hash:"
+                    
+                    // Estimate text width for centering (rough approximation)
+                    const textWidth = line.length * (fontSize * 0.5);
+                    const textX = stampX + (stampWidth - textWidth) / 2;
+                    
                     page.drawText(line, {
-                        x: stampX + 10,
+                        x: textX,
                         y: textY,
-                        size: 8,
-                        color: PDFLib.rgb(0.8, 0, 0)
+                        size: fontSize,
+                        color: isBold ? PDFLib.rgb(0.6, 0, 0) : PDFLib.rgb(0.8, 0, 0)
                     });
-                    textY -= 11;
+                    textY -= fontSize + 4;
                 }
             }
             
