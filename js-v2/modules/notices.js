@@ -266,25 +266,31 @@ window.notices = {
         let serverId = localStorage.getItem(getConfig('storage.keys.serverId'));
         
         if (!serverId) {
-            // Register new server
-            const response = await fetch(getApiUrl('registerServer'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    address: window.wallet.address,
-                    name: 'Process Server',
-                    agency: 'Legal Services',
-                    timestamp: Date.now()
-                })
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                serverId = data.serverId;
-                localStorage.setItem(getConfig('storage.keys.serverId'), serverId);
-            } else {
-                // Generate fallback ID
+            try {
+                // Try to register new server
+                const response = await fetch(getApiUrl('registerServer'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        address: window.wallet.address,
+                        name: 'Process Server',
+                        agency: 'Legal Services',
+                        timestamp: Date.now()
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    serverId = data.serverId;
+                    localStorage.setItem(getConfig('storage.keys.serverId'), serverId);
+                } else {
+                    throw new Error('Server registration endpoint not available');
+                }
+            } catch (error) {
+                // Generate fallback ID - this is fine, server registration is optional
+                console.log('Server registration not available, using fallback ID');
                 serverId = `PS-${window.wallet.address.substring(0, 8)}-${Date.now()}`;
+                localStorage.setItem(getConfig('storage.keys.serverId'), serverId);
             }
         }
         
