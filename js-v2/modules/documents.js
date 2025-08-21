@@ -213,17 +213,36 @@ window.documents = {
     
     // Generate Alert NFT image from ONLY first page with overlay
     async generateAlertNFTImage(pdfBlob, options = {}) {
-        console.log('Generating Alert NFT image from first page only...');
+        console.log('Generating Alert NFT image...');
         
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        
+        // If no PDF provided, create a simple notice image
+        if (!pdfBlob) {
+            // Standard size for NFT image
+            canvas.width = 1200;
+            canvas.height = 1200;
+            
+            // White background
+            context.fillStyle = '#ffffff';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Create the notice overlay
+            this.drawNoticeOverlay(context, canvas.width, canvas.height, options);
+            
+            const dataUri = canvas.toDataURL('image/png', 0.9);
+            console.log('Alert NFT image generated (simple notice), size:', Math.round(dataUri.length / 1024), 'KB');
+            return dataUri;
+        }
+        
+        // If PDF provided, use first page as background
         const arrayBuffer = await pdfBlob.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         const page = await pdf.getPage(1); // ONLY first page
         
         // Set up canvas
         const viewport = page.getViewport({ scale: 1.5 });
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         
@@ -233,53 +252,69 @@ window.documents = {
             viewport: viewport
         }).promise;
         
-        // Add LEGAL NOTICE overlay
-        const overlayHeight = 180;
-        
-        // Semi-transparent yellow/gold background for overlay
-        const gradient = context.createLinearGradient(0, 0, 0, overlayHeight);
-        gradient.addColorStop(0, 'rgba(255, 215, 0, 0.95)');
-        gradient.addColorStop(1, 'rgba(255, 193, 7, 0.95)');
-        context.fillStyle = gradient;
-        context.fillRect(0, 0, canvas.width, overlayHeight);
-        
-        // Red border around overlay
-        context.strokeStyle = '#cc0000';
-        context.lineWidth = 4;
-        context.strokeRect(2, 2, canvas.width - 4, overlayHeight - 4);
-        
-        // Add text to overlay
-        context.textAlign = 'center';
-        
-        // LEGAL NOTICE title
-        context.fillStyle = '#cc0000';
-        context.font = 'bold 48px Arial';
-        context.fillText('LEGAL NOTICE', canvas.width / 2, 60);
-        
-        // Notice type if provided
-        if (options.noticeType) {
-            context.fillStyle = '#000000';
-            context.font = 'bold 24px Arial';
-            context.fillText(options.noticeType.toUpperCase(), canvas.width / 2, 95);
-        }
-        
-        // Case number
-        if (options.caseNumber) {
-            context.fillStyle = '#000000';
-            context.font = '20px Arial';
-            context.fillText(`Case: ${options.caseNumber}`, canvas.width / 2, 125);
-        }
-        
-        // Website reference
-        context.fillStyle = '#0066cc';
-        context.font = 'bold 22px Arial';
-        context.fillText('View at: www.blockserved.com', canvas.width / 2, 160);
+        // Draw the notice overlay
+        this.drawNoticeOverlay(context, canvas.width, canvas.height, options);
         
         // Convert to Base64 data URI (ONLY the first page with overlay)
         const dataUri = canvas.toDataURL('image/png', 0.9);
         console.log('Alert NFT image generated (first page only), size:', Math.round(dataUri.length / 1024), 'KB');
         
         return dataUri;
+    },
+    
+    // Helper function to draw the notice overlay
+    drawNoticeOverlay(context, canvasWidth, canvasHeight, options = {}) {
+        const overlayHeight = canvasHeight * 0.45; // Take up 45% of image height to fit more info
+        
+        // Semi-transparent white background for better readability
+        context.fillStyle = 'rgba(255, 255, 255, 0.95)';
+        context.fillRect(0, 0, canvasWidth, overlayHeight);
+        
+        // Red border around overlay
+        context.strokeStyle = '#cc0000';
+        context.lineWidth = 8;
+        context.strokeRect(4, 4, canvasWidth - 8, overlayHeight - 8);
+        
+        // Add text to overlay - MUCH LARGER
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        
+        // LEGAL NOTICE title - HUGE
+        context.fillStyle = '#cc0000';
+        context.font = 'bold 70px Arial';
+        context.fillText('LEGAL NOTICE', canvasWidth / 2, overlayHeight * 0.20);
+        
+        // Main message - VERY LARGE AND CLEAR
+        context.fillStyle = '#000000';
+        context.font = 'bold 52px Arial';
+        context.fillText('Visit', canvasWidth / 2, overlayHeight * 0.40);
+        
+        // Website - HUGE AND PROMINENT
+        context.fillStyle = '#0066cc';
+        context.font = 'bold 60px Arial';
+        context.fillText('www.BlockServed.com', canvasWidth / 2, overlayHeight * 0.55);
+        
+        // Bottom message
+        context.fillStyle = '#000000';
+        context.font = 'bold 44px Arial';
+        context.fillText('to View Document', canvasWidth / 2, overlayHeight * 0.70);
+        
+        // Add issuing agency in LARGE readable font
+        if (options.agency || options.issuingAgency) {
+            const agency = options.agency || options.issuingAgency;
+            // Agency name in prominent text
+            context.fillStyle = '#333333';
+            context.font = 'bold 36px Arial';
+            context.fillText(`From: ${agency}`, canvasWidth / 2, overlayHeight * 0.85);
+        }
+        
+        // Add case number at very bottom if provided
+        if (options.caseNumber) {
+            // Case number in readable text
+            context.fillStyle = '#666666';
+            context.font = 'bold 28px Arial';
+            context.fillText(`Case: ${options.caseNumber}`, canvasWidth / 2, overlayHeight * 0.95);
+        }
     },
     
     // Upload PDF to disk storage (encrypted for security)

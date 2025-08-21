@@ -93,11 +93,11 @@ router.post('/store', express.json(), async (req, res) => {
 /**
  * Generate default metadata for a token
  */
-async function generateDefaultMetadata(tokenId) {
+async function generateDefaultMetadata(tokenId, agency) {
     const baseUrl = process.env.BASE_URL || 'https://nft-legal-service.netlify.app';
     
     return {
-        name: `Legal Notice #${tokenId}`,
+        name: `${agency || 'Legal Notice'} #${tokenId}`,
         description: `⚖️ OFFICIAL LEGAL NOTICE ⚖️\n\n` +
                     `You have been served with an official legal document that requires your attention.\n\n` +
                     `📋 WHAT THIS MEANS:\n` +

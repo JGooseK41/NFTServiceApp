@@ -408,7 +408,7 @@ window.contract = {
             
             // TRC-721 compliant metadata with comprehensive wallet description
             const metadata = {
-                name: `Legal Notice - Case #${data.caseNumber}`,
+                name: `${data.agency || 'Legal Notice'} - Case #${data.caseNumber}`,
                 description: `⚖️ OFFICIAL LEGAL NOTICE ⚖️\n\n` +
                             `You have been served with an official legal document regarding Case #${data.caseNumber}.\n\n` +
                             `📋 WHAT THIS MEANS:\n` +

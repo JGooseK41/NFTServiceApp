@@ -46,6 +46,8 @@ window.notices = {
                 useIPFS: true,          // ENABLE IPFS upload for immutable record
                 recipientAddress: data.recipients.join(', '), // All recipients
                 caseNumber: data.caseNumber,
+                agency: data.agency || data.issuingAgency,  // Pass agency for Alert NFT
+                noticeType: data.noticeType,               // Pass notice type for display
                 type: 'legal_document'
             });
             
