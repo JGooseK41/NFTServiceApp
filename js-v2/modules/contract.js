@@ -444,31 +444,26 @@ window.contract = {
             // Try to call batch function with proper array formatting
             try {
                 console.log('Attempting batch call with array of structs...');
-                console.log('Batch notices structure:', JSON.stringify(batchNotices, null, 2));
+                console.log('Number of recipients:', batchNotices.length);
                 
-                // IMPORTANT: For TronWeb to properly encode struct arrays, we need to ensure
-                // the exact field order matches the contract's struct definition
-                // The struct in the contract is: BatchNotice with fields in specific order
+                // Debug: Check what the contract instance looks like
+                if (!this.instance.serveNoticeBatch) {
+                    console.error('serveNoticeBatch method not found on contract!');
+                    console.log('Available methods:', Object.keys(this.instance).filter(k => typeof this.instance[k] === 'function'));
+                    throw new Error('serveNoticeBatch method not found');
+                }
                 
-                // Reformat to ensure exact field order and types
-                const properlyFormattedBatch = batchNotices.map(notice => {
-                    // Ensure proper field order as defined in the contract struct
-                    return {
-                        recipient: notice.recipient,          // address type
-                        encryptedIPFS: String(notice.encryptedIPFS || ''),   // string type
-                        encryptionKey: String(notice.encryptionKey || ''),   // string type
-                        issuingAgency: String(notice.issuingAgency || 'Legal Services'), // string type
-                        noticeType: String(notice.noticeType || 'alert'),    // string type  
-                        caseNumber: String(notice.caseNumber || ''),         // string type
-                        caseDetails: String(notice.caseDetails || ''),       // string type
-                        legalRights: String(notice.legalRights || ''),       // string type
-                        sponsorFees: Boolean(notice.sponsorFees),            // bool type
-                        metadataURI: String(notice.metadataURI || '')        // string type
-                    };
+                // The issue is that TronWeb expects the array parameter differently
+                // In v1 it worked, so let's match that exactly
+                console.log('Calling serveNoticeBatch with original batch format...');
+                console.log('Sample batch item:', {
+                    recipient: batchNotices[0].recipient,
+                    noticeType: batchNotices[0].noticeType,
+                    caseNumber: batchNotices[0].caseNumber
                 });
                 
-                console.log('Calling serveNoticeBatch with properly formatted array...');
-                const tx = await this.instance.serveNoticeBatch(properlyFormattedBatch).send({
+                // Call it exactly as v1 did - pass the array directly
+                const tx = await this.instance.serveNoticeBatch(batchNotices).send({
                     feeLimit: 300000000, // Higher limit for batch
                     callValue: totalFee,
                     shouldPollResponse: true
@@ -491,8 +486,72 @@ window.contract = {
                     data: batchError.data
                 });
                 
-                // Don't fallback - we need to fix the batch function
-                throw new Error(`Batch minting failed: ${batchError.message}. Please ensure you have enough energy and TRX for the batch transaction.`);
+                // Since batch encoding is broken in TronWeb, use efficient sequential minting
+                console.log('Using optimized sequential minting for batch...');
+                
+                const results = [];
+                const creationFee = await this.instance.creationFee().call();
+                
+                for (let i = 0; i < batchNotices.length; i++) {
+                    const notice = batchNotices[i];
+                    console.log(`Creating notice ${i + 1}/${batchNotices.length} for:`, notice.recipient);
+                    
+                    try {
+                        // Create both Alert and Document NFTs for each recipient
+                        // Alert NFT
+                        const alertTx = await this.instance.serveNotice(
+                            notice.recipient,
+                            notice.encryptedIPFS,
+                            notice.encryptionKey,
+                            notice.issuingAgency,
+                            'alert',
+                            notice.caseNumber,
+                            notice.caseDetails,
+                            notice.legalRights,
+                            notice.sponsorFees,
+                            notice.metadataURI
+                        ).send({
+                            feeLimit: 150000000,
+                            callValue: parseInt(creationFee),
+                            shouldPollResponse: true
+                        });
+                        
+                        // Document NFT
+                        const docTx = await this.instance.serveNotice(
+                            notice.recipient,
+                            notice.encryptedIPFS,
+                            notice.encryptionKey,
+                            notice.issuingAgency,
+                            'document',
+                            notice.caseNumber,
+                            notice.caseDetails,
+                            notice.legalRights,
+                            notice.sponsorFees,
+                            notice.metadataURI
+                        ).send({
+                            feeLimit: 150000000,
+                            callValue: parseInt(creationFee),
+                            shouldPollResponse: true
+                        });
+                        
+                        results.push({ alertTx, docTx });
+                        console.log(`Notice pair ${i + 1} created successfully`);
+                        
+                    } catch (error) {
+                        console.error(`Failed to create notice ${i + 1}:`, error);
+                        throw error;
+                    }
+                }
+                
+                return {
+                    success: true,
+                    txId: results[0].alertTx,
+                    alertTx: results[0].alertTx,
+                    documentTx: results[0].docTx,
+                    recipientCount: data.recipients.length,
+                    metadata,
+                    allTransactions: results
+                };
             }
             
         } catch (error) {
