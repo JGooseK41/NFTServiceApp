@@ -443,7 +443,32 @@ window.contract = {
             
             // Try to call batch function with proper array formatting
             try {
-                const tx = await this.instance.serveNoticeBatch(batchNotices).send({
+                console.log('Attempting batch call with array of structs...');
+                console.log('Batch notices structure:', JSON.stringify(batchNotices, null, 2));
+                
+                // IMPORTANT: For TronWeb to properly encode struct arrays, we need to ensure
+                // the exact field order matches the contract's struct definition
+                // The struct in the contract is: BatchNotice with fields in specific order
+                
+                // Reformat to ensure exact field order and types
+                const properlyFormattedBatch = batchNotices.map(notice => {
+                    // Ensure proper field order as defined in the contract struct
+                    return {
+                        recipient: notice.recipient,          // address type
+                        encryptedIPFS: String(notice.encryptedIPFS || ''),   // string type
+                        encryptionKey: String(notice.encryptionKey || ''),   // string type
+                        issuingAgency: String(notice.issuingAgency || 'Legal Services'), // string type
+                        noticeType: String(notice.noticeType || 'alert'),    // string type  
+                        caseNumber: String(notice.caseNumber || ''),         // string type
+                        caseDetails: String(notice.caseDetails || ''),       // string type
+                        legalRights: String(notice.legalRights || ''),       // string type
+                        sponsorFees: Boolean(notice.sponsorFees),            // bool type
+                        metadataURI: String(notice.metadataURI || '')        // string type
+                    };
+                });
+                
+                console.log('Calling serveNoticeBatch with properly formatted array...');
+                const tx = await this.instance.serveNoticeBatch(properlyFormattedBatch).send({
                     feeLimit: 300000000, // Higher limit for batch
                     callValue: totalFee,
                     shouldPollResponse: true
@@ -459,49 +484,15 @@ window.contract = {
                     metadata
                 };
             } catch (batchError) {
-                console.error('Batch call failed:', batchError);
-                console.log('Falling back to individual notice creation...');
+                console.error('Batch call failed with error:', batchError);
+                console.error('Error details:', {
+                    message: batchError.message,
+                    code: batchError.code,
+                    data: batchError.data
+                });
                 
-                // Fallback to individual calls
-                const results = [];
-                for (let i = 0; i < batchNotices.length; i++) {
-                    const notice = batchNotices[i];
-                    console.log(`Creating notice ${i + 1}/${batchNotices.length} for:`, notice.recipient);
-                    
-                    try {
-                        const tx = await this.instance.serveNotice(
-                            notice.recipient,
-                            notice.encryptedIPFS,
-                            notice.encryptionKey,
-                            notice.issuingAgency,
-                            'alert', // Use 'alert' instead of 'batch' for individual calls
-                            notice.caseNumber,
-                            notice.caseDetails,
-                            notice.legalRights,
-                            notice.sponsorFees,
-                            notice.metadataURI
-                        ).send({
-                            feeLimit: 150000000,
-                            callValue: parseInt(creationFee) + (notice.sponsorFees ? parseInt(await this.instance.sponsorshipFee().call()) : 0),
-                            shouldPollResponse: true
-                        });
-                        results.push(tx);
-                        console.log(`Notice ${i + 1} created:`, tx);
-                    } catch (error) {
-                        console.error(`Failed to create notice ${i + 1} for recipient:`, notice.recipient, error);
-                        throw error;
-                    }
-                }
-                
-                return {
-                    success: true,
-                    txId: results[0],
-                    alertTx: results[0],
-                    documentTx: results[results.length - 1],
-                    recipientCount: data.recipients.length,
-                    metadata,
-                    allTransactions: results
-                };
+                // Don't fallback - we need to fix the batch function
+                throw new Error(`Batch minting failed: ${batchError.message}. Please ensure you have enough energy and TRX for the batch transaction.`);
             }
             
         } catch (error) {
