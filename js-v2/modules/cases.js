@@ -250,6 +250,9 @@ window.cases = {
             // Navigate to serve page
             window.app.navigate('serve');
             
+            // Wait for page to load before filling fields
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
             // Pre-fill all form fields from saved case
             if (caseData.metadata) {
                 const fields = ['caseNumber', 'noticeText', 'issuingAgency', 'noticeType', 
@@ -271,10 +274,14 @@ window.cases = {
                     // Add saved recipients
                     caseData.metadata.recipients.forEach((recipient, index) => {
                         if (index === 0) {
-                            document.getElementById('recipientAddress').value = recipient;
+                            // Use the first recipient input by class
+                            const firstInput = document.querySelector('.recipient-input');
+                            if (firstInput) {
+                                firstInput.value = recipient;
+                            }
                         } else {
                             // Add additional recipient fields if needed
-                            window.app.addRecipient();
+                            window.app.addRecipientField();
                             const inputs = document.querySelectorAll('.recipient-input');
                             if (inputs[index]) {
                                 inputs[index].value = recipient;
