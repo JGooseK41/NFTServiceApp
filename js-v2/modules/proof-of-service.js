@@ -404,18 +404,56 @@ This NFT represents legal service of process. You have been officially notified 
         }
     },
     
-    // Decrypt encrypted PDF data
-    decryptPDF(encryptedBuffer, key) {
-        const encrypted = new Uint8Array(encryptedBuffer);
-        const decrypted = new Uint8Array(encrypted.length);
-        
-        // Simple XOR decryption using server address as key
-        const keyBytes = new TextEncoder().encode(key);
-        for (let i = 0; i < encrypted.length; i++) {
-            decrypted[i] = encrypted[i] ^ keyBytes[i % keyBytes.length];
+    // Decrypt AES-256-GCM encrypted PDF data
+    async decryptPDF(encryptedBuffer, keyHex) {
+        try {
+            // The encrypted data format is: IV (16 bytes) + Auth Tag (16 bytes) + Encrypted Data
+            const IV_LENGTH = 16;
+            const TAG_LENGTH = 16;
+            
+            const encrypted = new Uint8Array(encryptedBuffer);
+            
+            // Extract components
+            const iv = encrypted.slice(0, IV_LENGTH);
+            const authTag = encrypted.slice(IV_LENGTH, IV_LENGTH + TAG_LENGTH);
+            const ciphertext = encrypted.slice(IV_LENGTH + TAG_LENGTH);
+            
+            // Import the key for decryption
+            const keyBuffer = this.hexToBuffer(keyHex);
+            const cryptoKey = await crypto.subtle.importKey(
+                'raw',
+                keyBuffer,
+                { name: 'AES-GCM' },
+                false,
+                ['decrypt']
+            );
+            
+            // Decrypt the data
+            const decrypted = await crypto.subtle.decrypt(
+                {
+                    name: 'AES-GCM',
+                    iv: iv,
+                    tagLength: 128, // 16 bytes * 8 = 128 bits
+                    additionalData: new Uint8Array(0)
+                },
+                cryptoKey,
+                new Uint8Array([...ciphertext, ...authTag]) // Combine ciphertext with auth tag
+            );
+            
+            return decrypted;
+        } catch (error) {
+            console.error('Failed to decrypt PDF:', error);
+            return null;
         }
-        
-        return decrypted.buffer;
+    },
+    
+    // Helper to convert hex string to buffer
+    hexToBuffer(hex) {
+        const bytes = new Uint8Array(hex.length / 2);
+        for (let i = 0; i < hex.length; i += 2) {
+            bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+        }
+        return bytes.buffer;
     },
     
     // Export stamped documents
@@ -435,28 +473,39 @@ This NFT represents legal service of process. You have been officially notified 
                     if (ipfsResponse.ok) {
                         const encryptedData = await ipfsResponse.arrayBuffer();
                         
-                        // Try decrypting with server address as key
-                        const serverAddress = window.wallet?.address || localStorage.getItem('serverAddress') || 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY';
-                        const decryptedData = this.decryptPDF(encryptedData, serverAddress);
+                        // Get the encryption key - it should be stored with the case
+                        const encryptionKey = caseData.encryptionKey || caseData.encryption_key || caseData.metadata?.encryptionKey;
                         
-                        // Check if decrypted data is a valid PDF
-                        const bytes = new Uint8Array(decryptedData);
-                        const pdfHeader = [0x25, 0x50, 0x44, 0x46]; // %PDF
-                        const isPDF = bytes[0] === pdfHeader[0] && bytes[1] === pdfHeader[1] && 
-                                     bytes[2] === pdfHeader[2] && bytes[3] === pdfHeader[3];
+                        if (encryptionKey) {
+                            // Try decrypting with the stored encryption key
+                            const decryptedData = await this.decryptPDF(encryptedData, encryptionKey);
+                            
+                            if (decryptedData) {
+                                // Check if decrypted data is a valid PDF
+                                const bytes = new Uint8Array(decryptedData);
+                                const pdfHeader = [0x25, 0x50, 0x44, 0x46]; // %PDF
+                                const isPDF = bytes[0] === pdfHeader[0] && bytes[1] === pdfHeader[1] && 
+                                             bytes[2] === pdfHeader[2] && bytes[3] === pdfHeader[3];
+                                
+                                if (isPDF) {
+                                    console.log('Successfully decrypted PDF from IPFS');
+                                    pdfBlob = new Blob([decryptedData], { type: 'application/pdf' });
+                                }
+                            }
+                        }
                         
-                        if (isPDF) {
-                            console.log('Successfully decrypted PDF from IPFS');
-                            pdfBlob = new Blob([decryptedData], { type: 'application/pdf' });
-                        } else {
+                        if (!pdfBlob) {
                             // Maybe it's not encrypted, try as raw PDF
                             const rawBytes = new Uint8Array(encryptedData);
+                            const pdfHeader = [0x25, 0x50, 0x44, 0x46]; // %PDF
                             const isRawPDF = rawBytes[0] === pdfHeader[0] && rawBytes[1] === pdfHeader[1] && 
                                             rawBytes[2] === pdfHeader[2] && rawBytes[3] === pdfHeader[3];
                             
                             if (isRawPDF) {
                                 console.log('IPFS data is already a PDF (not encrypted)');
                                 pdfBlob = new Blob([encryptedData], { type: 'application/pdf' });
+                            } else {
+                                console.log('IPFS data is encrypted but no encryption key found in case data');
                             }
                         }
                     }
