@@ -64,8 +64,15 @@ window.contract = {
         }
         
         try {
+            // IMPORTANT: Make ABI globally available like v1 does
+            window.CONTRACT_ABI = this.abi;
+            
             // Create contract instance EXACTLY as v1 does
             this.instance = await this.tronWeb.contract(this.abi, this.address);
+            
+            // ALSO make it globally available like v1
+            window.legalContract = this.instance;
+            
             console.log('Contract initialized at:', this.address);
             
             // Verify serveNoticeBatch is available
