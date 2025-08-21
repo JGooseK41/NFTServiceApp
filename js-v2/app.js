@@ -1884,25 +1884,45 @@ window.app = {
         this.state.fileQueue.forEach((fileItem, index) => {
             const item = document.createElement('div');
             item.className = 'list-group-item d-flex justify-content-between align-items-center';
-            item.draggable = true;
-            item.dataset.fileId = fileItem.id;
-            item.innerHTML = `
-                <div class="d-flex align-items-center">
-                    <svg width="20" height="20" fill="#6c757d" class="me-2" style="cursor: move;">
-                        <path d="M3 7h18M3 12h18M3 17h18" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                    <div>
-                        <strong>${fileItem.name}</strong>
-                        <small class="text-muted d-block">${this.formatFileSize(fileItem.size)}</small>
+            item.draggable = !fileItem.isExisting; // Don't allow dragging existing documents
+            item.dataset.fileId = fileItem.id || Date.now();
+            
+            // Special handling for existing documents
+            if (fileItem.isExisting) {
+                item.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-file-earmark-pdf-fill text-primary me-2"></i>
+                        <div>
+                            <strong>Existing Case Documents</strong>
+                            <small class="text-muted d-block">Previously uploaded documents</small>
+                        </div>
                     </div>
-                </div>
-                <div>
-                    ${index === 0 ? '<span class="badge bg-primary me-2">First Page = Thumbnail</span>' : ''}
-                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="app.removeFile('${fileItem.id}')">
-                        Remove
-                    </button>
-                </div>
-            `;
+                    <div>
+                        <span class="badge bg-info me-2">Existing</span>
+                        <button type="button" class="btn btn-sm btn-warning" onclick="app.clearExistingDocuments()">
+                            Replace All
+                        </button>
+                    </div>
+                `;
+            } else {
+                item.innerHTML = `
+                    <div class="d-flex align-items-center">
+                        <svg width="20" height="20" fill="#6c757d" class="me-2" style="cursor: move;">
+                            <path d="M3 7h18M3 12h18M3 17h18" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                        <div>
+                            <strong>${fileItem.name}</strong>
+                            <small class="text-muted d-block">${this.formatFileSize(fileItem.size)}</small>
+                        </div>
+                    </div>
+                    <div>
+                        ${index === 0 ? '<span class="badge bg-primary me-2">First Page = Thumbnail</span>' : ''}
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="app.removeFile('${fileItem.id}')">
+                            Remove
+                        </button>
+                    </div>
+                `;
+            }
             
             // Add drag event listeners
             item.addEventListener('dragstart', (e) => this.handleDragStart(e, fileItem));
@@ -2250,7 +2270,7 @@ window.app = {
                 }];
                 
                 // Update file list display
-                this.updateFileList();
+                this.displayFileQueue();
             }
             
         } catch (error) {
@@ -2264,7 +2284,7 @@ window.app = {
         this.hasExistingDocuments = false;
         this.consolidatedPDFUrl = null;
         this.state.fileQueue = [];
-        this.updateFileList();
+        this.displayFileQueue();
         
         // Remove the existing documents alert
         const existingAlert = document.getElementById('existingDocsAlert');

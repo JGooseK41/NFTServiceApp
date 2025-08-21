@@ -307,37 +307,12 @@ window.cases = {
     // Load documents from saved case
     async loadCaseDocuments(caseData) {
         try {
-            const caseId = caseData.id || caseData.caseId || caseData.caseNumber;
-            
-            // Fetch PDF from backend
-            const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-            const response = await fetch(`${backendUrl}/api/cases/${caseId}/pdf`, {
-                headers: {
-                    'X-Server-Address': window.wallet.address
-                }
-            });
-            
-            if (!response.ok) {
-                console.error('Failed to load case PDF');
-                return;
-            }
-            
-            const blob = await response.blob();
-            const fileName = `${caseData.id || caseData.caseNumber || 'case'}_consolidated.pdf`;
-            const file = new File([blob], fileName, { type: 'application/pdf' });
-            
-            // Add to file queue (not documentQueue)
-            if (window.app && window.app.state) {
-                window.app.state.fileQueue = [{
-                    file: file,
-                    id: Date.now(),
-                    name: file.name,
-                    size: file.size
-                }];
-                
-                // Update UI to show loaded document
-                window.app.displayFileQueue();
-                window.app.showInfo('Documents loaded from saved case');
+            // Use the app's showExistingCaseDocuments function
+            if (window.app && window.app.showExistingCaseDocuments) {
+                await window.app.showExistingCaseDocuments(caseData);
+                console.log('Existing case documents displayed');
+            } else {
+                console.error('showExistingCaseDocuments function not found');
             }
             
         } catch (error) {
