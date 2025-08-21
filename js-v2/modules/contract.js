@@ -392,12 +392,14 @@ window.contract = {
                     (recipient.address || recipient.toString()) : 
                     recipient;
                 
-                // Match v1 structure but with non-empty defaults like v1 had
-                // v1 used placeholder values: 'batch-encrypted-ipfs' and 'batch-key'
+                // Use disk URL since we're not using IPFS in v2
+                // The contract stores this as a string - can be IPFS hash OR URL
+                const documentUrl = data.diskUrl || data.ipfsHash || '';
+                
                 return {
                     recipient: recipientAddress,
-                    encryptedIPFS: data.ipfsHash || 'none',  // v1 used 'batch-encrypted-ipfs'
-                    encryptionKey: data.encryptionKey || 'none',  // v1 used 'batch-key'
+                    encryptedIPFS: documentUrl || 'none',  // Use disk URL or 'none' placeholder
+                    encryptionKey: data.encryptionKey || 'none',  // No encryption since using disk storage
                     issuingAgency: data.agency || 'Legal Services',
                     noticeType: 'alert',
                     caseNumber: data.caseNumber || '',

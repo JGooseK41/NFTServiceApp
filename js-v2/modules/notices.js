@@ -74,7 +74,8 @@ window.notices = {
                     serverTimestamp: Math.floor(Date.now() / 1000),
                     thumbnail,
                     encrypted: data.encrypt !== false,
-                    ipfsHash: documentData.ipfsHash,
+                    ipfsHash: documentData.ipfsHash,  // Will be null if not using IPFS
+                    diskUrl: documentData.diskUrl,     // The actual PDF URL on server
                     encryptionKey: documentData.encryptionKey || '',
                     pageCount: documentData.pageCount || 1,
                     deadline: data.deadline || '',
