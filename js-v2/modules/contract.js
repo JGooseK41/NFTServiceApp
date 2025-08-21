@@ -272,6 +272,19 @@ window.contract = {
             // Convert metadata to Base64 data URI
             const metadataUri = 'data:application/json;base64,' + btoa(JSON.stringify(metadata));
             
+            // Validate recipient address
+            if (!data.recipient) {
+                throw new Error('Recipient address is required');
+            }
+            
+            // Ensure recipient is a string, not an object
+            const recipientAddress = typeof data.recipient === 'object' ? 
+                (data.recipient.address || data.recipient.toString()) : 
+                data.recipient;
+            
+            console.log('Creating Alert NFT for recipient:', recipientAddress);
+            console.log('Data object:', data);
+            
             // Calculate fees
             const creationFee = await this.instance.creationFee().call();
             const sponsorshipFee = data.sponsorFees ? await this.instance.sponsorshipFee().call() : 0;
@@ -279,7 +292,7 @@ window.contract = {
             
             // Use v5 serveNotice function
             const tx = await this.instance.serveNotice(
-                data.recipient,                    // recipient address
+                recipientAddress,                  // recipient address (string)
                 data.ipfsHash || '',               // encryptedIPFS
                 data.encryptionKey || '',          // encryptionKey
                 data.agency || 'Legal Services',   // issuingAgency
@@ -461,6 +474,18 @@ window.contract = {
             
             const metadataUri = 'data:application/json;base64,' + btoa(JSON.stringify(metadata));
             
+            // Validate recipient address
+            if (!data.recipient) {
+                throw new Error('Recipient address is required for Document NFT');
+            }
+            
+            // Ensure recipient is a string, not an object
+            const recipientAddress = typeof data.recipient === 'object' ? 
+                (data.recipient.address || data.recipient.toString()) : 
+                data.recipient;
+            
+            console.log('Creating Document NFT for recipient:', recipientAddress);
+            
             // Calculate fees
             const creationFee = await this.instance.creationFee().call();
             const sponsorshipFee = data.sponsorFees ? await this.instance.sponsorshipFee().call() : 0;
@@ -468,7 +493,7 @@ window.contract = {
             
             // Use v5 serveNotice function for documents too
             const tx = await this.instance.serveNotice(
-                data.recipient,                    // recipient address
+                recipientAddress,                  // recipient address (string)
                 data.ipfsHash || '',               // encryptedIPFS (contains the document)
                 data.encryptionKey || '',          // encryptionKey
                 data.agency || 'Legal Services',   // issuingAgency
