@@ -1,9 +1,9 @@
 services:
   - type: web
     name: nft-legal-service-backend
-    runtime: node
-    buildCommand: npm install
-    startCommand: node server.js
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     disk:
       name: pdf-storage
       mountPath: /var/data
