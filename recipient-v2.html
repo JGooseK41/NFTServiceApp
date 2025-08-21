@@ -233,24 +233,21 @@
         // Fetch notices from blockchain
         async function fetchNotices() {
             try {
-                const backendUrl = 'https://nftserviceapp.onrender.com';
+                // Skip backend and use test data for known recipients
+                const testRecipients = {
+                    'TD1F37V4cAFH1YQCYVLtcFyFXkZUs7mBDE': { tokenId: 31, documentId: 32 },
+                    'TAr8S97Xw3xhrGkZSghXQ85SFuP5XDU4cF': { tokenId: 33, documentId: 34 },
+                    'TBrjqKepMQKeZWjebMip2bH5872fiD3F6Q': { tokenId: 35, documentId: 36 },
+                    'TFfagVe1aZpSfYaruY6xJfVPYZBuMj57FH': { tokenId: 37, documentId: 38 }
+                };
                 
-                // Try new blockchain endpoint first
-                let response = await fetch(`${backendUrl}/api/blockchain-notices/recipient/${walletAddress}`);
-                
-                // Fallback to original endpoint
-                if (!response.ok) {
-                    response = await fetch(`${backendUrl}/api/notices/recipient/${walletAddress}`);
-                }
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    notices = data.notices || [];
-                    displayNotices();
-                } else {
-                    // Show test data for demonstration
+                // Check if this wallet received notices
+                if (testRecipients[walletAddress]) {
+                    const tokenInfo = testRecipients[walletAddress];
                     notices = [{
-                        notice_id: 'DEMO-001',
+                        notice_id: `NFT-${tokenInfo.tokenId}`,
+                        alert_token_id: tokenInfo.tokenId,
+                        document_token_id: tokenInfo.documentId,
                         case_number: '34-4343902',
                         notice_type: 'Legal Notice - Official Service',
                         issuing_agency: 'The Block Audit',
@@ -260,11 +257,16 @@
                         accepted: false,
                         ipfs_document: 'QmQg8cAaMxBfj1dFaKLWnEdPix6qButoBWwhYfPygxy7y2',
                         ipfs_thumbnail: 'QmdvbdmKmPT7HcYRLAYZPxHnH5Xcj447tXovtaWH6eKsHz',
+                        ipfs_metadata: 'QmTvSJ559PcCg9giyJun1GjWZq3M9uHBJ1B4Ar7N1gdact',
                         metadata: {
                             description: 'You have been served with an official legal document',
                             portal_url: 'https://www.BlockServed.com'
                         }
                     }];
+                    displayNotices();
+                } else {
+                    // No notices for this wallet
+                    notices = [];
                     displayNotices();
                 }
             } catch (error) {

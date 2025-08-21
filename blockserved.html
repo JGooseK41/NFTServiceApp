@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BlockServed</title>
+    <title>BlockServed - View Your Legal Notices</title>
     <script>
-        // Immediate redirect logic - runs before page loads
+        // Immediate redirect to recipient portal
         (function() {
-            // Check if accessing from TronLink app browser
+            // Redirect to the recipient viewing interface
+            window.location.href = '/recipient-v2.html';
             const isTronLinkBrowser = window.tronWeb && window.tronWeb.ready;
             
             // Check if mobile device
