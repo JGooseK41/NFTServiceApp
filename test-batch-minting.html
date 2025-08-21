@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Batch Minting with IPFS</title>
+    <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.min.js"></script>
+</head>
+<body>
+    <h1>Test Batch Minting with IPFS</h1>
+    <button onclick="testBatchMinting()">Test Batch Mint to 4 Recipients</button>
+    <pre id="output"></pre>
+
+    <script>
+        // Load modules
+        const script1 = document.createElement('script');
+        script1.src = 'js-v2/modules/documents.js';
+        document.head.appendChild(script1);
+        
+        const script2 = document.createElement('script');
+        script2.src = 'js-v2/modules/contract.js';
+        document.head.appendChild(script2);
+        
+        const script3 = document.createElement('script');
+        script3.src = 'js-v2/modules/notices.js';
+        document.head.appendChild(script3);
+
+        async function testBatchMinting() {
+            const output = document.getElementById('output');
+            output.textContent = 'Testing batch minting with IPFS...\n\n';
+            
+            try {
+                // Initialize TronWeb
+                if (!window.tronWeb || !window.tronWeb.ready) {
+                    throw new Error('Please connect TronLink wallet');
+                }
+                
+                // Initialize modules
+                await window.documents.init();
+                await window.contract.init();
+                
+                output.textContent += 'Modules initialized\n';
+                
+                // Create test PDF
+                const testPDF = new Blob(['Test PDF content'], { type: 'application/pdf' });
+                const testFile = new File([testPDF], 'test.pdf', { type: 'application/pdf' });
+                
+                // Test recipients
+                const recipients = [
+                    'TKHjFUVMvQdG3YBx1TwuorTZ5LwKJwqKJg',
+                    'THKBsgyTFTgEL9rT7R3Pg5zY1SEYDaUgcL', 
+                    'TJZY8v5VKLFtp8AFVgKCUJgktqVUZ5HqfW',
+                    'TAa6r7hBUcLW9kcPp2Xg2AsRw7QHAjTmrY'
+                ];
+                
+                output.textContent += `Testing with ${recipients.length} recipients\n\n`;
+                
+                // Process documents with IPFS
+                const documentData = await window.documents.processDocuments([testFile], {
+                    encrypt: true,
+                    useIPFS: true,
+                    caseNumber: `TEST_${Date.now()}`,
+                    noticeType: 'Test Notice',
+                    recipientAddress: recipients[0]
+                });
+                
+                output.textContent += 'Document processed:\n';
+                output.textContent += `- IPFS Hash: ${documentData.ipfsHash || 'placeholder'}\n`;
+                output.textContent += `- Encryption Key: ${documentData.encryptionKey || 'none'}\n`;
+                output.textContent += `- Alert Image: ${documentData.alertNFTImage ? 'Generated' : 'Missing'}\n\n`;
+                
+                // Prepare notice data for each recipient
+                const noticeDataArray = recipients.map(addr => ({
+                    recipient: addr,
+                    encryptedIPFS: documentData.ipfsHash || 'placeholder_hash',
+                    encryptionKey: documentData.encryptionKey || 'placeholder_key',
+                    alertMetadata: JSON.stringify({
+                        name: 'Test Alert NFT',
+                        description: 'Test batch minting',
+                        image: documentData.alertNFTImage || ''
+                    }),
+                    documentMetadata: JSON.stringify({
+                        name: 'Test Document NFT',
+                        description: 'Test document',
+                        encrypted: true
+                    })
+                }));
+                
+                output.textContent += 'Calling serveNoticeBatch...\n';
+                
+                // Try batch minting
+                const tx = await window.contract.instance.serveNoticeBatch(noticeDataArray).send({
+                    feeLimit: 500000000,
+                    callValue: 0,
+                    shouldPollResponse: true
+                });
+                
+                output.textContent += '✅ BATCH MINTING SUCCESSFUL!\n';
+                output.textContent += `Transaction: ${tx}\n`;
+                
+            } catch (error) {
+                output.textContent += `\n❌ ERROR: ${error.message}\n`;
+                output.textContent += `\nFull error:\n${JSON.stringify(error, null, 2)}`;
+                console.error('Batch minting error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
