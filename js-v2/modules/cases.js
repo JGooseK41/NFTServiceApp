@@ -23,8 +23,27 @@ window.cases = {
                 return;
             }
             
-            // Get local cases
+            // Get local cases from storage module
             const localCases = window.storage.get('cases') || [];
+            console.log('Local cases from storage module:', localCases);
+            
+            // Also check the legalnotice_cases storage (used by case-management-client)
+            const legalNoticeCases = JSON.parse(localStorage.getItem('legalnotice_cases') || '[]');
+            console.log('Legal notice cases from localStorage:', legalNoticeCases);
+            
+            // Merge both sources of local cases
+            const allLocalCases = [...localCases];
+            legalNoticeCases.forEach(lnCase => {
+                const exists = allLocalCases.find(c => 
+                    c.caseNumber === lnCase.caseNumber || 
+                    c.case_number === lnCase.case_number ||
+                    c.id === lnCase.id
+                );
+                if (!exists) {
+                    allLocalCases.push(lnCase);
+                }
+            });
+            console.log('All local cases after merging:', allLocalCases);
             
             // Get backend cases if connected
             if (window.wallet && window.wallet.connected) {
@@ -53,14 +72,17 @@ window.cases = {
                     }
                     
                     // Merge cases
-                    const merged = this.mergeCases(localCases, backendCases);
+                    const merged = this.mergeCases(allLocalCases, backendCases);
                     this.displayCases(merged);
                     return;
+                } else {
+                    console.log('Backend not available, using local cases only');
                 }
             }
             
-            // Display local cases only
-            this.displayCases(localCases);
+            // Display all local cases (merged from both storage sources)
+            console.log('Displaying local cases:', allLocalCases);
+            this.displayCases(allLocalCases);
             
         } catch (error) {
             console.error('Failed to load cases:', error);
