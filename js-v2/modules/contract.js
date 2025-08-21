@@ -366,18 +366,37 @@ window.contract = {
         try {
             console.log('Creating batch notices for recipients:', data.recipients);
             
-            // OPTIMIZATION: Don't include base64 image in on-chain metadata (too large!)
-            // Instead, reference the image URL or IPFS hash
-            const imageUrl = data.ipfsHash ? 
-                `ipfs://${data.ipfsHash}` : 
-                `https://blockserved.com/api/thumbnail/${data.noticeId}`;
+            // BALANCED APPROACH: Use a small pre-made thumbnail or generate a tiny one
+            // Most wallets need a direct image URL or small base64 to display properly
+            let imageData;
             
-            // Minimal metadata to reduce bandwidth
+            // Option 1: Use a standard legal notice thumbnail (small, reusable)
+            const DEFAULT_LEGAL_THUMBNAIL = 'https://blockserved.com/images/legal-notice-thumb.png';
+            
+            // Option 2: If we have IPFS, use IPFS gateway URL (works in most wallets)
+            if (data.ipfsHash) {
+                imageData = `https://gateway.pinata.cloud/ipfs/${data.ipfsHash}`;
+            } 
+            // Option 3: Use our server's thumbnail endpoint
+            else if (data.noticeId) {
+                imageData = `https://nft-legal-service.netlify.app/api/thumbnail/${data.noticeId}`;
+            }
+            // Option 4: Use default thumbnail
+            else {
+                imageData = DEFAULT_LEGAL_THUMBNAIL;
+            }
+            
+            // TRC-721 compliant metadata with proper image URL
             const metadata = {
-                name: `Notice #${data.caseNumber}`,
-                description: data.noticeText ? data.noticeText.substring(0, 100) + '...' : 'Legal Notice',
-                image: imageUrl,  // URL reference, not base64 data!
-                external_url: `https://blockserved.com/notice/${data.noticeId}`
+                name: `Legal Notice - Case #${data.caseNumber}`,
+                description: `${data.noticeText ? data.noticeText.substring(0, 100) : 'Legal Notice'} | ${data.recipients.length} recipients`,
+                image: imageData,  // Direct URL that wallets can fetch
+                external_url: `https://blockserved.com/notice/${data.noticeId}`,
+                attributes: [
+                    { trait_type: "Case", value: data.caseNumber },
+                    { trait_type: "Recipients", value: data.recipients.length },
+                    { trait_type: "Type", value: "Legal Notice" }
+                ]
             };
             
             // Keep metadata small - no base64 encoding needed for small JSON
