@@ -368,31 +368,26 @@ window.contract = {
             
             const metadataUri = 'data:application/json;base64,' + btoa(JSON.stringify(metadata));
             
-            // Build batch notice array EXACTLY as v1 did it
-            // The struct order in the contract is:
-            // recipient, encryptedIPFS, encryptionKey, issuingAgency, noticeType,
-            // caseNumber, caseDetails, legalRights, sponsorFees, metadataURI
+            // Build batch notice array - try matching v1 exactly
             const batchNotices = data.recipients.map(recipient => {
                 // Ensure recipient is a string address
                 const recipientAddress = typeof recipient === 'object' ? 
                     (recipient.address || recipient.toString()) : 
                     recipient;
                 
-                // Create object with exact field order as in the struct
-                // Using Object.create(null) to avoid prototype pollution
-                const notice = Object.create(null);
-                notice.recipient = recipientAddress;
-                notice.encryptedIPFS = data.ipfsHash || '';
-                notice.encryptionKey = data.encryptionKey || '';
-                notice.issuingAgency = data.agency || 'Legal Services';
-                notice.noticeType = 'alert';  // Use 'alert' not 'batch'
-                notice.caseNumber = data.caseNumber || '';
-                notice.caseDetails = data.noticeText || '';
-                notice.legalRights = data.legalRights || 'You have the right to respond';
-                notice.sponsorFees = data.sponsorFees || false;
-                notice.metadataURI = metadataUri;
-                
-                return notice;
+                // Match v1 structure exactly
+                return {
+                    recipient: recipientAddress,
+                    encryptedIPFS: data.ipfsHash || '',
+                    encryptionKey: data.encryptionKey || '',
+                    issuingAgency: data.agency || 'Legal Services',
+                    noticeType: 'alert',
+                    caseNumber: data.caseNumber,
+                    caseDetails: data.noticeText,
+                    legalRights: data.legalRights || 'You have the right to respond',
+                    sponsorFees: data.sponsorFees || false,
+                    metadataURI: metadataUri
+                };
             });
             
             // Calculate total fees
@@ -447,15 +442,27 @@ window.contract = {
             
             // Call batch function exactly as v1 did
             console.log('Calling serveNoticeBatch with', batchNotices.length, 'notices');
-            console.log('First notice structure:', batchNotices[0]);
+            console.log('First notice structure:', JSON.stringify(batchNotices[0], null, 2));
             
-            // Verify the contract has the method
-            if (!this.instance.serveNoticeBatch) {
+            // Debug: let's see what the contract method looks like
+            console.log('Contract instance type:', typeof this.instance);
+            console.log('serveNoticeBatch type:', typeof this.instance.serveNoticeBatch);
+            
+            // The issue might be that TronWeb can't properly encode the tuple array
+            // Let's try using the methods object directly if it exists
+            let contractCall;
+            if (this.instance.methods && this.instance.methods.serveNoticeBatch) {
+                console.log('Using methods.serveNoticeBatch');
+                contractCall = this.instance.methods.serveNoticeBatch(batchNotices);
+            } else if (this.instance.serveNoticeBatch) {
+                console.log('Using direct serveNoticeBatch');
+                contractCall = this.instance.serveNoticeBatch(batchNotices);
+            } else {
                 throw new Error('serveNoticeBatch method not found in contract');
             }
             
-            // Call the batch function - pass array directly as v1 did
-            const tx = await this.instance.serveNoticeBatch(batchNotices).send({
+            // Call the batch function
+            const tx = await contractCall.send({
                 feeLimit: 2000000000,  // Use same high limit as v1
                 callValue: totalFee,
                 shouldPollResponse: true
