@@ -57,7 +57,7 @@ async function generateDefaultThumbnail() {
 }
 
 /**
- * Generate thumbnail from stored document
+ * Generate thumbnail from stored document's first page
  */
 async function generateDocumentThumbnail(noticeId, caseNumber) {
     try {
@@ -65,14 +65,92 @@ async function generateDocumentThumbnail(noticeId, caseNumber) {
         const thumbnailPath = path.join(__dirname, '../storage/thumbnails', `${noticeId}.png`);
         
         try {
-            const exists = await fs.access(thumbnailPath);
+            await fs.access(thumbnailPath);
             const buffer = await fs.readFile(thumbnailPath);
             return buffer;
         } catch (e) {
-            // Thumbnail doesn't exist, generate one
+            // Thumbnail doesn't exist, try to generate from PDF
         }
         
-        // Generate a custom thumbnail with case info
+        // Try to find the actual PDF document
+        let pdfPath = null;
+        const possiblePaths = [
+            path.join(__dirname, '../storage/documents', `${noticeId}.pdf`),
+            path.join(__dirname, '../storage/documents', `${caseNumber}.pdf`),
+            path.join(__dirname, '../storage/consolidated', `${noticeId}.pdf`),
+            path.join(__dirname, '../storage/consolidated', `${caseNumber}.pdf`)
+        ];
+        
+        for (const testPath of possiblePaths) {
+            try {
+                await fs.access(testPath);
+                pdfPath = testPath;
+                break;
+            } catch (e) {
+                continue;
+            }
+        }
+        
+        if (pdfPath) {
+            // Generate thumbnail from actual PDF first page
+            try {
+                const pdf2pic = require('pdf2pic');
+                const options = {
+                    density: 100,           // DPI
+                    savename: noticeId,     
+                    savedir: path.join(__dirname, '../storage/thumbnails'),
+                    format: "png",
+                    width: 400,
+                    height: 400
+                };
+                
+                const convert = pdf2pic.fromPath(pdfPath, options);
+                const result = await convert(1); // First page only
+                
+                if (result && result.path) {
+                    const buffer = await fs.readFile(result.path);
+                    
+                    // Add overlay with case number and legal notice badge
+                    const canvas = createCanvas(400, 400);
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Draw the PDF page
+                    const img = await loadImage(buffer);
+                    ctx.drawImage(img, 0, 0, 400, 400);
+                    
+                    // Add semi-transparent overlay at top
+                    ctx.fillStyle = 'rgba(26, 26, 46, 0.9)';
+                    ctx.fillRect(0, 0, 400, 60);
+                    
+                    // Add case number
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 18px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`CASE #${caseNumber || noticeId.substring(0, 8)}`, 200, 25);
+                    
+                    // Add "Legal Notice NFT" label
+                    ctx.font = '14px Arial';
+                    ctx.fillStyle = '#4a9eff';
+                    ctx.fillText('Legal Notice NFT', 200, 45);
+                    
+                    // Add border
+                    ctx.strokeStyle = '#4a9eff';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(0, 0, 400, 400);
+                    
+                    const finalBuffer = canvas.toBuffer('image/png');
+                    
+                    // Save for caching
+                    await fs.writeFile(thumbnailPath, finalBuffer);
+                    
+                    return finalBuffer;
+                }
+            } catch (pdfError) {
+                console.error('Failed to generate from PDF:', pdfError);
+            }
+        }
+        
+        // Fallback: Generate a custom thumbnail with case info
         const canvas = createCanvas(400, 400);
         const ctx = canvas.getContext('2d');
         
@@ -146,6 +224,27 @@ router.get('/:noticeId', async (req, res) => {
             return res.send(cached);
         }
         
+        // FIRST: Check if we have an uploaded thumbnail (exact preview image)
+        const uploadedPath = path.join(__dirname, '../storage/thumbnails', `${noticeId}.png`);
+        try {
+            await fs.access(uploadedPath);
+            const uploadedThumb = await fs.readFile(uploadedPath);
+            
+            // Cache it
+            if (thumbnailCache.size > 100) {
+                const firstKey = thumbnailCache.keys().next().value;
+                thumbnailCache.delete(firstKey);
+            }
+            thumbnailCache.set(noticeId, uploadedThumb);
+            
+            console.log(`✅ Serving uploaded thumbnail for ${noticeId}`);
+            res.set('Content-Type', 'image/png');
+            res.set('Cache-Control', 'public, max-age=86400');
+            return res.send(uploadedThumb);
+        } catch (e) {
+            // No uploaded thumbnail, generate one
+        }
+        
         // Try to get case information from database
         let caseNumber;
         try {
@@ -156,7 +255,7 @@ router.get('/:noticeId', async (req, res) => {
             caseNumber = noticeId.substring(0, 10);
         }
         
-        // Generate thumbnail
+        // Generate thumbnail (will try PDF first, then fallback)
         const thumbnail = await generateDocumentThumbnail(noticeId, caseNumber);
         
         // Cache it (max 100 items)

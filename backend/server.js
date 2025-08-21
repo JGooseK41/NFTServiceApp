@@ -894,6 +894,10 @@ app.use('/api/documents', documentsUnifiedRouter);
 app.use('/api/thumbnail', thumbnailRouter);
 app.use('/api/thumbnails', thumbnailRouter); // Alternative path
 
+// Thumbnail Upload (for storing exact preview images)
+const thumbnailUploadRouter = require('./thumbnail-upload');
+app.use('/api/thumbnail', thumbnailUploadRouter);
+
 // Token Registry - Comprehensive token tracking system
 const tokenRegistryRouter = require('./routes/token-registry');
 app.use('/api/tokens', tokenRegistryRouter);

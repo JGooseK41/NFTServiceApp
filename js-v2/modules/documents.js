@@ -89,13 +89,42 @@ window.documents = {
             // Step 5: Skip storing document reference - Case Manager already handled this
             // The actual token IDs will come from the blockchain transaction
             
-            // Generate thumbnail URL for NFT metadata (not base64 to save bandwidth)
-            const thumbnailUrl = ipfsHash ? 
-                `https://gateway.pinata.cloud/ipfs/${ipfsHash}` :
-                `https://nft-legal-service.netlify.app/api/thumbnail/${options.caseNumber || Date.now()}`;
-            
-            // Still generate the alert image for local display/preview
-            // But don't send it to blockchain
+            // Upload the exact thumbnail to backend that was shown in preview
+            let thumbnailUrl;
+            try {
+                if (alertNFTImage) {
+                    // Send the exact preview image to backend
+                    const uploadResponse = await fetch('https://nft-legal-service.netlify.app/api/thumbnail/store-base64', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            noticeId: options.noticeId || options.caseNumber,
+                            caseNumber: options.caseNumber,
+                            thumbnailData: alertNFTImage // The exact base64 image shown in preview
+                        })
+                    });
+                    
+                    if (uploadResponse.ok) {
+                        const result = await uploadResponse.json();
+                        thumbnailUrl = result.thumbnailUrl;
+                        console.log('✅ Preview thumbnail uploaded and will be served:', thumbnailUrl);
+                    } else {
+                        // Fallback to default URL pattern
+                        thumbnailUrl = `https://nft-legal-service.netlify.app/api/thumbnail/${options.caseNumber || Date.now()}`;
+                    }
+                } else {
+                    // No preview generated, use default
+                    thumbnailUrl = `https://nft-legal-service.netlify.app/api/thumbnail/${options.caseNumber || Date.now()}`;
+                }
+            } catch (uploadError) {
+                console.error('Failed to upload thumbnail:', uploadError);
+                // Fallback URL
+                thumbnailUrl = ipfsHash ? 
+                    `https://gateway.pinata.cloud/ipfs/${ipfsHash}` :
+                    `https://nft-legal-service.netlify.app/api/thumbnail/${options.caseNumber || Date.now()}`;
+            }
             
             return {
                 success: true,
