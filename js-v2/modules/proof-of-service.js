@@ -26,8 +26,14 @@ window.proofOfService = {
             }
         }
         
+        // Generate receipt number based on case number
+        const caseNum = caseData.caseNumber || caseData.id;
+        const receiptCount = parseInt(sessionStorage.getItem(`receipt_count_${caseNum}`) || '0') + 1;
+        sessionStorage.setItem(`receipt_count_${caseNum}`, receiptCount.toString());
+        const receiptId = receiptCount > 1 ? `${caseNum}-${receiptCount}` : caseNum;
+        
         const receipt = {
-            receiptId: `POS-${Date.now()}`,
+            receiptId: receiptId,
             generatedAt: new Date().toISOString(),
             caseNumber: caseData.caseNumber || caseData.id,
             serverAddress: caseData.serverAddress || window.tronWeb?.defaultAddress?.base58,
@@ -157,7 +163,7 @@ window.proofOfService = {
                 <div class="header">
                     <h1>Proof of Blockchain Service</h1>
                     <h2>Legal Notice Delivery Confirmation</h2>
-                    <div>Receipt ID: ${receipt.receiptId}</div>
+                    <div><strong>Case #${receipt.receiptId}</strong></div>
                     <div>Generated: ${new Date(receipt.generatedAt).toLocaleString()}</div>
                 </div>
                 
