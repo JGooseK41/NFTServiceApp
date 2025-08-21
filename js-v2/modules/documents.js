@@ -1,4 +1,13 @@
 // Document Processing Module - Handles PDF consolidation, thumbnails, and encryption
+
+// Helper function for API URLs
+function getApiUrl(endpoint) {
+    const baseUrl = window.location.hostname === 'localhost' 
+        ? 'http://localhost:3001'
+        : 'https://nftserviceapp.onrender.com';
+    return `${baseUrl}/api/${endpoint}`;
+}
+
 window.documents = {
     
     // Initialize module
@@ -7,6 +16,8 @@ window.documents = {
         
         // Load PDF.js library dynamically
         await this.loadPDFJS();
+        // Load CryptoJS for encryption
+        await this.loadCryptoJS();
     },
     
     // Load PDF.js library

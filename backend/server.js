@@ -1030,6 +1030,15 @@ const pdfSimpleDiskRouter = require('./routes/pdf-simple-disk');
 app.use('/api/pdf-simple', pdfSimpleDiskRouter);
 console.log('✅ Simple PDF Disk Storage routes loaded at /api/pdf-simple');
 
+// IPFS Upload Support for permanent immutable storage
+try {
+    const { setupIPFSRoutes } = require('./ipfs-upload');
+    setupIPFSRoutes(app);
+    console.log('✅ IPFS upload routes configured for permanent document storage');
+} catch (error) {
+    console.error('⚠️ IPFS routes not loaded:', error.message);
+}
+
 // Document Storage V2 - Complete rebuild
 try {
     const documentsV2Router = require('./routes/documents-v2');
