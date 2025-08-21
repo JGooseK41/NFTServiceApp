@@ -22,6 +22,9 @@ window.StreamlinedEnergyFlow = {
      * Show streamlined energy modal
      */
     showEnergyModal(params) {
+        // Store params for later use
+        this._modalParams = params;
+        
         // For 2.5MB documents, we KNOW it needs 3.5M energy
         if (params.documentSizeMB >= 2.5) {
             this.energyNeeded = 3500000; // Use actual blockchain requirement
@@ -951,8 +954,8 @@ window.StreamlinedEnergyFlow = {
         const container = document.querySelector('.energy-modal-container');
         if (!container) return;
         
-        // Get original params (stored when modal opened)
-        const params = this._originalParams || {};
+        // Get params stored when modal was opened
+        const params = this._modalParams || {};
         container.innerHTML = this.getStepContent(params);
     },
     
