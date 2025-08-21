@@ -87,7 +87,22 @@ window.cases = {
             
         } catch (error) {
             console.error('Failed to load cases:', error);
-            this.displayCases([]);
+            // Still display the local cases we already loaded
+            const localCases = window.storage.get('cases') || [];
+            const legalNoticeCases = JSON.parse(localStorage.getItem('legalnotice_cases') || '[]');
+            const allLocalCases = [...localCases];
+            legalNoticeCases.forEach(lnCase => {
+                const exists = allLocalCases.find(c => 
+                    c.caseNumber === lnCase.caseNumber || 
+                    c.case_number === lnCase.case_number ||
+                    c.id === lnCase.id
+                );
+                if (!exists) {
+                    allLocalCases.push(lnCase);
+                }
+            });
+            console.log('Displaying local cases despite error:', allLocalCases);
+            this.displayCases(allLocalCases);
         }
     },
     
