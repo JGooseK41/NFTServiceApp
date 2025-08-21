@@ -7,14 +7,18 @@ const FormData = require('form-data');
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Pinata configuration
-const PINATA_API_KEY = process.env.PINATA_API_KEY;
-const PINATA_SECRET_KEY = process.env.PINATA_SECRET_KEY;
-const PINATA_JWT = process.env.PINATA_JWT;
-
-// Check if Pinata is configured
+// Check if Pinata is configured (check env vars each time)
 const isPinataConfigured = () => {
-    return (PINATA_API_KEY && PINATA_SECRET_KEY) || PINATA_JWT;
+    const hasApiKeys = process.env.PINATA_API_KEY && process.env.PINATA_SECRET_KEY;
+    const hasJWT = process.env.PINATA_JWT;
+    
+    if (!hasApiKeys && !hasJWT) {
+        console.log('Pinata check: API_KEY exists?', !!process.env.PINATA_API_KEY);
+        console.log('Pinata check: SECRET_KEY exists?', !!process.env.PINATA_SECRET_KEY);
+        console.log('Pinata check: JWT exists?', !!process.env.PINATA_JWT);
+    }
+    
+    return hasApiKeys || hasJWT;
 };
 
 // Upload file to IPFS via Pinata
@@ -40,16 +44,19 @@ async function uploadToIPFS(fileBuffer, filename, metadata = {}) {
         });
         formData.append('pinataMetadata', pinataMetadata);
 
-        // Configure headers
+        // Configure headers with fresh env vars
         const headers = {
             ...formData.getHeaders()
         };
 
-        if (PINATA_JWT) {
-            headers['Authorization'] = `Bearer ${PINATA_JWT}`;
+        if (process.env.PINATA_JWT) {
+            headers['Authorization'] = `Bearer ${process.env.PINATA_JWT}`;
+        } else if (process.env.PINATA_API_KEY && process.env.PINATA_SECRET_KEY) {
+            headers['pinata_api_key'] = process.env.PINATA_API_KEY;
+            headers['pinata_secret_api_key'] = process.env.PINATA_SECRET_KEY;
         } else {
-            headers['pinata_api_key'] = PINATA_API_KEY;
-            headers['pinata_secret_api_key'] = PINATA_SECRET_KEY;
+            console.error('Pinata credentials not found in environment');
+            throw new Error('Pinata not configured');
         }
 
         const response = await axios.post(
@@ -120,11 +127,11 @@ function setupIPFSRoutes(app) {
                 });
             }
 
-            const headers = PINATA_JWT ? 
-                { 'Authorization': `Bearer ${PINATA_JWT}` } :
+            const headers = process.env.PINATA_JWT ? 
+                { 'Authorization': `Bearer ${process.env.PINATA_JWT}` } :
                 {
-                    'pinata_api_key': PINATA_API_KEY,
-                    'pinata_secret_api_key': PINATA_SECRET_KEY
+                    'pinata_api_key': process.env.PINATA_API_KEY,
+                    'pinata_secret_api_key': process.env.PINATA_SECRET_KEY
                 };
 
             const response = await axios.get(
@@ -146,7 +153,24 @@ function setupIPFSRoutes(app) {
         }
     });
 
-    console.log('✅ IPFS upload routes configured');
+    // Log Pinata configuration status on startup
+    if (isPinataConfigured()) {
+        console.log('✅ IPFS upload routes configured with Pinata');
+        // Test Pinata connection
+        const headers = process.env.PINATA_JWT ? 
+            { 'Authorization': `Bearer ${process.env.PINATA_JWT}` } :
+            {
+                'pinata_api_key': process.env.PINATA_API_KEY,
+                'pinata_secret_api_key': process.env.PINATA_SECRET_KEY
+            };
+        
+        axios.get('https://api.pinata.cloud/data/testAuthentication', { headers })
+            .then(() => console.log('✅ Pinata connection verified'))
+            .catch(err => console.error('⚠️ Pinata connection failed:', err.message));
+    } else {
+        console.log('⚠️ IPFS routes configured but Pinata credentials not found');
+        console.log('   Set PINATA_API_KEY and PINATA_SECRET_KEY or PINATA_JWT in environment');
+    }
 }
 
 module.exports = {
