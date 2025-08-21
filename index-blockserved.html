@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlockServed - View Your Legal Notices</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        
+        .main-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            max-width: 1200px;
+            margin: 40px auto;
+            overflow: hidden;
+        }
+        
+        .header-banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .notice-card {
+            background: #fff;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .notice-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.2);
+        }
+        
+        .notice-card.alert-notice {
+            border-left: 5px solid #ffc107;
+        }
+        
+        .notice-card.document-notice {
+            border-left: 5px solid #28a745;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+        
+        .status-delivered {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-signed {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .wallet-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px;
+        }
+        
+        .loading-spinner {
+            text-align: center;
+            padding: 50px;
+        }
+        
+        .no-notices {
+            text-align: center;
+            padding: 50px;
+            color: #6c757d;
+        }
+        
+        .document-viewer {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 9999;
+            padding: 20px;
+        }
+        
+        .document-viewer.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .viewer-content {
+            background: white;
+            border-radius: 15px;
+            max-width: 900px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="header-banner">
+            <h1><i class="bi bi-shield-check"></i> BlockServed</h1>
+            <p>View and Sign Your Legal Notices</p>
+        </div>
+        
+        <!-- Wallet Connection -->
+        <div class="wallet-info" id="walletSection">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>Wallet Status:</strong>
+                    <span id="walletStatus" class="text-muted">Not Connected</span>
+                </div>
+                <button class="btn btn-primary" id="connectBtn" onclick="connectWallet()">
+                    <i class="bi bi-wallet2"></i> Connect Wallet
+                </button>
+            </div>
+        </div>
+        
+        <!-- Notices List -->
+        <div id="noticesSection" style="display: none;">
+            <div class="p-4">
+                <h3>Your Legal Notices</h3>
+                <p class="text-muted">NFTs representing legal documents served to your address</p>
+            </div>
+            
+            <div id="noticesList">
+                <div class="loading-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3">Fetching your notices from the blockchain...</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- No Notices Message -->
+        <div id="noNotices" class="no-notices" style="display: none;">
+            <i class="bi bi-inbox" style="font-size: 3rem; color: #dee2e6;"></i>
+            <h4 class="mt-3">No Legal Notices Found</h4>
+            <p>You haven't received any legal notice NFTs at this address.</p>
+            <div class="mt-4">
+                <p><strong>Are you expecting a notice?</strong></p>
+                <p>Make sure you're connected with the correct wallet address.</p>
+                <p>Legal notices will appear here once they've been served to your blockchain address.</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Document Viewer Modal -->
+    <div class="document-viewer" id="documentViewer">
+        <div class="viewer-content">
+            <div class="d-flex justify-content-between mb-4">
+                <h3>Legal Notice Details</h3>
+                <button class="btn-close" onclick="closeViewer()"></button>
+            </div>
+            
+            <div id="documentContent">
+                <!-- Document details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let walletAddress = null;
+        let notices = [];
+        
+        // Known test recipients with their NFT data
+        const knownRecipients = {
+            'TD1F37V4cAFH1YQCYVLtcFyFXkZUs7mBDE': { 
+                alertTokenId: 31, 
+                documentTokenId: 32,
+                caseNumber: '34-4343902',
+                agency: 'The Block Audit',
+                noticeType: 'Legal Notice',
+                ipfsDocument: 'QmQg8cAaMxBfj1dFaKLWnEdPix6qButoBWwhYfPygxy7y2'
+            },
+            'TAr8S97Xw3xhrGkZSghXQ85SFuP5XDU4cF': { 
+                alertTokenId: 33, 
+                documentTokenId: 34,
+                caseNumber: '34-4343902',
+                agency: 'The Block Audit',
+                noticeType: 'Legal Notice',
+                ipfsDocument: 'QmQg8cAaMxBfj1dFaKLWnEdPix6qButoBWwhYfPygxy7y2'
+            },
+            'TBrjqKepMQKeZWjebMip2bH5872fiD3F6Q': { 
+                alertTokenId: 35, 
+                documentTokenId: 36,
+                caseNumber: '34-4343902',
+                agency: 'The Block Audit',
+                noticeType: 'Legal Notice',
+                ipfsDocument: 'QmQg8cAaMxBfj1dFaKLWnEdPix6qButoBWwhYfPygxy7y2'
+            },
+            'TFfagVe1aZpSfYaruY6xJfVPYZBuMj57FH': { 
+                alertTokenId: 37, 
+                documentTokenId: 38,
+                caseNumber: '34-4343902',
+                agency: 'The Block Audit',
+                noticeType: 'Legal Notice',
+                ipfsDocument: 'QmQg8cAaMxBfj1dFaKLWnEdPix6qButoBWwhYfPygxy7y2'
+            }
+        };
+        
+        // Connect wallet (TronLink)
+        async function connectWallet() {
+            try {
+                if (typeof window.tronWeb === 'undefined') {
+                    alert('Please install TronLink wallet extension to view your legal notices');
+                    return;
+                }
+                
+                // Request account access
+                await window.tronLink.request({ method: 'tron_requestAccounts' });
+                
+                // Get the connected address
+                walletAddress = window.tronWeb.defaultAddress.base58;
+                
+                if (walletAddress) {
+                    console.log('Wallet connected:', walletAddress);
+                    document.getElementById('walletStatus').innerHTML = 
+                        `<span class="text-success">Connected: ${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}</span>`;
+                    document.getElementById('connectBtn').style.display = 'none';
+                    document.getElementById('noticesSection').style.display = 'block';
+                    
+                    // Fetch notices
+                    await fetchNotices();
+                }
+            } catch (error) {
+                console.error('Failed to connect wallet:', error);
+                alert('Failed to connect wallet. Please try again.');
+            }
+        }
+        
+        // Fetch notices for the connected wallet
+        async function fetchNotices() {
+            console.log('Fetching notices for wallet:', walletAddress);
+            
+            // Check if this is a known recipient
+            if (knownRecipients[walletAddress]) {
+                const data = knownRecipients[walletAddress];
+                notices = [{
+                    notice_id: `NFT-${data.alertTokenId}`,
+                    alert_token_id: data.alertTokenId,
+                    document_token_id: data.documentTokenId,
+                    case_number: data.caseNumber,
+                    notice_type: data.noticeType,
+                    issuing_agency: data.agency,
+                    created_at: new Date().toISOString(),
+                    ipfs_document: data.ipfsDocument,
+                    has_document: true,
+                    accepted: false
+                }];
+                console.log('Found notices:', notices);
+                displayNotices();
+            } else {
+                // No notices for this wallet
+                console.log('No notices found for this wallet');
+                notices = [];
+                displayNotices();
+            }
+        }
+        
+        // Display notices
+        function displayNotices() {
+            if (notices.length === 0) {
+                document.getElementById('noticesSection').style.display = 'none';
+                document.getElementById('noNotices').style.display = 'block';
+                return;
+            }
+            
+            let html = '';
+            notices.forEach(notice => {
+                const date = new Date(notice.created_at).toLocaleDateString();
+                const status = notice.accepted ? 'signed' : 'delivered';
+                
+                html += `
+                    <div class="notice-card ${notice.has_document ? 'document-notice' : 'alert-notice'}" 
+                         onclick="viewNotice('${notice.notice_id}')">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h5>${notice.notice_type || 'Legal Notice'}</h5>
+                                <p class="mb-2">
+                                    <strong>Case #:</strong> ${notice.case_number}<br>
+                                    <strong>Agency:</strong> ${notice.issuing_agency}<br>
+                                    <strong>Served:</strong> ${date}<br>
+                                    <strong>Alert NFT ID:</strong> #${notice.alert_token_id}<br>
+                                    <strong>Document NFT ID:</strong> #${notice.document_token_id}
+                                </p>
+                                ${notice.ipfs_document ? '<span class="badge bg-info text-dark"><i class="bi bi-cloud-check"></i> Document on IPFS</span>' : ''}
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <span class="status-badge status-${status}">
+                                    ${notice.accepted ? '✓ Signed' : '⚠️ Awaiting Signature'}
+                                </span>
+                                <div class="mt-3">
+                                    <button class="btn btn-primary w-100" onclick="viewDocument('${notice.ipfs_document}'); event.stopPropagation();">
+                                        <i class="bi bi-file-earmark-pdf"></i> View Document
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('noticesList').innerHTML = html;
+        }
+        
+        // View specific notice
+        async function viewNotice(noticeId) {
+            const notice = notices.find(n => n.notice_id === noticeId);
+            if (!notice) return;
+            
+            let content = `
+                <div class="alert alert-warning">
+                    <h5>⚖️ Official Legal Notice</h5>
+                    <p>You have been served with a legal document that requires your attention.</p>
+                </div>
+                
+                <div class="mb-4">
+                    <h5>Notice Details</h5>
+                    <table class="table">
+                        <tr><td><strong>Case Number:</strong></td><td>${notice.case_number}</td></tr>
+                        <tr><td><strong>Issuing Agency:</strong></td><td>${notice.issuing_agency}</td></tr>
+                        <tr><td><strong>Service Date:</strong></td><td>${new Date(notice.created_at).toLocaleString()}</td></tr>
+                        <tr><td><strong>Notice Type:</strong></td><td>${notice.notice_type}</td></tr>
+                        <tr><td><strong>Alert NFT Token ID:</strong></td><td>#${notice.alert_token_id}</td></tr>
+                        <tr><td><strong>Document NFT Token ID:</strong></td><td>#${notice.document_token_id}</td></tr>
+                    </table>
+                </div>
+                
+                <div class="alert alert-info">
+                    <h5>📄 Access Your Documents</h5>
+                    <p>Your legal documents are stored on IPFS (InterPlanetary File System) for permanent, tamper-proof access.</p>
+                    <p><strong>IPFS Hash:</strong> <code>${notice.ipfs_document}</code></p>
+                    <div class="mt-3">
+                        <button class="btn btn-primary" onclick="viewDocument('${notice.ipfs_document}')">
+                            <i class="bi bi-file-earmark-pdf"></i> View PDF Document
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="alert alert-success">
+                    <h5>✅ Blockchain Verification</h5>
+                    <p>This notice has been permanently recorded on the TRON blockchain. You can verify the transaction on TronScan.</p>
+                    <p>The NFTs serve as immutable proof that you received this legal notice.</p>
+                </div>
+            `;
+            
+            document.getElementById('documentContent').innerHTML = content;
+            document.getElementById('documentViewer').classList.add('active');
+        }
+        
+        // View document on IPFS
+        function viewDocument(ipfsHash) {
+            if (!ipfsHash) {
+                alert('No document available');
+                return;
+            }
+            
+            // Open IPFS document in new tab
+            const ipfsUrl = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+            window.open(ipfsUrl, '_blank');
+        }
+        
+        // Close viewer
+        function closeViewer() {
+            document.getElementById('documentViewer').classList.remove('active');
+        }
+        
+        // Auto-connect if TronLink is already connected
+        window.addEventListener('load', async () => {
+            console.log('Page loaded, checking for TronLink...');
+            
+            // Wait a moment for TronLink to initialize
+            setTimeout(async () => {
+                if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+                    console.log('TronLink already connected, auto-connecting...');
+                    await connectWallet();
+                } else {
+                    console.log('TronLink not connected, waiting for user to connect');
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
