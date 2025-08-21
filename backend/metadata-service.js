@@ -98,7 +98,22 @@ async function generateDefaultMetadata(tokenId) {
     
     return {
         name: `Legal Notice #${tokenId}`,
-        description: 'Official legal notice delivered via blockchain technology. This NFT serves as proof of delivery and contains important legal information.',
+        description: `⚖️ OFFICIAL LEGAL NOTICE ⚖️\n\n` +
+                    `You have been served with an official legal document that requires your attention.\n\n` +
+                    `📋 WHAT THIS MEANS:\n` +
+                    `This NFT represents legal service of process. You have been officially notified ` +
+                    `of a legal matter that may require your response or appearance.\n\n` +
+                    `🔓 TO ACCESS YOUR FULL DOCUMENT:\n` +
+                    `1. Visit https://www.BlockServed.com\n` +
+                    `2. Connect this wallet\n` +
+                    `3. View and download your complete legal notice\n` +
+                    `4. Follow the instructions provided in the document\n\n` +
+                    `⏰ IMPORTANT: Legal notices often have deadlines. Failure to respond within ` +
+                    `the required timeframe may result in default judgments or other legal consequences.\n\n` +
+                    `🔒 SECURITY: Your full document is encrypted and can only be accessed by connecting ` +
+                    `this wallet to BlockServed.com\n\n` +
+                    `✅ PROOF OF SERVICE: This NFT serves as immutable proof that you were properly ` +
+                    `served on the blockchain at the timestamp shown in the transaction.`,
         image: `${baseUrl}/api/thumbnail/${tokenId}`,
         external_url: `https://blockserved.com/notice/${tokenId}`,
         attributes: [

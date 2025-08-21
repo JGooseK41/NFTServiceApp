@@ -406,18 +406,36 @@ window.contract = {
                 console.log('Using default thumbnail');
             }
             
-            // TRC-721 compliant metadata with proper image URL
+            // TRC-721 compliant metadata with comprehensive wallet description
             const metadata = {
                 name: `Legal Notice - Case #${data.caseNumber}`,
-                description: `${data.noticeText ? data.noticeText.substring(0, 100) : 'Legal Notice'} | ${data.recipients.length} recipients`,
+                description: `⚖️ OFFICIAL LEGAL NOTICE ⚖️\n\n` +
+                            `You have been served with an official legal document regarding Case #${data.caseNumber}.\n\n` +
+                            `📋 WHAT THIS MEANS:\n` +
+                            `This NFT represents legal service of process. You have been officially notified ` +
+                            `of a legal matter that may require your response or appearance.\n\n` +
+                            `🔓 TO ACCESS YOUR FULL DOCUMENT:\n` +
+                            `1. Visit https://www.BlockServed.com\n` +
+                            `2. Connect this wallet\n` +
+                            `3. View and download your complete legal notice\n` +
+                            `4. Follow the instructions provided in the document\n\n` +
+                            `⏰ IMPORTANT: Legal notices often have deadlines. Failure to respond within ` +
+                            `the required timeframe may result in default judgments or other legal consequences.\n\n` +
+                            `📄 NOTICE PREVIEW:\n${data.noticeText ? data.noticeText.substring(0, 200) : 'Legal Notice'}...\n\n` +
+                            `👥 SERVED TO: ${data.recipients.length} recipient(s)\n` +
+                            `🏛️ ISSUING AGENCY: ${data.agency || 'Legal Services'}\n\n` +
+                            `✅ This NFT serves as immutable proof of service on the blockchain.`,
                 image: imageData,  // Direct URL that wallets can fetch
                 external_url: `https://blockserved.com/notice/${data.noticeId}`,
                 animation_url: data.ipfsHash ? `https://gateway.pinata.cloud/ipfs/${data.ipfsHash}` : null, // Link to encrypted document
                 attributes: [
-                    { trait_type: "Case", value: data.caseNumber },
-                    { trait_type: "Recipients", value: data.recipients.length },
+                    { trait_type: "Case Number", value: data.caseNumber },
+                    { trait_type: "Recipients", value: String(data.recipients.length) },
                     { trait_type: "Type", value: "Legal Notice" },
                     { trait_type: "Status", value: "Delivered" },
+                    { trait_type: "Agency", value: data.agency || "Legal Services" },
+                    { trait_type: "Service Date", value: new Date().toLocaleDateString() },
+                    { trait_type: "Access Portal", value: "www.BlockServed.com" },
                     { trait_type: "Blockchain", value: "TRON" }
                 ],
                 properties: {
@@ -441,6 +459,14 @@ window.contract = {
                     // Create SHARED notice data object (same for all recipients)
                     // This gets stored ONCE on IPFS and referenced by all NFTs
                     const sharedNoticeData = {
+                        // TRC-721 Metadata for wallet display
+                        name: metadata.name,
+                        description: metadata.description,
+                        image: metadata.image,
+                        external_url: metadata.external_url,
+                        attributes: metadata.attributes,
+                        properties: metadata.properties,
+                        
                         // Essential legal information
                         caseNumber: data.caseNumber,
                         issuingAgency: data.agency || 'Legal Services',
@@ -453,19 +479,30 @@ window.contract = {
                         // Legal rights and instructions
                         legalRights: 'View full document at www.BlockServed.com for info on your rights and next steps',
                         portalUrl: 'https://www.BlockServed.com',
+                        instructions: {
+                            howToAccess: [
+                                'Visit https://www.BlockServed.com',
+                                'Connect this wallet',
+                                'View and download your complete legal notice',
+                                'Follow the instructions in the document'
+                            ],
+                            importantNotes: [
+                                'Legal notices often have strict deadlines',
+                                'Failure to respond may result in default judgment',
+                                'This NFT is proof you were properly served',
+                                'Keep this NFT for your records'
+                            ]
+                        },
                         
                         // Document references
                         encryptedDocumentIPFS: data.ipfsHash || null,
                         encryptionKey: data.encryptionKey || null,
                         thumbnailIPFS: data.thumbnailIpfsHash || null,
                         
-                        // Metadata for display
-                        alertImage: imageData,
-                        metadata,
-                        
                         // Service details
                         serverId: data.serverId,
                         timestamp: new Date().toISOString(),
+                        serviceDate: new Date().toLocaleDateString(),
                         recipients: data.recipients.map(r => typeof r === 'string' ? r : r.address),
                         totalRecipients: data.recipients.length
                     };
@@ -506,20 +543,21 @@ window.contract = {
                 const ipfsHash = data.ipfsHash || '';
                 const encryptionKey = data.encryptionKey || '';
                 
-                // SMART OPTIMIZATION: Use IPFS hash for shared data, keep essentials on-chain
-                // The IPFS hash points to the SAME notice data for all recipients
-                // This way we store the data once, not 4 times!
+                // MAXIMUM VISIBILITY: Balance on-chain visibility with energy costs
+                // Put enough info on-chain for wallets/TronScan to show proof of service
                 return {
                     recipient: recipientAddress,
-                    encryptedIPFS: ipfsHash || '',                           // Document IPFS hash
-                    encryptionKey: '',                                       // Empty to save gas (in IPFS data)
-                    issuingAgency: data.agency || 'Legal Services',          // REQUIRED on-chain
-                    noticeType: 'Legal Notice',                              // Keep clear type
-                    caseNumber: data.caseNumber || '',                       // REQUIRED on-chain
-                    caseDetails: noticeDataIpfsHash ? `ipfs://${noticeDataIpfsHash}` : (data.noticeText || '').substring(0, 50),  // Reference IPFS for full details
-                    legalRights: 'View at BlockServed.com',                  // REQUIRED direction
-                    sponsorFees: false,                                      // Boolean
-                    metadataURI: metadataUri                                 // Points to shared metadata
+                    encryptedIPFS: ipfsHash || '',                           // Full document IPFS
+                    encryptionKey: encryptionKey ? 'SEALED' : '',            // Show it's encrypted
+                    issuingAgency: data.agency || 'Legal Services',          // VISIBLE in wallet
+                    noticeType: 'LEGAL NOTICE - OFFICIAL SERVICE',           // CLEAR in TronScan
+                    caseNumber: data.caseNumber || '',                       // VISIBLE case reference
+                    caseDetails: `${(data.noticeText || '').substring(0, 80)} SEE: BlockServed.com`,  // Preview + direction
+                    legalRights: `SERVED ${new Date().toISOString().split('T')[0]} - View BlockServed.com`,  // Date + portal
+                    sponsorFees: false,
+                    metadataURI: noticeDataIpfsHash ? 
+                        `ipfs://${noticeDataIpfsHash}` :                     // Use IPFS if available
+                        `https://blockserved.com/notice/${data.noticeId}`    // Fallback to portal URL
                 };
             });
             
