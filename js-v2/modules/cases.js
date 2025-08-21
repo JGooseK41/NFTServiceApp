@@ -139,9 +139,12 @@ window.cases = {
                             <button class="btn btn-sm btn-primary" onclick="cases.resumeCase('${caseId}')" title="Resume">
                                 <i class="bi bi-arrow-clockwise"></i>
                             </button>
-                            ${c.served_at ? `
-                                <button class="btn btn-sm btn-success" onclick="cases.viewReceipts('${caseId}')" title="Receipt">
-                                    <i class="bi bi-receipt"></i>
+                            ${(c.served_at || c.servedAt || c.status === 'served' || c.transactionHash) ? `
+                                <button class="btn btn-sm btn-success" onclick="cases.printReceipt('${caseId}')" title="Print Receipt">
+                                    <i class="bi bi-printer"></i>
+                                </button>
+                                <button class="btn btn-sm btn-info" onclick="cases.exportStamped('${caseId}')" title="Export Stamped">
+                                    <i class="bi bi-file-earmark-pdf"></i>
                                 </button>
                             ` : ''}
                             <button class="btn btn-sm btn-danger" onclick="cases.deleteCase('${caseId}', '${c.server_address || window.wallet.address}')" title="Delete">
@@ -644,6 +647,132 @@ window.cases = {
             console.error('Error deleting case:', error);
             window.app.showError('Failed to delete case: ' + error.message);
         }
+    },
+    
+    // Print proof of service receipt
+    async printReceipt(caseId) {
+        try {
+            // Get case data
+            let caseData = this.getCaseData(caseId);
+            
+            if (!caseData) {
+                window.app.showError('Case not found');
+                return;
+            }
+            
+            // Ensure we have the required proof of service data
+            if (!caseData.transactionHash && !caseData.transaction_hash) {
+                window.app.showError('No transaction hash found for this case. Please ensure the case has been served.');
+                return;
+            }
+            
+            // Prepare case data for receipt generation
+            const receiptData = {
+                caseNumber: caseData.caseNumber || caseData.case_number || caseId,
+                serverAddress: caseData.serverAddress || caseData.server_address || window.wallet?.address,
+                servedAt: caseData.servedAt || caseData.served_at || new Date().toISOString(),
+                transactionHash: caseData.transactionHash || caseData.transaction_hash,
+                alertTokenId: caseData.alertTokenId || caseData.alert_token_id || caseData.alertNftId,
+                documentTokenId: caseData.documentTokenId || caseData.document_token_id || caseData.documentNftId,
+                recipients: caseData.recipients || caseData.metadata?.recipients || [],
+                documents: caseData.documents || [],
+                agency: caseData.agency || caseData.metadata?.issuingAgency || caseData.metadata?.agency,
+                noticeType: caseData.noticeType || caseData.metadata?.noticeType || 'Legal Notice',
+                metadata: caseData.metadata || {},
+                alertImage: caseData.alertImage || caseData.alertPreview || caseData.alertThumbnail || caseData.alert_image
+            };
+            
+            // Check if proofOfService module is loaded
+            if (!window.proofOfService) {
+                console.error('Proof of Service module not loaded');
+                window.app.showError('Proof of Service module not available. Please refresh the page.');
+                return;
+            }
+            
+            // Generate and print the receipt
+            await window.proofOfService.printReceipt(receiptData);
+            
+        } catch (error) {
+            console.error('Failed to print receipt:', error);
+            window.app.showError('Failed to print receipt: ' + error.message);
+        }
+    },
+    
+    // Export stamped documents with delivery confirmation
+    async exportStamped(caseId) {
+        try {
+            // Get case data
+            let caseData = this.getCaseData(caseId);
+            
+            if (!caseData) {
+                window.app.showError('Case not found');
+                return;
+            }
+            
+            // Ensure we have IPFS document
+            const ipfsHash = caseData.ipfsDocument || caseData.ipfs_document || 
+                           caseData.metadata?.ipfsHash || caseData.metadata?.ipfs_hash;
+            
+            if (!ipfsHash) {
+                window.app.showError('No IPFS document found for this case');
+                return;
+            }
+            
+            // Prepare case data for stamping
+            const stampData = {
+                caseNumber: caseData.caseNumber || caseData.case_number || caseId,
+                servedAt: caseData.servedAt || caseData.served_at || new Date().toISOString(),
+                transactionHash: caseData.transactionHash || caseData.transaction_hash || 'N/A',
+                ipfsDocument: ipfsHash,
+                metadata: caseData.metadata || {}
+            };
+            
+            // Check if proofOfService module is loaded
+            if (!window.proofOfService) {
+                console.error('Proof of Service module not loaded');
+                window.app.showError('Proof of Service module not available. Please refresh the page.');
+                return;
+            }
+            
+            // Export stamped documents
+            await window.proofOfService.exportStampedDocuments(stampData);
+            
+        } catch (error) {
+            console.error('Failed to export stamped documents:', error);
+            window.app.showError('Failed to export stamped documents: ' + error.message);
+        }
+    },
+    
+    // Helper function to get case data from various sources
+    getCaseData(caseId) {
+        // First check current cases
+        if (this.currentCases) {
+            const found = this.currentCases.find(c => 
+                c.caseNumber === caseId || 
+                c.case_number === caseId || 
+                c.id === caseId
+            );
+            if (found) return found;
+        }
+        
+        // Check local storage
+        const localCases = JSON.parse(localStorage.getItem('legalnotice_cases') || '[]');
+        const localCase = localCases.find(c => 
+            c.caseNumber === caseId || 
+            c.case_number === caseId || 
+            c.id === caseId
+        );
+        if (localCase) return localCase;
+        
+        // Check storage module
+        const storageCases = window.storage?.get('cases') || [];
+        const storageCase = storageCases.find(c => 
+            c.caseNumber === caseId || 
+            c.case_number === caseId || 
+            c.id === caseId
+        );
+        
+        return storageCase;
     },
     
     // View receipts for case

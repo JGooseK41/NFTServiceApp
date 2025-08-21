@@ -325,22 +325,42 @@ class CaseManagementClient {
                 documentNftId: typeof documentNftId === 'bigint' ? documentNftId.toString() : documentNftId
             };
             
-            const response = await fetch(`${this.apiUrl}/api/cases/${caseId}/served`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Server-Address': this.serverAddress
-                },
-                body: JSON.stringify(payload)
-            });
+            // Also update local storage
+            const cases = JSON.parse(localStorage.getItem('legalnotice_cases') || '[]');
+            const caseIndex = cases.findIndex(c => c.caseNumber === caseId || c.id === caseId);
             
-            const result = await response.json();
-            
-            if (result.success) {
-                console.log('✅ Case marked as served');
+            if (caseIndex >= 0) {
+                cases[caseIndex].status = 'served';
+                cases[caseIndex].servedAt = new Date().toISOString();
+                cases[caseIndex].transactionHash = payload.txHash;
+                cases[caseIndex].alertTokenId = payload.alertNftId;
+                cases[caseIndex].documentTokenId = payload.documentNftId;
+                localStorage.setItem('legalnotice_cases', JSON.stringify(cases));
+                console.log('✅ Case marked as served in local storage');
             }
             
-            return result;
+            // Try to update backend (don't fail if backend is down)
+            try {
+                const response = await fetch(`${this.apiUrl}/api/cases/${caseId}/served`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Server-Address': this.serverAddress
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log('✅ Case marked as served in backend');
+                }
+                
+                return result;
+            } catch (backendError) {
+                console.log('Backend update failed, but local storage updated');
+                return { success: true, local: true };
+            }
             
         } catch (error) {
             console.error('Failed to mark case as served:', error);
