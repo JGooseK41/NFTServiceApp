@@ -973,21 +973,16 @@ window.StreamlinedEnergyFlow = {
         const mandatoryDialog = document.getElementById('mandatory-energy-dialog');
         if (mandatoryDialog) mandatoryDialog.remove();
         
-        // IMPORTANT: Bypass energy checks and continue with ORIGINAL transaction
-        // We've already rented energy, so go directly to the actual function
-        if (window._originalCreateLegalNotice) {
-            // Call the REAL original function, not the wrapped one
-            window._originalCreateLegalNotice();
-        } else if (window._originalCreateLegalNoticeWithStaging) {
-            // Call the REAL original function, not the wrapped one
-            window._originalCreateLegalNoticeWithStaging();
-        } else {
-            // Fallback: try to call the transaction directly
-            console.log('Proceeding with transaction after energy rental...');
-            if (window.TransactionStaging && window.TransactionStaging.processTransaction) {
-                window.TransactionStaging.processTransaction();
-            }
+        // Show success message and let user review balance
+        alert('Energy rental complete!\n\nYour wallet balance has been updated.\nYou can now review your balance and proceed with minting.');
+        
+        // Refresh wallet display to show new energy balance
+        if (window.wallet && window.wallet.updateDisplay) {
+            window.wallet.updateDisplay();
         }
+        
+        // Don't auto-proceed - user will manually click mint button
+        console.log('Energy rental flow complete. User can now review and mint manually.');
     },
     
     cancel() {

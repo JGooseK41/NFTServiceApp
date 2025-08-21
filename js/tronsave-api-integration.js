@@ -1625,11 +1625,190 @@ window.TronSaveAPI.continueAfterRental = async function() {
         console.error('No transaction function found to continue!');
         alert('Transaction function not found. Please try creating the NFT again.');
     }
+},
+
+    /**
+     * Show energy rental form (called from streamlined-energy-flow.js)
+     */
+    showEnergyRentalForm() {
+        console.log('🔌 Opening TronSave energy rental form');
+        
+        // Check if already initialized
+        if (!this.initialized) {
+            this.initialize();
+        }
+        
+        // If we have API key, use direct rental
+        if (this.API_KEY && this.AUTH_METHOD === 'apikey') {
+            console.log('Using API key method for direct rental');
+            this.showDirectRentalForm();
+        } 
+        // If wallet connected, use signed transaction method
+        else if (window.tronWeb && window.tronWeb.ready) {
+            console.log('Using signed transaction method');
+            this.showSignedTxForm();
+        }
+        // Otherwise show configuration modal
+        else {
+            console.log('No configuration found, showing setup modal');
+            this.showConfigurationModal();
+        }
+    },
+    
+    /**
+     * Show direct rental form for API key method
+     */
+    async showDirectRentalForm() {
+        const energyNeeded = this.energyNeeded || 400000;
+        const duration = '1h'; // Default 1 hour rental
+        
+        try {
+            console.log(`Renting ${energyNeeded} energy for ${duration}`);
+            
+            // Show loading indicator
+            const loadingModal = this.showLoadingModal('Processing energy rental...');
+            
+            // Purchase energy
+            const result = await this.purchaseEnergy(energyNeeded, duration);
+            
+            // Close loading modal
+            if (loadingModal) loadingModal.remove();
+            
+            if (result.success) {
+                console.log('✅ Energy rental successful!', result);
+                
+                // Close energy modal
+                document.getElementById('streamlined-energy-modal')?.remove();
+                
+                // Show success and return to review screen
+                alert(`Success! ${energyNeeded} energy has been rented for your wallet.\n\nYou can now review your balance and proceed with minting.`);
+                
+                // Refresh wallet display to show new energy balance
+                if (window.wallet && window.wallet.updateDisplay) {
+                    await window.wallet.updateDisplay();
+                }
+                
+                // Don't auto-proceed - let user manually click mint button
+                console.log('Energy rental complete. User can now review and mint manually.');
+            } else {
+                throw new Error(result.error || 'Energy rental failed');
+            }
+            
+        } catch (error) {
+            console.error('Energy rental failed:', error);
+            alert(`Energy rental failed: ${error.message}`);
+        }
+    },
+    
+    /**
+     * Show signed transaction form
+     */
+    async showSignedTxForm() {
+        const energyNeeded = this.energyNeeded || 400000;
+        const durationSec = 3600; // 1 hour in seconds
+        
+        try {
+            console.log(`Creating order for ${energyNeeded} energy via signed tx`);
+            
+            // Show loading
+            const loadingModal = this.showLoadingModal('Creating energy order...');
+            
+            // Create order with signed transaction
+            const orderResult = await this.createEnergyOrderV2(energyNeeded, durationSec);
+            
+            // Close loading
+            if (loadingModal) loadingModal.remove();
+            
+            if (orderResult.success) {
+                console.log('✅ Energy order created!', orderResult);
+                
+                // Show payment instructions or auto-pay
+                if (orderResult.paymentTx) {
+                    // Close energy modal
+                    document.getElementById('streamlined-energy-modal')?.remove();
+                    
+                    // Show success and return to review screen
+                    alert(`Energy rental successful!\n\nTransaction: ${orderResult.paymentTx}\n\nYou can now review your balance and proceed with minting.`);
+                    
+                    // Refresh wallet display to show new energy balance
+                    if (window.wallet && window.wallet.updateDisplay) {
+                        await window.wallet.updateDisplay();
+                    }
+                    
+                    // Don't auto-proceed - let user manually click mint button
+                    console.log('Energy rental complete. User can now review and mint manually.');
+                } else {
+                    alert('Order created! Please complete payment on TronSave.');
+                }
+            } else {
+                throw new Error(orderResult.error || 'Failed to create order');
+            }
+            
+        } catch (error) {
+            console.error('Order creation failed:', error);
+            alert(`Failed to create energy order: ${error.message}`);
+        }
+    },
+    
+    /**
+     * Show loading modal
+     */
+    showLoadingModal(message) {
+        const modal = document.createElement('div');
+        modal.id = 'tronsave-loading';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        `;
+        modal.innerHTML = `
+            <div style="
+                background: #1a1a1a;
+                border: 1px solid #333;
+                border-radius: 12px;
+                padding: 24px;
+                text-align: center;
+                color: white;
+            ">
+                <div style="margin-bottom: 16px;">
+                    <div style="
+                        width: 40px;
+                        height: 40px;
+                        border: 3px solid #333;
+                        border-top-color: #0ea5e9;
+                        border-radius: 50%;
+                        margin: 0 auto;
+                        animation: spin 1s linear infinite;
+                    "></div>
+                </div>
+                <div style="color: #d1d5db;">${message}</div>
+            </div>
+            <style>
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+            </style>
+        `;
+        document.body.appendChild(modal);
+        return modal;
+    },
+    
+    initialized: false
 }
 
 // Initialize on load
 window.addEventListener('DOMContentLoaded', () => {
-    window.TronSaveAPI.initialize();
+    window.TronSaveAPI.initialize().then(result => {
+        window.TronSaveAPI.initialized = result;
+        console.log('TronSave API initialized:', result);
+    });
 });
 
 console.log('✅ TronSave API Integration loaded');

@@ -1522,6 +1522,13 @@ window.app = {
             
             // Display resources
             document.getElementById('walletResourcesContent').innerHTML = `
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Wallet Resources</h6>
+                    <button class="btn btn-sm btn-outline-primary" onclick="app.checkWalletResources()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+                
                 <div class="row">
                     <div class="col-md-6">
                         <div class="card mb-3">

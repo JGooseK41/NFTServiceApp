@@ -143,6 +143,32 @@ window.notices = {
                 documentTx: txResult.documentTx
             });
             
+            // Step 8.5: Mark case as served if we have a case ID
+            if (window.app && window.app.currentCaseId) {
+                try {
+                    // Initialize case management client if needed
+                    if (!window.caseManager) {
+                        const CaseManagementClient = window.CaseManagementClient || (await import('/js/case-management-client.js')).default;
+                        window.caseManager = new CaseManagementClient();
+                    }
+                    
+                    // Mark the case as served with transaction hashes
+                    const servedResult = await window.caseManager.markCaseAsServed(
+                        window.app.currentCaseId,
+                        txResult.alertTx,     // Transaction hash for Alert NFT
+                        txResult.alertTx,     // Alert NFT ID (using tx hash as ID)
+                        txResult.documentTx   // Document NFT ID (using tx hash as ID)
+                    );
+                    
+                    if (servedResult.success) {
+                        console.log('✅ Case marked as served in backend:', window.app.currentCaseId);
+                    }
+                } catch (error) {
+                    console.error('Failed to mark case as served:', error);
+                    // Don't fail the whole transaction, just log the error
+                }
+            }
+            
             // Step 9: Generate receipt
             const receipt = await this.generateReceipt({
                 noticeId,
@@ -158,6 +184,20 @@ window.notices = {
                 ipfsHash: documentData.ipfsHash
             });
             
+            // Show success confirmation with receipt
+            this.showSuccessConfirmation({
+                success: true,
+                noticeId,
+                alertTxId: txResult.alertTx,
+                documentTxId: txResult.documentTx,
+                receipt,
+                viewUrl: `https://blockserved.com/notice/${noticeId}`,
+                caseNumber: data.caseNumber,
+                recipient: data.recipient,
+                thumbnail,
+                timestamp: new Date().toISOString()
+            });
+            
             return {
                 success: true,
                 noticeId,
@@ -170,6 +210,15 @@ window.notices = {
             
         } catch (error) {
             console.error('Failed to create notice:', error);
+            
+            // Show failure confirmation
+            this.showFailureConfirmation({
+                error: error.message,
+                caseNumber: data.caseNumber,
+                recipient: data.recipient,
+                timestamp: new Date().toISOString()
+            });
+            
             throw error;
         }
     },
@@ -555,6 +604,286 @@ window.notices = {
         // This would implement document signing logic
         console.log('Signing document:', noticeId);
         alert('Document signing will be implemented');
+    },
+    
+    // Show success confirmation modal with receipt options
+    showSuccessConfirmation(data) {
+        const modalHtml = `
+            <div class="modal fade" id="mintSuccessModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-success text-white">
+                            <h5 class="modal-title">
+                                <i class="bi bi-check-circle-fill me-2"></i>
+                                NFT Minting Successful!
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-success mb-3">
+                                <strong>✅ Success!</strong> Your legal notice NFTs have been minted on the blockchain.
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <h6>Transaction Details:</h6>
+                                    <ul class="list-unstyled">
+                                        <li><strong>Case Number:</strong> ${data.caseNumber}</li>
+                                        <li><strong>Recipient:</strong> <small>${data.recipient}</small></li>
+                                        <li><strong>Timestamp:</strong> ${new Date(data.timestamp).toLocaleString()}</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Blockchain Confirmation:</h6>
+                                    <ul class="list-unstyled">
+                                        <li><strong>Alert NFT TX:</strong><br>
+                                            <small class="text-break">
+                                                <a href="https://tronscan.org/#/transaction/${data.alertTxId}" 
+                                                   target="_blank" class="text-decoration-none">
+                                                    ${data.alertTxId.substring(0, 20)}...
+                                                    <i class="bi bi-box-arrow-up-right"></i>
+                                                </a>
+                                            </small>
+                                        </li>
+                                        <li><strong>Document NFT TX:</strong><br>
+                                            <small class="text-break">
+                                                <a href="https://tronscan.org/#/transaction/${data.documentTxId}" 
+                                                   target="_blank" class="text-decoration-none">
+                                                    ${data.documentTxId.substring(0, 20)}...
+                                                    <i class="bi bi-box-arrow-up-right"></i>
+                                                </a>
+                                            </small>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                            
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="includeNFTImage" checked>
+                                <label class="form-check-label" for="includeNFTImage">
+                                    Include Alert NFT image in receipt
+                                </label>
+                            </div>
+                            
+                            ${data.thumbnail ? `
+                            <div class="text-center mb-3" id="nftImagePreview">
+                                <h6>Alert NFT Preview:</h6>
+                                <img src="${data.thumbnail}" class="img-fluid" style="max-height: 200px; border: 1px solid #dee2e6;">
+                            </div>
+                            ` : ''}
+                            
+                            <div class="alert alert-info">
+                                <strong>Recipient Access:</strong> The recipient can view and download their documents at:<br>
+                                <a href="${data.viewUrl}" target="_blank">${data.viewUrl}</a>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-primary" onclick="notices.generateProofOfDelivery('${encodeURIComponent(JSON.stringify(data))}')">
+                                <i class="bi bi-file-earmark-pdf"></i> Generate Proof of Delivery
+                            </button>
+                            <button type="button" class="btn btn-success" onclick="notices.printReceipt('${encodeURIComponent(JSON.stringify(data))}')">
+                                <i class="bi bi-printer"></i> Print Receipt
+                            </button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove any existing modal
+        const existing = document.getElementById('mintSuccessModal');
+        if (existing) existing.remove();
+        
+        // Add modal to page
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('mintSuccessModal'));
+        modal.show();
+        
+        // Clean up on close
+        document.getElementById('mintSuccessModal').addEventListener('hidden.bs.modal', function() {
+            this.remove();
+        });
+    },
+    
+    // Show failure confirmation modal
+    showFailureConfirmation(data) {
+        const modalHtml = `
+            <div class="modal fade" id="mintFailureModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title">
+                                <i class="bi bi-x-circle-fill me-2"></i>
+                                NFT Minting Failed
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-danger">
+                                <strong>❌ Transaction Failed</strong><br>
+                                ${data.error}
+                            </div>
+                            
+                            <h6>Details:</h6>
+                            <ul>
+                                <li><strong>Case Number:</strong> ${data.caseNumber}</li>
+                                <li><strong>Recipient:</strong> ${data.recipient}</li>
+                                <li><strong>Time:</strong> ${new Date(data.timestamp).toLocaleString()}</li>
+                            </ul>
+                            
+                            <div class="alert alert-info">
+                                <strong>What to do:</strong>
+                                <ol>
+                                    <li>Check your wallet balance</li>
+                                    <li>Ensure you have enough TRX for fees</li>
+                                    <li>Verify the recipient address is valid</li>
+                                    <li>Try again or contact support</li>
+                                </ol>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-primary" onclick="location.reload()">
+                                <i class="bi bi-arrow-clockwise"></i> Try Again
+                            </button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove any existing modal
+        const existing = document.getElementById('mintFailureModal');
+        if (existing) existing.remove();
+        
+        // Add modal to page
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('mintFailureModal'));
+        modal.show();
+        
+        // Clean up on close
+        document.getElementById('mintFailureModal').addEventListener('hidden.bs.modal', function() {
+            this.remove();
+        });
+    },
+    
+    // Generate proof of delivery PDF
+    async generateProofOfDelivery(encodedData) {
+        const data = JSON.parse(decodeURIComponent(encodedData));
+        const includeImage = document.getElementById('includeNFTImage')?.checked ?? true;
+        
+        // Create receipt HTML
+        const receiptHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Proof of Delivery - ${data.caseNumber}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 40px; }
+                    .header { text-align: center; border-bottom: 3px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
+                    .title { font-size: 24px; font-weight: bold; color: #333; }
+                    .subtitle { font-size: 14px; color: #666; margin-top: 5px; }
+                    .section { margin-bottom: 25px; }
+                    .section-title { font-size: 16px; font-weight: bold; color: #333; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+                    .detail-row { margin-bottom: 8px; }
+                    .label { font-weight: bold; display: inline-block; width: 150px; }
+                    .value { color: #555; word-break: break-all; }
+                    .tx-hash { font-family: monospace; font-size: 12px; color: #0066cc; }
+                    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; font-size: 12px; color: #666; }
+                    .nft-image { max-width: 300px; margin: 20px auto; display: block; border: 1px solid #ddd; }
+                    .success-badge { background: #28a745; color: white; padding: 5px 10px; border-radius: 3px; display: inline-block; }
+                    @media print { body { margin: 20px; } }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div class="title">PROOF OF DELIVERY</div>
+                    <div class="subtitle">Legal Notice Service via Blockchain</div>
+                    <div style="margin-top: 10px;">
+                        <span class="success-badge">✓ SUCCESSFULLY DELIVERED</span>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <div class="section-title">Service Details</div>
+                    <div class="detail-row">
+                        <span class="label">Case Number:</span>
+                        <span class="value">${data.caseNumber}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Service Date:</span>
+                        <span class="value">${new Date(data.timestamp).toLocaleDateString()}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Service Time:</span>
+                        <span class="value">${new Date(data.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Notice ID:</span>
+                        <span class="value">${data.noticeId}</span>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <div class="section-title">Recipient Information</div>
+                    <div class="detail-row">
+                        <span class="label">Wallet Address:</span>
+                        <span class="value">${data.recipient}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Access URL:</span>
+                        <span class="value">${data.viewUrl}</span>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <div class="section-title">Blockchain Confirmation</div>
+                    <div class="detail-row">
+                        <span class="label">Alert NFT TX:</span>
+                        <span class="value tx-hash">${data.alertTxId}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Document NFT TX:</span>
+                        <span class="value tx-hash">${data.documentTxId}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Verification:</span>
+                        <span class="value">View on TronScan: https://tronscan.org/#/transaction/${data.alertTxId}</span>
+                    </div>
+                </div>
+                
+                ${includeImage && data.thumbnail ? `
+                <div class="section">
+                    <div class="section-title">Alert NFT Image</div>
+                    <img src="${data.thumbnail}" class="nft-image" alt="Alert NFT">
+                </div>
+                ` : ''}
+                
+                <div class="footer">
+                    <p>This document certifies that legal notice was successfully delivered via blockchain technology.</p>
+                    <p>Generated: ${new Date().toLocaleString()} | TheBlockService.com</p>
+                </div>
+            </body>
+            </html>
+        `;
+        
+        // Open in new window for saving/printing
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(receiptHtml);
+        printWindow.document.close();
+    },
+    
+    // Print receipt directly
+    printReceipt(encodedData) {
+        this.generateProofOfDelivery(encodedData);
+        setTimeout(() => {
+            window.print();
+        }, 500);
     },
     
     // Load CryptoJS
