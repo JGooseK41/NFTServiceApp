@@ -75,26 +75,17 @@ window.documents = {
                 encryptionKey = encrypted.key;
             }
             
-            // Step 5: Store document reference in backend (points to disk file)
-            const documentId = await this.storeDocumentReference({
-                diskPath: diskStorage.path,
-                diskFilename: diskStorage.filename,
-                ipfsHash,
-                encryptionKey,
-                alertNFTImage, // Base64 of first page only
-                pageCount: await this.getPageCount(consolidatedPDF),
-                fileSize: consolidatedPDF.size,
-                recipient: options.recipientAddress,
-                caseNumber: options.caseNumber
-            });
+            // Step 5: Skip storing document reference - Case Manager already handled this
+            // The actual token IDs will come from the blockchain transaction
             
             return {
                 success: true,
-                documentId,
+                caseNumber: options.caseNumber, // Use actual case number
                 diskPath: diskStorage.path,
                 diskUrl: diskStorage.url,
                 ipfsHash,
                 alertNFTImage, // Base64 data URI for Alert NFT (first page only)
+                thumbnail: alertNFTImage, // Also provide as thumbnail
                 encryptionKey,
                 pageCount: await this.getPageCount(consolidatedPDF),
                 size: consolidatedPDF.size
@@ -389,28 +380,12 @@ window.documents = {
         return data.ipfsHash;
     },
     
-    // Store document reference in backend
+    // Store document reference in backend (DEPRECATED - Case Manager handles this)
     async storeDocumentReference(data) {
-        const response = await fetch(getApiUrl('createNotice'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                ipfsHash: data.ipfsHash,
-                encryptionKey: data.encryptionKey,
-                thumbnail: data.thumbnail,
-                pageCount: data.pageCount,
-                recipient: data.recipient,
-                caseNumber: data.caseNumber,
-                type: 'document'
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to store document reference');
-        }
-        
-        const result = await response.json();
-        return result.noticeId;
+        // This endpoint doesn't exist in V2 - Case Manager handles document storage
+        // The actual token IDs will come from the blockchain transaction
+        console.log('Document reference handled by Case Manager, token IDs will come from blockchain');
+        return data.caseNumber || `case_${Date.now()}`;
     },
     
     // Get page count from PDF
