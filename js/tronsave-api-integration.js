@@ -1625,12 +1625,12 @@ window.TronSaveAPI.continueAfterRental = async function() {
         console.error('No transaction function found to continue!');
         alert('Transaction function not found. Please try creating the NFT again.');
     }
-},
+};
 
-    /**
-     * Show energy rental form (called from streamlined-energy-flow.js)
-     */
-    showEnergyRentalForm() {
+/**
+ * Show energy rental form (called from streamlined-energy-flow.js)
+ */
+window.TronSaveAPI.showEnergyRentalForm = function() {
         console.log('🔌 Opening TronSave energy rental form');
         
         // Check if already initialized
@@ -1653,12 +1653,12 @@ window.TronSaveAPI.continueAfterRental = async function() {
             console.log('No configuration found, showing setup modal');
             this.showConfigurationModal();
         }
-    },
-    
-    /**
-     * Show direct rental form for API key method
-     */
-    async showDirectRentalForm() {
+};
+
+/**
+ * Show direct rental form for API key method
+ */
+window.TronSaveAPI.showDirectRentalForm = async function() {
         const energyNeeded = this.energyNeeded || 400000;
         const duration = '1h'; // Default 1 hour rental
         
@@ -1698,12 +1698,12 @@ window.TronSaveAPI.continueAfterRental = async function() {
             console.error('Energy rental failed:', error);
             alert(`Energy rental failed: ${error.message}`);
         }
-    },
-    
-    /**
-     * Show signed transaction form
-     */
-    async showSignedTxForm() {
+};
+
+/**
+ * Show signed transaction form
+ */
+window.TronSaveAPI.showSignedTxForm = async function() {
         const energyNeeded = this.energyNeeded || 400000;
         const durationSec = 3600; // 1 hour in seconds
         
@@ -1748,12 +1748,12 @@ window.TronSaveAPI.continueAfterRental = async function() {
             console.error('Order creation failed:', error);
             alert(`Failed to create energy order: ${error.message}`);
         }
-    },
-    
-    /**
-     * Show loading modal
-     */
-    showLoadingModal(message) {
+};
+
+/**
+ * Show loading modal
+ */
+window.TronSaveAPI.showLoadingModal = function(message) {
         const modal = document.createElement('div');
         modal.id = 'tronsave-loading';
         modal.style.cssText = `
@@ -1798,10 +1798,9 @@ window.TronSaveAPI.continueAfterRental = async function() {
         `;
         document.body.appendChild(modal);
         return modal;
-    },
-    
-    initialized: false
-}
+};
+
+window.TronSaveAPI.initialized = false;
 
 // Initialize on load
 window.addEventListener('DOMContentLoaded', () => {
