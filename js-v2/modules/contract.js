@@ -429,39 +429,6 @@ window.contract = {
             if (!this.instance.serveNoticeBatch) {
                 console.error('serveNoticeBatch not found. Available methods:', Object.keys(this.instance));
                 throw new Error('Batch minting not available in contract');
-                    try {
-                        const tx = await this.instance.serveNotice(
-                            notice.recipient,
-                            notice.encryptedIPFS,
-                            notice.encryptionKey,
-                            notice.issuingAgency,
-                            notice.noticeType,
-                            notice.caseNumber,
-                            notice.caseDetails,
-                            notice.legalRights,
-                            notice.sponsorFees,
-                            notice.metadataURI
-                        ).send({
-                            feeLimit: 150000000,
-                            callValue: parseInt(creationFee) + (notice.sponsorFees ? parseInt(await this.instance.sponsorshipFee().call()) : 0),
-                            shouldPollResponse: true
-                        });
-                        results.push(tx);
-                    } catch (error) {
-                        console.error('Failed to create notice for recipient:', notice.recipient, error);
-                        throw error;
-                    }
-                }
-                
-                return {
-                    success: true,
-                    txId: results[0],
-                    alertTx: results[0],
-                    documentTx: results[0],
-                    recipientCount: data.recipients.length,
-                    metadata,
-                    allTransactions: results
-                };
             }
             
             // Call batch function exactly as v1 did
