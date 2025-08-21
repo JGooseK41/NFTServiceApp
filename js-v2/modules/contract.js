@@ -429,35 +429,33 @@ window.contract = {
                 }
             };
             
-            // Option 1: Store metadata on server and use URL (better for complex metadata)
+            // ULTRA OPTIMIZATION: Use shortest possible metadata reference
             let metadataUri;
-            if (data.noticeId && window.location.hostname !== 'localhost') {
+            
+            // Option 1: If we have IPFS hash, use that as metadata (super short)
+            if (data.thumbnailIpfsHash) {
+                metadataUri = `ipfs://${data.thumbnailIpfsHash}`;  // ~53 chars
+                console.log('Using IPFS hash as metadata (most efficient)');
+            }
+            // Option 2: Use shortened URL
+            else if (data.noticeId) {
+                // Use shortened endpoint
+                metadataUri = `https://blockserved.com/m/${data.noticeId}`;  // ~40 chars
+                console.log('Using short metadata URL');
+                
+                // Store metadata for retrieval
                 try {
-                    // Store metadata on server
-                    const metaResponse = await fetch('https://nft-legal-service.netlify.app/api/metadata/store', {
+                    await fetch('https://nft-legal-service.netlify.app/api/metadata/store', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            tokenId: data.noticeId,
-                            metadata
-                        })
-                    });
-                    
-                    if (metaResponse.ok) {
-                        const result = await metaResponse.json();
-                        metadataUri = result.metadataUrl;
-                        console.log('✅ Metadata stored at:', metadataUri);
-                    } else {
-                        // Fallback to inline
-                        metadataUri = 'data:application/json,' + encodeURIComponent(JSON.stringify(metadata));
-                    }
-                } catch (e) {
-                    // Fallback to inline
-                    metadataUri = 'data:application/json,' + encodeURIComponent(JSON.stringify(metadata));
-                }
-            } else {
-                // Option 2: Inline metadata (simpler, works offline)
-                metadataUri = 'data:application/json,' + encodeURIComponent(JSON.stringify(metadata));
+                        body: JSON.stringify({ tokenId: data.noticeId, metadata })
+                    }).catch(e => console.log('Metadata store failed:', e));
+                } catch (e) {}
+            }
+            // Option 3: Absolute minimum
+            else {
+                metadataUri = '';  // Empty string - minimum energy
+                console.warn('Using empty metadata URI to save energy');
             }
             
             // Build batch notice array - try matching v1 exactly
@@ -472,18 +470,20 @@ window.contract = {
                 const ipfsHash = data.ipfsHash || '';
                 const encryptionKey = data.encryptionKey || '';
                 
-                // OPTIMIZE: Use minimal data to reduce bandwidth
+                // EXTREME OPTIMIZATION: Minimize all strings to reduce energy costs
                 return {
                     recipient: recipientAddress,
-                    encryptedIPFS: ipfsHash || '',                   // Empty string if no IPFS
-                    encryptionKey: encryptionKey || '',              // Empty string if not encrypted
-                    issuingAgency: data.agency || 'Legal Services',  
-                    noticeType: 'legal',                             // Shorter type
-                    caseNumber: data.caseNumber || '',
-                    caseDetails: (data.noticeText || '').substring(0, 50),  // Limit to 50 chars
-                    legalRights: 'See BlockServed.com',              // Much shorter!
-                    sponsorFees: false,                              // Always false for now
-                    metadataURI: metadataUri                         // Already optimized above
+                    encryptedIPFS: ipfsHash || '',              // Empty if no IPFS
+                    encryptionKey: encryptionKey || '',         // Empty if not encrypted  
+                    issuingAgency: 'Legal',                     // Super short!
+                    noticeType: 'L',                            // Single character!
+                    caseNumber: data.caseNumber || '',          // Keep case number
+                    caseDetails: '',                            // Empty - details in metadata
+                    legalRights: '',                            // Empty - in metadata
+                    sponsorFees: false,                         // Boolean
+                    metadataURI: metadataUri.length > 100 ? 
+                        metadataUri.substring(0, 80) :          // Truncate long URLs
+                        metadataUri
                 };
             });
             
