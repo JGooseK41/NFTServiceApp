@@ -1047,59 +1047,64 @@ window.app = {
                 return;
             }
             
-            // First check if case already exists
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
             const serverAddress = window.tronWeb.defaultAddress.base58;
             
-            this.showInfo('Checking if case exists...');
+            // If we already have a currentCaseId, we're updating an existing case
+            const isUpdating = !!this.currentCaseId;
             
-            try {
-                const checkResponse = await fetch(`${backendUrl}/api/cases/by-number/${caseNumber}?serverAddress=${serverAddress}`, {
-                    method: 'GET',
-                    headers: {
-                        'X-Server-Address': serverAddress
-                    }
-                });
+            if (!isUpdating) {
+                // Only check if case exists when creating new (not updating)
+                this.showInfo('Checking if case exists...');
                 
-                if (checkResponse.ok) {
-                    const existingCase = await checkResponse.json();
-                    if (existingCase.success && existingCase.case) {
-                        // Case exists - prompt to resume
-                        const shouldResume = confirm(`Case ${caseNumber} already exists. Would you like to resume it instead?\n\nClick OK to resume the existing case, or Cancel to use a different case number.`);
-                        
-                        if (shouldResume) {
-                            // Navigate to cases page and resume
-                            this.showInfo('Resuming existing case...');
+                try {
+                    const checkResponse = await fetch(`${backendUrl}/api/cases/by-number/${caseNumber}?serverAddress=${serverAddress}`, {
+                        method: 'GET',
+                        headers: {
+                            'X-Server-Address': serverAddress
+                        }
+                    });
+                    
+                    if (checkResponse.ok) {
+                        const existingCase = await checkResponse.json();
+                        if (existingCase.success && existingCase.case) {
+                            // Case exists - prompt to resume
+                            const shouldResume = confirm(`Case ${caseNumber} already exists. Would you like to resume it instead?\n\nClick OK to resume the existing case, or Cancel to use a different case number.`);
                             
-                            // Store the case data for resuming
-                            sessionStorage.setItem('resumeCase', JSON.stringify({
-                                caseNumber: caseNumber,
-                                serverAddress: serverAddress
-                            }));
-                            
-                            // Navigate to cases page
-                            window.location.hash = '#cases';
-                            
-                            // Trigger resume after navigation
-                            setTimeout(() => {
-                                if (window.cases && window.cases.resumeCase) {
-                                    window.cases.resumeCase(caseNumber);
-                                }
-                            }, 500);
-                            
-                            return;
-                        } else {
-                            this.showError('Please use a different case number');
-                            document.getElementById('caseNumber').focus();
-                            return;
+                            if (shouldResume) {
+                                // Navigate to cases page and resume
+                                this.showInfo('Resuming existing case...');
+                                
+                                // Store the case data for resuming
+                                sessionStorage.setItem('resumeCase', JSON.stringify({
+                                    caseNumber: caseNumber,
+                                    serverAddress: serverAddress
+                                }));
+                                
+                                // Navigate to cases page
+                                window.location.hash = '#cases';
+                                
+                                // Trigger resume after navigation
+                                setTimeout(() => {
+                                    if (window.cases && window.cases.resumeCase) {
+                                        window.cases.resumeCase(caseNumber);
+                                    }
+                                }, 500);
+                                
+                                return;
+                            } else {
+                                this.showError('Please use a different case number');
+                                document.getElementById('caseNumber').focus();
+                                return;
+                            }
                         }
                     }
+                } catch (checkError) {
+                    console.log('Case check failed, proceeding with creation:', checkError);
                 }
-            } catch (checkError) {
-                console.log('Case check failed, proceeding with creation:', checkError);
             }
             
-            this.showInfo('Processing documents and creating case...');
+            this.showInfo(isUpdating ? 'Updating case with new documents...' : 'Processing documents and creating case...');
             
             // Create FormData for multipart upload
             const formData = new FormData();
@@ -1124,11 +1129,24 @@ window.app = {
             console.log('- Recipients:', recipients);
             console.log('- File count:', this.state.fileQueue.length);
             
-            // Add all PDF files
+            // Add all PDF files (skip existing backend documents)
+            let addedFiles = 0;
             for (let i = 0; i < this.state.fileQueue.length; i++) {
                 const doc = this.state.fileQueue[i];
+                // Skip placeholder/existing documents from backend
+                if (doc.isExisting && !doc.file.size) {
+                    console.log(`- Skipping placeholder for existing document`);
+                    continue;
+                }
                 formData.append('documents', doc.file, doc.file.name);
-                console.log(`- Added file ${i + 1}: ${doc.file.name} (${doc.file.size} bytes)`);
+                addedFiles++;
+                console.log(`- Added file ${addedFiles}: ${doc.file.name} (${doc.file.size} bytes)`);
+            }
+            
+            // Check if we actually have files to upload
+            if (addedFiles === 0) {
+                this.showError('No new documents to upload. Please add PDF files or use existing case.');
+                return;
             }
             
             // Skip client-side processing - let server handle PDF cleaning and merging
@@ -1220,19 +1238,16 @@ window.app = {
             console.log('Save case response:', result);
             
             // Store case ID for later use
-            this.currentCaseId = result.caseId || result.id;
+            this.currentCaseId = result.caseId || result.id || caseNumber;
             
-            // If backend returned a consolidated PDF URL, store it
-            if (result.consolidatedPdfUrl) {
-                this.consolidatedPDFUrl = `${backendUrl}${result.consolidatedPdfUrl}`;
-                console.log('✅ Received cleaned consolidated PDF from server');
-                console.log('   Case ID:', this.currentCaseId);
-                console.log('   PDF URL:', this.consolidatedPDFUrl);
-            } else if (this.currentCaseId) {
-                // Construct the URL if not provided
-                this.consolidatedPDFUrl = `${backendUrl}/api/cases/${this.currentCaseId}/pdf`;
-                console.log('📄 Constructed PDF URL:', this.consolidatedPDFUrl);
-            }
+            // Always construct the PDF URL for consistency
+            this.consolidatedPDFUrl = `${backendUrl}/api/cases/${this.currentCaseId}/pdf`;
+            console.log('✅ Case saved/updated successfully');
+            console.log('   Case ID:', this.currentCaseId);
+            console.log('   PDF URL:', this.consolidatedPDFUrl);
+            
+            // Mark that we now have the consolidated PDF ready
+            this.hasConsolidatedPDF = true;
             
             // Show success message
             this.showSuccess(`Case "${caseNumber}" saved successfully! PDFs cleaned and consolidated on server.`);
@@ -2298,7 +2313,8 @@ window.app = {
     clearExistingDocuments() {
         this.hasExistingDocuments = false;
         this.consolidatedPDFUrl = null;
-        this.currentCaseId = null; // Clear case ID so a new case will be created
+        // Don't clear currentCaseId - we're still working with the same case
+        // Just replacing its documents
         this.state.fileQueue = [];
         this.displayFileQueue();
         
