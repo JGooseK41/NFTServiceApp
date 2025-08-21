@@ -1,5 +1,12 @@
+# BlockServed.com Redirects
+# Serve recipient.html as the main page
+/              /recipient.html   200
+/index.html    /recipient.html   200
+
 # API proxy to Render backend
 /api/* https://nftserviceapp.onrender.com/api/:splat 200
 
-# Redirect short URLs to the main app with hash routing
-/n/*  /#notice-:splat  200!
+# Notice viewing paths
+/view          /recipient.html   200
+/notice        /recipient.html   200
+/n/*           /recipient.html   200
