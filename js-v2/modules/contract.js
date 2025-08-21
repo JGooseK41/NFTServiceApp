@@ -448,21 +448,17 @@ window.contract = {
             console.log('Contract instance type:', typeof this.instance);
             console.log('serveNoticeBatch type:', typeof this.instance.serveNoticeBatch);
             
-            // The issue might be that TronWeb can't properly encode the tuple array
-            // Let's try using the methods object directly if it exists
-            let contractCall;
-            if (this.instance.methods && this.instance.methods.serveNoticeBatch) {
-                console.log('Using methods.serveNoticeBatch');
-                contractCall = this.instance.methods.serveNoticeBatch(batchNotices);
-            } else if (this.instance.serveNoticeBatch) {
-                console.log('Using direct serveNoticeBatch');
-                contractCall = this.instance.serveNoticeBatch(batchNotices);
-            } else {
-                throw new Error('serveNoticeBatch method not found in contract');
+            // The issue is that TronWeb isn't recognizing the array of structs properly
+            // Let's verify the ABI is correct first
+            const batchMethod = this.abi.find(m => m.name === 'serveNoticeBatch');
+            console.log('serveNoticeBatch ABI:', batchMethod);
+            
+            if (!batchMethod) {
+                throw new Error('serveNoticeBatch not found in ABI');
             }
             
-            // Call the batch function
-            const tx = await contractCall.send({
+            // Try calling the method directly
+            const tx = await this.instance.serveNoticeBatch(batchNotices).send({
                 feeLimit: 2000000000,  // Use same high limit as v1
                 callValue: totalFee,
                 shouldPollResponse: true
