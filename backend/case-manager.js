@@ -3,7 +3,7 @@
  * Handles complete case lifecycle from creation to serving
  */
 
-const DiskStorageManager = require('./disk-storage-manager');
+const DiskStorageManager = require('./disk-storage-manager-fix');
 const PDFProcessor = require('./pdf-processor');
 const CaseServiceTracking = require('./case-service-tracking');
 const crypto = require('crypto');
@@ -18,7 +18,7 @@ class CaseManager {
         // PostgreSQL connection
         this.db = new Pool({
             connectionString: process.env.DATABASE_URL,
-            ssl: process.env.DATABASE_URL.includes('render.com') ? { rejectUnauthorized: false } : false
+            ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('render.com') ? { rejectUnauthorized: false } : false
         });
         
         // Initialize on creation
