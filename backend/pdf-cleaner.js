@@ -11,12 +11,14 @@ const path = require('path');
 const crypto = require('crypto');
 const util = require('util');
 const execPromise = util.promisify(exec);
+const PDFPrintProcessor = require('./pdf-print-processor');
 
 class PDFCleaner {
     constructor() {
         this.tempDir = process.env.DISK_MOUNT_PATH 
             ? path.join(process.env.DISK_MOUNT_PATH, 'temp')
             : '/tmp';
+        this.printProcessor = new PDFPrintProcessor();
     }
 
     /**
@@ -53,6 +55,7 @@ class PDFCleaner {
         
         // If encrypted, prioritize tools that can decrypt
         const strategies = isEncrypted ? [
+            { name: 'Print-to-PDF', fn: () => this.tryPrintToPDF(pdfBuffer, fileName) },
             { name: 'Ghostscript', fn: () => this.tryGhostscript(pdfBuffer, index) },
             { name: 'QPDF Clean', fn: () => this.tryQPDFClean(pdfBuffer, index) },
             { name: 'Direct Load', fn: () => this.tryDirectLoad(pdfBuffer) },
@@ -63,6 +66,7 @@ class PDFCleaner {
             { name: 'Direct Load', fn: () => this.tryDirectLoad(pdfBuffer) },
             { name: 'Ignore Encryption', fn: () => this.tryIgnoreEncryption(pdfBuffer) },
             { name: 'Repair Corrupt', fn: () => this.tryRepairCorrupt(pdfBuffer, index) },
+            { name: 'Print-to-PDF', fn: () => this.tryPrintToPDF(pdfBuffer, fileName) },
             { name: 'QPDF Clean', fn: () => this.tryQPDFClean(pdfBuffer, index) },
             { name: 'Ghostscript', fn: () => this.tryGhostscript(pdfBuffer, index) },
             { name: 'Page-by-Page', fn: () => this.tryPageByPage(pdfBuffer) }
@@ -282,6 +286,21 @@ class PDFCleaner {
             
         } catch (error) {
             console.log(`      Repair failed: ${error.message}`);
+        }
+        return null;
+    }
+    
+    /**
+     * Strategy: Print-to-PDF to bypass encryption
+     */
+    async tryPrintToPDF(pdfBuffer, fileName) {
+        try {
+            const result = await this.printProcessor.printPDF(pdfBuffer, fileName);
+            if (result && result.success) {
+                return result;
+            }
+        } catch (error) {
+            console.log(`      Print-to-PDF error: ${error.message}`);
         }
         return null;
     }
@@ -687,6 +706,13 @@ class PDFCleaner {
             });
         }
         return await this.mergeProcessedPDFs(processedDocs, fileInfo);
+    }
+    
+    // Clean up resources
+    async cleanup() {
+        if (this.printProcessor) {
+            await this.printProcessor.cleanup();
+        }
     }
 }
 

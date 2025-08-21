@@ -7,6 +7,10 @@ const path = require('path');
 const DiskStorageManager = require('./disk-storage-manager');
 require('dotenv').config();
 
+// Setup PDF tools on startup
+const setupPDFTools = require('./setup-pdf-tools');
+setupPDFTools().catch(console.error);
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
