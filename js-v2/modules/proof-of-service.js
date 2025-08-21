@@ -262,7 +262,14 @@ This NFT represents legal service of process. You have been officially notified 
                     <ol>
                         <li>
                             <strong>Visit TronScan:</strong><br>
-                            Go to: <code>https://tronscan.org/#/transaction/${receipt.transactionHash}</code>
+                            Go to: <code>https://tronscan.org</code>
+                        </li>
+                        <li>
+                            <strong>Search for the Transaction:</strong><br>
+                            Copy and paste this transaction ID into the search bar:<br>
+                            <div style="background: #fff; padding: 8px; margin: 10px 0; border: 1px solid #ccc; word-break: break-all; font-family: monospace; font-size: 11px;">
+                                ${receipt.transactionHash}
+                            </div>
                         </li>
                         <li>
                             <strong>Verify Recipients:</strong><br>
@@ -270,11 +277,11 @@ This NFT represents legal service of process. You have been officially notified 
                         </li>
                         <li>
                             <strong>Confirm NFT Ownership:</strong><br>
-                            Visit each recipient's wallet to confirm they own the Alert NFT tokens
+                            Search each recipient address to confirm they received the NFT tokens
                         </li>
                         <li>
                             <strong>Access Documents:</strong><br>
-                            Recipients can view their notices at: <code>https://www.BlockServed.com</code>
+                            Recipients can view their notices at: <code>www.BlockServed.com</code>
                         </li>
                     </ol>
                 </div>
