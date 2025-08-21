@@ -50,6 +50,7 @@ class PDFCleaner {
         const strategies = [
             { name: 'Direct Load', fn: () => this.tryDirectLoad(pdfBuffer) },
             { name: 'Ignore Encryption', fn: () => this.tryIgnoreEncryption(pdfBuffer) },
+            { name: 'Repair Corrupt', fn: () => this.tryRepairCorrupt(pdfBuffer, index) },
             { name: 'QPDF Clean', fn: () => this.tryQPDFClean(pdfBuffer, index) },
             { name: 'Ghostscript', fn: () => this.tryGhostscript(pdfBuffer, index) },
             { name: 'Page-by-Page', fn: () => this.tryPageByPage(pdfBuffer) }
@@ -154,6 +155,109 @@ class PDFCleaner {
     }
     
     /**
+     * Strategy: Repair corrupt PDFs with missing objects
+     */
+    async tryRepairCorrupt(pdfBuffer, index) {
+        try {
+            // First, detect how many pages the PDF should have
+            const content = pdfBuffer.toString('latin1');
+            const pageMarkers = content.match(/\/Type\s*\/Page(?![s])/g);
+            const expectedPages = pageMarkers ? pageMarkers.length : 0;
+            
+            console.log(`      Detected ${expectedPages} page markers in corrupt PDF`);
+            
+            // Try to load with maximum tolerance
+            const pdf = await PDFDocument.load(pdfBuffer, { 
+                ignoreEncryption: true,
+                updateMetadata: false,
+                throwOnInvalidObject: false,
+                capNumbers: false
+            });
+            
+            const loadedPages = pdf.getPageCount();
+            console.log(`      pdf-lib loaded ${loadedPages} pages`);
+            
+            // Create a new PDF with recovered content
+            const repairedPdf = await PDFDocument.create();
+            const helvetica = await repairedPdf.embedFont(StandardFonts.Helvetica);
+            
+            let recoveredPages = 0;
+            
+            // Try to copy accessible pages
+            for (let i = 0; i < Math.max(loadedPages, expectedPages); i++) {
+                let pageAdded = false;
+                
+                // Try to copy from original if within range
+                if (i < loadedPages) {
+                    try {
+                        const [page] = await repairedPdf.copyPages(pdf, [i]);
+                        repairedPdf.addPage(page);
+                        recoveredPages++;
+                        pageAdded = true;
+                        console.log(`        Page ${i + 1}: Recovered original content`);
+                    } catch (e) {
+                        console.log(`        Page ${i + 1}: Copy failed - ${e.message.substring(0, 40)}`);
+                    }
+                }
+                
+                // If we couldn't copy but know the page should exist, add placeholder
+                if (!pageAdded && i < expectedPages) {
+                    const placeholderPage = repairedPdf.addPage([612, 792]);
+                    
+                    placeholderPage.drawText(`Page ${i + 1} of ${expectedPages}`, {
+                        x: 50,
+                        y: 750,
+                        size: 12,
+                        font: helvetica,
+                        color: rgb(0.3, 0.3, 0.3)
+                    });
+                    
+                    placeholderPage.drawText('Page data corrupted - Missing object references', {
+                        x: 50,
+                        y: 400,
+                        size: 16,
+                        font: helvetica,
+                        color: rgb(0.7, 0, 0)
+                    });
+                    
+                    placeholderPage.drawText('This page references objects that are missing from the PDF file.', {
+                        x: 50,
+                        y: 370,
+                        size: 12,
+                        font: helvetica,
+                        color: rgb(0.5, 0.5, 0.5)
+                    });
+                    
+                    placeholderPage.drawText(`Expected ${expectedPages} pages based on page markers.`, {
+                        x: 50,
+                        y: 340,
+                        size: 12,
+                        font: helvetica,
+                        color: rgb(0.5, 0.5, 0.5)
+                    });
+                    
+                    recoveredPages++;
+                    console.log(`        Page ${i + 1}: Added placeholder for corrupt page`);
+                }
+            }
+            
+            if (recoveredPages > 0) {
+                const repairedBytes = await repairedPdf.save();
+                console.log(`      ✅ Repaired PDF: ${recoveredPages} pages (from ${expectedPages} expected)`);
+                return {
+                    success: true,
+                    buffer: Buffer.from(repairedBytes),
+                    pageCount: recoveredPages
+                };
+            }
+            
+        } catch (error) {
+            console.log(`      Repair failed: ${error.message}`);
+        }
+        return null;
+    }
+    
+    /**
      * Strategy: Try QPDF command line tool
      */
     async tryQPDFClean(pdfBuffer, index) {
@@ -194,8 +298,34 @@ class PDFCleaner {
             
             await fs.writeFile(inputPath, pdfBuffer);
             
-            const gsCommand = `gs -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite -sOutputFile="${outputPath}" -f "${inputPath}"`;
-            await execPromise(gsCommand);
+            // First try to get info about the original PDF
+            try {
+                const originalPdf = await PDFDocument.load(pdfBuffer, { 
+                    ignoreEncryption: true,
+                    throwOnInvalidObject: false 
+                });
+                const originalPages = originalPdf.getPageCount();
+                console.log(`      Original PDF has ${originalPages} pages before Ghostscript processing`);
+            } catch (e) {
+                console.log(`      Could not read original PDF page count`);
+            }
+            
+            // Use Ghostscript with settings to handle corrupt PDFs
+            // -dPDFSTOPONERROR=false tells GS to continue even when encountering errors
+            // -dPDFSETTINGS=/printer preserves more content than /prepress
+            const gsCommand = `gs -q -dNOPAUSE -dBATCH -dPDFSTOPONERROR=false -dPDFSETTINGS=/printer -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -sOutputFile="${outputPath}" -f "${inputPath}" 2>&1 || true`;
+            
+            try {
+                const result = await execPromise(gsCommand);
+                console.log(`      Ghostscript completed${result.stderr ? ' with warnings' : ' successfully'}`);
+            } catch (gsError) {
+                // Try with even more aggressive error recovery
+                console.log(`      Ghostscript first attempt failed, trying recovery mode...`);
+                
+                // This command attempts to extract individual pages even if some fail
+                const recoveryCommand = `gs -q -dNOPAUSE -dBATCH -dPDFSTOPONERROR=false -dPDFSETTINGS=/default -sDEVICE=pdfwrite -dFirstPage=1 -dLastPage=100 -sOutputFile="${outputPath}" -f "${inputPath}" 2>&1 || true`;
+                await execPromise(recoveryCommand);
+            }
             
             const cleanedBuffer = await fs.readFile(outputPath);
             
@@ -205,13 +335,15 @@ class PDFCleaner {
             const pdf = await PDFDocument.load(cleanedBuffer);
             const pageCount = pdf.getPageCount();
             
+            console.log(`      Ghostscript processed: ${pageCount} pages extracted`);
+            
             return {
                 success: true,
                 buffer: cleanedBuffer,
                 pageCount: pageCount
             };
         } catch (error) {
-            // Ghostscript not available or failed
+            console.log(`      Ghostscript error: ${error.message}`);
         }
         return null;
     }
@@ -228,9 +360,12 @@ class PDFCleaner {
             });
             
             const pageCount = pdf.getPageCount();
+            console.log(`      Attempting to extract ${pageCount} pages individually...`);
+            
             const cleanPdf = await PDFDocument.create();
             
             let extractedPages = 0;
+            let placeholderPages = 0;
             
             for (let i = 0; i < pageCount; i++) {
                 let pageExtracted = false;
@@ -243,7 +378,7 @@ class PDFCleaner {
                         pageExtracted = true;
                         extractedPages++;
                     } catch (e) {
-                        // Try placeholder
+                        console.log(`        Page ${i + 1}: Copy failed - ${e.message.substring(0, 50)}`);
                     }
                 }
                 
@@ -272,12 +407,15 @@ class PDFCleaner {
                             color: rgb(0.5, 0.5, 0.5)
                         });
                         
+                        placeholderPages++;
                         extractedPages++;
                     } catch (e) {
-                        // Skip this page
+                        console.log(`        Page ${i + 1}: Placeholder failed - skipping`);
                     }
                 }
             }
+            
+            console.log(`      Extracted: ${extractedPages - placeholderPages} pages, ${placeholderPages} placeholders`);
             
             if (extractedPages > 0) {
                 const cleanedBytes = await cleanPdf.save();
@@ -288,7 +426,7 @@ class PDFCleaner {
                 };
             }
         } catch (error) {
-            // Strategy failed
+            console.log(`      Page-by-page failed: ${error.message}`);
         }
         return null;
     }
