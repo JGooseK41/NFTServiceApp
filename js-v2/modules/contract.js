@@ -557,28 +557,12 @@ window.contract = {
                 } catch (directError) {
                     console.error('Direct encoding also failed:', directError);
                     
-                    // Last resort: Try sequential minting if batch completely fails
-                    if (window.batchMintingFix && window.batchMintingFix.mintSequentially) {
-                        console.warn('All batch methods failed. Falling back to sequential minting...');
-                        console.warn('This will be more expensive but ensures delivery.');
-                        
-                        const sequentialResult = await window.batchMintingFix.mintSequentially(
-                            this.instance,
-                            batchNotices,
-                            creationFee
-                        );
-                        
-                        if (sequentialResult.success) {
-                            return {
-                                ...sequentialResult,
-                                recipientCount: data.recipients.length,
-                                metadata,
-                                warning: 'Used sequential minting as fallback - higher gas costs incurred'
-                            };
-                        }
-                    }
-                    
-                    throw directError;
+                    // Don't automatically fallback - let user decide
+                    const error = new Error('Batch minting failed. You can try minting individually to specific addresses.');
+                    error.batchMintingFailed = true;
+                    error.recipients = data.recipients;
+                    error.batchNotices = batchNotices;
+                    throw error;
                 }
             }
             
@@ -586,6 +570,74 @@ window.contract = {
             console.error('Failed to create batch notices:', error);
             throw error;
         }
+    },
+    
+    // Selective individual minting - user chooses which addresses to mint to
+    async mintToSelectedRecipients(recipients, originalData) {
+        console.log('Minting to selected recipients:', recipients);
+        const results = [];
+        const creationFee = await this.instance.creationFee().call();
+        
+        for (const recipient of recipients) {
+            try {
+                console.log(`Minting for ${recipient}...`);
+                
+                // Find the notice data for this recipient
+                const noticeData = originalData.batchNotices?.find(n => n.recipient === recipient) || {
+                    recipient,
+                    encryptedIPFS: originalData.ipfsHash || '',
+                    encryptionKey: originalData.encryptionKey || '',
+                    issuingAgency: originalData.agency || 'Legal Services',
+                    noticeType: originalData.noticeType || 'legal_notice',
+                    caseNumber: originalData.caseNumber || '',
+                    caseDetails: originalData.caseDetails || originalData.noticeText || '',
+                    legalRights: 'View full document at www.BlockServed.com for info on your rights and next steps',
+                    sponsorFees: false,
+                    metadataURI: originalData.metadataURI || ''
+                };
+                
+                const tx = await this.instance.serveNotice(
+                    noticeData.recipient,
+                    noticeData.encryptedIPFS,
+                    noticeData.encryptionKey,
+                    noticeData.issuingAgency,
+                    noticeData.noticeType,
+                    noticeData.caseNumber,
+                    noticeData.caseDetails,
+                    noticeData.legalRights,
+                    noticeData.sponsorFees,
+                    noticeData.metadataURI
+                ).send({
+                    feeLimit: 500000000,
+                    callValue: parseInt(creationFee) * 2, // Alert + Document
+                    shouldPollResponse: true
+                });
+                
+                results.push({
+                    recipient,
+                    txId: tx,
+                    success: true
+                });
+                
+                console.log(`✅ Successfully minted for ${recipient}`);
+                
+            } catch (error) {
+                console.error(`Failed for ${recipient}:`, error);
+                results.push({
+                    recipient,
+                    error: error.message,
+                    success: false
+                });
+            }
+        }
+        
+        return {
+            success: results.some(r => r.success),
+            results,
+            successCount: results.filter(r => r.success).length,
+            failedCount: results.filter(r => !r.success).length,
+            message: `Minted for ${results.filter(r => r.success).length} of ${recipients.length} selected recipients`
+        };
     },
     
     // Create Document NFT (for signature) - v5 contract

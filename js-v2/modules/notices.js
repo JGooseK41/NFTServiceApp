@@ -213,7 +213,48 @@ window.notices = {
         } catch (error) {
             console.error('Failed to create notice:', error);
             
-            // Show failure confirmation
+            // Check if this is a batch minting failure
+            if (error.batchMintingFailed && error.recipients) {
+                // Show options for selective minting
+                const userChoice = await this.showBatchFailureOptions(error);
+                
+                if (userChoice && userChoice.selectedRecipients && userChoice.selectedRecipients.length > 0) {
+                    // User selected specific recipients to mint to
+                    console.log('User selected recipients for individual minting:', userChoice.selectedRecipients);
+                    
+                    const result = await window.contract.mintToSelectedRecipients(
+                        userChoice.selectedRecipients,
+                        {
+                            ...data,
+                            batchNotices: error.batchNotices,
+                            ipfsHash: documentData.ipfsHash,
+                            encryptionKey: documentData.encryptionKey,
+                            metadataURI: metadata
+                        }
+                    );
+                    
+                    if (result.success) {
+                        // Show mixed success message
+                        this.showMixedSuccessConfirmation({
+                            ...result,
+                            caseNumber: data.caseNumber,
+                            totalRecipients: data.recipients.length,
+                            mintedRecipients: userChoice.selectedRecipients
+                        });
+                        
+                        return {
+                            success: true,
+                            partial: true,
+                            ...result
+                        };
+                    }
+                }
+                
+                // User cancelled or no recipients selected
+                throw new Error('Batch minting failed and user chose not to mint individually');
+            }
+            
+            // Show failure confirmation for other errors
             this.showFailureConfirmation({
                 error: error.message,
                 caseNumber: data.caseNumber,
@@ -886,6 +927,94 @@ window.notices = {
         setTimeout(() => {
             window.print();
         }, 500);
+    },
+    
+    // Show batch failure options to user
+    async showBatchFailureOptions(error) {
+        return new Promise((resolve) => {
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 600px;">
+                    <h2>⚠️ Batch Minting Failed</h2>
+                    <p>The batch minting process failed for ${error.recipients.length} recipients.</p>
+                    <p style="color: #ff6b6b; margin: 10px 0;">
+                        <strong>Note:</strong> Individual minting will cost approximately ${error.recipients.length}x more in gas fees.
+                    </p>
+                    
+                    <div style="margin: 20px 0;">
+                        <h3>Select recipients to mint individually:</h3>
+                        <div style="max-height: 200px; overflow-y: auto; border: 1px solid #333; padding: 10px; background: #1a1a1a;">
+                            ${error.recipients.map((recipient, index) => `
+                                <label style="display: block; margin: 5px 0; cursor: pointer;">
+                                    <input type="checkbox" value="${recipient}" checked style="margin-right: 10px;">
+                                    ${recipient}
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; justify-content: space-between;">
+                        <button id="selectAll" class="btn-secondary">Select All</button>
+                        <button id="selectNone" class="btn-secondary">Select None</button>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button id="proceedSelected" class="btn-primary">Mint to Selected</button>
+                        <button id="cancelMint" class="btn-secondary">Cancel</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Add event handlers
+            modal.querySelector('#selectAll').onclick = () => {
+                modal.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = true);
+            };
+            
+            modal.querySelector('#selectNone').onclick = () => {
+                modal.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+            };
+            
+            modal.querySelector('#proceedSelected').onclick = () => {
+                const selected = Array.from(modal.querySelectorAll('input[type="checkbox"]:checked'))
+                    .map(cb => cb.value);
+                modal.remove();
+                resolve({ selectedRecipients: selected });
+            };
+            
+            modal.querySelector('#cancelMint').onclick = () => {
+                modal.remove();
+                resolve({ selectedRecipients: [] });
+            };
+        });
+    },
+    
+    // Show mixed success confirmation
+    showMixedSuccessConfirmation(data) {
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h2>✅ Partial Success</h2>
+                <p>Successfully minted to ${data.successCount} of ${data.mintedRecipients.length} selected recipients.</p>
+                
+                ${data.failedCount > 0 ? `
+                    <div style="margin: 20px 0; padding: 10px; background: #2a1a1a; border: 1px solid #ff6b6b;">
+                        <h3>Failed Recipients (${data.failedCount}):</h3>
+                        ${data.results.filter(r => !r.success).map(r => `
+                            <div style="margin: 5px 0;">
+                                ${r.recipient}: ${r.error}
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                
+                <button onclick="this.closest('.modal-overlay').remove()" class="btn-primary">OK</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
     },
     
     // Load CryptoJS
