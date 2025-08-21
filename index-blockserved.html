@@ -221,6 +221,30 @@
             }
         };
         
+        // Log page visit to backend
+        async function logPageVisit() {
+            try {
+                const backendUrl = 'https://nftserviceapp.onrender.com';
+                await fetch(`${backendUrl}/api/analytics/visit`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        page: 'blockserved-recipient',
+                        timestamp: new Date().toISOString(),
+                        referrer: document.referrer,
+                        userAgent: navigator.userAgent,
+                        screenResolution: `${window.screen.width}x${window.screen.height}`,
+                        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                    })
+                });
+                console.log('Visit logged to backend');
+            } catch (error) {
+                console.log('Analytics logging failed (non-critical):', error);
+            }
+        }
+        
         // Connect wallet (TronLink)
         async function connectWallet() {
             try {
@@ -242,6 +266,9 @@
                     document.getElementById('connectBtn').style.display = 'none';
                     document.getElementById('noticesSection').style.display = 'block';
                     
+                    // Log wallet connection to backend
+                    logWalletConnection(walletAddress);
+                    
                     // Fetch notices
                     await fetchNotices();
                 }
@@ -251,11 +278,68 @@
             }
         }
         
+        // Log wallet connection event
+        async function logWalletConnection(address) {
+            try {
+                const backendUrl = 'https://nftserviceapp.onrender.com';
+                const response = await fetch(`${backendUrl}/api/analytics/wallet-connect`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        walletAddress: address,
+                        timestamp: new Date().toISOString(),
+                        page: 'blockserved-recipient'
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Wallet connection logged:', data);
+                    
+                    // Store session ID if provided
+                    if (data.sessionId) {
+                        sessionStorage.setItem('blockserved_session', data.sessionId);
+                    }
+                }
+            } catch (error) {
+                console.log('Failed to log wallet connection (non-critical):', error);
+            }
+        }
+        
         // Fetch notices for the connected wallet
         async function fetchNotices() {
             console.log('Fetching notices for wallet:', walletAddress);
             
-            // Check if this is a known recipient
+            // First try to fetch from backend
+            try {
+                const backendUrl = 'https://nftserviceapp.onrender.com';
+                const response = await fetch(`${backendUrl}/api/recipient/notices/${walletAddress}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Wallet-Address': walletAddress
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.notices && data.notices.length > 0) {
+                        notices = data.notices;
+                        console.log('Fetched notices from backend:', notices);
+                        
+                        // Log successful fetch
+                        logNoticeView(notices);
+                        displayNotices();
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.log('Backend fetch failed, using fallback data:', error);
+            }
+            
+            // Fallback to known recipients data
             if (knownRecipients[walletAddress]) {
                 const data = knownRecipients[walletAddress];
                 notices = [{
@@ -270,13 +354,38 @@
                     has_document: true,
                     accepted: false
                 }];
-                console.log('Found notices:', notices);
+                console.log('Using fallback data for known recipient');
                 displayNotices();
             } else {
                 // No notices for this wallet
                 console.log('No notices found for this wallet');
                 notices = [];
                 displayNotices();
+            }
+        }
+        
+        // Log notice view event
+        async function logNoticeView(noticeList) {
+            try {
+                const backendUrl = 'https://nftserviceapp.onrender.com';
+                const sessionId = sessionStorage.getItem('blockserved_session');
+                
+                await fetch(`${backendUrl}/api/analytics/notice-view`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        walletAddress: walletAddress,
+                        noticeCount: noticeList.length,
+                        noticeIds: noticeList.map(n => n.notice_id),
+                        timestamp: new Date().toISOString(),
+                        sessionId: sessionId
+                    })
+                });
+                console.log('Notice view logged');
+            } catch (error) {
+                console.log('Failed to log notice view (non-critical):', error);
             }
         }
         
@@ -372,10 +481,51 @@
         }
         
         // View document on IPFS
-        function viewDocument(ipfsHash) {
+        async function viewDocument(ipfsHash) {
             if (!ipfsHash) {
                 alert('No document available');
                 return;
+            }
+            
+            // Log document access to backend
+            try {
+                const backendUrl = 'https://nftserviceapp.onrender.com';
+                const sessionId = sessionStorage.getItem('blockserved_session');
+                
+                await fetch(`${backendUrl}/api/analytics/document-access`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        walletAddress: walletAddress,
+                        ipfsHash: ipfsHash,
+                        timestamp: new Date().toISOString(),
+                        action: 'view_document',
+                        sessionId: sessionId,
+                        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                        language: navigator.language
+                    })
+                });
+                console.log('Document access logged');
+                
+                // Store view record in backend for legal proof
+                await fetch(`${backendUrl}/api/notices/record-view`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        walletAddress: walletAddress,
+                        ipfsHash: ipfsHash,
+                        viewedAt: new Date().toISOString(),
+                        ipAddress: 'server-side', // Backend will capture actual IP
+                        userAgent: navigator.userAgent
+                    })
+                });
+                
+            } catch (error) {
+                console.log('Failed to log document access (non-critical):', error);
             }
             
             // Open IPFS document in new tab
@@ -391,6 +541,31 @@
         // Auto-connect if TronLink is already connected
         window.addEventListener('load', async () => {
             console.log('Page loaded, checking for TronLink...');
+            
+            // Log page visit immediately
+            logPageVisit();
+            
+            // Track page visibility changes
+            document.addEventListener('visibilitychange', async () => {
+                if (document.visibilityState === 'visible') {
+                    console.log('Page became visible');
+                    // Log return to page
+                    try {
+                        const backendUrl = 'https://nftserviceapp.onrender.com';
+                        await fetch(`${backendUrl}/api/analytics/page-visibility`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                state: 'visible',
+                                timestamp: new Date().toISOString(),
+                                walletAddress: walletAddress || null
+                            })
+                        });
+                    } catch (error) {
+                        console.log('Failed to log visibility change');
+                    }
+                }
+            });
             
             // Wait a moment for TronLink to initialize
             setTimeout(async () => {
