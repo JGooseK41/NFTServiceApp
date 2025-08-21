@@ -1365,12 +1365,12 @@ app.get('/api/health', (req, res) => {
 const transactionRoutes = require('./routes/transaction-tracking');
 app.use('/api/transactions', transactionRoutes);
 
-// Metadata hosting for NFT display
-const metadataRouter = require('./routes/metadata');
+// Metadata hosting for NFT display (legacy route - commented out to avoid conflict)
+// const metadataRouterLegacy = require('./routes/metadata');
+// app.use('/api/metadata-legacy', metadataRouterLegacy);
 
 // Alert metadata handler for base64 URIs
 const alertMetadataRouter = require('./routes/alert-metadata-handler');
-app.use('/api/metadata', metadataRouter);
 app.use('/api/alerts', alertMetadataRouter);
 
 // Health check endpoint
