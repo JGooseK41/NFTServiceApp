@@ -1,9 +1,9 @@
 services:
   - type: web
     name: nft-legal-service-backend
-    runtime: docker
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
+    runtime: node
+    buildCommand: ./render-build.sh
+    startCommand: node server.js
     disk:
       name: pdf-storage
       mountPath: /var/data
@@ -20,7 +20,7 @@ services:
       - key: DISK_MOUNT_PATH
         value: /var/data
       - key: PORT
-        value: 3001
+        value: 10000
     
 databases:
   - name: nft-legal-service-db

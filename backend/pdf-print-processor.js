@@ -27,7 +27,6 @@ class PDFPrintProcessor {
             console.log('    Initializing headless browser...');
             
             // Launch with minimal resources for server environment
-            // Use system Chromium if available (Docker environment)
             const launchOptions = {
                 headless: 'new',
                 args: [
@@ -42,9 +41,12 @@ class PDFPrintProcessor {
                 ]
             };
             
-            // Use system Chromium in Docker environment
+            // Use system Chromium if specified, otherwise let Puppeteer use its bundled version
             if (process.env.PUPPETEER_EXECUTABLE_PATH) {
                 launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+                console.log('    Using system Chromium:', process.env.PUPPETEER_EXECUTABLE_PATH);
+            } else {
+                console.log('    Using Puppeteer bundled Chromium');
             }
             
             this.browser = await this.puppeteer.launch(launchOptions);
