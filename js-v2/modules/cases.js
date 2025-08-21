@@ -47,7 +47,8 @@ window.cases = {
             
             // Get backend cases if connected
             if (window.wallet && window.wallet.connected) {
-                const url = getApiUrl('getCases', { serverAddress: window.wallet.address });
+                const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+                const url = `${backendUrl}/api/cases`;
                 console.log('Fetching cases from:', url);
                 console.log('Using server address:', window.wallet.address);
                 
@@ -216,7 +217,8 @@ window.cases = {
         // Save to backend if connected
         if (window.wallet && window.wallet.connected) {
             try {
-                await fetch(getApiUrl('createCase'), {
+                const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+                await fetch(`${backendUrl}/api/cases`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

@@ -322,7 +322,9 @@ class CaseManagementClient {
             const payload = {
                 txHash: typeof txHash === 'bigint' ? txHash.toString() : txHash,
                 alertNftId: typeof alertNftId === 'bigint' ? alertNftId.toString() : alertNftId,
-                documentNftId: typeof documentNftId === 'bigint' ? documentNftId.toString() : documentNftId
+                documentNftId: typeof documentNftId === 'bigint' ? documentNftId.toString() : documentNftId,
+                status: 'served',
+                servedAt: new Date().toISOString()
             };
             
             // Also update local storage
@@ -331,7 +333,7 @@ class CaseManagementClient {
             
             if (caseIndex >= 0) {
                 cases[caseIndex].status = 'served';
-                cases[caseIndex].servedAt = new Date().toISOString();
+                cases[caseIndex].servedAt = payload.servedAt;
                 cases[caseIndex].transactionHash = payload.txHash;
                 cases[caseIndex].alertTokenId = payload.alertNftId;
                 cases[caseIndex].documentTokenId = payload.documentNftId;
@@ -339,9 +341,10 @@ class CaseManagementClient {
                 console.log('✅ Case marked as served in local storage');
             }
             
-            // Try to update backend (don't fail if backend is down)
+            // Update backend - use PUT to update the case
             try {
-                const response = await fetch(`${this.apiUrl}/api/cases/${caseId}/served`, {
+                // First try the served endpoint
+                const servedResponse = await fetch(`${this.apiUrl}/api/cases/${caseId}/served`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -350,15 +353,39 @@ class CaseManagementClient {
                     body: JSON.stringify(payload)
                 });
                 
-                const result = await response.json();
-                
-                if (result.success) {
-                    console.log('✅ Case marked as served in backend');
+                if (servedResponse.ok) {
+                    const result = await servedResponse.json();
+                    console.log('✅ Case marked as served in backend via /served endpoint');
+                    return result;
                 }
                 
-                return result;
-            } catch (backendError) {
+                // If that fails, try updating the case directly
+                const updateResponse = await fetch(`${this.apiUrl}/api/cases/${caseId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Server-Address': this.serverAddress
+                    },
+                    body: JSON.stringify({
+                        status: 'served',
+                        served_at: payload.servedAt,
+                        transaction_hash: payload.txHash,
+                        alert_token_id: payload.alertNftId,
+                        document_token_id: payload.documentNftId
+                    })
+                });
+                
+                if (updateResponse.ok) {
+                    const result = await updateResponse.json();
+                    console.log('✅ Case marked as served in backend via PUT');
+                    return result;
+                }
+                
                 console.log('Backend update failed, but local storage updated');
+                return { success: true, local: true };
+                
+            } catch (backendError) {
+                console.log('Backend update failed, but local storage updated:', backendError);
                 return { success: true, local: true };
             }
             
