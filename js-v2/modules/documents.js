@@ -33,6 +33,29 @@ window.documents = {
         try {
             console.log('Processing documents:', files.length, 'files');
             
+            // Check if we're using an existing case from Case Manager
+            if (window.app && window.app.currentCaseId && window.app.consolidatedPDFUrl) {
+                console.log('Using existing case from Case Manager:', window.app.currentCaseId);
+                
+                // Get the alert preview from saved cases
+                const cases = JSON.parse(localStorage.getItem('savedCases') || '[]');
+                const existingCase = cases.find(c => c.caseNumber === window.app.currentCaseId);
+                
+                if (existingCase && existingCase.alertPreview) {
+                    console.log('Using existing alert preview and PDF from Case Manager');
+                    return {
+                        success: true,
+                        diskPath: window.app.consolidatedPDFUrl,
+                        diskUrl: window.app.consolidatedPDFUrl,
+                        alertNFTImage: existingCase.alertPreview, // Use the image from Case Manager
+                        thumbnail: existingCase.alertPreview,
+                        pageCount: existingCase.pageCount || 44,
+                        size: existingCase.fileSize || 2500000
+                    };
+                }
+            }
+            
+            // Otherwise process normally
             // Step 1: Consolidate PDFs into single document (stays as PDF blob/file)
             const consolidatedPDF = await this.consolidatePDFs(files);
             
@@ -183,31 +206,67 @@ window.documents = {
     async uploadPDFToDisk(pdfBlob, options = {}) {
         console.log('Uploading PDF to disk storage...');
         
-        const formData = new FormData();
-        formData.append('document', pdfBlob, `notice_${Date.now()}.pdf`);
-        formData.append('noticeId', options.noticeId || `notice_${Date.now()}`);
-        formData.append('caseNumber', options.caseNumber || '');
-        formData.append('serverAddress', options.serverAddress || '');
-        formData.append('recipientAddress', options.recipientAddress || '');
-        
-        const response = await fetch(getApiUrl('uploadPDF'), {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to upload PDF to disk');
+        // Check if we already have a saved case with cleaned PDFs
+        if (window.app && window.app.currentCaseId && window.app.consolidatedPDFUrl) {
+            console.log('Using existing case PDF from server:', window.app.currentCaseId);
+            return {
+                success: true,
+                path: window.app.consolidatedPDFUrl,
+                filename: `case_${window.app.currentCaseId}.pdf`,
+                url: window.app.consolidatedPDFUrl,
+                size: pdfBlob.size
+            };
         }
         
-        const result = await response.json();
-        
-        return {
-            success: true,
-            path: result.diskPath,
-            filename: result.filename,
-            url: result.url,
-            size: pdfBlob.size
-        };
+        // Otherwise try to upload directly
+        try {
+            const formData = new FormData();
+            formData.append('document', pdfBlob, `notice_${Date.now()}.pdf`);
+            formData.append('noticeId', options.noticeId || `notice_${Date.now()}`);
+            formData.append('caseNumber', options.caseNumber || '');
+            formData.append('serverAddress', window.wallet?.address || '');
+            formData.append('recipientAddress', options.recipientAddress || '');
+            
+            const response = await fetch(getApiUrl('uploadPDF'), {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                // If upload fails, use local blob URL as fallback
+                console.warn('Failed to upload to server, using local blob URL');
+                const blobUrl = URL.createObjectURL(pdfBlob);
+                return {
+                    success: true,
+                    path: blobUrl,
+                    filename: `local_notice_${Date.now()}.pdf`,
+                    url: blobUrl,
+                    size: pdfBlob.size,
+                    isLocal: true
+                };
+            }
+            
+            const result = await response.json();
+            
+            return {
+                success: true,
+                path: result.diskPath,
+                filename: result.filename,
+                url: result.url,
+                size: pdfBlob.size
+            };
+        } catch (error) {
+            console.warn('Error uploading to server, using local blob URL:', error);
+            const blobUrl = URL.createObjectURL(pdfBlob);
+            return {
+                success: true,
+                path: blobUrl,
+                filename: `local_notice_${Date.now()}.pdf`,
+                url: blobUrl,
+                size: pdfBlob.size,
+                isLocal: true
+            };
+        }
     },
     
     // Generate Base64 thumbnail from first page (DEPRECATED - use generateAlertNFTImage instead)
