@@ -392,14 +392,15 @@ window.contract = {
                     (recipient.address || recipient.toString()) : 
                     recipient;
                 
-                // Use disk URL since we're not using IPFS in v2
-                // The contract stores this as a string - can be IPFS hash OR URL
-                const documentUrl = data.diskUrl || data.ipfsHash || '';
+                // Use IPFS hash for permanent immutable storage
+                // Fallback to disk URL if IPFS fails, then 'none' placeholder
+                const ipfsHash = data.ipfsHash || '';
+                const encryptionKey = data.encryptionKey || '';
                 
                 return {
                     recipient: recipientAddress,
-                    encryptedIPFS: documentUrl || 'none',  // Use disk URL or 'none' placeholder
-                    encryptionKey: data.encryptionKey || 'none',  // No encryption since using disk storage
+                    encryptedIPFS: ipfsHash || data.diskUrl || 'none',  // IPFS hash preferred
+                    encryptionKey: encryptionKey || 'none',              // Encryption key for IPFS content
                     issuingAgency: data.agency || 'Legal Services',
                     noticeType: 'alert',
                     caseNumber: data.caseNumber || '',

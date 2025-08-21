@@ -40,8 +40,10 @@ window.notices = {
             console.log('Processing and consolidating PDFs...');
             
             // Process multiple PDFs into ONE consolidated document (shared by all recipients)
+            // IMPORTANT: Enable IPFS upload for permanent immutable storage
             const documentData = await window.documents.processDocuments(data.documents, {
-                encrypt: data.encrypt !== false, // Default to encrypted
+                encrypt: true,           // ALWAYS encrypt for IPFS
+                useIPFS: true,          // ENABLE IPFS upload for immutable record
                 recipientAddress: data.recipients.join(', '), // All recipients
                 caseNumber: data.caseNumber,
                 type: 'legal_document'
