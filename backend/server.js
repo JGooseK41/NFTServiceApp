@@ -11,6 +11,10 @@ require('dotenv').config();
 const setupPDFTools = require('./setup-pdf-tools');
 setupPDFTools().catch(console.error);
 
+// Setup thumbnail service
+const { router: thumbnailRouter, initializeThumbnailService } = require('./thumbnail-service');
+initializeThumbnailService().catch(console.error);
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -885,6 +889,10 @@ app.get('/api/wallets/:walletAddress/connections', async (req, res) => {
 // Use unified document storage in notice_components table
 const documentsUnifiedRouter = require('./routes/documents-unified');
 app.use('/api/documents', documentsUnifiedRouter);
+
+// Thumbnail Service
+app.use('/api/thumbnail', thumbnailRouter);
+app.use('/api/thumbnails', thumbnailRouter); // Alternative path
 
 // Token Registry - Comprehensive token tracking system
 const tokenRegistryRouter = require('./routes/token-registry');

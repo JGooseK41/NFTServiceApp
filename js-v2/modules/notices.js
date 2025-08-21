@@ -49,11 +49,14 @@ window.notices = {
                 type: 'legal_document'
             });
             
-            // Don't pass base64 thumbnail to contract - too large for blockchain!
-            const thumbnail = null; // We'll use IPFS or URL reference instead
-            console.log('Documents consolidated into single PDF (thumbnail excluded for bandwidth):', {
-                ...documentData,
-                thumbnail: '[EXCLUDED - too large for chain]'
+            // Use thumbnail URL for NFT metadata (not base64 data)
+            const thumbnailUrl = documentData.thumbnailUrl;
+            const thumbnail = documentData.thumbnail; // Keep for local UI only
+            
+            console.log('Documents consolidated with optimized thumbnail:', {
+                thumbnailUrl,
+                thumbnailForUI: thumbnail ? 'Available for local display' : 'Not available',
+                ipfsHash: documentData.ipfsHash
             });
             
             // Step 5: Skip storing notice in backend - Case Manager already has everything
@@ -89,7 +92,8 @@ window.notices = {
                     noticeText: data.noticeText,
                     serverId,
                     serverTimestamp: Math.floor(Date.now() / 1000),
-                    thumbnail,
+                    thumbnail: null, // Don't send base64 data
+                    thumbnailUrl: documentData.thumbnailUrl, // Send URL instead
                     encrypted: data.encrypt !== false,
                     ipfsHash: documentData.ipfsHash,  // Will be null if not using IPFS
                     diskUrl: documentData.diskUrl,     // The actual PDF URL on server
@@ -115,7 +119,8 @@ window.notices = {
                     noticeText: data.noticeText,
                     serverId,
                     serverTimestamp: Math.floor(Date.now() / 1000),
-                    thumbnail,
+                    thumbnail: null, // Don't send base64
+                    thumbnailUrl: documentData.thumbnailUrl, // Send URL instead
                     encrypted: data.encrypt !== false,
                     ipfsHash: documentData.ipfsHash,
                     pageCount: documentData.pageCount || 1,

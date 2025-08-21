@@ -89,14 +89,23 @@ window.documents = {
             // Step 5: Skip storing document reference - Case Manager already handled this
             // The actual token IDs will come from the blockchain transaction
             
+            // Generate thumbnail URL for NFT metadata (not base64 to save bandwidth)
+            const thumbnailUrl = ipfsHash ? 
+                `https://gateway.pinata.cloud/ipfs/${ipfsHash}` :
+                `https://nft-legal-service.netlify.app/api/thumbnail/${options.caseNumber || Date.now()}`;
+            
+            // Still generate the alert image for local display/preview
+            // But don't send it to blockchain
+            
             return {
                 success: true,
                 caseNumber: options.caseNumber, // Use actual case number
                 diskPath: diskStorage.path,
                 diskUrl: diskStorage.url,
                 ipfsHash,
-                alertNFTImage, // Base64 data URI for Alert NFT (first page only)
-                thumbnail: alertNFTImage, // Also provide as thumbnail
+                alertNFTImage, // Keep for local UI display only
+                thumbnail: alertNFTImage, // Keep for local UI display
+                thumbnailUrl, // URL for NFT metadata (not base64!)
                 encryptionKey,
                 pageCount: await this.getPageCount(consolidatedPDF),
                 size: consolidatedPDF.size

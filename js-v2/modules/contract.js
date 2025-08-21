@@ -373,15 +373,19 @@ window.contract = {
             // Option 1: Use a standard legal notice thumbnail (small, reusable)
             const DEFAULT_LEGAL_THUMBNAIL = 'https://blockserved.com/images/legal-notice-thumb.png';
             
-            // Option 2: If we have IPFS, use IPFS gateway URL (works in most wallets)
-            if (data.ipfsHash) {
+            // Option 2: If thumbnailUrl is provided, use it
+            if (data.thumbnailUrl) {
+                imageData = data.thumbnailUrl;
+            }
+            // Option 3: If we have IPFS, use IPFS gateway URL (works in most wallets)
+            else if (data.ipfsHash) {
                 imageData = `https://gateway.pinata.cloud/ipfs/${data.ipfsHash}`;
             } 
-            // Option 3: Use our server's thumbnail endpoint
+            // Option 4: Use our server's thumbnail endpoint
             else if (data.noticeId) {
                 imageData = `https://nft-legal-service.netlify.app/api/thumbnail/${data.noticeId}`;
             }
-            // Option 4: Use default thumbnail
+            // Option 5: Use default thumbnail
             else {
                 imageData = DEFAULT_LEGAL_THUMBNAIL;
             }
