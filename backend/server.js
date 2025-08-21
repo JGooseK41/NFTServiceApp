@@ -1048,6 +1048,15 @@ try {
     console.error('⚠️ Encrypted storage routes not loaded:', error.message);
 }
 
+// Complete NFT Minting Flow Handler
+try {
+    const { setupCompleteFlowRoutes } = require('./complete-flow-handler');
+    setupCompleteFlowRoutes(app, pool);
+    console.log('✅ Complete NFT minting flow handler configured');
+} catch (error) {
+    console.error('⚠️ Complete flow handler not loaded:', error.message);
+}
+
 // Document Storage V2 - Complete rebuild
 try {
     const documentsV2Router = require('./routes/documents-v2');
