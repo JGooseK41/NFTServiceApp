@@ -321,15 +321,18 @@ window.documents = {
         // Generate encryption key
         const key = this.generateEncryptionKey();
         
-        // Convert PDF to base64
+        // Read PDF as binary array buffer
         const arrayBuffer = await pdfBlob.arrayBuffer();
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        const wordArray = CryptoJS.lib.WordArray.create(arrayBuffer);
         
-        // Encrypt using AES
-        const encrypted = CryptoJS.AES.encrypt(base64, key).toString();
+        // Encrypt the binary data directly
+        const encrypted = CryptoJS.AES.encrypt(wordArray, key);
         
-        // Create encrypted blob
-        const encryptedBlob = new Blob([encrypted], { type: 'application/octet-stream' });
+        // Convert encrypted data to blob
+        const encryptedString = encrypted.toString();
+        const encryptedBlob = new Blob([encryptedString], { type: 'application/octet-stream' });
+        
+        console.log('Document encrypted, size:', encryptedBlob.size);
         
         return {
             data: encryptedBlob,
