@@ -10,7 +10,7 @@
 
 const { Pool } = require('pg');
 const crypto = require('crypto');
-const { storeDocument, createDocumentStorageTable } = require('./document-storage-fix');
+const { storeDocument, createDocumentStorageTable } = require('./document-storage');
 
 // Use built-in fetch if available (Node 18+), otherwise try to use node-fetch
 let fetch;

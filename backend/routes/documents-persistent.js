@@ -11,7 +11,7 @@ const {
     getDocument, 
     createDocumentStorageTable,
     getStorageStats 
-} = require('../document-storage-fix');
+} = require('../document-storage');
 
 // Configure multer to store in memory instead of disk
 const upload = multer({

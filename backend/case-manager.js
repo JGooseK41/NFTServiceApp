@@ -3,7 +3,7 @@
  * Handles complete case lifecycle from creation to serving
  */
 
-const DiskStorageManager = require('./disk-storage-manager-fix');
+const DiskStorageManager = require('./disk-storage-manager');
 const PDFProcessor = require('./pdf-processor');
 const CaseServiceTracking = require('./case-service-tracking');
 const crypto = require('crypto');

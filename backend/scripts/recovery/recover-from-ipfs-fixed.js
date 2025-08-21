@@ -5,7 +5,7 @@
 const { Pool } = require('pg');
 const crypto = require('crypto');
 const https = require('https');
-const { storeDocument, createDocumentStorageTable } = require('./document-storage-fix');
+const { storeDocument, createDocumentStorageTable } = require('./document-storage');
 require('dotenv').config();
 
 // IMPORTANT: Set your production database URL here if not in environment

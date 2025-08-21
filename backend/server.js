@@ -4,7 +4,7 @@ const morgan = require('morgan');
 const { Pool } = require('pg');
 const path = require('path');
 // Use fixed disk storage manager with better error handling
-const DiskStorageManager = require('./disk-storage-manager-fix');
+const DiskStorageManager = require('./disk-storage-manager');
 require('dotenv').config();
 
 const app = express();
@@ -18,7 +18,7 @@ const pool = new Pool({
 
 // Middleware
 // Enhanced CORS configuration
-const { configureCORS, allowedOrigins } = require('./fix-cors');
+const { configureCORS, allowedOrigins } = require('./cors');
 
 // Apply enhanced CORS before other middleware
 configureCORS(app);
