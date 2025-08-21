@@ -411,7 +411,7 @@ This NFT represents legal service of process. You have been officially notified 
             const detailsY = alertImage ? pageHeight - 450 : pageHeight - 150;
             const details = [
                 'ALERT NFT INFORMATION',
-                '═══════════════════════════════════════════════════',
+                '---------------------------------------------------',
                 '',
                 `Token ID: #${caseData.alertTokenId || 'N/A'}`,
                 `Case Number: ${caseData.caseNumber}`,
@@ -420,13 +420,13 @@ This NFT represents legal service of process. You have been officially notified 
                 `Notice Type: ${caseData.noticeType || 'Legal Notice'}`,
                 '',
                 'BLOCKCHAIN VERIFICATION',
-                '═══════════════════════════════════════════════════',
+                '---------------------------------------------------',
                 '',
                 `Transaction Hash:`,
                 `${caseData.transactionHash}`,
                 '',
                 'INSTRUCTIONS FOR RECIPIENTS',
-                '═══════════════════════════════════════════════════',
+                '---------------------------------------------------',
                 '',
                 '1. This Alert NFT serves as proof of delivery for the attached legal documents.',
                 '2. The NFT has been permanently recorded on the TRON blockchain.',
@@ -440,9 +440,9 @@ This NFT represents legal service of process. You have been officially notified 
             
             let yPosition = detailsY;
             for (const line of details) {
-                const fontSize = line.includes('═') ? 10 : 
+                const fontSize = line.includes('---') ? 10 : 
                                line.includes('INSTRUCTIONS') || line.includes('BLOCKCHAIN') || line.includes('ALERT NFT') ? 12 : 10;
-                const fontColor = line.includes('═') ? PDFLib.rgb(0.5, 0.5, 0.5) :
+                const fontColor = line.includes('---') ? PDFLib.rgb(0.5, 0.5, 0.5) :
                                  line.includes('INSTRUCTIONS') || line.includes('BLOCKCHAIN') || line.includes('ALERT NFT') ? PDFLib.rgb(0, 0, 0.8) :
                                  PDFLib.rgb(0, 0, 0);
                 
@@ -667,7 +667,16 @@ This NFT represents legal service of process. You have been officially notified 
                     this.showLoading('Fetching document from IPFS...');
                     console.log('Fetching encrypted PDF from IPFS:', ipfsHash);
                     const ipfsGateway = 'https://gateway.pinata.cloud/ipfs/';
-                    const ipfsResponse = await fetch(ipfsGateway + ipfsHash);
+                    
+                    // Try IPFS with timeout to avoid hanging on CORS/rate limit issues
+                    const controller = new AbortController();
+                    const timeout = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+                    
+                    const ipfsResponse = await fetch(ipfsGateway + ipfsHash, {
+                        signal: controller.signal,
+                        mode: 'cors'
+                    });
+                    clearTimeout(timeout);
                     
                     if (ipfsResponse.ok) {
                         const encryptedData = await ipfsResponse.arrayBuffer();
@@ -710,6 +719,14 @@ This NFT represents legal service of process. You have been officially notified 
                     }
                 } catch (ipfsError) {
                     console.error('IPFS fetch/decrypt failed:', ipfsError);
+                    // Don't worry about IPFS failures, just fallback to backend
+                    if (ipfsError.name === 'AbortError') {
+                        console.log('IPFS request timed out, falling back to backend');
+                    } else if (ipfsError.message.includes('CORS')) {
+                        console.log('IPFS CORS issue, falling back to backend');
+                    } else {
+                        console.log('IPFS error, falling back to backend');
+                    }
                 }
             }
             
