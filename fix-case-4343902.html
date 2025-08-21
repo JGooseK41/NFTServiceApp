@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fix Case 4343902</title>
+    <script>
+        function fixCase() {
+            // Get the existing cases
+            const cases = JSON.parse(localStorage.getItem('legalnotice_cases') || '[]');
+            
+            // Find case 4343902
+            const caseIndex = cases.findIndex(c => 
+                c.caseNumber === '4343902' || 
+                c.caseNumber === '34-4343902' ||
+                c.case_number === '4343902' ||
+                c.case_number === '34-4343902'
+            );
+            
+            if (caseIndex >= 0) {
+                // Update with the correct served data
+                cases[caseIndex] = {
+                    ...cases[caseIndex],
+                    status: 'served',
+                    servedAt: new Date().toISOString(),
+                    served_at: new Date().toISOString(),
+                    pageCount: 46,
+                    page_count: 46,
+                    documentCount: 46,
+                    
+                    // Add the transaction hash (you'll need to provide the actual one)
+                    transactionHash: prompt('Enter the transaction hash for case 4343902:') || cases[caseIndex].transactionHash,
+                    
+                    // Recipients that were served
+                    recipients: [
+                        'TD1F37V4cAFH1YQCYVLtcFyFXkZUs7mBDE',
+                        'TAr8S97Xw3xhrGkZSghXQ85SFuP5XDU4cF', 
+                        'TBrjqKepMQKeZWjebMip2bH5872fiD3F6Q',
+                        'TFfagVe1aZpSfYaruY6xJfVPYZBuMj57FH'
+                    ],
+                    
+                    // Token IDs (based on the pattern from blockserved)
+                    alertTokenId: 31,
+                    documentTokenId: 32,
+                    
+                    // Agency and notice type
+                    agency: 'The Block Audit',
+                    issuingAgency: 'The Block Audit',
+                    noticeType: 'Legal Notice',
+                    
+                    // IPFS data
+                    ipfsDocument: 'QmQg8cAaMxBfj1dFaKLWnEdPix6qButoBWwhYfPygxy7y2',
+                    ipfsHash: 'QmQg8cAaMxBfj1dFaKLWnEdPix6qButoBWwhYfPygxy7y2',
+                    
+                    // Metadata
+                    metadata: {
+                        ...cases[caseIndex].metadata,
+                        issuingAgency: 'The Block Audit',
+                        noticeType: 'Legal Notice',
+                        recipients: [
+                            'TD1F37V4cAFH1YQCYVLtcFyFXkZUs7mBDE',
+                            'TAr8S97Xw3xhrGkZSghXQ85SFuP5XDU4cF', 
+                            'TBrjqKepMQKeZWjebMip2bH5872fiD3F6Q',
+                            'TFfagVe1aZpSfYaruY6xJfVPYZBuMj57FH'
+                        ]
+                    }
+                };
+                
+                // Save the updated cases
+                localStorage.setItem('legalnotice_cases', JSON.stringify(cases));
+                
+                alert('Case 4343902 has been updated with served status!\n\nRefresh the Cases page to see the changes.');
+                
+                console.log('Updated case:', cases[caseIndex]);
+            } else {
+                alert('Case 4343902 not found in localStorage');
+            }
+        }
+        
+        // Also check regular storage
+        function checkStorage() {
+            const cases1 = JSON.parse(localStorage.getItem('legalnotice_cases') || '[]');
+            const cases2 = JSON.parse(localStorage.getItem('cases') || '[]');
+            
+            console.log('Cases in legalnotice_cases:', cases1);
+            console.log('Cases in cases:', cases2);
+            
+            // Find case 4343902 in either storage
+            const case1 = cases1.find(c => 
+                c.caseNumber?.includes('4343902') || 
+                c.case_number?.includes('4343902')
+            );
+            
+            const case2 = cases2.find(c => 
+                c.caseNumber?.includes('4343902') || 
+                c.case_number?.includes('4343902')
+            );
+            
+            console.log('Case 4343902 in legalnotice_cases:', case1);
+            console.log('Case 4343902 in cases:', case2);
+            
+            document.getElementById('output').innerHTML = `
+                <h3>Current Case Data:</h3>
+                <pre>${JSON.stringify(case1 || case2, null, 2)}</pre>
+            `;
+        }
+    </script>
+</head>
+<body>
+    <h1>Fix Case 4343902</h1>
+    <p>This page will help fix the case data for case 4343902 that was successfully served.</p>
+    
+    <button onclick="checkStorage()">Check Current Case Data</button>
+    <button onclick="fixCase()">Fix Case 4343902</button>
+    
+    <div id="output"></div>
+    
+    <hr>
+    <p>After fixing, go back to the main app and refresh the Cases tab.</p>
+</body>
+</html>

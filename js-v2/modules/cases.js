@@ -972,7 +972,7 @@ window.cases = {
             }
             
             // We need a transaction hash to query the blockchain
-            const txHash = caseData.transactionHash || caseData.transaction_hash || caseData.txHash;
+            let txHash = caseData.transactionHash || caseData.transaction_hash || caseData.txHash;
             
             if (!txHash) {
                 // Try to find transaction by searching recent transactions
@@ -981,6 +981,7 @@ window.cases = {
                 if (userChoice) {
                     const inputTxHash = prompt('Enter the transaction hash for this case:');
                     if (inputTxHash && inputTxHash.length === 64) {
+                        txHash = inputTxHash;
                         caseData.transactionHash = inputTxHash;
                     } else {
                         window.app.showError('Invalid transaction hash');

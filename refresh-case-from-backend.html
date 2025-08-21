@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Refresh Case from Backend</title>
+    <script>
+        async function refreshCaseFromBackend() {
+            const caseNumber = '4343902';
+            const backendUrl = 'https://nftserviceapp.onrender.com';
+            
+            try {
+                console.log('Fetching case from backend...');
+                
+                // Get case from backend
+                const response = await fetch(`${backendUrl}/api/cases/${caseNumber}`, {
+                    headers: {
+                        'X-Server-Address': 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Backend response:', data);
+                    
+                    if (data.case) {
+                        // Update local storage with backend data
+                        const cases = JSON.parse(localStorage.getItem('legalnotice_cases') || '[]');
+                        const caseIndex = cases.findIndex(c => 
+                            c.caseNumber === caseNumber || 
+                            c.caseNumber === '34-4343902' ||
+                            c.case_number === caseNumber
+                        );
+                        
+                        if (caseIndex >= 0) {
+                            // Check if backend has transaction hash
+                            const txHash = data.case.transaction_hash || data.case.transactionHash || data.case.tx_hash;
+                            
+                            if (!txHash) {
+                                // If no tx hash in backend, ask user
+                                const userTx = prompt('Backend has no transaction hash. Enter it manually (or cancel to skip):');
+                                if (userTx && userTx.length === 64) {
+                                    data.case.transactionHash = userTx;
+                                }
+                            }
+                            
+                            // Merge backend data with local
+                            cases[caseIndex] = {
+                                ...cases[caseIndex],
+                                ...data.case,
+                                pageCount: data.case.page_count || 46,
+                                status: data.case.status || 'served',
+                                alertImage: data.case.alert_preview,
+                                documentPreview: data.case.document_preview,
+                                transactionHash: txHash || data.case.transactionHash,
+                                alertTokenId: data.case.alert_token_id,
+                                documentTokenId: data.case.document_token_id
+                            };
+                            
+                            localStorage.setItem('legalnotice_cases', JSON.stringify(cases));
+                            alert('Case refreshed from backend! Reload the Cases page to see updates.');
+                            
+                            document.getElementById('output').innerHTML = `
+                                <h3>Updated Case Data:</h3>
+                                <pre>${JSON.stringify(cases[caseIndex], null, 2)}</pre>
+                            `;
+                        } else {
+                            alert('Case not found in local storage');
+                        }
+                    }
+                } else {
+                    alert('Backend returned: ' + response.status);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to fetch from backend: ' + error.message);
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>Refresh Case from Backend</h1>
+    <button onclick="refreshCaseFromBackend()">Fetch Case 4343902 from Backend</button>
+    <div id="output"></div>
+</body>
+</html>
