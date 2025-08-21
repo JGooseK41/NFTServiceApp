@@ -392,18 +392,19 @@ window.contract = {
                     (recipient.address || recipient.toString()) : 
                     recipient;
                 
-                // Match v1 structure exactly
+                // Match v1 structure but with non-empty defaults like v1 had
+                // v1 used placeholder values: 'batch-encrypted-ipfs' and 'batch-key'
                 return {
                     recipient: recipientAddress,
-                    encryptedIPFS: data.ipfsHash || '',
-                    encryptionKey: data.encryptionKey || '',
+                    encryptedIPFS: data.ipfsHash || 'none',  // v1 used 'batch-encrypted-ipfs'
+                    encryptionKey: data.encryptionKey || 'none',  // v1 used 'batch-key'
                     issuingAgency: data.agency || 'Legal Services',
                     noticeType: 'alert',
-                    caseNumber: data.caseNumber,
-                    caseDetails: data.noticeText,
+                    caseNumber: data.caseNumber || '',
+                    caseDetails: data.noticeText || 'View Complete Documents at www.BlockServed.com',
                     legalRights: data.legalRights || 'You have the right to respond',
-                    sponsorFees: data.sponsorFees || false,
-                    metadataURI: metadataUri
+                    sponsorFees: Boolean(data.sponsorFees),
+                    metadataURI: metadataUri || ''
                 };
             });
             
