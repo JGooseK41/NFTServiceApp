@@ -82,12 +82,39 @@ window.contract = {
     async checkAdminRole() {
         try {
             const userAddress = this.tronWeb.defaultAddress.base58;
-            const adminRole = getConfig('contract.roles.DEFAULT_ADMIN_ROLE');
+            console.log('Checking admin for wallet:', userAddress);
             
-            const hasRole = await this.instance.hasRole(adminRole, userAddress).call();
-            console.log('User has admin role:', hasRole);
+            // Check if this is the owner wallet (hardcoded fallback)
+            const ownerWallets = [
+                'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY',
+                'tgdd34rr3rzfuozoqlze9d4tzfbigl4jay'
+            ];
+            const isOwnerWallet = ownerWallets.includes(userAddress) || 
+                                  ownerWallets.includes(userAddress.toLowerCase());
             
-            return hasRole;
+            console.log('Is owner wallet check:', isOwnerWallet, 'for address:', userAddress);
+            
+            if (isOwnerWallet) {
+                console.log('Owner wallet detected - granting admin access');
+                return true;
+            }
+            
+            // Check DEFAULT_ADMIN_ROLE (0x000...)
+            const defaultAdminRole = '0x0000000000000000000000000000000000000000000000000000000000000000';
+            const hasDefaultAdminRole = await this.instance.hasRole(defaultAdminRole, userAddress).call();
+            
+            // Check ADMIN_ROLE (keccak256("ADMIN_ROLE"))
+            const adminRole = '0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775';
+            const hasAdminRole = await this.instance.hasRole(adminRole, userAddress).call();
+            
+            const isAdmin = hasDefaultAdminRole || hasAdminRole || isOwnerWallet;
+            
+            console.log('Has DEFAULT_ADMIN_ROLE:', hasDefaultAdminRole);
+            console.log('Has ADMIN_ROLE:', hasAdminRole);
+            console.log('Is owner wallet:', isOwnerWallet);
+            console.log('User has admin role:', isAdmin);
+            
+            return isAdmin;
         } catch (error) {
             console.error('Failed to check admin role:', error);
             return false;
