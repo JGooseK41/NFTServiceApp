@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fix Case with Transaction Hash</title>
+    <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.min.js"></script>
+</head>
+<body>
+    <h1>Fix Case with Transaction Hash</h1>
+    <p>Transaction: 033b50d5d7510d247274d9dd535b50a61706ec987415ee8f4847c14e75f867f5</p>
+    
+    <button onclick="fixCase()">Fix Case Now</button>
+    <div id="output"></div>
+    
+    <script>
+        // Initialize TronWeb
+        window.tronWeb = new TronWeb({
+            fullHost: 'https://api.trongrid.io'
+        });
+        
+        async function fixCase() {
+            const caseNumber = prompt('Enter case number:') || '4343902';
+            const transactionHash = '033b50d5d7510d247274d9dd535b50a61706ec987415ee8f4847c14e75f867f5';
+            
+            try {
+                console.log('Fetching transaction info...');
+                const txInfo = await window.tronWeb.trx.getTransactionInfo(transactionHash);
+                console.log('Transaction info:', txInfo);
+                
+                // Extract token IDs from logs
+                let alertTokenId = null;
+                let documentTokenId = null;
+                
+                if (txInfo && txInfo.log) {
+                    for (const log of txInfo.log) {
+                        if (log.topics && log.topics[0] === 'ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef') {
+                            // Transfer event
+                            const tokenId = parseInt(log.topics[3], 16);
+                            console.log('Found token ID:', tokenId);
+                            
+                            if (!alertTokenId) {
+                                alertTokenId = tokenId;
+                            } else if (!documentTokenId) {
+                                documentTokenId = tokenId;
+                            }
+                        }
+                    }
+                }
+                
+                // If we didn't find token IDs, ask user
+                if (!alertTokenId) {
+                    alertTokenId = prompt('Enter Alert NFT Token ID:');
+                }
+                if (!documentTokenId) {
+                    documentTokenId = prompt('Enter Document NFT Token ID:');
+                }
+                
+                // Get existing case data from localStorage
+                const cases = JSON.parse(localStorage.getItem('legalnotice_cases') || '[]');
+                let caseData = cases.find(c => 
+                    c.caseNumber === caseNumber || 
+                    c.case_number === caseNumber ||
+                    String(c.caseNumber).includes(caseNumber) ||
+                    String(c.case_number).includes(caseNumber)
+                );
+                
+                if (!caseData) {
+                    // Create minimal case data
+                    caseData = {
+                        caseNumber: caseNumber,
+                        case_number: caseNumber,
+                        status: 'served',
+                        pageCount: 46,
+                        page_count: 46
+                    };
+                    cases.push(caseData);
+                }
+                
+                // Update case data
+                caseData.status = 'served';
+                caseData.transactionHash = transactionHash;
+                caseData.alertTokenId = alertTokenId;
+                caseData.documentTokenId = documentTokenId;
+                caseData.servedAt = caseData.servedAt || new Date().toISOString();
+                caseData.recipients = caseData.recipients || [
+                    'TD1F37V4cAFH1YQCYVLtcFyFXkZUs7mBDE',
+                    'TAr8S97Xw3xhrGkZSghXQ85SFuP5XDU4cF',
+                    'TBrjqKepMQKeZWjebMip2bH5872fiD3F6Q',
+                    'TFfagVe1aZpSfYaruY6xJfVPYZBuMj57FH'
+                ];
+                caseData.agency = caseData.agency || 'The Block Audit';
+                caseData.noticeType = caseData.noticeType || 'Legal Notice';
+                
+                // Save to localStorage
+                localStorage.setItem('legalnotice_cases', JSON.stringify(cases));
+                console.log('Updated localStorage');
+                
+                // Send to backend
+                const backendUrl = 'https://nftserviceapp.onrender.com';
+                const response = await fetch(`${backendUrl}/api/cases/${caseNumber}/service-complete`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Server-Address': 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY'
+                    },
+                    body: JSON.stringify({
+                        transactionHash: transactionHash,
+                        alertTokenId: alertTokenId,
+                        documentTokenId: documentTokenId,
+                        alertImage: caseData.alertImage || caseData.alert_preview,
+                        ipfsHash: caseData.ipfsHash || caseData.ipfsDocument,
+                        encryptionKey: caseData.encryptionKey || caseData.encryption_key || '',
+                        recipients: caseData.recipients,
+                        agency: caseData.agency,
+                        noticeType: caseData.noticeType,
+                        pageCount: caseData.pageCount || caseData.page_count || 46,
+                        servedAt: caseData.servedAt,
+                        serverAddress: 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY'
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ Backend updated:', result);
+                    
+                    document.getElementById('output').innerHTML = `
+                        <h3>✅ Case Updated Successfully!</h3>
+                        <p>Case Number: ${caseNumber}</p>
+                        <p>Transaction: ${transactionHash}</p>
+                        <p>Alert Token ID: ${alertTokenId}</p>
+                        <p>Document Token ID: ${documentTokenId}</p>
+                        <p>Status: served</p>
+                        <hr>
+                        <p><strong>Now go back to the main app and refresh the Cases tab to see the updates.</strong></p>
+                    `;
+                } else {
+                    const error = await response.text();
+                    throw new Error('Backend update failed: ' + error);
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('output').innerHTML = `
+                    <h3>❌ Error</h3>
+                    <p>${error.message}</p>
+                    <p>Check the console for more details.</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
