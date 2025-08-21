@@ -526,8 +526,14 @@ window.app = {
                 return;
             }
             
-            // Validate all PDFs first
+            // Validate all PDFs first (skip validation for backend documents)
             for (const fileItem of this.state.fileQueue) {
+                // Skip validation for documents from backend - they're already processed
+                if (fileItem.isExisting && fileItem.fromBackend) {
+                    console.log('Skipping validation for backend document:', fileItem.name);
+                    continue;
+                }
+                
                 const validation = await this.validatePDF(fileItem.file);
                 if (!validation.valid) {
                     this.showError(`Invalid PDF: ${fileItem.name} - ${validation.error}`);
@@ -1889,18 +1895,27 @@ window.app = {
             
             // Special handling for existing documents
             if (fileItem.isExisting) {
+                const displayName = fileItem.fromBackend ? fileItem.name : 'Existing Case Documents';
+                const displaySize = fileItem.fromBackend ? this.formatFileSize(fileItem.size) : 'Previously uploaded documents';
+                
                 item.innerHTML = `
                     <div class="d-flex align-items-center">
                         <i class="bi bi-file-earmark-pdf-fill text-primary me-2"></i>
                         <div>
-                            <strong>Existing Case Documents</strong>
-                            <small class="text-muted d-block">Previously uploaded documents</small>
+                            <strong>${displayName}</strong>
+                            <small class="text-muted d-block">${displaySize}</small>
                         </div>
                     </div>
                     <div>
-                        <span class="badge bg-info me-2">Existing</span>
+                        <span class="badge bg-info me-2">From Backend</span>
+                        ${this.currentCaseId ? `
+                            <a href="${getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com'}/api/cases/${this.currentCaseId}/pdf?serverAddress=${window.wallet?.address}" 
+                               target="_blank" class="btn btn-sm btn-primary me-2">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                        ` : ''}
                         <button type="button" class="btn btn-sm btn-warning" onclick="app.clearExistingDocuments()">
-                            Replace All
+                            <i class="bi bi-arrow-repeat"></i> Replace
                         </button>
                     </div>
                 `;
@@ -2283,6 +2298,7 @@ window.app = {
     clearExistingDocuments() {
         this.hasExistingDocuments = false;
         this.consolidatedPDFUrl = null;
+        this.currentCaseId = null; // Clear case ID so a new case will be created
         this.state.fileQueue = [];
         this.displayFileQueue();
         
@@ -2290,6 +2306,12 @@ window.app = {
         const existingAlert = document.getElementById('existingDocsAlert');
         if (existingAlert) {
             existingAlert.remove();
+        }
+        
+        // Re-enable the file input
+        const fileInput = document.querySelector('input[type="file"]');
+        if (fileInput) {
+            fileInput.disabled = false;
         }
         
         this.showInfo('Existing documents cleared. Please upload new PDFs.');

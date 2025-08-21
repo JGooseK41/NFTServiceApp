@@ -307,12 +307,54 @@ window.cases = {
     // Load documents from saved case
     async loadCaseDocuments(caseData) {
         try {
-            // Use the app's showExistingCaseDocuments function
+            const caseId = caseData.id || caseData.caseId || caseData.caseNumber;
+            const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+            
+            // First, show the UI that indicates existing documents
             if (window.app && window.app.showExistingCaseDocuments) {
                 await window.app.showExistingCaseDocuments(caseData);
-                console.log('Existing case documents displayed');
-            } else {
-                console.error('showExistingCaseDocuments function not found');
+                console.log('Existing case documents UI displayed');
+            }
+            
+            // Now fetch the actual PDF from backend to populate the file queue
+            if (caseData.pdf_path) {
+                try {
+                    const response = await fetch(`${backendUrl}/api/cases/${caseId}/pdf`, {
+                        headers: {
+                            'X-Server-Address': window.wallet.address
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const fileName = `Case_${caseId}_documents.pdf`;
+                        const file = new File([blob], fileName, { type: 'application/pdf' });
+                        
+                        // Replace placeholder with actual PDF
+                        window.app.state.fileQueue = [{
+                            file: file,
+                            id: Date.now(),
+                            name: fileName,
+                            size: file.size,
+                            isExisting: true,
+                            fromBackend: true
+                        }];
+                        
+                        // Update the display to show the actual file
+                        window.app.displayFileQueue();
+                        
+                        // Store the consolidated PDF URL for preview
+                        window.app.consolidatedPDFUrl = `${backendUrl}/api/cases/${caseId}/pdf`;
+                        window.app.currentCaseId = caseId;
+                        
+                        console.log('Backend PDF loaded into file queue');
+                    } else {
+                        console.error('Failed to fetch PDF from backend');
+                    }
+                } catch (fetchError) {
+                    console.error('Error fetching PDF:', fetchError);
+                    // Keep the placeholder if fetch fails
+                }
             }
             
         } catch (error) {
