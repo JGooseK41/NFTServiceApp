@@ -129,10 +129,22 @@ class PDFCleaner {
             const cleanPdf = await PDFDocument.create();
             
             let successfulPages = 0;
+            let hasVisibleContent = false;
             
             for (let i = 0; i < pageCount; i++) {
                 try {
                     const [page] = await cleanPdf.copyPages(pdf, [i]);
+                    
+                    // Check if page has actual content
+                    const origPage = pdf.getPage(i);
+                    const resources = origPage.node.Resources();
+                    const hasFont = resources && resources.lookup('Font');
+                    const hasXObject = resources && resources.lookup('XObject');
+                    
+                    if (hasFont || hasXObject) {
+                        hasVisibleContent = true;
+                    }
+                    
                     cleanPdf.addPage(page);
                     successfulPages++;
                 } catch (pageError) {
@@ -140,13 +152,18 @@ class PDFCleaner {
                 }
             }
             
-            if (successfulPages > 0) {
+            // Only return success if we have pages with actual content
+            if (successfulPages > 0 && hasVisibleContent) {
                 const cleanedBytes = await cleanPdf.save();
                 return {
                     success: true,
                     buffer: Buffer.from(cleanedBytes),
                     pageCount: successfulPages
                 };
+            } else if (successfulPages > 0) {
+                console.log(`      Warning: ${successfulPages} pages copied but no visible content detected`);
+                // Return null to try other strategies
+                return null;
             }
         } catch (error) {
             // Continue to next strategy
@@ -310,10 +327,11 @@ class PDFCleaner {
                 console.log(`      Could not read original PDF page count`);
             }
             
-            // Use Ghostscript with settings to handle corrupt PDFs
+            // Use Ghostscript with settings to handle corrupt and encrypted PDFs
             // -dPDFSTOPONERROR=false tells GS to continue even when encountering errors
-            // -dPDFSETTINGS=/printer preserves more content than /prepress
-            const gsCommand = `gs -q -dNOPAUSE -dBATCH -dPDFSTOPONERROR=false -dPDFSETTINGS=/printer -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -sOutputFile="${outputPath}" -f "${inputPath}" 2>&1 || true`;
+            // -dPDFSETTINGS=/ebook preserves text while reprocessing
+            // -dPrinted=false helps with some encrypted PDFs
+            const gsCommand = `gs -q -dNOPAUSE -dBATCH -dPDFSTOPONERROR=false -dPDFSETTINGS=/ebook -dPrinted=false -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -sOutputFile="${outputPath}" -f "${inputPath}" 2>&1 || true`;
             
             try {
                 const result = await execPromise(gsCommand);
