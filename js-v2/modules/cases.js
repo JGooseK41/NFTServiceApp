@@ -383,30 +383,72 @@ window.cases = {
         this.displayCaseDetails(caseData);
     },
     
-    // Display case details modal
+    // Display case details modal with document previews
     displayCaseDetails(caseData) {
+        // Get case ID and prepare preview URLs
+        const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+        const caseId = caseData.caseNumber || caseData.case_number || caseData.id;
+        const alertPreviewUrl = `${backendUrl}/api/cases/${caseId}/preview`;
+        const pdfUrl = `${backendUrl}/api/cases/${caseId}/pdf?serverAddress=${encodeURIComponent(window.wallet.address)}`;
+        
         const modalHtml = `
             <div class="modal fade" id="caseDetailsModal" tabindex="-1">
-                <div class="modal-dialog modal-lg">
+                <div class="modal-dialog modal-xl">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title">Case: ${caseData.caseNumber}</h5>
+                            <h5 class="modal-title">Case: ${caseData.caseNumber || caseData.case_number || caseId}</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body">
+                            <!-- Case Info Row -->
                             <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <strong>Created:</strong> ${new Date(caseData.createdAt).toLocaleString()}
+                                <div class="col-md-4">
+                                    <strong>Created:</strong> ${new Date(caseData.createdAt || caseData.created_at).toLocaleString()}
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <strong>Status:</strong> 
-                                    <span class="badge bg-${this.getStatusColor(caseData.status)}">
-                                        ${caseData.status}
+                                    <span class="badge bg-${this.getStatusColor(caseData.status || 'pending')}">
+                                        ${caseData.status || 'Awaiting Service'}
                                     </span>
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>Recipients:</strong> ${caseData.recipient_count || caseData.recipientCount || 0}
                                 </div>
                             </div>
                             
-                            <h6>Notices Served</h6>
+                            <!-- Document Previews Section -->
+                            <h6>Document Previews</h6>
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header bg-primary text-white">
+                                            <i class="bi bi-bell-fill"></i> Alert Notice
+                                        </div>
+                                        <div class="card-body p-2" style="height: 400px; overflow: hidden;">
+                                            <img src="${alertPreviewUrl}" 
+                                                 alt="Alert Notice Preview" 
+                                                 class="img-fluid" 
+                                                 style="width: 100%; height: 100%; object-fit: contain;"
+                                                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjIwMCIgeT0iMTUwIiBzdHlsZT0iZmlsbDojYWFhO2ZvbnQtd2VpZ2h0OmJvbGQ7Zm9udC1zaXplOjE5cHg7Zm9udC1mYW1pbHk6QXJpYWwsSGVsdmV0aWNhLHNhbnMtc2VyaWY7ZG9taW5hbnQtYmFzZWxpbmU6Y2VudHJhbCI+UHJldmlldyBOb3QgQXZhaWxhYmxlPC90ZXh0Pjwvc3ZnPg=='">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header bg-success text-white">
+                                            <i class="bi bi-file-earmark-text-fill"></i> Legal Documents
+                                        </div>
+                                        <div class="card-body p-2" style="height: 400px;">
+                                            <iframe src="${pdfUrl}" 
+                                                    style="width: 100%; height: 100%; border: none;"
+                                                    title="Document Preview">
+                                            </iframe>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <h6>Service Details</h6>
                             <div class="table-responsive">
                                 <table class="table table-sm">
                                     <thead>
@@ -441,8 +483,11 @@ window.cases = {
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button class="btn btn-primary" onclick="cases.resumeCase('${caseData.caseNumber}')" data-bs-dismiss="modal">
-                                Resume Case
+                            <button class="btn btn-info" onclick="cases.showFullPreview('${caseId}')" data-bs-dismiss="modal">
+                                <i class="bi bi-eye-fill"></i> Full Preview
+                            </button>
+                            <button class="btn btn-primary" onclick="cases.resumeCase('${caseData.caseNumber || caseData.case_number || caseId}')" data-bs-dismiss="modal">
+                                <i class="bi bi-arrow-clockwise"></i> Resume Case
                             </button>
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                         </div>
@@ -462,6 +507,69 @@ window.cases = {
         document.getElementById('caseDetailsModal').addEventListener('hidden.bs.modal', function() {
             this.remove();
         });
+    },
+    
+    // Show full preview using the existing preview modal from app.js
+    async showFullPreview(caseId) {
+        try {
+            // Get case data
+            let caseData = null;
+            
+            // First try from current cases
+            if (this.currentCases) {
+                caseData = this.currentCases.find(c => 
+                    c.caseNumber === caseId || 
+                    c.case_number === caseId || 
+                    c.id === caseId
+                );
+            }
+            
+            // If not found, fetch from backend
+            if (!caseData) {
+                const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+                const response = await fetch(`${backendUrl}/api/cases/${caseId}`, {
+                    headers: {
+                        'X-Server-Address': window.wallet.address
+                    }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    caseData = result.case;
+                }
+            }
+            
+            if (!caseData) {
+                window.app.showError('Case not found');
+                return;
+            }
+            
+            // Set up app state to use existing preview functionality
+            const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+            window.app.currentCaseId = caseId;
+            window.app.consolidatedPDFUrl = `${backendUrl}/api/cases/${caseId}/pdf`;
+            
+            // Set up pending form data from case metadata
+            const metadata = caseData.metadata || {};
+            window.app.pendingFormData = {
+                caseNumber: caseData.caseNumber || caseData.case_number || caseId,
+                issuingAgency: metadata.issuingAgency || caseData.issuing_agency || 'The Block Service',
+                noticeType: metadata.noticeType || caseData.notice_type || 'Legal Notice',
+                noticeText: metadata.noticeText || 'Legal document for service',
+                responseDeadline: metadata.responseDeadline || '',
+                recipients: metadata.recipients || caseData.recipients || []
+            };
+            
+            // Set up file queue (even if empty, preview will use consolidated PDF)
+            window.app.state.fileQueue = [];
+            
+            // Call the existing preview function
+            await window.app.previewNotice();
+            
+        } catch (error) {
+            console.error('Error showing full preview:', error);
+            window.app.showError('Failed to load preview: ' + error.message);
+        }
     },
     
     // Delete a case
