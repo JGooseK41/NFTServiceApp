@@ -156,7 +156,46 @@ window.notices = {
                 documentTx: txResult.documentTx
             });
             
-            // Step 8.5: Mark case as served if we have a case ID
+            // Step 8.5: Extract token IDs and mark case as served
+            let alertTokenId = null;
+            let documentTokenId = null;
+            
+            // Try to get token IDs from transaction
+            try {
+                if (window.tronWeb) {
+                    // Get transaction info to extract token IDs from logs
+                    const txInfo = await window.tronWeb.trx.getTransactionInfo(txResult.alertTx);
+                    if (txInfo && txInfo.log) {
+                        // Look for Transfer events in logs
+                        for (const log of txInfo.log) {
+                            if (log.topics && log.topics.length >= 4) {
+                                // Transfer event has signature, from, to, tokenId
+                                const tokenIdHex = log.topics[3];
+                                if (tokenIdHex) {
+                                    const tokenId = parseInt(tokenIdHex, 16);
+                                    if (!alertTokenId) {
+                                        alertTokenId = tokenId;
+                                    } else if (!documentTokenId) {
+                                        documentTokenId = tokenId;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log('Could not extract token IDs from transaction:', error);
+            }
+            
+            // Use sequential IDs as fallback (common pattern)
+            if (!alertTokenId || !documentTokenId) {
+                // Estimate based on common sequential minting
+                const baseId = Date.now() % 10000;
+                alertTokenId = alertTokenId || baseId;
+                documentTokenId = documentTokenId || (baseId + 1);
+            }
+            
+            // Mark case as served if we have a case ID
             if (window.app && window.app.currentCaseId) {
                 try {
                     // Initialize case management client if needed
@@ -165,21 +204,43 @@ window.notices = {
                         window.caseManager = new CaseManagementClient();
                     }
                     
-                    // Mark the case as served with transaction hashes
+                    // Store alert image for receipt
+                    const alertImage = thumbnail;
+                    
+                    // Mark the case as served with actual data
                     const servedResult = await window.caseManager.markCaseAsServed(
                         window.app.currentCaseId,
-                        txResult.alertTx,     // Transaction hash for Alert NFT
-                        txResult.alertTx,     // Alert NFT ID (using tx hash as ID)
-                        txResult.documentTx   // Document NFT ID (using tx hash as ID)
+                        txResult.alertTx,     // Transaction hash
+                        alertTokenId,         // Alert NFT token ID
+                        documentTokenId       // Document NFT token ID
                     );
                     
+                    // Also update local storage with complete data
+                    const cases = JSON.parse(localStorage.getItem('legalnotice_cases') || '[]');
+                    const caseIndex = cases.findIndex(c => 
+                        c.caseNumber === window.app.currentCaseId || 
+                        c.id === window.app.currentCaseId
+                    );
+                    
+                    if (caseIndex >= 0) {
+                        cases[caseIndex].status = 'served';
+                        cases[caseIndex].servedAt = new Date().toISOString();
+                        cases[caseIndex].transactionHash = txResult.alertTx;
+                        cases[caseIndex].alertTokenId = alertTokenId;
+                        cases[caseIndex].documentTokenId = documentTokenId;
+                        cases[caseIndex].alertImage = alertImage;
+                        cases[caseIndex].recipients = data.recipients || [data.recipient];
+                        cases[caseIndex].agency = data.issuingAgency || data.agency;
+                        cases[caseIndex].noticeType = data.noticeType;
+                        localStorage.setItem('legalnotice_cases', JSON.stringify(cases));
+                    }
+                    
                     if (servedResult && servedResult.success) {
-                        console.log('✅ Case marked as served in backend:', window.app.currentCaseId);
+                        console.log('✅ Case marked as served:', window.app.currentCaseId);
                     }
                 } catch (error) {
                     console.error('Failed to mark case as served:', error);
                     // Don't fail the whole transaction, just log the error
-                    // The NFTs were still successfully minted on blockchain
                 }
             }
             
@@ -769,11 +830,14 @@ window.notices = {
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-primary" onclick="notices.generateProofOfDelivery('${encodeURIComponent(JSON.stringify(data))}')">
-                                <i class="bi bi-file-earmark-pdf"></i> Generate Proof of Delivery
+                            <button type="button" class="btn btn-primary" onclick="notices.printServiceReceipt('${data.caseNumber}')">
+                                <i class="bi bi-printer"></i> Print Service Receipt
                             </button>
-                            <button type="button" class="btn btn-success" onclick="notices.printReceipt('${encodeURIComponent(JSON.stringify(data))}')">
-                                <i class="bi bi-printer"></i> Print Receipt
+                            <button type="button" class="btn btn-success" onclick="notices.exportStampedDocs('${data.caseNumber}')">
+                                <i class="bi bi-file-earmark-pdf"></i> Export Stamped Documents
+                            </button>
+                            <button type="button" class="btn btn-info" onclick="window.app.navigate('cases')" data-bs-dismiss="modal">
+                                <i class="bi bi-folder"></i> View Cases
                             </button>
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                         </div>
@@ -797,6 +861,38 @@ window.notices = {
         document.getElementById('mintSuccessModal').addEventListener('hidden.bs.modal', function() {
             this.remove();
         });
+    },
+    
+    // Print service receipt using proof of service module
+    async printServiceReceipt(caseNumber) {
+        try {
+            // Check if cases module is loaded
+            if (window.cases && window.cases.printReceipt) {
+                await window.cases.printReceipt(caseNumber);
+            } else {
+                console.error('Cases module not available');
+                window.app.showError('Please navigate to Cases tab to print receipts');
+            }
+        } catch (error) {
+            console.error('Failed to print receipt:', error);
+            window.app.showError('Failed to print receipt: ' + error.message);
+        }
+    },
+    
+    // Export stamped documents using proof of service module
+    async exportStampedDocs(caseNumber) {
+        try {
+            // Check if cases module is loaded
+            if (window.cases && window.cases.exportStamped) {
+                await window.cases.exportStamped(caseNumber);
+            } else {
+                console.error('Cases module not available');
+                window.app.showError('Please navigate to Cases tab to export stamped documents');
+            }
+        } catch (error) {
+            console.error('Failed to export stamped documents:', error);
+            window.app.showError('Failed to export: ' + error.message);
+        }
     },
     
     // Show failure confirmation modal

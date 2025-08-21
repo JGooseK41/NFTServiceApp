@@ -159,11 +159,16 @@ window.cases = {
     
     // Get status color
     getStatusColor(status) {
-        switch(status) {
-            case 'Completed': return 'success';
-            case 'Active': return 'primary';
-            case 'Pending': return 'warning';
-            default: return 'secondary';
+        switch(status?.toLowerCase()) {
+            case 'completed': 
+            case 'served': 
+                return 'success';
+            case 'active': 
+                return 'primary';
+            case 'pending': 
+                return 'warning';
+            default: 
+                return 'secondary';
         }
     },
     
