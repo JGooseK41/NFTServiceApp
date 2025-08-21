@@ -428,11 +428,7 @@ window.contract = {
             // Check if serveNoticeBatch exists
             if (!this.instance.serveNoticeBatch) {
                 console.error('serveNoticeBatch not found. Available methods:', Object.keys(this.instance));
-                
-                // Fallback: Create individual notices instead of batch
-                console.log('Falling back to individual notice creation...');
-                const results = [];
-                for (const notice of batchNotices) {
+                throw new Error('Batch minting not available in contract');
                     try {
                         const tx = await this.instance.serveNotice(
                             notice.recipient,
@@ -487,65 +483,114 @@ window.contract = {
             console.log('Batch size:', batchNotices.length);
             
             try {
-                // First try the normal way
-                const tx = await this.instance.serveNoticeBatch(batchNotices).send({
+                // CRITICAL FIX: Pass ONLY the array of arrays, not the object array
+                // TronWeb expects values only, not objects with property names
+                const noticeArrays = batchNotices.map(notice => [
+                    notice.recipient,
+                    notice.encryptedIPFS || '',
+                    notice.encryptionKey || '',
+                    notice.issuingAgency || '',
+                    notice.noticeType || '',
+                    notice.caseNumber || '',
+                    notice.caseDetails || '',
+                    notice.legalRights || '',
+                    notice.sponsorFees || false,
+                    notice.metadataURI || ''
+                ]);
+                
+                console.log('Sending batch of', noticeArrays.length, 'notices as pure value arrays');
+                console.log('First notice array format:', noticeArrays[0]);
+                
+                // Pass the array directly, not wrapped in another array or object
+                const tx = await this.instance.serveNoticeBatch(noticeArrays).send({
                     feeLimit: 2000000000,
                     callValue: totalFee,
                     shouldPollResponse: true
                 });
                 
-                console.log('Batch transaction successful with normal method!');
+                console.log('Batch transaction successful!');
                 return { success: true, txId: tx, alertTx: tx, documentTx: tx };
                 
             } catch (normalError) {
-                console.error('Normal method failed:', normalError.message);
-                console.log('Trying alternative method with triggerSmartContract...');
+                console.error('Normal method failed, trying proper batch fix:', normalError.message);
                 
-                // Alternative: Use triggerSmartContract directly
-                const functionSelector = 'serveNoticeBatch((address,string,string,string,string,string,string,string,bool,string)[])';
+                // Use the proper batch fix module that handles struct array encoding correctly
+                if (window.properBatchFix) {
+                    try {
+                        console.log('Using properBatchFix module for batch minting...');
+                        const result = await window.properBatchFix.executeBatchMint(
+                            this.instance,
+                            batchNotices,
+                            totalFee
+                        );
+                        
+                        if (result.success) {
+                            return {
+                                ...result,
+                                recipientCount: data.recipients.length,
+                                metadata
+                            };
+                        }
+                    } catch (batchFixError) {
+                        console.error('Proper batch fix also failed:', batchFixError);
+                    }
+                }
                 
-                // Format parameters for direct call
-                const parameter = [{
-                    type: 'tuple[]',
-                    value: batchNotices.map(notice => [
-                        notice.recipient,
-                        notice.encryptedIPFS,
-                        notice.encryptionKey,
-                        notice.issuingAgency,
-                        notice.noticeType,
-                        notice.caseNumber,
-                        notice.caseDetails,
-                        notice.legalRights,
-                        notice.sponsorFees,
-                        notice.metadataURI
-                    ])
-                }];
+                // If batch fix module isn't available or fails, try direct encoding
+                try {
+                    console.log('Attempting direct raw transaction approach...');
+                    
+                    // Build the function selector
+                    const functionSelector = 'serveNoticeBatch((address,string,string,string,string,string,string,string,bool,string)[])';
+                    
+                    // Create the parameter object for the struct array
+                    // Key insight: Pass the array of arrays directly
+                    const params = [{
+                        type: 'tuple[]',
+                        value: noticeArrays.map(noticeValues => ({
+                            type: 'tuple',
+                            components: [
+                                { type: 'address', value: noticeValues[0] },
+                                { type: 'string', value: noticeValues[1] },
+                                { type: 'string', value: noticeValues[2] },
+                                { type: 'string', value: noticeValues[3] },
+                                { type: 'string', value: noticeValues[4] },
+                                { type: 'string', value: noticeValues[5] },
+                                { type: 'string', value: noticeValues[6] },
+                                { type: 'string', value: noticeValues[7] },
+                                { type: 'bool', value: noticeValues[8] },
+                                { type: 'string', value: noticeValues[9] }
+                            ]
+                        }))
+                    }];
+                    
+                    const transaction = await this.tronWeb.transactionBuilder.triggerSmartContract(
+                        this.address,
+                        functionSelector,
+                        {
+                            feeLimit: 2000000000,
+                            callValue: totalFee
+                        },
+                        params,
+                        this.tronWeb.defaultAddress.base58
+                    );
                 
-                const transaction = await this.tronWeb.transactionBuilder.triggerSmartContract(
-                    this.address,
-                    functionSelector,
-                    {
-                        feeLimit: 2000000000,
-                        callValue: totalFee
-                    },
-                    parameter,
-                    this.tronWeb.defaultAddress.base58
-                );
-                
-                const signedTx = await this.tronWeb.trx.sign(transaction.transaction);
-                const result = await this.tronWeb.trx.sendRawTransaction(signedTx);
-                
-                console.log('Batch transaction successful with triggerSmartContract!');
-                const txId = result.txid;
-                
-                return {
-                    success: true,
-                    txId: txId,
-                    alertTx: txId,
-                    documentTx: txId,
-                    recipientCount: data.recipients.length,
-                    metadata
-                };
+                    const signedTx = await this.tronWeb.trx.sign(transaction.transaction);
+                    const result = await this.tronWeb.trx.sendRawTransaction(signedTx);
+                    
+                    console.log('Batch transaction successful with direct encoding!');
+                    return {
+                        success: true,
+                        txId: result.txid,
+                        alertTx: result.txid,
+                        documentTx: result.txid,
+                        recipientCount: data.recipients.length,
+                        metadata
+                    };
+                } catch (directError) {
+                    console.error('Direct encoding also failed:', directError);
+                    throw directError;
+                }
             }
             
         } catch (error) {
