@@ -419,9 +419,16 @@ window.contract = {
             });
             
             // Calculate total fees
+            // The contract's calculateFee includes BOTH Alert and Document NFTs
             const creationFee = await this.instance.creationFee().call();
-            const totalFee = parseInt(creationFee) * data.recipients.length * 2; // x2 for Alert + Document
+            const serviceFee = await this.instance.serviceFee().call();
+            const feePerRecipient = parseInt(creationFee) + parseInt(serviceFee); // 5 + 20 = 25 TRX per recipient
+            const totalFee = feePerRecipient * data.recipients.length; // NOT x2 - contract handles both NFTs
             
+            console.log('Creation fee:', creationFee / 1000000, 'TRX');
+            console.log('Service fee:', serviceFee / 1000000, 'TRX');
+            console.log('Fee per recipient (includes both NFTs):', feePerRecipient / 1000000, 'TRX');
+            console.log('Total fee for batch (', data.recipients.length, 'recipients):', totalFee / 1000000, 'TRX');
             console.log('Calling serveNoticeBatch with:', batchNotices.length, 'notices');
             console.log('First notice:', JSON.stringify(batchNotices[0], null, 2));
             
@@ -431,18 +438,19 @@ window.contract = {
                 throw new Error('Batch minting not available in contract');
             }
             
-            // Call batch function exactly as v1 did
-            console.log('Calling serveNoticeBatch with', batchNotices.length, 'notices');
-            console.log('First notice structure:', JSON.stringify(batchNotices[0], null, 2));
-            
-            // Verify the contract has the batch method
-            if (!this.instance.serveNoticeBatch) {
-                throw new Error('serveNoticeBatch method not found in contract instance');
-            }
-            
-            // The issue is TronWeb is passing the array incorrectly
-            // In v1 it works, so the contract and method are fine
-            // The problem is likely with how TronWeb encodes the struct array
+            // Prepare notice arrays (moved outside try block for scope)
+            const noticeArrays = batchNotices.map(notice => [
+                notice.recipient,
+                notice.encryptedIPFS || '',
+                notice.encryptionKey || '',
+                notice.issuingAgency || '',
+                notice.noticeType || '',
+                notice.caseNumber || '',
+                notice.caseDetails || '',
+                notice.legalRights || '',
+                notice.sponsorFees || false,
+                notice.metadataURI || ''
+            ]);
             
             // Try using triggerSmartContract directly to bypass encoding issues
             console.log('Attempting batch transaction with direct triggerSmartContract...');
@@ -450,21 +458,6 @@ window.contract = {
             console.log('Batch size:', batchNotices.length);
             
             try {
-                // CRITICAL FIX: Pass ONLY the array of arrays, not the object array
-                // TronWeb expects values only, not objects with property names
-                const noticeArrays = batchNotices.map(notice => [
-                    notice.recipient,
-                    notice.encryptedIPFS || '',
-                    notice.encryptionKey || '',
-                    notice.issuingAgency || '',
-                    notice.noticeType || '',
-                    notice.caseNumber || '',
-                    notice.caseDetails || '',
-                    notice.legalRights || '',
-                    notice.sponsorFees || false,
-                    notice.metadataURI || ''
-                ]);
-                
                 console.log('Sending batch of', noticeArrays.length, 'notices as pure value arrays');
                 console.log('First notice array format:', noticeArrays[0]);
                 
@@ -577,6 +570,8 @@ window.contract = {
         console.log('Minting to selected recipients:', recipients);
         const results = [];
         const creationFee = await this.instance.creationFee().call();
+        const serviceFee = await this.instance.serviceFee().call();
+        const feePerRecipient = parseInt(creationFee) + parseInt(serviceFee); // Contract handles both NFTs in one fee
         
         for (const recipient of recipients) {
             try {
@@ -609,7 +604,7 @@ window.contract = {
                     noticeData.metadataURI
                 ).send({
                     feeLimit: 500000000,
-                    callValue: parseInt(creationFee) * 2, // Alert + Document
+                    callValue: feePerRecipient, // Contract handles both Alert + Document in one fee
                     shouldPollResponse: true
                 });
                 
