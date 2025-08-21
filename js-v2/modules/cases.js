@@ -10,6 +10,18 @@ window.cases = {
     // Load cases from storage and backend
     async loadCases() {
         try {
+            // Check if we need to auto-resume a case
+            const resumeData = sessionStorage.getItem('resumeCase');
+            if (resumeData) {
+                sessionStorage.removeItem('resumeCase');
+                const { caseNumber } = JSON.parse(resumeData);
+                console.log('Auto-resuming case:', caseNumber);
+                setTimeout(() => {
+                    this.resumeCase(caseNumber);
+                }, 100);
+                return;
+            }
+            
             // Get local cases
             const localCases = window.storage.get('cases') || [];
             

@@ -1041,6 +1041,58 @@ window.app = {
                 return;
             }
             
+            // First check if case already exists
+            const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+            const serverAddress = window.tronWeb.defaultAddress.base58;
+            
+            this.showInfo('Checking if case exists...');
+            
+            try {
+                const checkResponse = await fetch(`${backendUrl}/api/cases/by-number/${caseNumber}?serverAddress=${serverAddress}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-Server-Address': serverAddress
+                    }
+                });
+                
+                if (checkResponse.ok) {
+                    const existingCase = await checkResponse.json();
+                    if (existingCase.success && existingCase.case) {
+                        // Case exists - prompt to resume
+                        const shouldResume = confirm(`Case ${caseNumber} already exists. Would you like to resume it instead?\n\nClick OK to resume the existing case, or Cancel to use a different case number.`);
+                        
+                        if (shouldResume) {
+                            // Navigate to cases page and resume
+                            this.showInfo('Resuming existing case...');
+                            
+                            // Store the case data for resuming
+                            sessionStorage.setItem('resumeCase', JSON.stringify({
+                                caseNumber: caseNumber,
+                                serverAddress: serverAddress
+                            }));
+                            
+                            // Navigate to cases page
+                            window.location.hash = '#cases';
+                            
+                            // Trigger resume after navigation
+                            setTimeout(() => {
+                                if (window.cases && window.cases.resumeCase) {
+                                    window.cases.resumeCase(caseNumber);
+                                }
+                            }, 500);
+                            
+                            return;
+                        } else {
+                            this.showError('Please use a different case number');
+                            document.getElementById('caseNumber').focus();
+                            return;
+                        }
+                    }
+                }
+            } catch (checkError) {
+                console.log('Case check failed, proceeding with creation:', checkError);
+            }
+            
             this.showInfo('Processing documents and creating case...');
             
             // Create FormData for multipart upload
@@ -1078,15 +1130,14 @@ window.app = {
             console.log('📤 Sending PDFs to server for cleaning and consolidation...');
             
             // Save to backend with multipart form data
-            const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
             const apiUrl = `${backendUrl}/api/cases`;
             console.log('Saving case to:', apiUrl);
-            console.log('Server address:', window.tronWeb.defaultAddress.base58);
+            console.log('Server address:', serverAddress);
             
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
-                    'X-Server-Address': window.tronWeb.defaultAddress.base58
+                    'X-Server-Address': serverAddress
                     // Don't set Content-Type, let browser set it for FormData
                 },
                 body: formData
@@ -1109,6 +1160,21 @@ window.app = {
                     const text = await response.text();
                     console.error('Server returned non-JSON response:', text.substring(0, 200));
                     errorMessage = `Server error (${response.status}): ${response.statusText}`;
+                    
+                    // Check if it's a duplicate case error
+                    if (errorMessage.includes('already exists')) {
+                        const shouldResume = confirm(`${errorMessage}\n\nWould you like to resume the existing case?`);
+                        if (shouldResume) {
+                            // Navigate to cases page
+                            window.location.hash = '#cases';
+                            setTimeout(() => {
+                                if (window.cases && window.cases.resumeCase) {
+                                    window.cases.resumeCase(caseNumber);
+                                }
+                            }, 500);
+                            return;
+                        }
+                    }
                 }
                 
                 throw new Error(errorMessage);
