@@ -62,47 +62,29 @@ window.notices = {
             
             // Check if we should use batch (multiple recipients)
             if (data.recipients.length > 1) {
-                console.log(`Creating notices for ${data.recipients.length} recipients...`);
+                console.log(`Creating batch notices for ${data.recipients.length} recipients...`);
                 
-                // Due to TronWeb struct array encoding issue, create notices individually
-                // This is still more efficient than user doing them one by one
-                for (const recipient of data.recipients) {
-                    const nftData = {
-                        noticeId,
-                        recipient: recipient,
-                        caseNumber: data.caseNumber,
-                        noticeText: data.noticeText,
-                        serverId,
-                        serverTimestamp: Math.floor(Date.now() / 1000),
-                        thumbnail,
-                        encrypted: data.encrypt !== false,
-                        ipfsHash: documentData.ipfsHash,
-                        pageCount: documentData.pageCount || 1,
-                        deadline: data.deadline || '',
-                        agency: 'Legal Services',
-                        legalRights: 'You have the right to respond to this legal notice',
-                        sponsorFees: false,
-                        caseDetails: data.caseDetails || data.noticeText
-                    };
-                    
-                    console.log(`Creating Alert and Document NFTs for recipient ${data.recipients.indexOf(recipient) + 1}/${data.recipients.length}`);
-                    
-                    // Create Alert NFT
-                    const alertResult = await window.contract.createAlertNFT(nftData);
-                    
-                    // Create Document NFT
-                    const documentResult = await window.contract.createDocumentNFT({
-                        ...nftData,
-                        legalRights: 'You must sign this document by the specified deadline'
-                    });
-                    
-                    txResults.push({
-                        alertTx: alertResult.txId,
-                        documentTx: documentResult.txId,
-                        success: alertResult.success && documentResult.success,
-                        recipient: recipient
-                    });
-                }
+                // Use v5 contract's batch function
+                const batchResult = await window.contract.createBatchNotices({
+                    recipients: data.recipients,
+                    noticeId,
+                    caseNumber: data.caseNumber,
+                    noticeText: data.noticeText,
+                    serverId,
+                    serverTimestamp: Math.floor(Date.now() / 1000),
+                    thumbnail,
+                    encrypted: data.encrypt !== false,
+                    ipfsHash: documentData.ipfsHash,
+                    encryptionKey: documentData.encryptionKey || '',
+                    pageCount: documentData.pageCount || 1,
+                    deadline: data.deadline || '',
+                    agency: 'Legal Services',
+                    legalRights: 'You have the right to respond to this legal notice',
+                    sponsorFees: false,
+                    caseDetails: data.caseDetails || data.noticeText
+                });
+                
+                txResults.push(batchResult);
                 
             } else {
                 // Single recipient - use regular method

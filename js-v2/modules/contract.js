@@ -463,45 +463,72 @@ window.contract = {
             // In v1 it works, so the contract and method are fine
             // The problem is likely with how TronWeb encodes the struct array
             
-            // Try calling exactly as v1 does - direct call with array
-            console.log('Attempting batch transaction...');
-            console.log('TronWeb version:', this.tronWeb.version);
+            // Try using triggerSmartContract directly to bypass encoding issues
+            console.log('Attempting batch transaction with direct triggerSmartContract...');
             console.log('Contract address:', this.address);
+            console.log('Batch size:', batchNotices.length);
             
-            // Log exactly what we're sending
-            console.log('Batch array being sent:', batchNotices);
-            console.log('Total fee:', totalFee);
-            
-            const tx = await this.instance.serveNoticeBatch(batchNotices).send({
-                feeLimit: 2000000000,  // Use same high limit as v1
-                callValue: totalFee,
-                shouldPollResponse: true
-            });
-            
-            console.log('Batch transaction result:', tx);
-            
-            // Extract alert and document IDs from result
-            let alertIds = [];
-            let documentIds = [];
-            
-            if (tx && Array.isArray(tx)) {
-                // Contract returns [alertIds[], documentIds[]]
-                if (tx.length >= 2 && Array.isArray(tx[0]) && Array.isArray(tx[1])) {
-                    alertIds = tx[0].map(id => id.toString());
-                    documentIds = tx[1].map(id => id.toString());
-                }
+            try {
+                // First try the normal way
+                const tx = await this.instance.serveNoticeBatch(batchNotices).send({
+                    feeLimit: 2000000000,
+                    callValue: totalFee,
+                    shouldPollResponse: true
+                });
+                
+                console.log('Batch transaction successful with normal method!');
+                return { success: true, txId: tx, alertTx: tx, documentTx: tx };
+                
+            } catch (normalError) {
+                console.error('Normal method failed:', normalError.message);
+                console.log('Trying alternative method with triggerSmartContract...');
+                
+                // Alternative: Use triggerSmartContract directly
+                const functionSelector = 'serveNoticeBatch((address,string,string,string,string,string,string,string,bool,string)[])';
+                
+                // Format parameters for direct call
+                const parameter = [{
+                    type: 'tuple[]',
+                    value: batchNotices.map(notice => [
+                        notice.recipient,
+                        notice.encryptedIPFS,
+                        notice.encryptionKey,
+                        notice.issuingAgency,
+                        notice.noticeType,
+                        notice.caseNumber,
+                        notice.caseDetails,
+                        notice.legalRights,
+                        notice.sponsorFees,
+                        notice.metadataURI
+                    ])
+                }];
+                
+                const transaction = await this.tronWeb.transactionBuilder.triggerSmartContract(
+                    this.address,
+                    functionSelector,
+                    {
+                        feeLimit: 2000000000,
+                        callValue: totalFee
+                    },
+                    parameter,
+                    this.tronWeb.defaultAddress.base58
+                );
+                
+                const signedTx = await this.tronWeb.trx.sign(transaction.transaction);
+                const result = await this.tronWeb.trx.sendRawTransaction(signedTx);
+                
+                console.log('Batch transaction successful with triggerSmartContract!');
+                const txId = result.txid;
+                
+                return {
+                    success: true,
+                    txId: txId,
+                    alertTx: txId,
+                    documentTx: txId,
+                    recipientCount: data.recipients.length,
+                    metadata
+                };
             }
-            
-            return {
-                success: true,
-                txId: tx,
-                alertTx: tx,
-                documentTx: tx,
-                alertIds,
-                documentIds,
-                recipientCount: data.recipients.length,
-                metadata
-            };
             
         } catch (error) {
             console.error('Failed to create batch notices:', error);
