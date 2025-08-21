@@ -145,13 +145,37 @@
                                             <label class="form-label">Notice Type</label>
                                             <select id="noticeType" class="form-control" required>
                                                 <option value="">Select notice type...</option>
-                                                <option value="Summons">Summons</option>
-                                                <option value="Subpoena">Subpoena</option>
-                                                <option value="Complaint">Complaint</option>
-                                                <option value="Motion">Motion</option>
-                                                <option value="Order">Court Order</option>
-                                                <option value="Settlement">Settlement Notice</option>
-                                                <option value="Default">Default Notice</option>
+                                                <optgroup label="Court Documents">
+                                                    <option value="Summons">Summons</option>
+                                                    <option value="Subpoena">Subpoena</option>
+                                                    <option value="Complaint">Complaint</option>
+                                                    <option value="Motion">Motion</option>
+                                                    <option value="Order">Court Order</option>
+                                                    <option value="Judgment">Judgment</option>
+                                                    <option value="Warrant">Warrant</option>
+                                                </optgroup>
+                                                <optgroup label="Enforcement Actions">
+                                                    <option value="Notice of Seizure">Notice of Seizure</option>
+                                                    <option value="Notice of Forfeiture">Notice of Forfeiture</option>
+                                                    <option value="Asset Freeze">Asset Freeze Notice</option>
+                                                    <option value="Levy">Notice of Levy</option>
+                                                    <option value="Garnishment">Garnishment Notice</option>
+                                                    <option value="Lien">Lien Notice</option>
+                                                </optgroup>
+                                                <optgroup label="Administrative">
+                                                    <option value="Cease and Desist">Cease and Desist</option>
+                                                    <option value="Eviction">Eviction Notice</option>
+                                                    <option value="Default">Default Notice</option>
+                                                    <option value="Demand Letter">Demand Letter</option>
+                                                    <option value="Settlement">Settlement Notice</option>
+                                                    <option value="Violation">Violation Notice</option>
+                                                </optgroup>
+                                                <optgroup label="Regulatory">
+                                                    <option value="Compliance Order">Compliance Order</option>
+                                                    <option value="Investigation Notice">Investigation Notice</option>
+                                                    <option value="Administrative Subpoena">Administrative Subpoena</option>
+                                                    <option value="Regulatory Action">Regulatory Action</option>
+                                                </optgroup>
                                                 <option value="Other">Other Legal Document</option>
                                             </select>
                                         </div>

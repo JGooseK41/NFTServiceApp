@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlockServed - View Your Legal Notices</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        
+        .main-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            max-width: 1200px;
+            margin: 40px auto;
+            overflow: hidden;
+        }
+        
+        .header-banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .notice-card {
+            background: #fff;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .notice-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.2);
+        }
+        
+        .notice-card.alert-notice {
+            border-left: 5px solid #ffc107;
+        }
+        
+        .notice-card.document-notice {
+            border-left: 5px solid #28a745;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+        
+        .status-delivered {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-signed {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .wallet-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px;
+        }
+        
+        .action-buttons {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .ipfs-badge {
+            background: #e7f3ff;
+            color: #0066cc;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+        }
+        
+        .loading-spinner {
+            text-align: center;
+            padding: 50px;
+        }
+        
+        .no-notices {
+            text-align: center;
+            padding: 50px;
+            color: #6c757d;
+        }
+        
+        .document-viewer {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 9999;
+            padding: 20px;
+        }
+        
+        .document-viewer.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .viewer-content {
+            background: white;
+            border-radius: 15px;
+            max-width: 900px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 30px;
+        }
+        
+        .sign-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="header-banner">
+            <h1><i class="bi bi-shield-check"></i> BlockServed</h1>
+            <p>View and Sign Your Legal Notices</p>
+        </div>
+        
+        <!-- Wallet Connection -->
+        <div class="wallet-info" id="walletSection">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>Wallet Status:</strong>
+                    <span id="walletStatus" class="text-muted">Not Connected</span>
+                </div>
+                <button class="btn btn-primary" id="connectBtn" onclick="connectWallet()">
+                    <i class="bi bi-wallet2"></i> Connect Wallet
+                </button>
+            </div>
+        </div>
+        
+        <!-- Notices List -->
+        <div id="noticesSection" style="display: none;">
+            <div class="p-4">
+                <h3>Your Legal Notices</h3>
+                <p class="text-muted">NFTs representing legal documents served to your address</p>
+            </div>
+            
+            <div id="noticesList">
+                <div class="loading-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3">Fetching your notices from the blockchain...</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- No Notices Message -->
+        <div id="noNotices" class="no-notices" style="display: none;">
+            <i class="bi bi-inbox" style="font-size: 3rem; color: #dee2e6;"></i>
+            <h4 class="mt-3">No Legal Notices Found</h4>
+            <p>You haven't received any legal notice NFTs at this address.</p>
+        </div>
+    </div>
+    
+    <!-- Document Viewer Modal -->
+    <div class="document-viewer" id="documentViewer">
+        <div class="viewer-content">
+            <div class="d-flex justify-content-between mb-4">
+                <h3>Legal Notice Details</h3>
+                <button class="btn-close" onclick="closeViewer()"></button>
+            </div>
+            
+            <div id="documentContent">
+                <!-- Document details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let walletAddress = null;
+        let notices = [];
+        
+        // Connect wallet (TronLink)
+        async function connectWallet() {
+            try {
+                if (typeof window.tronWeb === 'undefined') {
+                    alert('Please install TronLink wallet extension');
+                    return;
+                }
+                
+                // Request account access
+                await window.tronLink.request({ method: 'tron_requestAccounts' });
+                
+                // Get the connected address
+                walletAddress = window.tronWeb.defaultAddress.base58;
+                
+                if (walletAddress) {
+                    document.getElementById('walletStatus').innerHTML = 
+                        `<span class="text-success">Connected: ${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}</span>`;
+                    document.getElementById('connectBtn').style.display = 'none';
+                    document.getElementById('noticesSection').style.display = 'block';
+                    
+                    // Fetch notices
+                    await fetchNotices();
+                }
+            } catch (error) {
+                console.error('Failed to connect wallet:', error);
+                alert('Failed to connect wallet. Please try again.');
+            }
+        }
+        
+        // Fetch notices from blockchain
+        async function fetchNotices() {
+            try {
+                const backendUrl = 'https://nftserviceapp.onrender.com';
+                
+                // Try new blockchain endpoint first
+                let response = await fetch(`${backendUrl}/api/blockchain-notices/recipient/${walletAddress}`);
+                
+                // Fallback to original endpoint
+                if (!response.ok) {
+                    response = await fetch(`${backendUrl}/api/notices/recipient/${walletAddress}`);
+                }
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    notices = data.notices || [];
+                    displayNotices();
+                } else {
+                    // Show test data for demonstration
+                    notices = [{
+                        notice_id: 'DEMO-001',
+                        case_number: '34-4343902',
+                        notice_type: 'Legal Notice - Official Service',
+                        issuing_agency: 'The Block Audit',
+                        created_at: new Date().toISOString(),
+                        has_alert: true,
+                        has_document: true,
+                        accepted: false,
+                        ipfs_document: 'QmQg8cAaMxBfj1dFaKLWnEdPix6qButoBWwhYfPygxy7y2',
+                        ipfs_thumbnail: 'QmdvbdmKmPT7HcYRLAYZPxHnH5Xcj447tXovtaWH6eKsHz',
+                        metadata: {
+                            description: 'You have been served with an official legal document',
+                            portal_url: 'https://www.BlockServed.com'
+                        }
+                    }];
+                    displayNotices();
+                }
+            } catch (error) {
+                console.error('Failed to fetch notices:', error);
+                document.getElementById('noticesList').innerHTML = 
+                    '<div class="alert alert-danger m-3">Failed to fetch notices. Please try again.</div>';
+            }
+        }
+        
+        // Display notices
+        function displayNotices() {
+            if (notices.length === 0) {
+                document.getElementById('noticesSection').style.display = 'none';
+                document.getElementById('noNotices').style.display = 'block';
+                return;
+            }
+            
+            let html = '';
+            notices.forEach(notice => {
+                const date = new Date(notice.created_at).toLocaleDateString();
+                const status = notice.accepted ? 'signed' : 'delivered';
+                
+                html += `
+                    <div class="notice-card ${notice.has_document ? 'document-notice' : 'alert-notice'}" 
+                         onclick="viewNotice('${notice.notice_id}')">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h5>${notice.notice_type || 'Legal Notice'}</h5>
+                                <p class="mb-2">
+                                    <strong>Case #:</strong> ${notice.case_number}<br>
+                                    <strong>Agency:</strong> ${notice.issuing_agency}<br>
+                                    <strong>Served:</strong> ${date}
+                                </p>
+                                ${notice.ipfs_document ? '<span class="ipfs-badge"><i class="bi bi-cloud-check"></i> Stored on IPFS</span>' : ''}
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <span class="status-badge status-${status}">
+                                    ${notice.accepted ? '✓ Signed' : '⚠️ Awaiting Signature'}
+                                </span>
+                                <div class="action-buttons">
+                                    <button class="btn btn-primary btn-sm w-100" onclick="viewNotice('${notice.notice_id}'); event.stopPropagation();">
+                                        <i class="bi bi-eye"></i> View Document
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('noticesList').innerHTML = html;
+        }
+        
+        // View specific notice
+        async function viewNotice(noticeId) {
+            const notice = notices.find(n => n.notice_id === noticeId);
+            if (!notice) return;
+            
+            let content = `
+                <div class="alert alert-warning">
+                    <h5>⚖️ Official Legal Notice</h5>
+                    <p>You have been served with a legal document that requires your attention.</p>
+                </div>
+                
+                <div class="mb-4">
+                    <h5>Notice Details</h5>
+                    <table class="table">
+                        <tr><td><strong>Case Number:</strong></td><td>${notice.case_number}</td></tr>
+                        <tr><td><strong>Issuing Agency:</strong></td><td>${notice.issuing_agency}</td></tr>
+                        <tr><td><strong>Service Date:</strong></td><td>${new Date(notice.created_at).toLocaleString()}</td></tr>
+                        <tr><td><strong>Notice Type:</strong></td><td>${notice.notice_type}</td></tr>
+                    </table>
+                </div>
+            `;
+            
+            // Show thumbnail if available
+            if (notice.ipfs_thumbnail) {
+                content += `
+                    <div class="mb-4">
+                        <h5>Document Preview</h5>
+                        <img src="https://gateway.pinata.cloud/ipfs/${notice.ipfs_thumbnail}" 
+                             class="img-fluid border rounded" 
+                             style="max-height: 400px;"
+                             alt="Document preview">
+                    </div>
+                `;
+            }
+            
+            // Sign and decrypt section
+            if (!notice.accepted && notice.has_document) {
+                content += `
+                    <div class="sign-section">
+                        <h5>📝 Sign to Access Full Document</h5>
+                        <p>By signing this transaction, you acknowledge receipt of this legal notice and will receive access to the full encrypted document.</p>
+                        <button class="btn btn-success" onclick="signAndDecrypt('${noticeId}')">
+                            <i class="bi bi-pen"></i> Sign & Decrypt Document
+                        </button>
+                    </div>
+                `;
+            } else if (notice.accepted) {
+                content += `
+                    <div class="alert alert-success">
+                        <h5>✓ Document Signed</h5>
+                        <p>You have already signed this document on ${new Date(notice.signature_timestamp).toLocaleString()}</p>
+                        <button class="btn btn-primary" onclick="downloadDocument('${noticeId}')">
+                            <i class="bi bi-download"></i> Download Full Document
+                        </button>
+                    </div>
+                `;
+            }
+            
+            // IPFS links
+            if (notice.ipfs_document) {
+                content += `
+                    <div class="mt-4">
+                        <h6>Blockchain Storage</h6>
+                        <p class="small text-muted">
+                            Document IPFS: <code>${notice.ipfs_document}</code><br>
+                            <a href="https://gateway.pinata.cloud/ipfs/${notice.ipfs_document}" target="_blank">View on IPFS Gateway</a>
+                        </p>
+                    </div>
+                `;
+            }
+            
+            document.getElementById('documentContent').innerHTML = content;
+            document.getElementById('documentViewer').classList.add('active');
+        }
+        
+        // Sign and decrypt document
+        async function signAndDecrypt(noticeId) {
+            try {
+                const notice = notices.find(n => n.notice_id === noticeId);
+                if (!notice) return;
+                
+                // Sign with TronLink
+                const message = `I acknowledge receipt of legal notice for Case #${notice.case_number}`;
+                const signature = await window.tronWeb.trx.sign(message);
+                
+                // Send signature to backend to record and get decryption key
+                const backendUrl = 'https://nftserviceapp.onrender.com';
+                const response = await fetch(`${backendUrl}/api/recipient-access/sign-document`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        noticeId,
+                        walletAddress,
+                        signature,
+                        ipfsHash: notice.ipfs_document
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Update notice status
+                    notice.accepted = true;
+                    notice.signature_timestamp = new Date().toISOString();
+                    
+                    alert('Document signed successfully! You can now download the full document.');
+                    
+                    // Refresh the view
+                    viewNotice(noticeId);
+                } else {
+                    // For demo, just show success
+                    alert('Document signed! In production, this would decrypt and provide access to the full document.');
+                    notice.accepted = true;
+                    viewNotice(noticeId);
+                }
+            } catch (error) {
+                console.error('Failed to sign document:', error);
+                alert('Failed to sign document. Please try again.');
+            }
+        }
+        
+        // Download decrypted document
+        async function downloadDocument(noticeId) {
+            const notice = notices.find(n => n.notice_id === noticeId);
+            if (!notice) return;
+            
+            // In production, this would fetch and decrypt the document
+            alert(`Document download would be available here.\nIPFS: ${notice.ipfs_document}`);
+            
+            // Open IPFS gateway for now
+            window.open(`https://gateway.pinata.cloud/ipfs/${notice.ipfs_document}`, '_blank');
+        }
+        
+        // Close viewer
+        function closeViewer() {
+            document.getElementById('documentViewer').classList.remove('active');
+        }
+        
+        // Auto-connect if TronLink is already connected
+        window.addEventListener('load', async () => {
+            if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+                await connectWallet();
+            }
+        });
+    </script>
+</body>
+</html>

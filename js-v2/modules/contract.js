@@ -431,7 +431,7 @@ window.contract = {
                 attributes: [
                     { trait_type: "Case Number", value: data.caseNumber },
                     { trait_type: "Recipients", value: String(data.recipients.length) },
-                    { trait_type: "Type", value: "Legal Notice" },
+                    { trait_type: "Notice Type", value: data.noticeType || "Legal Notice" },
                     { trait_type: "Status", value: "Delivered" },
                     { trait_type: "Agency", value: data.agency || "Legal Services" },
                     { trait_type: "Service Date", value: new Date().toLocaleDateString() },
@@ -470,7 +470,7 @@ window.contract = {
                         // Essential legal information
                         caseNumber: data.caseNumber,
                         issuingAgency: data.agency || 'Legal Services',
-                        noticeType: 'Legal Notice',
+                        noticeType: data.noticeType || 'Legal Notice',
                         
                         // Full notice details (not limited)
                         noticeText: data.noticeText,
@@ -550,7 +550,7 @@ window.contract = {
                     encryptedIPFS: ipfsHash || '',                           // Full document IPFS
                     encryptionKey: encryptionKey ? 'SEALED' : '',            // Show it's encrypted
                     issuingAgency: data.agency || 'Legal Services',          // VISIBLE in wallet
-                    noticeType: 'LEGAL NOTICE - OFFICIAL SERVICE',           // CLEAR in TronScan
+                    noticeType: data.noticeType || 'Legal Notice',           // Use selected notice type from UI
                     caseNumber: data.caseNumber || '',                       // VISIBLE case reference
                     caseDetails: `${(data.noticeText || '').substring(0, 80)} SEE: BlockServed.com`,  // Preview + direction
                     legalRights: `SERVED ${new Date().toISOString().split('T')[0]} - View BlockServed.com`,  // Date + portal
@@ -642,6 +642,21 @@ window.contract = {
                 });
                 
                 console.log('Batch transaction successful!');
+                
+                // Log the data that was sent on-chain for visibility
+                console.log('\n📊 ON-CHAIN DATA STORED:');
+                console.log('=' + '='.repeat(50));
+                batchNotices.forEach((notice, i) => {
+                    console.log(`\nRecipient ${i + 1}: ${notice.recipient}`);
+                    console.log(`  Case Number: ${notice.caseNumber}`);
+                    console.log(`  Issuing Agency: ${notice.issuingAgency}`);
+                    console.log(`  Notice Type: ${notice.noticeType}`);
+                    console.log(`  Case Details: ${notice.caseDetails}`);
+                    console.log(`  Legal Rights: ${notice.legalRights}`);
+                    console.log(`  IPFS Document: ${notice.encryptedIPFS}`);
+                    console.log(`  Metadata URI: ${notice.metadataURI}`);
+                });
+                console.log('=' + '='.repeat(50));
                 return { success: true, txId: tx, alertTx: tx, documentTx: tx };
                 
             } catch (normalError) {

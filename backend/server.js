@@ -1016,6 +1016,15 @@ const recipientAccessRouter = require('./routes/recipient-access');
 app.use('/api/notices', recipientAccessRouter);
 console.log('✅ Recipient access routes loaded');
 
+// Blockchain-based recipient API (for NFT viewing)
+try {
+    const blockchainRecipientRouter = require('./routes/blockchain-recipient-api');
+    app.use('/api/blockchain-notices', blockchainRecipientRouter);
+    console.log('✅ Blockchain recipient API loaded');
+} catch (error) {
+    console.log('⚠️ Blockchain recipient API not available:', error.message);
+}
+
 // Enhanced recipient document access
 const recipientDocumentAccess = require('./routes/recipient-document-access');
 app.use('/api/recipient-access', recipientDocumentAccess);
