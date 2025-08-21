@@ -319,7 +319,14 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h4>Case Management</h4>
-                        <button class="btn btn-sm btn-primary" onclick="app.cases.newCase()">New Case</button>
+                        <div>
+                            <button class="btn btn-sm btn-warning" onclick="cases.syncAllServedCases()" title="Sync all served cases with blockchain">
+                                <i class="bi bi-cloud-download"></i> Sync All
+                            </button>
+                            <button class="btn btn-sm btn-primary" onclick="cases.newCase()">
+                                <i class="bi bi-plus"></i> New Case
+                            </button>
+                        </div>
                     </div>
                     <div class="card-body">
                         <div id="casesList" class="table-responsive">

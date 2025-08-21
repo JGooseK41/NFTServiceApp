@@ -140,6 +140,9 @@ window.cases = {
                                 <i class="bi bi-arrow-clockwise"></i>
                             </button>
                             ${(c.served_at || c.servedAt || c.status === 'served' || c.transactionHash) ? `
+                                <button class="btn btn-sm btn-warning" onclick="cases.syncBlockchainData('${caseId}')" title="Sync Blockchain Data">
+                                    <i class="bi bi-cloud-download"></i>
+                                </button>
                                 <button class="btn btn-sm btn-success" onclick="cases.printReceipt('${caseId}')" title="Print Receipt">
                                     <i class="bi bi-printer"></i>
                                 </button>
@@ -745,6 +748,324 @@ window.cases = {
         } catch (error) {
             console.error('Failed to export stamped documents:', error);
             window.app.showError('Failed to export stamped documents: ' + error.message);
+        }
+    },
+    
+    // Sync all served cases with blockchain data
+    async syncAllServedCases() {
+        try {
+            // Get all cases
+            const cases = JSON.parse(localStorage.getItem('legalnotice_cases') || '[]');
+            
+            // Filter served cases that have transaction hashes
+            const servedCases = cases.filter(c => 
+                (c.status === 'served' || c.served_at || c.servedAt || c.transactionHash) &&
+                (c.transactionHash || c.transaction_hash || c.txHash)
+            );
+            
+            if (servedCases.length === 0) {
+                window.app.showInfo('No served cases found to sync');
+                return;
+            }
+            
+            const confirmSync = confirm(`Found ${servedCases.length} served case(s) to sync with blockchain.\n\nThis may take a moment. Continue?`);
+            if (!confirmSync) return;
+            
+            window.app.showInfo(`Syncing ${servedCases.length} cases...`);
+            
+            let successCount = 0;
+            let failCount = 0;
+            
+            for (const caseData of servedCases) {
+                const caseId = caseData.caseNumber || caseData.case_number || caseData.id;
+                console.log(`Syncing case ${caseId}...`);
+                
+                try {
+                    // Use the existing sync function but suppress individual alerts
+                    await this.syncBlockchainDataSilent(caseId);
+                    successCount++;
+                } catch (error) {
+                    console.error(`Failed to sync case ${caseId}:`, error);
+                    failCount++;
+                }
+                
+                // Small delay between requests to avoid rate limiting
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            // Show summary
+            let message = `✅ Sync complete!\n\n`;
+            message += `Successfully synced: ${successCount} cases\n`;
+            if (failCount > 0) {
+                message += `Failed to sync: ${failCount} cases\n`;
+            }
+            
+            alert(message);
+            
+            // Reload cases display
+            await this.loadCases();
+            
+        } catch (error) {
+            console.error('Failed to sync all cases:', error);
+            window.app.showError('Failed to sync all cases: ' + error.message);
+        }
+    },
+    
+    // Silent version of syncBlockchainData for batch operations
+    async syncBlockchainDataSilent(caseId) {
+        // Get case data
+        let caseData = this.getCaseData(caseId);
+        
+        if (!caseData) {
+            throw new Error('Case not found');
+        }
+        
+        // We need a transaction hash to query the blockchain
+        const txHash = caseData.transactionHash || caseData.transaction_hash || caseData.txHash;
+        
+        if (!txHash) {
+            throw new Error('No transaction hash found');
+        }
+        
+        console.log('Syncing blockchain data for tx:', txHash);
+        
+        // Fetch transaction info from blockchain
+        if (!window.tronWeb) {
+            throw new Error('TronWeb not connected');
+        }
+        
+        // Get transaction details
+        const txInfo = await window.tronWeb.trx.getTransactionInfo(txHash);
+        
+        if (!txInfo || !txInfo.id) {
+            throw new Error('Transaction not found on blockchain');
+        }
+        
+        // Extract data from transaction
+        const blockNumber = txInfo.blockNumber;
+        const blockTimestamp = txInfo.blockTimeStamp;
+        const contractAddress = txInfo.contract_address;
+        
+        // Extract token IDs from logs
+        let alertTokenId = null;
+        let documentTokenId = null;
+        let recipientAddresses = [];
+        
+        if (txInfo.log && txInfo.log.length > 0) {
+            // Look for Transfer events (topic[0] is the event signature)
+            const transferEventSig = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+            
+            txInfo.log.forEach(log => {
+                if (log.topics && log.topics[0] === transferEventSig) {
+                    // Transfer event: topics[1] = from, topics[2] = to, topics[3] = tokenId
+                    if (log.topics.length >= 4) {
+                        const toAddress = '0x' + log.topics[2].substring(26); // Remove padding
+                        const tokenIdHex = log.topics[3];
+                        const tokenId = parseInt(tokenIdHex, 16);
+                        
+                        // Convert to TRON address
+                        try {
+                            const tronAddress = window.tronWeb.address.fromHex(toAddress);
+                            if (!recipientAddresses.includes(tronAddress)) {
+                                recipientAddresses.push(tronAddress);
+                            }
+                        } catch (e) {
+                            console.log('Could not convert address:', toAddress);
+                        }
+                        
+                        // Assign token IDs (first is alert, second is document)
+                        if (!alertTokenId) {
+                            alertTokenId = tokenId;
+                        } else if (!documentTokenId) {
+                            documentTokenId = tokenId;
+                        }
+                        
+                        console.log(`Found NFT Transfer: Token #${tokenId} to ${toAddress}`);
+                    }
+                }
+            });
+        }
+        
+        // Update case data with blockchain info
+        const updatedData = {
+            ...caseData,
+            transactionHash: txHash,
+            alertTokenId: alertTokenId || caseData.alertTokenId,
+            documentTokenId: documentTokenId || caseData.documentTokenId,
+            blockNumber: blockNumber,
+            blockTimestamp: blockTimestamp,
+            contractAddress: contractAddress,
+            recipients: recipientAddresses.length > 0 ? recipientAddresses : caseData.recipients,
+            servedAt: blockTimestamp ? new Date(blockTimestamp).toISOString() : caseData.servedAt,
+            status: 'served',
+            syncedAt: new Date().toISOString()
+        };
+        
+        // Update in local storage
+        const cases = JSON.parse(localStorage.getItem('legalnotice_cases') || '[]');
+        const caseIndex = cases.findIndex(c => 
+            c.caseNumber === caseId || 
+            c.case_number === caseId || 
+            c.id === caseId
+        );
+        
+        if (caseIndex >= 0) {
+            cases[caseIndex] = { ...cases[caseIndex], ...updatedData };
+            localStorage.setItem('legalnotice_cases', JSON.stringify(cases));
+            console.log('✅ Case updated with blockchain data:', caseId);
+        }
+        
+        return updatedData;
+    },
+    
+    // Sync blockchain data for a served case
+    async syncBlockchainData(caseId) {
+        try {
+            // Show loading indicator
+            window.app.showInfo('Fetching blockchain data...');
+            
+            // Get case data
+            let caseData = this.getCaseData(caseId);
+            
+            if (!caseData) {
+                window.app.showError('Case not found');
+                return;
+            }
+            
+            // We need a transaction hash to query the blockchain
+            const txHash = caseData.transactionHash || caseData.transaction_hash || caseData.txHash;
+            
+            if (!txHash) {
+                // Try to find transaction by searching recent transactions
+                const userChoice = confirm('No transaction hash found. Would you like to enter it manually?');
+                
+                if (userChoice) {
+                    const inputTxHash = prompt('Enter the transaction hash for this case:');
+                    if (inputTxHash && inputTxHash.length === 64) {
+                        caseData.transactionHash = inputTxHash;
+                    } else {
+                        window.app.showError('Invalid transaction hash');
+                        return;
+                    }
+                } else {
+                    window.app.showError('Cannot sync without transaction hash');
+                    return;
+                }
+            }
+            
+            console.log('Syncing blockchain data for tx:', caseData.transactionHash);
+            
+            // Fetch transaction info from blockchain
+            if (window.tronWeb) {
+                try {
+                    // Get transaction details
+                    const txInfo = await window.tronWeb.trx.getTransactionInfo(caseData.transactionHash);
+                    console.log('Transaction info:', txInfo);
+                    
+                    if (!txInfo || !txInfo.id) {
+                        window.app.showError('Transaction not found on blockchain');
+                        return;
+                    }
+                    
+                    // Extract data from transaction
+                    const blockNumber = txInfo.blockNumber;
+                    const blockTimestamp = txInfo.blockTimeStamp;
+                    const contractAddress = txInfo.contract_address;
+                    
+                    // Extract token IDs from logs
+                    let alertTokenId = null;
+                    let documentTokenId = null;
+                    let recipientAddresses = [];
+                    
+                    if (txInfo.log && txInfo.log.length > 0) {
+                        // Look for Transfer events (topic[0] is the event signature)
+                        const transferEventSig = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+                        
+                        txInfo.log.forEach(log => {
+                            if (log.topics && log.topics[0] === transferEventSig) {
+                                // Transfer event: topics[1] = from, topics[2] = to, topics[3] = tokenId
+                                if (log.topics.length >= 4) {
+                                    const toAddress = '0x' + log.topics[2].substring(26); // Remove padding
+                                    const tokenIdHex = log.topics[3];
+                                    const tokenId = parseInt(tokenIdHex, 16);
+                                    
+                                    // Convert to TRON address
+                                    try {
+                                        const tronAddress = window.tronWeb.address.fromHex(toAddress);
+                                        if (!recipientAddresses.includes(tronAddress)) {
+                                            recipientAddresses.push(tronAddress);
+                                        }
+                                    } catch (e) {
+                                        console.log('Could not convert address:', toAddress);
+                                    }
+                                    
+                                    // Assign token IDs (first is alert, second is document)
+                                    if (!alertTokenId) {
+                                        alertTokenId = tokenId;
+                                    } else if (!documentTokenId) {
+                                        documentTokenId = tokenId;
+                                    }
+                                    
+                                    console.log(`Found NFT Transfer: Token #${tokenId} to ${toAddress}`);
+                                }
+                            }
+                        });
+                    }
+                    
+                    // Update case data with blockchain info
+                    const updatedData = {
+                        ...caseData,
+                        transactionHash: caseData.transactionHash,
+                        alertTokenId: alertTokenId || caseData.alertTokenId,
+                        documentTokenId: documentTokenId || caseData.documentTokenId,
+                        blockNumber: blockNumber,
+                        blockTimestamp: blockTimestamp,
+                        contractAddress: contractAddress,
+                        recipients: recipientAddresses.length > 0 ? recipientAddresses : caseData.recipients,
+                        servedAt: blockTimestamp ? new Date(blockTimestamp).toISOString() : caseData.servedAt,
+                        status: 'served',
+                        syncedAt: new Date().toISOString()
+                    };
+                    
+                    // Update in local storage
+                    const cases = JSON.parse(localStorage.getItem('legalnotice_cases') || '[]');
+                    const caseIndex = cases.findIndex(c => 
+                        c.caseNumber === caseId || 
+                        c.case_number === caseId || 
+                        c.id === caseId
+                    );
+                    
+                    if (caseIndex >= 0) {
+                        cases[caseIndex] = { ...cases[caseIndex], ...updatedData };
+                        localStorage.setItem('legalnotice_cases', JSON.stringify(cases));
+                        console.log('✅ Case updated with blockchain data');
+                    }
+                    
+                    // Show success message with details
+                    let message = `✅ Blockchain data synced successfully!\n\n`;
+                    message += `Block: #${blockNumber}\n`;
+                    if (alertTokenId) message += `Alert Token ID: #${alertTokenId}\n`;
+                    if (documentTokenId) message += `Document Token ID: #${documentTokenId}\n`;
+                    if (recipientAddresses.length > 0) {
+                        message += `Recipients: ${recipientAddresses.length} found\n`;
+                    }
+                    
+                    alert(message);
+                    
+                    // Reload cases display
+                    await this.loadCases();
+                    
+                } catch (error) {
+                    console.error('Error fetching transaction info:', error);
+                    window.app.showError('Failed to fetch blockchain data: ' + error.message);
+                }
+            } else {
+                window.app.showError('TronWeb not connected. Please connect wallet first.');
+            }
+            
+        } catch (error) {
+            console.error('Failed to sync blockchain data:', error);
+            window.app.showError('Failed to sync: ' + error.message);
         }
     },
     
