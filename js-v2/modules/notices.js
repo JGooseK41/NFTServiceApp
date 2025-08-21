@@ -811,7 +811,7 @@ window.notices = {
                                             <small class="text-break">
                                                 <a href="https://tronscan.org/#/transaction/${data.alertTxId}" 
                                                    target="_blank" class="text-decoration-none">
-                                                    ${data.alertTxId.substring(0, 20)}...
+                                                    ${String(data.alertTxId).substring(0, 20)}...
                                                     <i class="bi bi-box-arrow-up-right"></i>
                                                 </a>
                                             </small>
@@ -820,7 +820,7 @@ window.notices = {
                                             <small class="text-break">
                                                 <a href="https://tronscan.org/#/transaction/${data.documentTxId}" 
                                                    target="_blank" class="text-decoration-none">
-                                                    ${data.documentTxId.substring(0, 20)}...
+                                                    ${String(data.documentTxId).substring(0, 20)}...
                                                     <i class="bi bi-box-arrow-up-right"></i>
                                                 </a>
                                             </small>
