@@ -418,17 +418,47 @@ window.contract = {
                 };
             });
             
-            // Calculate total fees
-            // The contract's calculateFee includes BOTH Alert and Document NFTs
-            const creationFee = await this.instance.creationFee().call();
-            const serviceFee = await this.instance.serviceFee().call();
-            const feePerRecipient = parseInt(creationFee) + parseInt(serviceFee); // 5 + 20 = 25 TRX per recipient
-            const totalFee = feePerRecipient * data.recipients.length; // NOT x2 - contract handles both NFTs
+            // Calculate total fees - check for exemptions
+            const walletAddress = this.tronWeb.defaultAddress.base58;
             
-            console.log('Creation fee:', creationFee / 1000000, 'TRX');
-            console.log('Service fee:', serviceFee / 1000000, 'TRX');
-            console.log('Fee per recipient (includes both NFTs):', feePerRecipient / 1000000, 'TRX');
+            // Check if wallet is fee exempt using contract's calculateFee function
+            let feePerRecipient;
+            if (this.instance.calculateFee) {
+                // Use contract's calculateFee which handles exemptions
+                feePerRecipient = parseInt(await this.instance.calculateFee(walletAddress).call());
+                console.log('Fee per recipient from contract (handles exemptions):', feePerRecipient / 1000000, 'TRX');
+            } else {
+                // Fallback: manually check exemptions
+                const isFullExempt = await this.instance.fullFeeExemptions(walletAddress).call();
+                const isServiceExempt = await this.instance.serviceFeeExemptions(walletAddress).call();
+                
+                if (isFullExempt) {
+                    feePerRecipient = 0;
+                    console.log('Wallet is FULLY FEE EXEMPT - no charges!');
+                } else if (isServiceExempt) {
+                    const creationFee = await this.instance.creationFee().call();
+                    feePerRecipient = parseInt(creationFee);
+                    console.log('Wallet is service fee exempt - only creation fee:', feePerRecipient / 1000000, 'TRX');
+                } else {
+                    const creationFee = await this.instance.creationFee().call();
+                    const serviceFee = await this.instance.serviceFee().call();
+                    feePerRecipient = parseInt(creationFee) + parseInt(serviceFee);
+                    console.log('Regular fees apply:', feePerRecipient / 1000000, 'TRX per recipient');
+                }
+            }
+            
+            const totalFee = feePerRecipient * data.recipients.length;
             console.log('Total fee for batch (', data.recipients.length, 'recipients):', totalFee / 1000000, 'TRX');
+            
+            // Check energy
+            const account = await this.tronWeb.trx.getAccount(walletAddress);
+            const energy = account.energy || 0;
+            console.log('Available energy:', energy.toLocaleString());
+            
+            if (totalFee === 0 && energy > 2000000) {
+                console.log('✅ Fee exempt with sufficient energy - transaction should be nearly free!');
+            }
+            
             console.log('Calling serveNoticeBatch with:', batchNotices.length, 'notices');
             console.log('First notice:', JSON.stringify(batchNotices[0], null, 2));
             
@@ -569,9 +599,25 @@ window.contract = {
     async mintToSelectedRecipients(recipients, originalData) {
         console.log('Minting to selected recipients:', recipients);
         const results = [];
-        const creationFee = await this.instance.creationFee().call();
-        const serviceFee = await this.instance.serviceFee().call();
-        const feePerRecipient = parseInt(creationFee) + parseInt(serviceFee); // Contract handles both NFTs in one fee
+        
+        // Check fee exemptions
+        const walletAddress = this.tronWeb.defaultAddress.base58;
+        let feePerRecipient;
+        
+        if (this.instance.calculateFee) {
+            feePerRecipient = parseInt(await this.instance.calculateFee(walletAddress).call());
+        } else {
+            const isFullExempt = await this.instance.fullFeeExemptions(walletAddress).call();
+            if (isFullExempt) {
+                feePerRecipient = 0;
+            } else {
+                const creationFee = await this.instance.creationFee().call();
+                const serviceFee = await this.instance.serviceFee().call();
+                feePerRecipient = parseInt(creationFee) + parseInt(serviceFee);
+            }
+        }
+        
+        console.log('Fee per recipient (with exemptions):', feePerRecipient / 1000000, 'TRX');
         
         for (const recipient of recipients) {
             try {
