@@ -194,27 +194,78 @@ window.contract = {
     // Create Alert NFT with embedded metadata (v5 contract)
     async createAlertNFT(data) {
         try {
-            // Prepare metadata with Base64 image and access info
+            // Prepare TRC-721 compliant metadata with enhanced wallet compatibility
             const metadata = {
-                name: `Legal Notice - ${data.caseNumber}`,
-                description: data.noticeText,
-                image: data.thumbnail, // Base64 data URI of first page
-                external_url: `https://blockserved.com/notice/${data.noticeId}`,
+                // Required TRC-721 fields for maximum wallet compatibility
+                name: `Legal Notice Alert - Case #${data.caseNumber}`,
+                
+                // Comprehensive description that shows in wallet "About" section
+                description: `LEGAL NOTICE: ${data.noticeText}\n\n` +
+                            `You have been served with legal documents requiring your attention.\n\n` +
+                            `TO VIEW AND SIGN: Visit https://blockserved.com and connect your wallet.\n\n` +
+                            `CASE NUMBER: ${data.caseNumber}\n` +
+                            `ISSUING AGENCY: ${data.agency || 'Legal Services'}\n` +
+                            `RESPONSE DEADLINE: ${data.deadline || '30 days from service'}\n\n` +
+                            `IMPORTANT: This is an official legal notice. Failure to respond may result in default judgment.\n\n` +
+                            `For assistance, contact the issuing agency listed above.`,
+                
+                // Image - Base64 data URI (required for wallet display)
+                image: data.thumbnail,
+                
+                // External URL for "View on Web" button in wallets
+                external_url: `https://blockserved.com?notice=${data.noticeId}`,
+                
+                // Standard TRC-721 attributes for wallet display
                 attributes: [
-                    { trait_type: "Type", value: "Alert Notice" },
-                    { trait_type: "Case Number", value: data.caseNumber },
-                    { trait_type: "Server ID", value: data.serverId },
-                    { trait_type: "Timestamp", value: new Date().toISOString() },
-                    { trait_type: "Status", value: "Delivered" },
-                    { trait_type: "Document Access", value: data.encrypted ? "Encrypted" : "Public" }
+                    { 
+                        trait_type: "Notice Type", 
+                        value: "Legal Service Alert"
+                    },
+                    { 
+                        trait_type: "Case Number", 
+                        value: data.caseNumber
+                    },
+                    { 
+                        trait_type: "Status", 
+                        value: "✓ Delivered"
+                    },
+                    { 
+                        trait_type: "Service Date", 
+                        value: new Date().toLocaleDateString()
+                    },
+                    { 
+                        trait_type: "Server ID", 
+                        value: data.serverId
+                    },
+                    { 
+                        trait_type: "Issuing Agency", 
+                        value: data.agency || "Legal Services"
+                    },
+                    { 
+                        trait_type: "Response Deadline", 
+                        value: data.deadline || "30 days"
+                    },
+                    { 
+                        trait_type: "Document Status", 
+                        value: data.encrypted ? "🔒 Encrypted - Signature Required" : "📄 Available"
+                    },
+                    {
+                        trait_type: "View Portal",
+                        value: "blockserved.com"
+                    }
                 ],
-                // Critical info for recipient
-                access_info: {
-                    portal: "https://blockserved.com",
-                    notice_id: data.noticeId,
-                    encrypted: data.encrypted,
-                    ipfs_hash: data.ipfsHash,
-                    instructions: "Visit blockserved.com and enter your wallet address to view and sign this document"
+                
+                // Optional: Enhanced properties for advanced wallets
+                properties: {
+                    category: "legal_notice",
+                    files: data.ipfsHash ? [{
+                        uri: `ipfs://${data.ipfsHash}`,
+                        type: "application/pdf"
+                    }] : [],
+                    creators: [{
+                        address: data.serverId,
+                        share: 100
+                    }]
                 }
             };
             
@@ -324,29 +375,87 @@ window.contract = {
     // Create Document NFT (for signature) - v5 contract
     async createDocumentNFT(data) {
         try {
+            // TRC-721 compliant metadata for Document NFT
             const metadata = {
-                name: `Legal Document - ${data.caseNumber}`,
-                description: data.noticeText,
-                image: data.thumbnail, // Base64 preview
-                external_url: `https://blockserved.com/document/${data.noticeId}`,
-                document_url: data.ipfsHash ? `ipfs://${data.ipfsHash}` : '',
+                // Required fields
+                name: `Legal Document - Case #${data.caseNumber}`,
+                
+                // Comprehensive description for wallet display
+                description: `LEGAL DOCUMENT REQUIRING SIGNATURE\n\n` +
+                            `${data.noticeText}\n\n` +
+                            `This document requires your electronic signature to acknowledge receipt.\n\n` +
+                            `TO SIGN: Visit https://blockserved.com and connect your wallet.\n\n` +
+                            `CASE NUMBER: ${data.caseNumber}\n` +
+                            `DOCUMENT TYPE: Legal Notice Requiring Signature\n` +
+                            `PAGE COUNT: ${data.pageCount || 1} pages\n` +
+                            `ISSUING AGENCY: ${data.agency || 'Legal Services'}\n` +
+                            `SIGNATURE DEADLINE: ${data.deadline || '30 days from service'}\n\n` +
+                            `STATUS: ${data.encrypted ? '🔒 ENCRYPTED - Awaiting Signature' : '📝 Awaiting Signature'}\n\n` +
+                            `After signing, you will receive the decryption key to access the full document.`,
+                
+                // Image preview
+                image: data.thumbnail,
+                
+                // External URL
+                external_url: `https://blockserved.com?document=${data.noticeId}`,
+                
+                // TRC-721 attributes
                 attributes: [
-                    { trait_type: "Type", value: "Document for Signature" },
-                    { trait_type: "Case Number", value: data.caseNumber },
-                    { trait_type: "Server ID", value: data.serverId },
-                    { trait_type: "Timestamp", value: new Date().toISOString() },
-                    { trait_type: "Status", value: "Awaiting Signature" },
-                    { trait_type: "Pages", value: data.pageCount },
-                    { trait_type: "Encrypted", value: data.encrypted ? "Yes" : "No" }
+                    { 
+                        trait_type: "Document Type", 
+                        value: "Legal Notice"
+                    },
+                    { 
+                        trait_type: "Case Number", 
+                        value: data.caseNumber
+                    },
+                    { 
+                        trait_type: "Status", 
+                        value: "📝 Awaiting Signature"
+                    },
+                    { 
+                        trait_type: "Service Date", 
+                        value: new Date().toLocaleDateString()
+                    },
+                    { 
+                        trait_type: "Page Count", 
+                        value: String(data.pageCount || 1)
+                    },
+                    { 
+                        trait_type: "Server ID", 
+                        value: data.serverId
+                    },
+                    { 
+                        trait_type: "Issuing Agency", 
+                        value: data.agency || "Legal Services"
+                    },
+                    { 
+                        trait_type: "Signature Deadline", 
+                        value: data.deadline || "30 days"
+                    },
+                    { 
+                        trait_type: "Encryption", 
+                        value: data.encrypted ? "🔒 Encrypted" : "📄 Standard"
+                    },
+                    {
+                        trait_type: "Sign Portal",
+                        value: "blockserved.com"
+                    }
                 ],
-                signature_required: true,
-                access_info: {
-                    portal: "https://blockserved.com",
-                    notice_id: data.noticeId,
-                    encrypted: data.encrypted,
-                    ipfs_hash: data.ipfsHash,
-                    decryption_required: data.encrypted,
-                    instructions: "Visit blockserved.com to view and sign this legal document"
+                
+                // Enhanced properties
+                properties: {
+                    category: "legal_document",
+                    signature_required: true,
+                    files: data.ipfsHash ? [{
+                        uri: `ipfs://${data.ipfsHash}`,
+                        type: "application/pdf",
+                        encrypted: data.encrypted
+                    }] : [],
+                    creators: [{
+                        address: data.serverId,
+                        share: 100
+                    }]
                 }
             };
             
