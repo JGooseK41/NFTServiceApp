@@ -407,15 +407,46 @@ This NFT represents legal service of process. You have been officially notified 
     // Export stamped documents
     async exportStampedDocuments(caseData) {
         try {
-            // Get the IPFS document
-            const ipfsHash = caseData.ipfsDocument || caseData.metadata?.ipfsHash;
-            if (!ipfsHash) {
-                throw new Error('No document IPFS hash found');
+            // Try to get PDF URL from backend first
+            const caseId = caseData.caseNumber || caseData.case_number || caseData.id;
+            const backendUrl = 'https://nftserviceapp.onrender.com';
+            const pdfUrl = `${backendUrl}/api/cases/${caseId}/pdf`;
+            
+            console.log('Fetching PDF from:', pdfUrl);
+            
+            // Fetch the PDF from backend
+            const response = await fetch(pdfUrl, {
+                headers: {
+                    'X-Server-Address': window.wallet?.address || 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch PDF from backend: ${response.status}`);
             }
             
-            // Fetch from IPFS
-            const response = await fetch(`https://gateway.pinata.cloud/ipfs/${ipfsHash}`);
             const pdfBlob = await response.blob();
+            
+            // Verify it's actually a PDF
+            const arrayBuffer = await pdfBlob.slice(0, 5).arrayBuffer();
+            const header = new Uint8Array(arrayBuffer);
+            const pdfHeader = [0x25, 0x50, 0x44, 0x46]; // %PDF
+            const isPDF = header[0] === pdfHeader[0] && header[1] === pdfHeader[1] && 
+                         header[2] === pdfHeader[2] && header[3] === pdfHeader[3];
+            
+            if (!isPDF) {
+                console.error('Not a valid PDF file');
+                // Just download the original without stamping
+                const url = URL.createObjectURL(pdfBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `case-${caseId}-documents.pdf`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                alert('Downloaded original documents. Stamping is not available for this file format.');
+                return;
+            }
             
             // Generate stamped version
             const stampedBlob = await this.generateStampedDocuments(caseData, pdfBlob);
