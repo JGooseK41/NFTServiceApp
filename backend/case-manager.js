@@ -172,7 +172,22 @@ class CaseManager {
             }
             
             // Merge PDFs into one document with separators and page numbers
-            const mergedPDF = await this.pdfProcessor.mergePDFs(pdfBuffers, fileInfo);
+            let mergedPDF;
+            try {
+                mergedPDF = await this.pdfProcessor.mergePDFs(pdfBuffers, fileInfo);
+            } catch (pdfError) {
+                // Check if it's a manual conversion error
+                if (pdfError.message && pdfError.message.includes('Print-to-PDF')) {
+                    // Return specific error that frontend can handle
+                    return {
+                        success: false,
+                        error: 'PDF_CONVERSION_REQUIRED',
+                        message: pdfError.message,
+                        requiresManualConversion: true
+                    };
+                }
+                throw pdfError;
+            }
             
             // Save to disk
             const diskResult = await this.diskStorage.saveCasePDF(caseId, mergedPDF);

@@ -1273,6 +1273,53 @@ window.app = {
             // Check if the backend actually returned a successful response
             if (!result.success) {
                 console.error('Backend returned unsuccessful response:', result);
+                
+                // Check if PDFs need manual conversion
+                if (result.error === 'PDF_CONVERSION_REQUIRED' || result.requiresManualConversion) {
+                    // Show detailed instructions in a modal or alert
+                    const instructions = result.message || 'Some PDFs require manual conversion';
+                    
+                    // Create a detailed error modal
+                    const modal = document.createElement('div');
+                    modal.className = 'modal fade show';
+                    modal.style.display = 'block';
+                    modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
+                    modal.innerHTML = `
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header bg-warning text-dark">
+                                    <h5 class="modal-title">
+                                        <i class="bi bi-exclamation-triangle"></i> PDF Conversion Required
+                                    </h5>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="alert alert-warning">
+                                        <strong>Your PDFs need to be converted before they can be processed.</strong>
+                                    </div>
+                                    <pre style="white-space: pre-wrap; font-family: inherit;">${instructions}</pre>
+                                    <hr>
+                                    <h6>Why is this needed?</h6>
+                                    <p>Some PDFs have encryption or corruption that prevents automatic processing. 
+                                    Using your browser's Print-to-PDF feature creates a clean, processable version 
+                                    while preserving the visual content.</p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button class="btn btn-primary" onclick="this.closest('.modal').remove()">
+                                        I'll Convert and Re-upload
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
+                    
+                    // Clear the file queue so user can upload converted files
+                    this.state.fileQueue = [];
+                    this.updateFileQueueDisplay();
+                    
+                    throw new Error('Please convert your PDFs using Print-to-PDF and re-upload them');
+                }
+                
                 throw new Error(result.error || 'Case save failed');
             }
             

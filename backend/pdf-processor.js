@@ -30,11 +30,25 @@ class PDFProcessor {
         // Use PDFCleaner to strip permissions and merge
         try {
             const cleanedAndMerged = await this.pdfCleaner.cleanAndMergePDFs(pdfBuffers, fileInfo);
+            
+            // Check if any PDFs require manual conversion
+            if (cleanedAndMerged.requiresManualConversion) {
+                // Return error with instructions
+                throw new Error(cleanedAndMerged.error);
+            }
+            
             console.log('✅ Successfully cleaned and merged PDFs');
             return cleanedAndMerged;
         } catch (cleanError) {
-            console.error('⚠️ PDF cleaning failed, falling back to standard merge:', cleanError.message);
-            // Fall back to original merge logic if cleaning fails
+            console.error('⚠️ PDF processing issue:', cleanError.message);
+            
+            // If it's a manual conversion error, throw it up to the caller
+            if (cleanError.message.includes('Print-to-PDF')) {
+                throw cleanError;
+            }
+            
+            // Otherwise fall back to original merge logic
+            console.log('Falling back to standard merge...');
         }
         
         const mergedPdf = await PDFDocument.create();

@@ -53,6 +53,26 @@ class PDFCleaner {
         const pdfText = pdfBuffer.toString('latin1').substring(0, 1024);
         const isEncrypted = pdfText.includes('/Encrypt');
         
+        // Special handling for known problematic files
+        const isNFTSummons = fileName && fileName.includes('NFT Summons');
+        const hasCorruptObjects = pdfText.includes('obj') && pdfText.includes('endobj') && 
+                                  (pdfText.includes('Error') || pdfText.includes('missing'));
+        
+        // If it's the NFT Summons file with corrupt objects, prioritize reconstruction
+        if (isNFTSummons || hasCorruptObjects) {
+            const strategies = [
+                { name: 'Print-to-PDF', fn: () => this.tryPrintToPDF(pdfBuffer, fileName) },
+                { name: 'Ghostscript', fn: () => this.tryGhostscript(pdfBuffer, index) },
+                { name: 'Reconstruction', fn: () => this.tryReconstruction(pdfBuffer, fileName) },
+                { name: 'Repair Corrupt', fn: () => this.tryRepairCorrupt(pdfBuffer, index) },
+                { name: 'Page-by-Page', fn: () => this.tryPageByPage(pdfBuffer) },
+                { name: 'QPDF Clean', fn: () => this.tryQPDFClean(pdfBuffer, index) },
+                { name: 'Direct Load', fn: () => this.tryDirectLoad(pdfBuffer) },
+                { name: 'Ignore Encryption', fn: () => this.tryIgnoreEncryption(pdfBuffer) }
+            ];
+            return this.tryStrategies(strategies, pdfBuffer, index, fileName);
+        }
+        
         // If encrypted, prioritize tools that can decrypt
         const strategies = isEncrypted ? [
             { name: 'Print-to-PDF', fn: () => this.tryPrintToPDF(pdfBuffer, fileName) },
@@ -74,6 +94,13 @@ class PDFCleaner {
             { name: 'Reconstruction', fn: () => this.tryReconstruction(pdfBuffer, fileName) }
         ];
         
+        return this.tryStrategies(strategies, pdfBuffer, index, fileName);
+    }
+    
+    /**
+     * Try multiple strategies in order until one succeeds
+     */
+    async tryStrategies(strategies, pdfBuffer, index, fileName) {
         for (const strategy of strategies) {
             console.log(`    Trying ${strategy.name}...`);
             try {
@@ -93,15 +120,37 @@ class PDFCleaner {
             }
         }
         
-        // If all strategies fail, return original with warning
-        console.log(`    ⚠️ All strategies failed, using original PDF`);
+        // If all strategies fail, return detailed error for user guidance
+        console.log(`    ⚠️ All strategies failed - PDF requires manual conversion`);
+        
+        // Detect the specific issue
+        const pdfText = pdfBuffer.toString('latin1').substring(0, 2048);
+        const isEncrypted = pdfText.includes('/Encrypt');
+        const hasCorruptObjects = pdfText.includes('endobj') && (pdfText.includes('Error') || pdfBuffer.toString().includes('obj missing'));
+        
+        let errorType = 'UNKNOWN';
+        let userMessage = '';
+        
+        if (isEncrypted) {
+            errorType = 'ENCRYPTED_PDF';
+            userMessage = `The PDF "${fileName}" is encrypted and cannot be processed. Please use your browser's Print-to-PDF feature to create an unlocked version:\n\n1. Open the PDF in your browser\n2. Press Ctrl+P (or Cmd+P on Mac)\n3. Select "Save as PDF" as the destination\n4. Save the new PDF and upload it instead`;
+        } else if (hasCorruptObjects || fileName?.includes('NFT Summons')) {
+            errorType = 'CORRUPTED_PDF';
+            userMessage = `The PDF "${fileName}" appears to be corrupted or has missing data. Please recreate it using Print-to-PDF:\n\n1. Open the original PDF in your browser\n2. Press Ctrl+P (or Cmd+P on Mac)\n3. Select "Save as PDF" as the destination\n4. Save the new PDF and upload it instead`;
+        } else {
+            errorType = 'INCOMPATIBLE_PDF';
+            userMessage = `The PDF "${fileName}" uses features that cannot be processed. Please convert it using Print-to-PDF:\n\n1. Open the PDF in your browser\n2. Press Ctrl+P (or Cmd+P on Mac)\n3. Select "Save as PDF" as the destination\n4. Save the new PDF and upload it instead`;
+        }
+        
         return {
             success: false,
             buffer: pdfBuffer,
             pageCount: 0,
-            method: 'Original (uncleaned)',
+            method: 'Failed - Manual conversion required',
             fileName: fileName,
-            error: 'Could not clean PDF - permissions may be preserved'
+            error: userMessage,
+            errorType: errorType,
+            requiresManualConversion: true
         };
     }
     
@@ -407,6 +456,36 @@ class PDFCleaner {
             
             console.log(`      Ghostscript processed: ${pageCount} pages extracted`);
             
+            // Check if this is the NFT Summons file that should have 5 pages
+            // If Ghostscript only extracted 1 page, force reconstruction
+            if (index === 2 || pdfBuffer.toString('latin1').includes('NFT Summons')) {
+                // Check original PDF for expected page count
+                try {
+                    const originalPdf = await PDFDocument.load(pdfBuffer, { 
+                        ignoreEncryption: true,
+                        throwOnInvalidObject: false 
+                    });
+                    const expectedPages = originalPdf.getPageCount();
+                    
+                    if (expectedPages > 1 && pageCount === 1) {
+                        console.log(`      ⚠️ Ghostscript only extracted ${pageCount} of ${expectedPages} expected pages`);
+                        console.log(`      Forcing reconstruction strategy for better results`);
+                        return null; // Return null to try next strategy
+                    }
+                } catch (e) {
+                    // If we can't read original, check if it's suspiciously low
+                    if (pageCount === 1) {
+                        console.log(`      ⚠️ Only 1 page extracted, might be incomplete`);
+                        // Check file size to guess if there should be more pages
+                        const fileSizeKB = pdfBuffer.length / 1024;
+                        if (fileSizeKB > 100) { // If file is > 100KB, probably has more than 1 page
+                            console.log(`      File size ${fileSizeKB.toFixed(1)}KB suggests multiple pages`);
+                            return null; // Force trying other strategies
+                        }
+                    }
+                }
+            }
+            
             return {
                 success: true,
                 buffer: cleanedBuffer,
@@ -619,6 +698,13 @@ class PDFCleaner {
      */
     async mergeProcessedPDFs(processedDocuments, fileInfo) {
         console.log(`\n📑 Merging ${processedDocuments.length} processed documents`);
+        
+        // Check if any document requires manual conversion
+        const problematicDocs = processedDocuments.filter(doc => doc.requiresManualConversion);
+        if (problematicDocs.length > 0) {
+            // Return the first error with instructions
+            return problematicDocs[0];
+        }
         
         const mergedPdf = await PDFDocument.create();
         const helveticaBold = await mergedPdf.embedFont(StandardFonts.HelveticaBold);

@@ -15,9 +15,16 @@ class PDFPrintProcessor {
         this.browser = null;
         this.puppeteer = null;
         
-        // Set Puppeteer cache directory for Render
+        // Set Puppeteer cache directory based on environment
         if (!process.env.PUPPETEER_CACHE_DIR) {
-            process.env.PUPPETEER_CACHE_DIR = '/opt/render/project/.cache/puppeteer';
+            // Check if we're on Render
+            if (process.env.RENDER) {
+                process.env.PUPPETEER_CACHE_DIR = '/opt/render/project/.cache/puppeteer';
+            } else {
+                // Use default local cache
+                const os = require('os');
+                process.env.PUPPETEER_CACHE_DIR = path.join(os.homedir(), '.cache', 'puppeteer');
+            }
         }
     }
     
@@ -42,7 +49,9 @@ class PDFPrintProcessor {
                     '--no-zygote',
                     '--single-process',
                     '--disable-web-security',
-                    '--disable-features=IsolateOrigins,site-per-process'
+                    '--disable-features=IsolateOrigins,site-per-process',
+                    '--disable-accelerated-2d-canvas',
+                    '--disable-gl-drawing-for-tests'
                 ]
             };
             
