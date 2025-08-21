@@ -38,7 +38,7 @@ router.get('/cases/by-number/:caseNumber', async (req, res) => {
                 COUNT(*) as notice_count,
                 json_agg(DISTINCT recipient_address) as recipients,
                 json_agg(DISTINCT recipient_name) as recipient_names
-            FROM saved_notices
+            FROM served_notices
             WHERE case_number = $1 
             AND ($2::text IS NULL OR server_address = $2)
             GROUP BY case_number, server_address, notice_type, issuing_agency
