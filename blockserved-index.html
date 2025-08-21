@@ -317,9 +317,10 @@
                     // Try backend but don't fail if CORS issue
                     try {
                         const backendUrl = 'https://nftserviceapp.onrender.com';
-                        const response = await fetch(`${backendUrl}/api/notices/recipient/${walletAddress}`, {
+                        const response = await fetch(`${backendUrl}/api/recipient-access/recipient/${walletAddress}/notices`, {
                             headers: {
-                                'Accept': 'application/json'
+                                'Accept': 'application/json',
+                                'X-Wallet-Address': walletAddress
                             }
                         });
                         
