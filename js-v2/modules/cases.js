@@ -560,8 +560,13 @@ window.cases = {
                 recipients: metadata.recipients || caseData.recipients || []
             };
             
-            // Set up file queue (even if empty, preview will use consolidated PDF)
-            window.app.state.fileQueue = [];
+            // Set up file queue with a placeholder to indicate we have existing documents
+            // This prevents the "upload at least one PDF" error
+            window.app.state.fileQueue = [{
+                file: new File(['existing'], 'Existing case documents.pdf', { type: 'application/pdf' }),
+                preview: null,
+                isExisting: true
+            }];
             
             // Call the existing preview function
             await window.app.previewNotice();

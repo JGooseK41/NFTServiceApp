@@ -1164,19 +1164,19 @@ window.app = {
                             if (choice) {
                                 // Store the existing case data
                                 this.currentCaseId = error.caseId || caseNumber;
-                                if (error.case && error.case.pdf_path) {
-                                    this.consolidatedPDFUrl = `${backendUrl}/api/cases/${this.currentCaseId}/pdf`;
-                                }
+                                
+                                // Show the existing PDFs and allow replacement
+                                await this.showExistingCaseDocuments(error.case);
                                 
                                 this.showSuccess(`Resuming existing case ${caseNumber}`);
                                 
-                                // The case exists, so we can proceed with preview
+                                // Don't proceed yet - let user review and potentially update documents
                                 return {
-                                    success: true,
-                                    exists: true,
+                                    success: false,
+                                    resuming: true,
                                     caseId: this.currentCaseId,
                                     case: error.case,
-                                    message: 'Using existing case'
+                                    message: 'Review and update documents as needed'
                                 };
                             } else {
                                 // User wants to use a different case number
@@ -2189,6 +2189,90 @@ window.app = {
             const bsModal = bootstrap.Modal.getInstance(modal);
             if (bsModal) bsModal.hide();
         }
+    },
+    
+    // Show existing case documents when resuming
+    async showExistingCaseDocuments(caseData) {
+        try {
+            const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+            
+            // Store the consolidated PDF URL
+            if (caseData.pdf_path) {
+                this.consolidatedPDFUrl = `${backendUrl}/api/cases/${caseData.id}/pdf`;
+            }
+            
+            // Update the file upload area to show existing documents
+            const fileUploadDiv = document.getElementById('fileUpload');
+            if (fileUploadDiv) {
+                // Add a section showing existing documents
+                const existingDocsHTML = `
+                    <div class="alert alert-info mb-3" id="existingDocsAlert">
+                        <h5>📁 Existing Case Documents</h5>
+                        <p>This case already has documents uploaded. You can:</p>
+                        <ul>
+                            <li>Keep the existing documents and continue</li>
+                            <li>Replace them by uploading new PDFs</li>
+                        </ul>
+                        ${caseData.pdf_path ? `
+                            <div class="mt-3">
+                                <a href="${backendUrl}/api/cases/${caseData.id}/pdf?serverAddress=${window.wallet?.address}" 
+                                   target="_blank" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-file-pdf"></i> View Existing Documents
+                                </a>
+                                <button onclick="app.clearExistingDocuments()" class="btn btn-sm btn-warning ms-2">
+                                    <i class="bi bi-trash"></i> Clear & Upload New
+                                </button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+                
+                // Insert before the file input
+                const fileInput = fileUploadDiv.querySelector('input[type="file"]');
+                if (fileInput && fileInput.parentElement) {
+                    // Remove any existing alert first
+                    const existing = document.getElementById('existingDocsAlert');
+                    if (existing) existing.remove();
+                    
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = existingDocsHTML;
+                    fileInput.parentElement.insertBefore(tempDiv.firstElementChild, fileInput.parentElement.firstChild);
+                }
+                
+                // Set a flag that we have existing documents
+                this.hasExistingDocuments = true;
+                
+                // Add a placeholder to the file queue
+                this.state.fileQueue = [{
+                    file: new File(['existing'], 'Existing case documents.pdf', { type: 'application/pdf' }),
+                    preview: null,
+                    isExisting: true
+                }];
+                
+                // Update file list display
+                this.updateFileList();
+            }
+            
+        } catch (error) {
+            console.error('Error showing existing documents:', error);
+            this.showError('Failed to load existing documents');
+        }
+    },
+    
+    // Clear existing documents and allow new upload
+    clearExistingDocuments() {
+        this.hasExistingDocuments = false;
+        this.consolidatedPDFUrl = null;
+        this.state.fileQueue = [];
+        this.updateFileList();
+        
+        // Remove the existing documents alert
+        const existingAlert = document.getElementById('existingDocsAlert');
+        if (existingAlert) {
+            existingAlert.remove();
+        }
+        
+        this.showInfo('Existing documents cleared. Please upload new PDFs.');
     }
 };
 
