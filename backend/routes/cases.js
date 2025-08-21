@@ -92,6 +92,63 @@ router.get('/cases/by-number/:caseNumber', async (req, res) => {
 });
 
 /**
+ * DELETE /api/cases/:caseNumber
+ * Delete a case and all its associated notices
+ */
+router.delete('/cases/:caseNumber', async (req, res) => {
+    try {
+        const { caseNumber } = req.params;
+        const serverAddress = req.headers['x-server-address'] || req.query.serverAddress;
+        
+        if (!caseNumber) {
+            return res.status(400).json({ 
+                error: 'Case number is required' 
+            });
+        }
+        
+        if (!serverAddress) {
+            return res.status(400).json({ 
+                error: 'Server address is required' 
+            });
+        }
+        
+        console.log(`Deleting case ${caseNumber} for server ${serverAddress}`);
+        
+        // Delete from served_notices table
+        const deleteNoticesResult = await pool.query(
+            'DELETE FROM served_notices WHERE case_number = $1 AND server_address = $2',
+            [caseNumber, serverAddress]
+        );
+        
+        // Also try to delete from cases table if it exists
+        try {
+            await pool.query(
+                'DELETE FROM cases WHERE id = $1 AND server_address = $2',
+                [caseNumber, serverAddress]
+            );
+        } catch (e) {
+            // Cases table might not exist or have the record
+            console.log('No record in cases table or table does not exist');
+        }
+        
+        console.log(`Deleted ${deleteNoticesResult.rowCount} notices for case ${caseNumber}`);
+        
+        res.json({ 
+            success: true,
+            message: `Case ${caseNumber} deleted successfully`,
+            deletedNotices: deleteNoticesResult.rowCount
+        });
+        
+    } catch (error) {
+        console.error('Error deleting case:', error);
+        res.status(500).json({ 
+            error: 'Failed to delete case',
+            message: error.message 
+        });
+    }
+});
+
+/**
  * Get all cases for a server address
  * Groups notices by case number, supporting multiple recipients per case
  */

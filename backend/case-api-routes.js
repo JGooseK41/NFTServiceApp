@@ -198,6 +198,37 @@ router.get('/cases/:caseId/pdf', verifyServer, async (req, res) => {
 });
 
 /**
+ * DELETE CASE
+ * DELETE /api/cases/:caseId
+ * Delete a case and its associated data
+ */
+router.delete('/cases/:caseId', verifyServer, async (req, res) => {
+    console.log('DELETE /api/cases/:caseId - Case:', req.params.caseId, 'Server:', req.serverAddress);
+    
+    try {
+        // For now, just delete from database
+        // In the future, might want to archive instead
+        const result = await caseManager.deleteCase(
+            req.params.caseId,
+            req.serverAddress
+        );
+        
+        if (result.success) {
+            res.json(result);
+        } else {
+            res.status(404).json(result);
+        }
+        
+    } catch (error) {
+        console.error('Case deletion error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
  * GET ALERT PREVIEW
  * GET /api/cases/:caseId/preview
  * Returns the alert preview image

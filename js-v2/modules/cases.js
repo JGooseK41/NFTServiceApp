@@ -1,6 +1,7 @@
 // Cases Module - Handles case management
 window.cases = {
     currentCase: null,
+    currentCases: [],
     
     // Initialize module
     async init() {
@@ -92,6 +93,9 @@ window.cases = {
     
     // Display cases in table
     displayCases(cases) {
+        // Store current cases for reference
+        this.currentCases = cases;
+        
         const tbody = document.getElementById('casesTableBody');
         if (!tbody) return;
         
@@ -106,7 +110,7 @@ window.cases = {
         
         tbody.innerHTML = cases.map(c => {
             // Handle different case formats from backend and local storage
-            const caseId = c.id || c.caseNumber || 'Unknown';
+            const caseId = c.caseNumber || c.case_number || c.id || 'Unknown';
             const createdDate = c.created_at || c.createdAt || Date.now();
             const pageCount = c.page_count || c.pageCount || c.documentCount || 0;
             const status = c.status || 'Active';
@@ -115,7 +119,7 @@ window.cases = {
                 <tr>
                     <td>
                         <a href="#" onclick="cases.viewCase('${caseId}'); return false;">
-                            ${caseId.substring(0, 8)}${caseId.length > 8 ? '...' : ''}
+                            ${caseId}
                         </a>
                     </td>
                     <td>${new Date(createdDate).toLocaleDateString()}</td>
@@ -126,14 +130,19 @@ window.cases = {
                         </span>
                     </td>
                     <td>
-                        <button class="btn btn-sm btn-primary" onclick="cases.resumeCase('${caseId}')">
-                            <i class="bi bi-arrow-clockwise"></i> Resume
-                        </button>
-                        ${c.served_at ? `
-                            <button class="btn btn-sm btn-success" onclick="cases.viewReceipts('${caseId}')">
-                                <i class="bi bi-receipt"></i> Receipt
+                        <div class="btn-group" role="group">
+                            <button class="btn btn-sm btn-primary" onclick="cases.resumeCase('${caseId}')" title="Resume">
+                                <i class="bi bi-arrow-clockwise"></i>
                             </button>
-                        ` : ''}
+                            ${c.served_at ? `
+                                <button class="btn btn-sm btn-success" onclick="cases.viewReceipts('${caseId}')" title="Receipt">
+                                    <i class="bi bi-receipt"></i>
+                                </button>
+                            ` : ''}
+                            <button class="btn btn-sm btn-danger" onclick="cases.deleteCase('${caseId}', '${c.server_address || window.wallet.address}')" title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -331,21 +340,42 @@ window.cases = {
     
     // View case details
     async viewCase(caseNumber) {
-        const caseData = window.storage.getCase(caseNumber);
+        // First try to get from the current loaded cases
+        let caseData = null;
+        if (this.currentCases) {
+            caseData = this.currentCases.find(c => 
+                c.caseNumber === caseNumber || 
+                c.id === caseNumber || 
+                c.case_number === caseNumber
+            );
+        }
         
-        if (!caseData) {
-            // Try to fetch from backend
+        // If not found in current cases, try backend
+        if (!caseData && window.wallet && window.wallet.connected) {
             try {
-                const response = await fetch(getApiUrl('getCase', { id: caseNumber }));
+                const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+                const response = await fetch(`${backendUrl}/api/cases/by-number/${caseNumber}?serverAddress=${window.wallet.address}`, {
+                    headers: {
+                        'X-Server-Address': window.wallet.address
+                    }
+                });
                 if (response.ok) {
-                    const data = await response.json();
-                    this.displayCaseDetails(data);
-                    return;
+                    const result = await response.json();
+                    if (result.success && result.case) {
+                        caseData = result.case;
+                    }
                 }
             } catch (error) {
                 console.error('Failed to fetch case:', error);
             }
-            
+        }
+        
+        // Fall back to local storage
+        if (!caseData) {
+            caseData = window.storage.getCase(caseNumber);
+        }
+        
+        if (!caseData) {
             window.app.showError('Case not found');
             return;
         }
@@ -432,6 +462,46 @@ window.cases = {
         document.getElementById('caseDetailsModal').addEventListener('hidden.bs.modal', function() {
             this.remove();
         });
+    },
+    
+    // Delete a case
+    async deleteCase(caseNumber, serverAddress) {
+        // Confirm deletion
+        if (!confirm(`Are you sure you want to delete case ${caseNumber}?\n\nThis will remove the case from the backend database. This action cannot be undone.`)) {
+            return;
+        }
+        
+        try {
+            const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+            const response = await fetch(`${backendUrl}/api/cases/${caseNumber}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-Server-Address': serverAddress || window.wallet.address
+                }
+            });
+            
+            if (response.ok) {
+                window.app.showSuccess(`Case ${caseNumber} deleted successfully`);
+                
+                // Remove from local storage if present
+                const localCases = window.storage.get('cases') || [];
+                const updatedCases = localCases.filter(c => 
+                    c.caseNumber !== caseNumber && 
+                    c.case_number !== caseNumber && 
+                    c.id !== caseNumber
+                );
+                window.storage.set('cases', updatedCases);
+                
+                // Reload cases
+                await this.loadCases();
+            } else {
+                const error = await response.text();
+                window.app.showError(`Failed to delete case: ${error}`);
+            }
+        } catch (error) {
+            console.error('Error deleting case:', error);
+            window.app.showError('Failed to delete case: ' + error.message);
+        }
     },
     
     // View receipts for case

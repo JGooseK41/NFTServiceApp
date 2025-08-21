@@ -516,27 +516,33 @@ class CaseManager {
     }
 
     /**
-     * Delete case (only drafts)
+     * Delete case (allows deletion of any case)
      */
     async deleteCase(caseId, serverAddress) {
         try {
-            // Check if case exists and is draft
-            const caseData = await this.getCase(caseId, serverAddress);
-            if (!caseData.success) {
-                return { success: false, error: 'Case not found' };
+            console.log(`Deleting case ${caseId} for server ${serverAddress}`);
+            
+            // Delete from cases table
+            const casesResult = await this.db.query(
+                'DELETE FROM cases WHERE id = $1 AND server_address = $2',
+                [caseId, serverAddress]
+            );
+            
+            console.log(`Deleted ${casesResult.rowCount} records from cases table`);
+            
+            // Try to delete from disk if storage exists
+            try {
+                await this.diskStorage.deleteCase(caseId);
+                console.log(`Deleted case files from disk`);
+            } catch (diskError) {
+                console.log('No disk files to delete or disk storage unavailable');
             }
             
-            if (caseData.case.status !== 'draft') {
-                return { success: false, error: 'Can only delete draft cases' };
-            }
-            
-            // Delete from database
-            await this.db.query('DELETE FROM cases WHERE id = $1', [caseId]);
-            
-            // Delete from disk
-            await this.diskStorage.deleteCase(caseId);
-            
-            return { success: true };
+            return { 
+                success: true, 
+                message: `Case ${caseId} deleted successfully`,
+                deletedFromCases: casesResult.rowCount
+            };
             
         } catch (error) {
             console.error('Failed to delete case:', error);
