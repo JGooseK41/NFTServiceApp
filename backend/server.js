@@ -1044,6 +1044,11 @@ const dataExportRouter = require('./routes/data-export');
 app.use('/api/data-export', dataExportRouter);
 console.log('✅ Data export routes loaded');
 
+// Admin authentication routes
+const adminAuthRouter = require('./routes/admin-auth');
+app.use('/api/admin-auth', adminAuthRouter);
+console.log('✅ Admin authentication routes loaded');
+
 // Document processing routes (proper workflow)
 try {
     const documentProcessingRouter = require('./routes/document-processing');

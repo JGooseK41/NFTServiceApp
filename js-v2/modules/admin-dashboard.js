@@ -43,10 +43,23 @@ window.adminDashboard = {
         }
     },
     
-    // Fetch data from backend
+    // Fetch data from backend with admin authentication
     async fetchData(endpoint) {
-        const response = await fetch(this.baseUrl + endpoint);
+        // Check admin access first
+        if (!window.adminAccess?.isAdmin) {
+            throw new Error('Admin access required');
+        }
+        
+        const response = await fetch(this.baseUrl + endpoint, {
+            headers: {
+                'admin-wallet': window.wallet?.address || ''
+            }
+        });
+        
         if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                throw new Error('Admin authentication failed');
+            }
             throw new Error(`Failed to fetch ${endpoint}: ${response.status}`);
         }
         return response.json();

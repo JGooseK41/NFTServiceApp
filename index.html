@@ -32,7 +32,7 @@
                     <li class="nav-item">
                         <a class="nav-link" href="#" data-page="receipts">Receipts</a>
                     </li>
-                    <li class="nav-item">
+                    <li class="nav-item" style="display: none;">
                         <a class="nav-link" href="#" data-page="admin">Admin</a>
                     </li>
                 </ul>
@@ -390,6 +390,11 @@
                 <div class="tab-content">
                     <!-- Settings Tab -->
                     <div class="tab-pane fade show active" id="adminSettings">
+                        <!-- Admin Info -->
+                        <div id="adminInfo" class="mb-3">
+                            <!-- Admin info will be populated here -->
+                        </div>
+                        
                         <div class="card">
                             <div class="card-header">
                                 <h4>Administration Settings</h4>
@@ -767,6 +772,7 @@
     <script src="js-v2/modules/cases.js"></script>
     <script src="js-v2/modules/receipts.js"></script>
     <script src="js-v2/modules/admin.js"></script>
+    <script src="js-v2/modules/admin-access.js"></script>
     <script src="js-v2/modules/admin-dashboard.js"></script>
     <script src="js-v2/modules/storage.js"></script>
     <script src="js-v2/modules/energy.js"></script>

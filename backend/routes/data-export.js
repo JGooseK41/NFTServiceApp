@@ -1,6 +1,6 @@
 /**
  * Data Export Routes
- * API endpoints for the visual data dashboard
+ * API endpoints for the visual data dashboard (Admin Only)
  */
 
 const express = require('express');
@@ -13,6 +13,59 @@ const pool = new Pool({
         ? { rejectUnauthorized: false }
         : false
 });
+
+// Middleware to check admin access
+async function requireAdmin(req, res, next) {
+    const adminWallet = req.headers['admin-wallet'] || req.query.adminWallet;
+    
+    if (!adminWallet) {
+        return res.status(401).json({ 
+            error: 'Admin authentication required' 
+        });
+    }
+    
+    try {
+        // Check if wallet is admin
+        const result = await pool.query(`
+            SELECT wallet_address, permissions 
+            FROM admin_users 
+            WHERE wallet_address = $1 AND is_active = true
+        `, [adminWallet]);
+        
+        if (result.rows.length === 0) {
+            return res.status(403).json({ 
+                error: 'Admin access denied' 
+            });
+        }
+        
+        // Check for view_all_data permission
+        const permissions = result.rows[0].permissions;
+        if (!permissions.view_all_data) {
+            return res.status(403).json({ 
+                error: 'Insufficient permissions to view data' 
+            });
+        }
+        
+        // Log admin access
+        await pool.query(`
+            INSERT INTO admin_access_logs (admin_wallet, action, details, ip_address)
+            VALUES ($1, $2, $3, $4)
+        `, [
+            adminWallet,
+            'data_export_access',
+            JSON.stringify({ endpoint: req.path }),
+            req.ip || req.connection.remoteAddress
+        ]);
+        
+        next();
+    } catch (error) {
+        console.error('Admin check error:', error);
+        res.status(500).json({ error: 'Authentication error' });
+    }
+}
+
+// Apply admin check to all routes
+router.use(requireAdmin);
 
 // Get all cases
 router.get('/cases', async (req, res) => {
