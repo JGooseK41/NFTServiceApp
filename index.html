@@ -372,28 +372,213 @@
 
             <!-- Admin Page -->
             <div id="adminPage" class="page-content" style="display:none;">
-                <div class="card">
-                    <div class="card-header">
-                        <h4>Administration</h4>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h5>Contract Settings</h5>
-                                <div class="mb-3">
-                                    <label class="form-label">Service Fee (TRX)</label>
-                                    <div class="input-group">
-                                        <input type="number" id="newServiceFee" class="form-control" step="0.1">
-                                        <button class="btn btn-outline-secondary" onclick="app.admin.updateFee()">Update</button>
+                <!-- Admin Navigation Tabs -->
+                <ul class="nav nav-tabs mb-3" id="adminTabs">
+                    <li class="nav-item">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#adminSettings">
+                            <i class="bi bi-gear"></i> Settings
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#adminDataDashboard" onclick="adminDashboard.loadAllData()">
+                            <i class="bi bi-database"></i> Data Dashboard
+                        </button>
+                    </li>
+                </ul>
+                
+                <!-- Tab Content -->
+                <div class="tab-content">
+                    <!-- Settings Tab -->
+                    <div class="tab-pane fade show active" id="adminSettings">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4>Administration Settings</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h5>Contract Settings</h5>
+                                        <div class="mb-3">
+                                            <label class="form-label">Service Fee (TRX)</label>
+                                            <div class="input-group">
+                                                <input type="number" id="newServiceFee" class="form-control" step="0.1">
+                                                <button class="btn btn-outline-secondary" onclick="app.admin.updateFee()">Update</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h5>Server Registration</h5>
+                                        <div class="mb-3">
+                                            <label class="form-label">Server ID</label>
+                                            <input type="text" id="serverId" class="form-control" readonly>
+                                            <small class="text-muted">Your server is automatically registered</small>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <h5>Server Registration</h5>
-                                <div class="mb-3">
-                                    <label class="form-label">Server ID</label>
-                                    <input type="text" id="serverId" class="form-control" readonly>
-                                    <small class="text-muted">Your server is automatically registered</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Data Dashboard Tab -->
+                    <div class="tab-pane fade" id="adminDataDashboard">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h4 class="mb-0">
+                                    <i class="bi bi-database"></i> Backend Data Dashboard
+                                    <button class="btn btn-sm btn-light float-end" onclick="adminDashboard.loadAllData()">
+                                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                                    </button>
+                                </h4>
+                            </div>
+                            <div class="card-body">
+                                <!-- Connection Status -->
+                                <div class="alert alert-info" id="dashboardStatus">
+                                    <i class="bi bi-circle-fill"></i> <span id="dashboardStatusText">Ready to load data</span>
+                                </div>
+                                
+                                <!-- Data Navigation Tabs -->
+                                <ul class="nav nav-pills mb-3" id="dataTabs">
+                                    <li class="nav-item">
+                                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#dashCases">
+                                            Cases <span class="badge bg-secondary" id="casesCount">0</span>
+                                        </button>
+                                    </li>
+                                    <li class="nav-item">
+                                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#dashService">
+                                            Service Records <span class="badge bg-secondary" id="serviceCount">0</span>
+                                        </button>
+                                    </li>
+                                    <li class="nav-item">
+                                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#dashImages">
+                                            Images <span class="badge bg-secondary" id="imagesCount">0</span>
+                                        </button>
+                                    </li>
+                                    <li class="nav-item">
+                                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#dashAudit">
+                                            Audit Logs <span class="badge bg-secondary" id="auditCount">0</span>
+                                        </button>
+                                    </li>
+                                    <li class="nav-item">
+                                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#dashViews">
+                                            Notice Views <span class="badge bg-secondary" id="viewsCount">0</span>
+                                        </button>
+                                    </li>
+                                    <li class="nav-item">
+                                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#dashSummary">
+                                            <i class="bi bi-graph-up"></i> Summary
+                                        </button>
+                                    </li>
+                                </ul>
+                                
+                                <!-- Tab Content -->
+                                <div class="tab-content" id="dataTabContent">
+                                    <!-- Cases Tab -->
+                                    <div class="tab-pane fade show active" id="dashCases">
+                                        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                                            <table class="table table-hover table-sm">
+                                                <thead class="sticky-top bg-light">
+                                                    <tr>
+                                                        <th>Case Number</th>
+                                                        <th>Status</th>
+                                                        <th>Server</th>
+                                                        <th>Created</th>
+                                                        <th>Metadata</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="dashCasesTableBody">
+                                                    <tr><td colspan="5" class="text-center">Click refresh to load data</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Service Records Tab -->
+                                    <div class="tab-pane fade" id="dashService">
+                                        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                                            <table class="table table-hover table-sm">
+                                                <thead class="sticky-top bg-light">
+                                                    <tr>
+                                                        <th>Case</th>
+                                                        <th>Transaction</th>
+                                                        <th>Alert NFT</th>
+                                                        <th>Doc NFT</th>
+                                                        <th>IPFS</th>
+                                                        <th>Recipients</th>
+                                                        <th>Served</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="dashServiceTableBody">
+                                                    <tr><td colspan="7" class="text-center">Click refresh to load data</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Images Tab -->
+                                    <div class="tab-pane fade" id="dashImages">
+                                        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                                            <table class="table table-hover table-sm">
+                                                <thead class="sticky-top bg-light">
+                                                    <tr>
+                                                        <th>Case Number</th>
+                                                        <th>Alert Image</th>
+                                                        <th>Document Preview</th>
+                                                        <th>Created</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="dashImagesTableBody">
+                                                    <tr><td colspan="4" class="text-center">Click refresh to load data</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Audit Logs Tab -->
+                                    <div class="tab-pane fade" id="dashAudit">
+                                        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                                            <table class="table table-hover table-sm">
+                                                <thead class="sticky-top bg-light">
+                                                    <tr>
+                                                        <th>Time</th>
+                                                        <th>Action</th>
+                                                        <th>Actor</th>
+                                                        <th>Target</th>
+                                                        <th>IP</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="dashAuditTableBody">
+                                                    <tr><td colspan="5" class="text-center">Click refresh to load data</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Notice Views Tab -->
+                                    <div class="tab-pane fade" id="dashViews">
+                                        <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                                            <table class="table table-hover table-sm">
+                                                <thead class="sticky-top bg-light">
+                                                    <tr>
+                                                        <th>Alert ID</th>
+                                                        <th>Wallet</th>
+                                                        <th>Viewed</th>
+                                                        <th>Signed</th>
+                                                        <th>IP</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="dashViewsTableBody">
+                                                    <tr><td colspan="5" class="text-center">Click refresh to load data</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Summary Tab -->
+                                    <div class="tab-pane fade" id="dashSummary">
+                                        <div class="row" id="dashSummaryCards">
+                                            <!-- Summary cards will be populated here -->
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -582,6 +767,7 @@
     <script src="js-v2/modules/cases.js"></script>
     <script src="js-v2/modules/receipts.js"></script>
     <script src="js-v2/modules/admin.js"></script>
+    <script src="js-v2/modules/admin-dashboard.js"></script>
     <script src="js-v2/modules/storage.js"></script>
     <script src="js-v2/modules/energy.js"></script>
     <script src="js-v2/modules/proof-of-service.js"></script>
