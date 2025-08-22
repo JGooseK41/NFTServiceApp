@@ -6,7 +6,6 @@
 const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');
-const TronWeb = require('tronweb');
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -15,10 +14,16 @@ const pool = new Pool({
         : false
 });
 
-// Initialize TronWeb
-const tronWeb = new TronWeb({
-    fullHost: 'https://api.trongrid.io'
-});
+// Initialize TronWeb only if available
+let tronWeb = null;
+try {
+    const TronWeb = require('tronweb');
+    tronWeb = new TronWeb({
+        fullHost: 'https://api.trongrid.io'
+    });
+} catch (error) {
+    console.log('TronWeb not available for admin-auth, blockchain sync will be limited');
+}
 
 // Contract address for admin verification
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || 'TNaps6xxSCuCvjxDyM2M5rhutuwq93xaLh';
@@ -313,6 +318,13 @@ router.post('/sync-blockchain', async (req, res) => {
             return res.status(403).json({
                 success: false,
                 error: 'No permission to sync blockchain'
+            });
+        }
+        
+        if (!tronWeb) {
+            return res.status(503).json({
+                success: false,
+                error: 'Blockchain sync not available - TronWeb not configured'
             });
         }
         
