@@ -1034,6 +1034,11 @@ const recipientDocumentAccess = require('./routes/recipient-document-access');
 app.use('/api/recipient-access', recipientDocumentAccess);
 console.log('✅ Enhanced recipient document access loaded');
 
+// Audit query routes
+const auditQueryRouter = require('./routes/audit-query');
+app.use('/api/audit', auditQueryRouter);
+console.log('✅ Audit query routes loaded');
+
 // Document processing routes (proper workflow)
 try {
     const documentProcessingRouter = require('./routes/document-processing');

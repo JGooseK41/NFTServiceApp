@@ -72,8 +72,37 @@ window.cases = {
                         backendCases = backendResponse;
                     }
                     
-                    // Merge cases
-                    const merged = this.mergeCases(allLocalCases, backendCases);
+                    // Fetch complete service data for each served case
+                    const enrichedCases = await Promise.all(backendCases.map(async (caseData) => {
+                        const caseNumber = caseData.case_number || caseData.caseNumber;
+                        
+                        // If case is served, fetch complete service data
+                        if (caseData.status === 'served' || caseData.transaction_hash || caseData.transactionHash) {
+                            try {
+                                const serviceResponse = await fetch(`${backendUrl}/api/cases/${caseNumber}/service-data`, {
+                                    headers: {
+                                        'X-Server-Address': window.wallet.address
+                                    }
+                                });
+                                
+                                if (serviceResponse.ok) {
+                                    const serviceData = await serviceResponse.json();
+                                    if (serviceData.success && serviceData.case) {
+                                        console.log(`Enriched case ${caseNumber} with service data`);
+                                        // Merge service data into case
+                                        return { ...caseData, ...serviceData.case };
+                                    }
+                                }
+                            } catch (error) {
+                                console.error(`Failed to fetch service data for case ${caseNumber}:`, error);
+                            }
+                        }
+                        
+                        return caseData;
+                    }));
+                    
+                    // Merge enriched backend cases with local cases
+                    const merged = this.mergeCases(allLocalCases, enrichedCases);
                     this.displayCases(merged);
                     return;
                 } else {
@@ -108,7 +137,8 @@ window.cases = {
     
     // Merge local and backend cases
     mergeCases(local, backend) {
-        const merged = [...local];
+        const merged = [];
+        const processedIds = new Set();
         
         // Ensure backend is an array
         if (!Array.isArray(backend)) {
@@ -117,21 +147,60 @@ window.cases = {
             if (backend && backend.cases && Array.isArray(backend.cases)) {
                 backend = backend.cases;
             } else {
-                return merged; // Return local cases only
+                backend = []; // Use empty array if invalid
             }
         }
         
+        // Process backend cases first (they have the most complete data)
         backend.forEach(bCase => {
-            const exists = merged.find(c => c.caseNumber === bCase.caseNumber);
-            if (!exists) {
+            const caseNumber = bCase.case_number || bCase.caseNumber;
+            if (caseNumber) {
+                processedIds.add(caseNumber);
                 merged.push(bCase);
-            } else {
-                // Update with backend data
-                Object.assign(exists, bCase);
             }
         });
         
-        return merged.sort((a, b) => b.createdAt - a.createdAt);
+        // Then add local cases that aren't already in backend
+        local.forEach(lCase => {
+            const caseNumber = lCase.case_number || lCase.caseNumber;
+            if (caseNumber && !processedIds.has(caseNumber)) {
+                // Check if this local case might have data the backend doesn't
+                const backendCase = merged.find(c => 
+                    (c.case_number === caseNumber) || 
+                    (c.caseNumber === caseNumber)
+                );
+                
+                if (backendCase) {
+                    // Merge local data into backend case if local has fields backend doesn't
+                    if (lCase.transactionHash && !backendCase.transaction_hash) {
+                        backendCase.transaction_hash = lCase.transactionHash;
+                    }
+                    if (lCase.alertTokenId && !backendCase.alert_token_id) {
+                        backendCase.alert_token_id = lCase.alertTokenId;
+                    }
+                    if (lCase.documentTokenId && !backendCase.document_token_id) {
+                        backendCase.document_token_id = lCase.documentTokenId;
+                    }
+                    if (lCase.ipfsHash && !backendCase.ipfs_hash) {
+                        backendCase.ipfs_hash = lCase.ipfsHash;
+                    }
+                    if (lCase.alertImage && !backendCase.alert_image) {
+                        backendCase.alert_image = lCase.alertImage;
+                    }
+                } else {
+                    // Add local case if not in backend
+                    merged.push(lCase);
+                    processedIds.add(caseNumber);
+                }
+            }
+        });
+        
+        // Sort by creation date (newest first)
+        return merged.sort((a, b) => {
+            const aTime = b.createdAt || b.created_at || 0;
+            const bTime = a.createdAt || a.created_at || 0;
+            return aTime - bTime;
+        });
     },
     
     // Display cases in table
@@ -158,6 +227,22 @@ window.cases = {
             const pageCount = c.page_count || c.pageCount || c.documentCount || 0;
             const status = c.status || 'Active';
             
+            // Debug logging for served cases
+            if (status === 'served' || status.toLowerCase() === 'served') {
+                console.log(`Case ${caseId} is served. Checking receipt button conditions:`, {
+                    served_at: c.served_at,
+                    servedAt: c.servedAt,
+                    status: c.status,
+                    transactionHash: c.transactionHash,
+                    transaction_hash: c.transaction_hash,
+                    showReceiptButton: !!(c.served_at || c.servedAt || c.status === 'served' || c.transactionHash || c.transaction_hash)
+                });
+            }
+            
+            const txHash = c.transactionHash || c.transaction_hash;
+            const alertTokenId = c.alertTokenId || c.alert_token_id;
+            const documentTokenId = c.documentTokenId || c.document_token_id;
+            
             return `
                 <tr>
                     <td>
@@ -171,21 +256,37 @@ window.cases = {
                         <span class="badge bg-${this.getStatusColor(status)}">
                             ${status}
                         </span>
+                        ${txHash ? `
+                            <br>
+                            <small style="font-size: 10px; line-height: 1.2;">
+                                Tx: <code>${txHash.substring(0, 8)}...</code>
+                                <a href="https://tronscan.org/#/transaction/${txHash}" target="_blank" 
+                                   class="text-info" title="View on TronScan">
+                                    <i class="bi bi-box-arrow-up-right"></i>
+                                </a>
+                            </small>
+                        ` : ''}
+                        ${(alertTokenId || documentTokenId) ? `
+                            <br>
+                            <small style="font-size: 10px; color: #666;">
+                                NFTs: ${alertTokenId ? `#${alertTokenId}` : ''} ${documentTokenId ? `#${documentTokenId}` : ''}
+                            </small>
+                        ` : ''}
                     </td>
                     <td>
                         <div class="btn-group" role="group">
                             <button class="btn btn-sm btn-primary" onclick="cases.resumeCase('${caseId}')" title="Resume">
                                 <i class="bi bi-arrow-clockwise"></i>
                             </button>
-                            ${(c.served_at || c.servedAt || c.status === 'served' || c.transactionHash) ? `
+                            ${(c.served_at || c.servedAt || status === 'served' || status.toLowerCase() === 'served' || c.transactionHash || c.transaction_hash) ? `
+                                <button class="btn btn-sm btn-primary" onclick="cases.viewServiceDetails('${caseId}')" title="View Complete Service Details">
+                                    <i class="bi bi-eye"></i> View
+                                </button>
+                                <button class="btn btn-sm btn-dark" onclick="cases.viewAuditLog('${caseId}')" title="View Recipient Audit Log">
+                                    <i class="bi bi-clipboard-data"></i> Audit
+                                </button>
                                 <button class="btn btn-sm btn-warning" onclick="cases.syncBlockchainData('${caseId}')" title="Sync Blockchain Data">
                                     <i class="bi bi-cloud-download"></i>
-                                </button>
-                                <button class="btn btn-sm btn-success" onclick="cases.printReceipt('${caseId}')" title="Print Receipt">
-                                    <i class="bi bi-printer"></i>
-                                </button>
-                                <button class="btn btn-sm btn-info" onclick="cases.exportStamped('${caseId}')" title="Export Stamped">
-                                    <i class="bi bi-file-earmark-pdf"></i>
                                 </button>
                             ` : ''}
                             <button class="btn btn-sm btn-danger" onclick="cases.deleteCase('${caseId}', '${c.server_address || window.wallet.address}')" title="Delete">
@@ -696,6 +797,656 @@ window.cases = {
         }
     },
     
+    // View complete service details with all options
+    async viewServiceDetails(caseId) {
+        try {
+            // Get case data
+            let caseData = this.getCaseData(caseId);
+            
+            if (!caseData) {
+                // Try fetching from backend
+                const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+                const response = await fetch(`${backendUrl}/api/cases/${caseId}/service-data`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    caseData = data.case;
+                } else {
+                    window.app.showError('Case not found');
+                    return;
+                }
+            }
+            
+            // Show comprehensive service details modal
+            this.showServiceDetailsModal(caseData);
+            
+        } catch (error) {
+            console.error('Failed to view receipt:', error);
+            window.app.showError('Failed to view receipt: ' + error.message);
+        }
+    },
+    
+    // Show comprehensive service details modal with all actions
+    showServiceDetailsModal(caseData) {
+        const caseNumber = caseData.caseNumber || caseData.case_number;
+        const txHash = caseData.transactionHash || caseData.transaction_hash;
+        const alertTokenId = caseData.alertTokenId || caseData.alert_token_id;
+        const documentTokenId = caseData.documentTokenId || caseData.document_token_id;
+        const servedAt = caseData.servedAt || caseData.served_at;
+        const recipients = caseData.recipients || [];
+        const agency = caseData.agency || caseData.issuingAgency || caseData.metadata?.agency || caseData.metadata?.issuingAgency || 'The Block Audit';
+        const serverAddress = caseData.serverAddress || caseData.server_address || window.wallet?.address;
+        
+        // Add print-specific styles
+        const printStyles = `
+            <style id="receiptPrintStyles">
+                @media print {
+                    /* Hide modal chrome when printing */
+                    .modal-header, .modal-footer { display: none !important; }
+                    .modal-dialog { max-width: 100% !important; }
+                    .modal-content { border: none !important; box-shadow: none !important; }
+                    
+                    /* Page setup for 8.5x11 */
+                    @page {
+                        size: letter;
+                        margin: 0.5in;
+                    }
+                    
+                    /* Receipt layout */
+                    .receipt-page {
+                        page-break-after: always;
+                        min-height: 9.5in;
+                        padding: 0.5in;
+                        display: flex;
+                        flex-direction: column;
+                    }
+                    
+                    .receipt-page:last-child {
+                        page-break-after: avoid;
+                    }
+                    
+                    /* Ensure image fits on page */
+                    .alert-preview-img {
+                        max-width: 100% !important;
+                        max-height: 6in !important;
+                        object-fit: contain;
+                    }
+                    
+                    /* Clean printing */
+                    * {
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                    }
+                    
+                    .no-print { display: none !important; }
+                }
+                
+                /* Modal styles */
+                .receipt-content {
+                    font-family: 'Times New Roman', Times, serif;
+                }
+                
+                .receipt-header {
+                    border-bottom: 3px double #000;
+                    padding-bottom: 20px;
+                    margin-bottom: 20px;
+                }
+                
+                .receipt-section {
+                    margin-bottom: 25px;
+                    padding: 15px;
+                    background: #f8f9fa;
+                    border: 1px solid #dee2e6;
+                    border-radius: 5px;
+                }
+                
+                .receipt-field {
+                    margin-bottom: 10px;
+                }
+                
+                .receipt-label {
+                    font-weight: bold;
+                    display: inline-block;
+                    min-width: 150px;
+                }
+                
+                code.hash {
+                    font-size: 11px;
+                    word-break: break-all;
+                    background: #f4f4f4;
+                    padding: 2px 4px;
+                    border-radius: 3px;
+                }
+            </style>
+        `;
+        
+        const modalHtml = `
+            ${printStyles}
+            <div class="modal fade" id="receiptModal" tabindex="-1">
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white no-print">
+                            <h5 class="modal-title"><i class="bi bi-folder-open"></i> Service Details - Case ${caseNumber}</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <!-- Service Summary Section -->
+                            <div class="card mb-3">
+                                <div class="card-header bg-success text-white">
+                                    <h6 class="mb-0"><i class="bi bi-check-circle-fill"></i> Service Summary</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <p><strong>Status:</strong> <span class="badge bg-success">Served</span></p>
+                                            <p><strong>Date/Time Served:</strong> ${servedAt ? new Date(servedAt).toLocaleString() : 'Not Available'}</p>
+                                            <p><strong>Issuing Agency:</strong> ${agency}</p>
+                                            <p><strong>Recipients:</strong> ${recipients.length} address(es)</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p><strong>Transaction Hash:</strong><br>
+                                               <code style="font-size: 10px;">${txHash || 'Pending Sync'}</code></p>
+                                            <p><strong>Alert NFT:</strong> #${alertTokenId || 'Pending'}</p>
+                                            <p><strong>Document NFT:</strong> #${documentTokenId || 'Pending'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Action Buttons Section -->
+                            <div class="card mb-3">
+                                <div class="card-header bg-info text-white">
+                                    <h6 class="mb-0"><i class="bi bi-tools"></i> Available Actions</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row g-2">
+                                        <div class="col-md-6">
+                                            <button class="btn btn-primary w-100" onclick="cases.printDeliveryReceipt('${caseNumber}')">
+                                                <i class="bi bi-printer"></i> Print Delivery Receipt
+                                            </button>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <button class="btn btn-success w-100" onclick="cases.exportStampedDocument('${caseNumber}')">
+                                                <i class="bi bi-file-earmark-pdf"></i> Export Stamped Document
+                                            </button>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <button class="btn btn-dark w-100" onclick="cases.viewAuditLog('${caseNumber}')">
+                                                <i class="bi bi-clipboard-data"></i> View Recipient Audit Log
+                                            </button>
+                                        </div>
+                                        ${txHash ? `
+                                        <div class="col-md-6">
+                                            <a href="https://tronscan.org/#/transaction/${txHash}" target="_blank" class="btn btn-info w-100">
+                                                <i class="bi bi-box-arrow-up-right"></i> View on TronScan
+                                            </a>
+                                        </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Recipients List -->
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="bi bi-people"></i> Recipients (${recipients.length})</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="list-group">
+                                        ${recipients.map((r, i) => `
+                                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                <code>${r}</code>
+                                                <button class="btn btn-sm btn-outline-dark" 
+                                                        onclick="cases.checkRecipientActivity('${r}', '${caseNumber}')"
+                                                        title="Check if this recipient viewed their notice">
+                                                    <i class="bi bi-search"></i> Check Activity
+                                                </button>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Alert NFT Preview -->
+                            ${caseData.alertImage || caseData.alert_preview ? `
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="bi bi-image"></i> Alert NFT Preview</h6>
+                                </div>
+                                <div class="card-body text-center">
+                                    <img src="${caseData.alertImage || caseData.alert_preview}" 
+                                         style="max-width: 400px; border: 1px solid #ddd; border-radius: 8px;">
+                                </div>
+                            </div>
+                            ` : ''}
+                            
+                            <div class="receipt-content d-none">
+                                <!-- Page 1: Service Details and Transaction Info -->
+                                <div class="receipt-page">
+                                    <div class="receipt-header text-center">
+                                        <h1 style="font-size: 28px; margin: 0;">PROOF OF SERVICE RECEIPT</h1>
+                                        <p style="font-size: 14px; margin: 10px 0 0 0;">Blockchain-Verified Legal Notice Delivery</p>
+                                    </div>
+                                    
+                                    <div class="receipt-section">
+                                        <h4 style="margin-top: 0; border-bottom: 1px solid #ccc; padding-bottom: 5px;">SERVICE INFORMATION</h4>
+                                        <div class="receipt-field">
+                                            <span class="receipt-label">Case Number:</span>
+                                            <strong>${caseNumber}</strong>
+                                        </div>
+                                        <div class="receipt-field">
+                                            <span class="receipt-label">Date/Time Served:</span>
+                                            ${servedAt ? new Date(servedAt).toLocaleString() : 'Not Available'}
+                                        </div>
+                                        <div class="receipt-field">
+                                            <span class="receipt-label">Issuing Agency:</span>
+                                            ${agency}
+                                        </div>
+                                        <div class="receipt-field">
+                                            <span class="receipt-label">Status:</span>
+                                            <span style="color: green; font-weight: bold;">✓ SUCCESSFULLY SERVED</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="receipt-section">
+                                        <h4 style="margin-top: 0; border-bottom: 1px solid #ccc; padding-bottom: 5px;">BLOCKCHAIN VERIFICATION</h4>
+                                        <div class="receipt-field">
+                                            <span class="receipt-label">Transaction Hash:</span><br>
+                                            <code class="hash">${txHash || 'Pending Synchronization'}</code>
+                                        </div>
+                                        <div class="receipt-field">
+                                            <span class="receipt-label">Alert NFT Token:</span>
+                                            #${alertTokenId || 'Pending'}
+                                        </div>
+                                        <div class="receipt-field">
+                                            <span class="receipt-label">Document NFT Token:</span>
+                                            #${documentTokenId || 'Pending'}
+                                        </div>
+                                        <div class="receipt-field">
+                                            <span class="receipt-label">Blockchain:</span>
+                                            TRON Mainnet
+                                        </div>
+                                        ${txHash ? `
+                                        <div class="receipt-field">
+                                            <span class="receipt-label">Verification URL:</span><br>
+                                            <small>https://tronscan.org/#/transaction/${txHash}</small>
+                                        </div>
+                                        ` : ''}
+                                    </div>
+                                    
+                                    <div class="receipt-section">
+                                        <h4 style="margin-top: 0; border-bottom: 1px solid #ccc; padding-bottom: 5px;">RECIPIENTS</h4>
+                                        <div class="receipt-field">
+                                            <span class="receipt-label">Total Recipients:</span>
+                                            ${recipients.length}
+                                        </div>
+                                        <div style="margin-top: 10px;">
+                                            ${recipients.map((r, i) => `
+                                                <div style="margin-bottom: 5px;">
+                                                    <small>${i + 1}. <code class="hash">${r}</code></small>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="receipt-section">
+                                        <h4 style="margin-top: 0; border-bottom: 1px solid #ccc; padding-bottom: 5px;">SERVICE CERTIFICATION</h4>
+                                        <p style="font-size: 14px; line-height: 1.6; margin: 10px 0;">
+                                            I hereby certify that the above-described legal notice was served via blockchain technology
+                                            on the date and time indicated. This service has been recorded immutably on the TRON blockchain
+                                            and can be independently verified using the transaction hash provided above.
+                                        </p>
+                                        <div style="margin-top: 30px;">
+                                            <div style="border-bottom: 1px solid #000; width: 300px; margin-bottom: 5px;"></div>
+                                            <p style="font-size: 14px; margin: 0;">Authorized Process Server</p>
+                                            <p style="font-size: 12px; margin: 5px 0;">Server Address: ${serverAddress || 'N/A'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Page 2: Alert NFT Preview -->
+                                ${caseData.alertImage || caseData.alert_preview ? `
+                                <div class="receipt-page">
+                                    <!-- Page 2 Header -->
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 2px solid #000; margin-bottom: 20px;">
+                                        <div>
+                                            <strong>Case: ${caseNumber}</strong>
+                                        </div>
+                                        <div style="text-align: center;">
+                                            <strong>PROOF OF SERVICE RECEIPT</strong>
+                                        </div>
+                                        <div style="text-align: right;">
+                                            <strong>Page 2 of 2</strong>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="receipt-header text-center">
+                                        <h2 style="font-size: 24px; margin: 0;">ALERT NFT DELIVERY CONFIRMATION</h2>
+                                        <p style="font-size: 14px; margin: 10px 0 0 0;">Visual Record of Notice Delivered to Recipients</p>
+                                    </div>
+                                    
+                                    <div class="receipt-section">
+                                        <h4 style="margin-top: 0; border-bottom: 1px solid #ccc; padding-bottom: 5px;">DELIVERED NOTICE IMAGE</h4>
+                                        <p style="font-size: 14px; margin: 10px 0;">
+                                            The following Alert NFT was delivered to all recipients' wallets as proof of service:
+                                        </p>
+                                    </div>
+                                    
+                                    <div class="text-center" style="margin: 20px 0;">
+                                        <img src="${caseData.alertImage || caseData.alert_preview}" 
+                                             class="alert-preview-img"
+                                             style="max-width: 100%; border: 2px solid #000; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                    </div>
+                                    
+                                    <div class="receipt-section" style="margin-top: auto;">
+                                        <h4 style="margin-top: 0; border-bottom: 1px solid #ccc; padding-bottom: 5px;">RECIPIENT ACCESS</h4>
+                                        <p style="font-size: 14px;">
+                                            Recipients can access and respond to the full legal documents at:<br>
+                                            <strong>https://www.blockserved.com</strong>
+                                        </p>
+                                        <p style="font-size: 12px; color: #666;">
+                                            Recipients must connect their wallet to view and sign documents.
+                                        </p>
+                                    </div>
+                                    
+                                    ${caseData.ipfsHash || caseData.ipfsDocument ? `
+                                    <div class="receipt-section">
+                                        <h4 style="margin-top: 0; border-bottom: 1px solid #ccc; padding-bottom: 5px;">DOCUMENT STORAGE</h4>
+                                        <div class="receipt-field">
+                                            <span class="receipt-label">IPFS Hash:</span><br>
+                                            <code class="hash">${caseData.ipfsHash || caseData.ipfsDocument}</code>
+                                        </div>
+                                        <p style="font-size: 12px; color: #666; margin-top: 10px;">
+                                            Document stored permanently on the InterPlanetary File System (IPFS)
+                                        </p>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                        <div class="modal-footer no-print">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove any existing modal
+        const existingModal = document.getElementById('receiptModal');
+        if (existingModal) existingModal.remove();
+        
+        // Remove any existing print styles
+        const existingStyles = document.getElementById('receiptPrintStyles');
+        if (existingStyles) existingStyles.remove();
+        
+        // Add modal to page
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('receiptModal'));
+        modal.show();
+        
+        // Clean up on close
+        document.getElementById('receiptModal').addEventListener('hidden.bs.modal', function() {
+            this.remove();
+            const styles = document.getElementById('receiptPrintStyles');
+            if (styles) styles.remove();
+        });
+    },
+    
+    // View audit log for a case
+    async viewAuditLog(caseId) {
+        try {
+            // Get case data to find recipients
+            let caseData = this.getCaseData(caseId);
+            const caseNumber = caseData?.caseNumber || caseData?.case_number || caseId;
+            
+            window.app.showProcessing('Fetching audit logs...');
+            
+            // Fetch audit logs from backend
+            const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+            const response = await fetch(`${backendUrl}/api/audit/case/${caseNumber}`);
+            
+            window.app.hideProcessing();
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch audit logs');
+            }
+            
+            const auditData = await response.json();
+            this.showAuditLogModal(caseNumber, auditData);
+            
+        } catch (error) {
+            window.app.hideProcessing();
+            console.error('Error fetching audit log:', error);
+            window.app.showError('Failed to fetch audit log: ' + error.message);
+        }
+    },
+    
+    // Show audit log modal
+    showAuditLogModal(caseNumber, auditData) {
+        const { recipients, events } = auditData;
+        
+        // Group events by recipient
+        const eventsByRecipient = {};
+        recipients.forEach(r => eventsByRecipient[r] = []);
+        
+        events.forEach(event => {
+            if (eventsByRecipient[event.recipientWallet]) {
+                eventsByRecipient[event.recipientWallet].push(event);
+            }
+        });
+        
+        const modalHtml = `
+            <div class="modal fade" id="auditLogModal" tabindex="-1">
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content">
+                        <div class="modal-header bg-dark text-white">
+                            <h5 class="modal-title"><i class="bi bi-clipboard-data"></i> Recipient Audit Log - Case ${caseNumber}</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i> This log shows all recipient activity for viewing served documents
+                            </div>
+                            
+                            ${recipients.length === 0 ? `
+                                <p class="text-muted">No recipients found for this case.</p>
+                            ` : recipients.map(recipient => `
+                                <div class="card mb-3">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">
+                                            <i class="bi bi-person"></i> Recipient: <code>${recipient}</code>
+                                            ${eventsByRecipient[recipient].length > 0 ? 
+                                                `<span class="badge bg-success float-end">Viewed</span>` : 
+                                                `<span class="badge bg-warning float-end">Not Viewed Yet</span>`
+                                            }
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        ${eventsByRecipient[recipient].length === 0 ? `
+                                            <p class="text-muted mb-0">
+                                                <i class="bi bi-clock"></i> This recipient has not accessed their notice yet
+                                            </p>
+                                        ` : `
+                                            <div class="table-responsive">
+                                                <table class="table table-sm">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Time</th>
+                                                            <th>Action</th>
+                                                            <th>IP Address</th>
+                                                            <th>Device</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        ${eventsByRecipient[recipient].map(event => `
+                                                            <tr>
+                                                                <td>${new Date(event.timestamp).toLocaleString()}</td>
+                                                                <td>
+                                                                    ${event.action === 'recipient_notice_query' ? 
+                                                                        '<span class="badge bg-info">Checked Notices</span>' :
+                                                                        event.action === 'recipient_document_view' ?
+                                                                        '<span class="badge bg-success">Viewed Document</span>' :
+                                                                        event.action
+                                                                    }
+                                                                </td>
+                                                                <td><small>${event.ipAddress || 'N/A'}</small></td>
+                                                                <td><small>${event.userAgent ? event.userAgent.substring(0, 50) + '...' : 'N/A'}</small></td>
+                                                            </tr>
+                                                        `).join('')}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        `}
+                                    </div>
+                                </div>
+                            `).join('')}
+                            
+                            <div class="text-center mt-3">
+                                <p class="text-muted">
+                                    <i class="bi bi-shield-check"></i> All activity is logged for legal compliance
+                                </p>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-primary" onclick="cases.exportAuditLog('${caseNumber}')">
+                                <i class="bi bi-download"></i> Export Log
+                            </button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove any existing modal
+        const existingModal = document.getElementById('auditLogModal');
+        if (existingModal) existingModal.remove();
+        
+        // Add modal to page
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('auditLogModal'));
+        modal.show();
+        
+        // Clean up on close
+        document.getElementById('auditLogModal').addEventListener('hidden.bs.modal', function() {
+            this.remove();
+        });
+    },
+    
+    // Check individual recipient activity
+    async checkRecipientActivity(recipientAddress, caseNumber) {
+        try {
+            window.app.showProcessing('Checking recipient activity...');
+            
+            const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+            const response = await fetch(`${backendUrl}/api/audit/recipient/${recipientAddress}?caseNumber=${caseNumber}`);
+            
+            window.app.hideProcessing();
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch recipient activity');
+            }
+            
+            const data = await response.json();
+            
+            if (data.events.length === 0) {
+                window.app.showInfo(`Recipient ${recipientAddress.substring(0, 8)}... has not viewed their notice yet`);
+            } else {
+                const lastView = data.events[0];
+                window.app.showSuccess(`Recipient last viewed on ${new Date(lastView.timestamp).toLocaleString()} from IP ${lastView.ipAddress}`);
+            }
+            
+        } catch (error) {
+            window.app.hideProcessing();
+            console.error('Error checking recipient activity:', error);
+            window.app.showError('Failed to check recipient activity');
+        }
+    },
+    
+    // Print delivery receipt with proper formatting
+    async printDeliveryReceipt(caseNumber) {
+        // Show the receipt content for printing
+        const receiptContent = document.querySelector('.receipt-content');
+        if (receiptContent) {
+            receiptContent.classList.remove('d-none');
+            setTimeout(() => {
+                window.print();
+                receiptContent.classList.add('d-none');
+            }, 100);
+        }
+    },
+    
+    // Export stamped document
+    async exportStampedDocument(caseNumber) {
+        try {
+            // Get case data
+            const caseData = this.getCaseData(caseNumber) || 
+                           this.currentCases.find(c => c.case_number === caseNumber || c.caseNumber === caseNumber);
+            
+            if (!caseData) {
+                window.app.showError('Case not found');
+                return;
+            }
+            
+            // Use proof-of-service module if available
+            if (window.proofOfService && window.proofOfService.exportStampedDocuments) {
+                await window.proofOfService.exportStampedDocuments(caseData);
+            } else {
+                // Fallback to basic export
+                await this.exportStamped(caseNumber);
+            }
+        } catch (error) {
+            console.error('Error exporting stamped document:', error);
+            window.app.showError('Failed to export stamped document');
+        }
+    },
+    
+    // Export audit log as CSV
+    exportAuditLog(caseNumber) {
+        // Get the audit data from the modal
+        const modal = document.getElementById('auditLogModal');
+        if (!modal) return;
+        
+        // Extract data from the modal tables
+        const rows = [];
+        rows.push(['Case Number', 'Recipient', 'Timestamp', 'Action', 'IP Address', 'User Agent']);
+        
+        modal.querySelectorAll('.card').forEach(card => {
+            const recipient = card.querySelector('code')?.textContent || '';
+            card.querySelectorAll('tbody tr').forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 4) {
+                    rows.push([
+                        caseNumber,
+                        recipient,
+                        cells[0].textContent,
+                        cells[1].textContent.trim(),
+                        cells[2].textContent,
+                        cells[3].textContent
+                    ]);
+                }
+            });
+        });
+        
+        // Convert to CSV
+        const csv = rows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+        
+        // Download
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `audit_log_case_${caseNumber}_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    },
+    
     // Print proof of service receipt
     async printReceipt(caseId) {
         try {
@@ -961,10 +1712,47 @@ window.cases = {
     async syncBlockchainData(caseId) {
         try {
             // Show loading indicator
-            window.app.showInfo('Fetching blockchain data...');
+            window.app.showInfo('Syncing data from backend and blockchain...');
             
             // Get case data
             let caseData = this.getCaseData(caseId);
+            const caseNumber = caseData?.caseNumber || caseData?.case_number || caseId;
+            
+            // First try to fetch from backend
+            const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+            try {
+                const response = await fetch(`${backendUrl}/api/cases/${caseNumber}/service-data`, {
+                    headers: {
+                        'X-Server-Address': window.wallet?.address || ''
+                    }
+                });
+                
+                if (response.ok) {
+                    const serviceData = await response.json();
+                    if (serviceData.success && serviceData.case) {
+                        console.log(`Got complete service data from backend for case ${caseNumber}`);
+                        caseData = { ...caseData, ...serviceData.case };
+                        
+                        // Update local storage with backend data
+                        const localCases = JSON.parse(localStorage.getItem('legalnotice_cases') || '[]');
+                        const caseIndex = localCases.findIndex(c => 
+                            c.caseNumber === caseNumber || c.case_number === caseNumber
+                        );
+                        
+                        if (caseIndex >= 0) {
+                            localCases[caseIndex] = { ...localCases[caseIndex], ...serviceData.case };
+                            localStorage.setItem('legalnotice_cases', JSON.stringify(localCases));
+                        }
+                        
+                        // Reload the cases display
+                        await this.loadCases();
+                        window.app.showSuccess('✅ Case data synced from backend');
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch from backend, trying blockchain:', error);
+            }
             
             if (!caseData) {
                 window.app.showError('Case not found');

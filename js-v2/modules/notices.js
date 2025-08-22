@@ -217,7 +217,7 @@ window.notices = {
                             ipfsHash: documentData.ipfsHash,
                             encryptionKey: documentData.encryptionKey || '',
                             recipients: data.recipients || [data.recipient],
-                            agency: data.issuingAgency || data.agency || 'The Block Service',
+                            agency: data.issuingAgency || data.agency,
                             noticeType: data.noticeType || 'Legal Notice',
                             pageCount: documentData.pageCount || 1,
                             servedAt: new Date().toISOString(),

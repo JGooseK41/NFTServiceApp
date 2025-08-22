@@ -316,30 +316,71 @@ router.get('/cases/:caseNumber/service-data', async (req, res) => {
  */
 async function createTables() {
     try {
-        // Create case_service_records table
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS case_service_records (
-                id SERIAL PRIMARY KEY,
-                case_id INTEGER,
-                case_number VARCHAR(255) UNIQUE NOT NULL,
-                transaction_hash VARCHAR(255),
-                alert_token_id VARCHAR(255),
-                document_token_id VARCHAR(255),
-                ipfs_hash VARCHAR(255),
-                encryption_key TEXT,
-                recipients JSONB,
-                page_count INTEGER DEFAULT 1,
-                served_at TIMESTAMP,
-                server_address VARCHAR(255),
-                created_at TIMESTAMP DEFAULT NOW(),
-                updated_at TIMESTAMP DEFAULT NOW()
+        // First check if table exists
+        const tableCheck = await pool.query(`
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'case_service_records'
             )
         `);
-
-        console.log('✅ Case service records table ready');
+        
+        if (!tableCheck.rows[0].exists) {
+            // Create case_service_records table
+            await pool.query(`
+                CREATE TABLE case_service_records (
+                    id SERIAL PRIMARY KEY,
+                    case_id INTEGER,
+                    case_number VARCHAR(255) UNIQUE NOT NULL,
+                    transaction_hash VARCHAR(255),
+                    alert_token_id VARCHAR(255),
+                    document_token_id VARCHAR(255),
+                    ipfs_hash VARCHAR(255),
+                    encryption_key TEXT,
+                    recipients JSONB,
+                    page_count INTEGER DEFAULT 1,
+                    served_at TIMESTAMP,
+                    server_address VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            console.log('✅ Created case_service_records table');
+        } else {
+            console.log('✅ Case service records table already exists');
+        }
 
     } catch (error) {
         console.error('Error creating tables:', error);
+        // Try without checking - just ensure it exists
+        try {
+            await pool.query(`
+                CREATE TABLE IF NOT EXISTS case_service_records (
+                    id SERIAL PRIMARY KEY,
+                    case_id INTEGER,
+                    case_number VARCHAR(255),
+                    transaction_hash VARCHAR(255),
+                    alert_token_id VARCHAR(255),
+                    document_token_id VARCHAR(255),
+                    ipfs_hash VARCHAR(255),
+                    encryption_key TEXT,
+                    recipients JSONB,
+                    page_count INTEGER DEFAULT 1,
+                    served_at TIMESTAMP,
+                    server_address VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            
+            // Try to add unique constraint if it doesn't exist
+            await pool.query(`
+                CREATE UNIQUE INDEX IF NOT EXISTS case_service_records_case_number_key 
+                ON case_service_records(case_number)
+            `).catch(() => {});
+            
+        } catch (fallbackError) {
+            console.error('Fallback table creation also failed:', fallbackError);
+        }
     }
 }
 

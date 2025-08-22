@@ -257,14 +257,28 @@ window.receipts = {
     },
     
     // Download receipt as PDF
-    async downloadReceipt(receiptId) {
-        const receipts = window.storage.getReceipts();
-        const receipt = receipts.find(r => r.receiptId === receiptId);
-        
-        if (!receipt) {
-            window.app.showError('Receipt not found');
-            return;
-        }
+    async downloadReceiptPDF(caseNumber) {
+        try {
+            // Fetch case data
+            const backendUrl = window.app.getBackendUrl();
+            const response = await fetch(`${backendUrl}/api/cases/${caseNumber}/service-data`);
+            
+            let caseData;
+            if (response.ok) {
+                const data = await response.json();
+                caseData = data.case;
+            } else {
+                // Fallback to localStorage
+                const localCases = JSON.parse(localStorage.getItem('legalnotice_cases') || '[]');
+                caseData = localCases.find(c => 
+                    c.caseNumber === caseNumber || c.case_number === caseNumber
+                );
+            }
+            
+            if (!caseData) {
+                window.app.showError('Case not found');
+                return;
+            }
         
         // Load jsPDF if not already loaded
         await this.loadJSPDF();
@@ -284,16 +298,23 @@ window.receipts = {
         let y = 50;
         doc.setFontSize(10);
         
-        doc.text(`Receipt ID: ${receipt.receiptId}`, 20, y);
+        const txHash = caseData.transactionHash || caseData.transaction_hash;
+        const alertTokenId = caseData.alertTokenId || caseData.alert_token_id;
+        const documentTokenId = caseData.documentTokenId || caseData.document_token_id;
+        const servedAt = caseData.servedAt || caseData.served_at;
+        const serverAddress = caseData.serverAddress || caseData.server_address;
+        const recipients = caseData.recipients || [];
+        
+        doc.text(`Case Number: ${caseNumber}`, 20, y);
         y += 10;
         
-        doc.text(`Date Served: ${new Date(receipt.timestamp).toLocaleString()}`, 20, y);
+        doc.text(`Date Served: ${servedAt ? new Date(servedAt).toLocaleString() : 'N/A'}`, 20, y);
         y += 10;
         
-        doc.text(`Case Number: ${receipt.caseNumber}`, 20, y);
+        doc.text(`Alert NFT Token ID: #${alertTokenId || 'N/A'}`, 20, y);
         y += 10;
         
-        doc.text(`Notice Type: ${receipt.type === 'alert' ? 'Alert Notice' : 'Document for Signature'}`, 20, y);
+        doc.text(`Document NFT Token ID: #${documentTokenId || 'N/A'}`, 20, y);
         y += 15;
         
         doc.setFontSize(12);
@@ -301,13 +322,13 @@ window.receipts = {
         y += 10;
         
         doc.setFontSize(10);
-        doc.text(`Served To: ${receipt.recipient}`, 20, y);
+        doc.text(`Served To: ${recipients.length} recipient(s)`, 20, y);
         y += 10;
         
-        doc.text(`Process Server ID: ${receipt.serverId}`, 20, y);
+        doc.text(`Process Server: ${serverAddress || 'N/A'}`, 20, y);
         y += 10;
         
-        doc.text(`Notice ID: ${receipt.noticeId}`, 20, y);
+        doc.text(`Transaction Hash:`, 20, y);
         y += 15;
         
         doc.setFontSize(12);
@@ -318,14 +339,19 @@ window.receipts = {
         doc.text(`Transaction Hash:`, 20, y);
         y += 7;
         doc.setFontSize(8);
-        doc.text(receipt.txId, 20, y);
+        doc.text(txHash || 'N/A', 20, y);
         y += 10;
         
         doc.setFontSize(10);
-        doc.text(`Verification URL: ${receipt.verificationUrl}`, 20, y);
+        doc.text(`Verification URL: https://tronscan.org/#/transaction/${txHash}`, 20, y);
         
         // Save PDF
-        doc.save(`receipt_${receipt.receiptId}.pdf`);
+        doc.save(`receipt_case_${caseNumber}.pdf`);
+        
+        } catch (error) {
+            console.error('Error downloading receipt PDF:', error);
+            window.app.showError('Failed to generate PDF: ' + error.message);
+        }
     },
     
     // Load jsPDF library

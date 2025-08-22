@@ -22,27 +22,93 @@ router.get('/recipient/:address/notices', async (req, res) => {
         
         console.log(`Getting notices for recipient: ${address}`);
         
-        // Get all notices for this recipient
+        // Log recipient access to audit_logs
+        const ipAddress = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'];
+        const userAgent = req.headers['user-agent'];
+        
+        await pool.query(`
+            INSERT INTO audit_logs (
+                action_type,
+                actor_address,
+                details,
+                ip_address,
+                user_agent,
+                created_at
+            ) VALUES ($1, $2, $3, $4, $5, NOW())
+        `, [
+            'recipient_notice_query',
+            address,
+            JSON.stringify({
+                endpoint: 'recipient_notices',
+                page: 'blockserved',
+                referer: req.headers.referer,
+                timestamp: new Date().toISOString()
+            }),
+            ipAddress,
+            userAgent
+        ]);
+        
+        // Query case_service_records where this address is in the recipients array
+        // This is where all the data is actually stored when notices are served
         const result = await pool.query(`
             SELECT 
-                nc.*,
-                nd.thumbnail_data,
-                nd.document_data,
-                nd.document_type,
-                nv.viewed_at,
-                nv.signed_at,
-                nv.ip_address as view_ip,
-                nv.user_agent as view_agent
-            FROM notice_components nc
-            LEFT JOIN notice_documents nd ON nc.notice_id = nd.notice_id
-            LEFT JOIN notice_views nv ON nc.alert_id = nv.alert_id AND nv.wallet_address = $1
-            WHERE LOWER(nc.recipient_address) = LOWER($1)
-            ORDER BY nc.created_at DESC
-        `, [address]);
+                csr.case_number,
+                csr.transaction_hash,
+                csr.alert_token_id,
+                csr.document_token_id,
+                csr.ipfs_hash,
+                csr.encryption_key,
+                csr.recipients,
+                csr.page_count,
+                csr.served_at,
+                csr.server_address,
+                csr.created_at,
+                csr.updated_at,
+                c.status,
+                c.metadata,
+                ni.alert_image,
+                ni.document_preview
+            FROM case_service_records csr
+            LEFT JOIN cases c ON c.case_number = csr.case_number
+            LEFT JOIN notice_images ni ON ni.case_number = csr.case_number
+            WHERE csr.recipients::jsonb ? $1
+               OR LOWER(csr.recipients::text) LIKE LOWER($2)
+            ORDER BY csr.served_at DESC
+        `, [address, `%${address}%`]);
+        
+        // Transform the data into the format BlockServed expects
+        const notices = result.rows.map(row => {
+            // Parse metadata if it's a string
+            const metadata = typeof row.metadata === 'string' ? 
+                JSON.parse(row.metadata) : row.metadata || {};
+            
+            return {
+                notice_id: `NFT-${row.alert_token_id}`,
+                alert_token_id: row.alert_token_id,
+                document_token_id: row.document_token_id,
+                case_number: row.case_number,
+                notice_type: metadata.noticeType || 'Legal Notice',
+                issuing_agency: metadata.agency || metadata.issuingAgency || 'Legal Services',
+                created_at: row.served_at || row.created_at,
+                served_at: row.served_at,
+                transaction_hash: row.transaction_hash,
+                ipfs_document: row.ipfs_hash,
+                encryption_key: row.encryption_key,
+                alert_image: row.alert_image,
+                document_preview: row.document_preview,
+                page_count: row.page_count,
+                server_address: row.server_address,
+                has_document: !!row.ipfs_hash,
+                accepted: false, // Can be updated when we add signature tracking
+                status: row.status
+            };
+        });
+        
+        console.log(`Found ${notices.length} notices for ${address}`);
         
         res.json({
             success: true,
-            notices: result.rows
+            notices: notices
         });
         
     } catch (error) {
@@ -61,21 +127,47 @@ router.get('/recipient/:address/notice/:alertId/document', async (req, res) => {
         
         console.log(`Recipient ${address} requesting document for alert ${alertId}`);
         
-        // Get the document
+        // Log document access to audit_logs
+        const ipAddress = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'];
+        const userAgent = req.headers['user-agent'];
+        
+        await pool.query(`
+            INSERT INTO audit_logs (
+                action_type,
+                actor_address,
+                target_id,
+                details,
+                ip_address,
+                user_agent,
+                created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        `, [
+            'recipient_document_view',
+            address,
+            alertId,
+            JSON.stringify({
+                endpoint: 'recipient_document',
+                page: 'blockserved',
+                referer: req.headers.referer,
+                timestamp: new Date().toISOString()
+            }),
+            ipAddress,
+            userAgent
+        ]);
+        
+        // Get the document from case_service_records
         const result = await pool.query(`
             SELECT 
-                nc.*,
-                nd.document_data,
-                nd.thumbnail_data,
-                nd.document_type,
-                nv.signed_at,
-                nv.viewed_at
-            FROM notice_components nc
-            LEFT JOIN notice_documents nd ON nc.notice_id = nd.notice_id
-            LEFT JOIN notice_views nv ON nc.alert_id = nv.alert_id AND nv.wallet_address = $1
-            WHERE nc.alert_id = $2 
-            AND LOWER(nc.recipient_address) = LOWER($1)
-        `, [address, alertId]);
+                csr.*,
+                c.metadata,
+                ni.alert_image,
+                ni.document_preview
+            FROM case_service_records csr
+            LEFT JOIN cases c ON c.case_number = csr.case_number
+            LEFT JOIN notice_images ni ON ni.case_number = csr.case_number
+            WHERE csr.alert_token_id = $1
+            AND (csr.recipients::jsonb ? $2 OR LOWER(csr.recipients::text) LIKE LOWER($3))
+        `, [alertId, address, `%${address}%`]);
         
         if (result.rows.length === 0) {
             return res.status(404).json({ 
@@ -85,24 +177,25 @@ router.get('/recipient/:address/notice/:alertId/document', async (req, res) => {
         }
         
         const notice = result.rows[0];
-        
-        // Check if already signed
-        const alreadySigned = notice.signed_at ? true : false;
+        const metadata = typeof notice.metadata === 'string' ? 
+            JSON.parse(notice.metadata) : notice.metadata || {};
         
         res.json({
             success: true,
             notice: {
-                alertId: notice.alert_id,
-                documentId: notice.document_id,
+                alertId: notice.alert_token_id,
+                documentId: notice.document_token_id,
                 caseNumber: notice.case_number,
-                noticeType: notice.notice_type,
-                issuingAgency: notice.issuing_agency,
-                document: notice.document_data,
-                thumbnail: notice.thumbnail_data,
-                documentType: notice.document_type,
-                signedAt: notice.signed_at,
-                viewedAt: notice.viewed_at,
-                alreadySigned: alreadySigned,
+                noticeType: metadata.noticeType || 'Legal Notice',
+                issuingAgency: metadata.agency || metadata.issuingAgency || 'Legal Services',
+                ipfsHash: notice.ipfs_hash,
+                encryptionKey: notice.encryption_key,
+                alertImage: notice.alert_image,
+                documentPreview: notice.document_preview,
+                transactionHash: notice.transaction_hash,
+                servedAt: notice.served_at,
+                pageCount: notice.page_count,
+                alreadySigned: false, // Will add signature tracking later
                 canView: true // Recipients can always view their documents
             }
         });
