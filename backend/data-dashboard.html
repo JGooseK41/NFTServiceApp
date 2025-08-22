@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFT Service Backend Data Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .dashboard-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            padding: 30px;
+            margin: 0 auto;
+            max-width: 1400px;
+        }
+        .table-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .table-card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .badge-count {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+        }
+        .data-table {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .wallet-address {
+            font-family: monospace;
+            font-size: 12px;
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .hash-value {
+            font-family: monospace;
+            font-size: 11px;
+            color: #666;
+            word-break: break-all;
+        }
+        .status-badge {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-served { background: #d4edda; color: #155724; }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-active { background: #cce5ff; color: #004085; }
+        .nav-tabs .nav-link.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+        }
+        .loading-spinner {
+            text-align: center;
+            padding: 50px;
+        }
+        .alert-preview {
+            max-width: 100px;
+            max-height: 100px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .modal-img {
+            max-width: 100%;
+            border: 2px solid #333;
+            border-radius: 10px;
+        }
+        .json-viewer {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .refresh-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            font-size: 24px;
+            z-index: 1000;
+        }
+        .refresh-btn:hover {
+            transform: scale(1.1);
+        }
+        .connection-status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .status-connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="connection-status" id="connectionStatus">
+            <i class="bi bi-circle-fill"></i> <span id="statusText">Connecting...</span>
+        </div>
+        
+        <h1 class="text-center mb-4">
+            <i class="bi bi-database"></i> NFT Service Backend Data Dashboard
+        </h1>
+        
+        <div class="mb-4">
+            <label for="backendUrl" class="form-label">Backend URL:</label>
+            <div class="input-group">
+                <input type="text" class="form-control" id="backendUrl" 
+                       value="https://nftserviceapp.onrender.com" 
+                       placeholder="Enter backend URL">
+                <button class="btn btn-primary" onclick="loadAllData()">
+                    <i class="bi bi-arrow-clockwise"></i> Load Data
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-tabs mb-4" id="dataTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#cases" type="button">
+                    <i class="bi bi-folder"></i> Cases
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#serviceRecords" type="button">
+                    <i class="bi bi-clipboard-check"></i> Service Records
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#images" type="button">
+                    <i class="bi bi-image"></i> Notice Images
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#auditLogs" type="button">
+                    <i class="bi bi-shield-check"></i> Audit Logs
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#noticeViews" type="button">
+                    <i class="bi bi-eye"></i> Notice Views
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#summary" type="button">
+                    <i class="bi bi-graph-up"></i> Summary
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="dataTabContent">
+            <!-- Cases Tab -->
+            <div class="tab-pane fade show active" id="cases" role="tabpanel">
+                <div class="table-card">
+                    <div class="table-card-header">
+                        <span><i class="bi bi-folder"></i> Cases</span>
+                        <span class="badge-count" id="casesCount">0</span>
+                    </div>
+                    <div class="data-table">
+                        <table class="table table-hover">
+                            <thead class="sticky-top bg-light">
+                                <tr>
+                                    <th>Case Number</th>
+                                    <th>Status</th>
+                                    <th>Server Address</th>
+                                    <th>Created</th>
+                                    <th>Metadata</th>
+                                </tr>
+                            </thead>
+                            <tbody id="casesTableBody">
+                                <tr><td colspan="5" class="text-center">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Service Records Tab -->
+            <div class="tab-pane fade" id="serviceRecords" role="tabpanel">
+                <div class="table-card">
+                    <div class="table-card-header">
+                        <span><i class="bi bi-clipboard-check"></i> Service Records</span>
+                        <span class="badge-count" id="serviceCount">0</span>
+                    </div>
+                    <div class="data-table">
+                        <table class="table table-hover">
+                            <thead class="sticky-top bg-light">
+                                <tr>
+                                    <th>Case Number</th>
+                                    <th>Transaction Hash</th>
+                                    <th>Alert NFT</th>
+                                    <th>Doc NFT</th>
+                                    <th>IPFS</th>
+                                    <th>Recipients</th>
+                                    <th>Served At</th>
+                                </tr>
+                            </thead>
+                            <tbody id="serviceTableBody">
+                                <tr><td colspan="7" class="text-center">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notice Images Tab -->
+            <div class="tab-pane fade" id="images" role="tabpanel">
+                <div class="table-card">
+                    <div class="table-card-header">
+                        <span><i class="bi bi-image"></i> Notice Images</span>
+                        <span class="badge-count" id="imagesCount">0</span>
+                    </div>
+                    <div class="data-table">
+                        <table class="table table-hover">
+                            <thead class="sticky-top bg-light">
+                                <tr>
+                                    <th>Case Number</th>
+                                    <th>Alert Image</th>
+                                    <th>Document Preview</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody id="imagesTableBody">
+                                <tr><td colspan="4" class="text-center">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audit Logs Tab -->
+            <div class="tab-pane fade" id="auditLogs" role="tabpanel">
+                <div class="table-card">
+                    <div class="table-card-header">
+                        <span><i class="bi bi-shield-check"></i> Audit Logs (Last 100)</span>
+                        <span class="badge-count" id="auditCount">0</span>
+                    </div>
+                    <div class="data-table">
+                        <table class="table table-hover">
+                            <thead class="sticky-top bg-light">
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Action</th>
+                                    <th>Actor</th>
+                                    <th>Target</th>
+                                    <th>IP Address</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="auditTableBody">
+                                <tr><td colspan="6" class="text-center">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notice Views Tab -->
+            <div class="tab-pane fade" id="noticeViews" role="tabpanel">
+                <div class="table-card">
+                    <div class="table-card-header">
+                        <span><i class="bi bi-eye"></i> Notice Views</span>
+                        <span class="badge-count" id="viewsCount">0</span>
+                    </div>
+                    <div class="data-table">
+                        <table class="table table-hover">
+                            <thead class="sticky-top bg-light">
+                                <tr>
+                                    <th>Alert ID</th>
+                                    <th>Wallet Address</th>
+                                    <th>Viewed At</th>
+                                    <th>Signed At</th>
+                                    <th>IP Address</th>
+                                </tr>
+                            </thead>
+                            <tbody id="viewsTableBody">
+                                <tr><td colspan="5" class="text-center">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Tab -->
+            <div class="tab-pane fade" id="summary" role="tabpanel">
+                <div class="row" id="summaryCards">
+                    <!-- Summary cards will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Preview Modal -->
+    <div class="modal fade" id="imageModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Image Preview</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img id="modalImage" class="modal-img" src="">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Refresh Button -->
+    <button class="refresh-btn" onclick="loadAllData()" title="Refresh Data">
+        <i class="bi bi-arrow-clockwise"></i>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Load data on page load
+        window.addEventListener('DOMContentLoaded', loadAllData);
+
+        async function loadAllData() {
+            const baseUrl = document.getElementById('backendUrl').value;
+            updateConnectionStatus('loading');
+            
+            try {
+                // Load all data in parallel
+                const [cases, serviceRecords, images, auditLogs, noticeViews, summary] = await Promise.all([
+                    fetchData(`${baseUrl}/api/data-export/cases`),
+                    fetchData(`${baseUrl}/api/data-export/service-records`),
+                    fetchData(`${baseUrl}/api/data-export/images`),
+                    fetchData(`${baseUrl}/api/data-export/audit-logs`),
+                    fetchData(`${baseUrl}/api/data-export/notice-views`),
+                    fetchData(`${baseUrl}/api/data-export/summary`)
+                ]);
+
+                // Populate tables
+                populateCasesTable(cases);
+                populateServiceTable(serviceRecords);
+                populateImagesTable(images);
+                populateAuditTable(auditLogs);
+                populateViewsTable(noticeViews);
+                populateSummary(summary);
+                
+                updateConnectionStatus('connected');
+            } catch (error) {
+                console.error('Error loading data:', error);
+                updateConnectionStatus('error');
+                showError('Failed to load data. Check console for details.');
+            }
+        }
+
+        async function fetchData(url) {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`Failed to fetch from ${url}`);
+            return response.json();
+        }
+
+        function updateConnectionStatus(status) {
+            const statusEl = document.getElementById('connectionStatus');
+            const textEl = document.getElementById('statusText');
+            
+            if (status === 'connected') {
+                statusEl.className = 'connection-status status-connected';
+                textEl.textContent = 'Connected';
+            } else if (status === 'error') {
+                statusEl.className = 'connection-status status-error';
+                textEl.textContent = 'Connection Error';
+            } else {
+                statusEl.className = 'connection-status';
+                textEl.textContent = 'Loading...';
+            }
+        }
+
+        function populateCasesTable(data) {
+            const tbody = document.getElementById('casesTableBody');
+            document.getElementById('casesCount').textContent = data.length;
+            
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No cases found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = data.map(row => `
+                <tr>
+                    <td><strong>${row.case_number}</strong></td>
+                    <td><span class="status-badge status-${row.status?.toLowerCase()}">${row.status || 'Unknown'}</span></td>
+                    <td><span class="wallet-address">${row.server_address || 'Not set'}</span></td>
+                    <td>${new Date(row.created_at).toLocaleDateString()}</td>
+                    <td>
+                        ${row.metadata ? `
+                            <button class="btn btn-sm btn-outline-primary" onclick='showJSON(${JSON.stringify(row.metadata)})'>
+                                View
+                            </button>
+                        ` : 'None'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function populateServiceTable(data) {
+            const tbody = document.getElementById('serviceTableBody');
+            document.getElementById('serviceCount').textContent = data.length;
+            
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No service records found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = data.map(row => {
+                const recipients = typeof row.recipients === 'string' ? JSON.parse(row.recipients) : row.recipients;
+                return `
+                    <tr>
+                        <td><strong>${row.case_number}</strong></td>
+                        <td>${row.transaction_hash ? 
+                            `<a href="https://tronscan.org/#/transaction/${row.transaction_hash}" target="_blank" class="hash-value">
+                                ${row.transaction_hash.substring(0, 10)}...
+                            </a>` : 'None'}
+                        </td>
+                        <td>${row.alert_token_id ? `#${row.alert_token_id}` : '-'}</td>
+                        <td>${row.document_token_id ? `#${row.document_token_id}` : '-'}</td>
+                        <td>${row.ipfs_hash ? 
+                            `<span class="hash-value" title="${row.ipfs_hash}">${row.ipfs_hash.substring(0, 10)}...</span>` 
+                            : '-'}
+                        </td>
+                        <td>
+                            ${recipients?.length || 0} 
+                            ${recipients?.length ? 
+                                `<button class="btn btn-sm btn-link p-0" onclick='showRecipients(${JSON.stringify(recipients)})'>view</button>` 
+                                : ''}
+                        </td>
+                        <td>${row.served_at ? new Date(row.served_at).toLocaleString() : '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function populateImagesTable(data) {
+            const tbody = document.getElementById('imagesTableBody');
+            document.getElementById('imagesCount').textContent = data.length;
+            
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No images found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = data.map(row => `
+                <tr>
+                    <td><strong>${row.case_number}</strong></td>
+                    <td>
+                        ${row.alert_image ? 
+                            `<img src="${row.alert_image}" class="alert-preview" onclick="showImage('${row.alert_image}')" />` 
+                            : 'None'}
+                    </td>
+                    <td>${row.document_preview ? '✅ Available' : '❌ None'}</td>
+                    <td>${new Date(row.created_at).toLocaleString()}</td>
+                </tr>
+            `).join('');
+        }
+
+        function populateAuditTable(data) {
+            const tbody = document.getElementById('auditTableBody');
+            document.getElementById('auditCount').textContent = data.length;
+            
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No audit logs found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = data.map(row => `
+                <tr>
+                    <td>${new Date(row.created_at).toLocaleString()}</td>
+                    <td><span class="badge bg-info">${row.action_type}</span></td>
+                    <td><span class="wallet-address">${row.actor_address?.substring(0, 10)}...</span></td>
+                    <td>${row.target_id || '-'}</td>
+                    <td>${row.ip_address || '-'}</td>
+                    <td>
+                        ${row.details ? 
+                            `<button class="btn btn-sm btn-link" onclick='showJSON(${row.details})'>View</button>` 
+                            : '-'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function populateViewsTable(data) {
+            const tbody = document.getElementById('viewsTableBody');
+            document.getElementById('viewsCount').textContent = data.length;
+            
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No views recorded</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = data.map(row => `
+                <tr>
+                    <td>#${row.alert_id}</td>
+                    <td><span class="wallet-address">${row.wallet_address}</span></td>
+                    <td>${row.viewed_at ? new Date(row.viewed_at).toLocaleString() : '-'}</td>
+                    <td>${row.signed_at ? 
+                        `<span class="badge bg-success">${new Date(row.signed_at).toLocaleString()}</span>` 
+                        : '<span class="badge bg-warning">Not Signed</span>'}
+                    </td>
+                    <td>${row.ip_address || '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        function populateSummary(data) {
+            const container = document.getElementById('summaryCards');
+            
+            container.innerHTML = `
+                <div class="col-md-4 mb-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title">Total Cases</h5>
+                            <h2 class="text-primary">${data.total_cases || 0}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title">Served Cases</h5>
+                            <h2 class="text-success">${data.served_cases || 0}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title">Service Records</h5>
+                            <h2 class="text-info">${data.service_records || 0}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title">Audit Events</h5>
+                            <h2 class="text-warning">${data.audit_events || 0}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title">Recipients Tracked</h5>
+                            <h2 class="text-purple">${data.unique_recipients || 0}</h2>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h5 class="card-title">Documents Signed</h5>
+                            <h2 class="text-dark">${data.documents_signed || 0}</h2>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showImage(src) {
+            document.getElementById('modalImage').src = src;
+            new bootstrap.Modal(document.getElementById('imageModal')).show();
+        }
+
+        function showJSON(data) {
+            const formatted = JSON.stringify(data, null, 2);
+            alert(formatted);
+        }
+
+        function showRecipients(recipients) {
+            const list = recipients.map((r, i) => `${i + 1}. ${r}`).join('\n');
+            alert('Recipients:\n\n' + list);
+        }
+
+        function showError(message) {
+            const tbody = document.querySelectorAll('tbody');
+            tbody.forEach(tb => {
+                tb.innerHTML = `<tr><td colspan="10" class="text-center text-danger">${message}</td></tr>`;
+            });
+        }
+    </script>
+</body>
+</html>

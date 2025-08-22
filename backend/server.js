@@ -1039,6 +1039,11 @@ const auditQueryRouter = require('./routes/audit-query');
 app.use('/api/audit', auditQueryRouter);
 console.log('✅ Audit query routes loaded');
 
+// Data export routes for dashboard
+const dataExportRouter = require('./routes/data-export');
+app.use('/api/data-export', dataExportRouter);
+console.log('✅ Data export routes loaded');
+
 // Document processing routes (proper workflow)
 try {
     const documentProcessingRouter = require('./routes/document-processing');
