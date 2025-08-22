@@ -224,7 +224,33 @@ window.cases = {
             // Handle different case formats from backend and local storage
             const caseId = c.caseNumber || c.case_number || c.id || 'Unknown';
             const createdDate = c.created_at || c.createdAt || Date.now();
-            const pageCount = c.page_count || c.pageCount || c.documentCount || 0;
+            // Get page count from all possible sources
+            let pageCount = c.page_count || c.pageCount || c.documentCount;
+            if (!pageCount && c.documents) {
+                pageCount = Array.isArray(c.documents) ? c.documents.length : 0;
+            }
+            if (!pageCount && c.metadata) {
+                const metadata = typeof c.metadata === 'string' ? JSON.parse(c.metadata) : c.metadata;
+                pageCount = metadata.pageCount || metadata.documentCount || 0;
+            }
+            pageCount = pageCount || 0;
+            
+            // Get recipient count from all possible sources
+            let recipientCount = 0;
+            if (c.recipients) {
+                recipientCount = Array.isArray(c.recipients) ? c.recipients.length : 
+                                 (typeof c.recipients === 'string' ? JSON.parse(c.recipients).length : 0);
+            } else if (c.recipient_count) {
+                recipientCount = c.recipient_count;
+            } else if (c.recipientCount) {
+                recipientCount = c.recipientCount;
+            } else if (c.metadata) {
+                const metadata = typeof c.metadata === 'string' ? JSON.parse(c.metadata) : c.metadata;
+                if (metadata.recipients) {
+                    recipientCount = Array.isArray(metadata.recipients) ? metadata.recipients.length : 0;
+                }
+            }
+            
             const status = c.status || 'Active';
             
             // Debug logging for served cases
@@ -251,7 +277,10 @@ window.cases = {
                         </a>
                     </td>
                     <td>${new Date(createdDate).toLocaleDateString()}</td>
-                    <td>${pageCount} pages</td>
+                    <td>
+                        ${pageCount} pages<br>
+                        <small class="text-muted">${recipientCount} recipient${recipientCount !== 1 ? 's' : ''}</small>
+                    </td>
                     <td>
                         <span class="badge bg-${this.getStatusColor(status)}">
                             ${status}
@@ -568,7 +597,30 @@ window.cases = {
         // Get case ID and prepare preview URLs
         const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
         const caseId = caseData.caseNumber || caseData.case_number || caseData.id;
-        const alertPreviewUrl = `${backendUrl}/api/cases/${caseId}/preview`;
+        
+        // Get recipient count from various possible sources
+        let recipientCount = 0;
+        if (caseData.recipients) {
+            recipientCount = Array.isArray(caseData.recipients) ? caseData.recipients.length : 
+                             (typeof caseData.recipients === 'string' ? JSON.parse(caseData.recipients).length : 0);
+        } else if (caseData.recipient_count) {
+            recipientCount = caseData.recipient_count;
+        } else if (caseData.recipientCount) {
+            recipientCount = caseData.recipientCount;
+        } else if (caseData.metadata?.recipients) {
+            recipientCount = caseData.metadata.recipients.length;
+        }
+        
+        // Get page count from various sources
+        const pageCount = caseData.page_count || caseData.pageCount || caseData.documentCount || 
+                         caseData.documents?.length || caseData.metadata?.pageCount || 1;
+        
+        // Get alert image from various sources
+        const alertImage = caseData.alertImage || caseData.alert_image || caseData.alertPreview || 
+                          caseData.alert_preview || caseData.metadata?.alertImage;
+        
+        // Build proper preview URLs
+        const alertPreviewUrl = alertImage || `${backendUrl}/api/cases/${caseId}/preview`;
         const pdfUrl = `${backendUrl}/api/cases/${caseId}/pdf?serverAddress=${encodeURIComponent(window.wallet.address)}`;
         
         const modalHtml = `
@@ -582,17 +634,20 @@ window.cases = {
                         <div class="modal-body">
                             <!-- Case Info Row -->
                             <div class="row mb-3">
-                                <div class="col-md-4">
-                                    <strong>Created:</strong> ${new Date(caseData.createdAt || caseData.created_at).toLocaleString()}
+                                <div class="col-md-3">
+                                    <strong>Created:</strong> ${new Date(caseData.createdAt || caseData.created_at).toLocaleDateString()}
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-3">
                                     <strong>Status:</strong> 
                                     <span class="badge bg-${this.getStatusColor(caseData.status || 'pending')}">
                                         ${caseData.status || 'Awaiting Service'}
                                     </span>
                                 </div>
-                                <div class="col-md-4">
-                                    <strong>Recipients:</strong> ${caseData.recipient_count || caseData.recipientCount || 0}
+                                <div class="col-md-3">
+                                    <strong>Recipients:</strong> ${recipientCount}
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>Pages:</strong> ${pageCount}
                                 </div>
                             </div>
                             
@@ -641,23 +696,7 @@ window.cases = {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        ${caseData.notices && caseData.notices.length > 0 ? 
-                                            caseData.notices.map(n => `
-                                                <tr>
-                                                    <td>${n.noticeId.substring(0, 8)}...</td>
-                                                    <td>${this.formatAddress(n.recipient)}</td>
-                                                    <td>${n.type}</td>
-                                                    <td>${new Date(n.timestamp).toLocaleDateString()}</td>
-                                                    <td>
-                                                        <button class="btn btn-sm btn-info" 
-                                                                onclick="window.open('https://blockserved.com/notice/${n.noticeId}')">
-                                                            View
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            `).join('') :
-                                            '<tr><td colspan="5" class="text-center">No notices served yet</td></tr>'
-                                        }
+                                        ${this.generateNoticeRows(caseData)}
                                     </tbody>
                                 </table>
                             </div>
@@ -834,7 +873,15 @@ window.cases = {
         const documentTokenId = caseData.documentTokenId || caseData.document_token_id;
         const servedAt = caseData.servedAt || caseData.served_at;
         const recipients = caseData.recipients || [];
-        const agency = caseData.agency || caseData.issuingAgency || caseData.metadata?.agency || caseData.metadata?.issuingAgency || 'The Block Audit';
+        // Get agency from all possible sources, including the metadata
+        let agency = caseData.agency || caseData.issuingAgency;
+        if (!agency && caseData.metadata) {
+            const metadata = typeof caseData.metadata === 'string' ? JSON.parse(caseData.metadata) : caseData.metadata;
+            agency = metadata.agency || metadata.issuingAgency;
+        }
+        if (!agency) {
+            agency = 'Legal Services'; // Default fallback
+        }
         const serverAddress = caseData.serverAddress || caseData.server_address || window.wallet?.address;
         
         // Add print-specific styles
@@ -1968,6 +2015,70 @@ window.cases = {
     formatAddress(address) {
         if (!address) return '';
         return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+    },
+    
+    // Generate notice rows for the service details table
+    generateNoticeRows(caseData) {
+        // Check if case has been served and has NFT IDs
+        const alertTokenId = caseData.alertTokenId || caseData.alert_token_id;
+        const documentTokenId = caseData.documentTokenId || caseData.document_token_id;
+        const servedAt = caseData.servedAt || caseData.served_at;
+        
+        // Get recipients list
+        let recipients = [];
+        if (caseData.recipients) {
+            recipients = Array.isArray(caseData.recipients) ? caseData.recipients : 
+                        (typeof caseData.recipients === 'string' ? JSON.parse(caseData.recipients) : []);
+        } else if (caseData.metadata?.recipients) {
+            recipients = caseData.metadata.recipients;
+        }
+        
+        // Get notice type and agency
+        const noticeType = caseData.noticeType || caseData.metadata?.noticeType || 'Legal Notice';
+        const agency = caseData.agency || caseData.issuingAgency || caseData.metadata?.agency || 
+                      caseData.metadata?.issuingAgency || 'Legal Services';
+        
+        // If case has been served, show the actual notices
+        if (alertTokenId && recipients.length > 0) {
+            return recipients.map(recipient => `
+                <tr>
+                    <td>
+                        Alert: #${alertTokenId}<br>
+                        Doc: #${documentTokenId || 'N/A'}
+                    </td>
+                    <td>${this.formatAddress(recipient)}</td>
+                    <td>${noticeType}</td>
+                    <td>${servedAt ? new Date(servedAt).toLocaleDateString() : 'Pending'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info" 
+                                onclick="window.open('https://blockserved.com', '_blank')">
+                            <i class="bi bi-eye"></i> View
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        // If we have old-style notices array
+        if (caseData.notices && caseData.notices.length > 0) {
+            return caseData.notices.map(n => `
+                <tr>
+                    <td>${n.noticeId ? n.noticeId.substring(0, 8) + '...' : 'N/A'}</td>
+                    <td>${this.formatAddress(n.recipient)}</td>
+                    <td>${n.type || noticeType}</td>
+                    <td>${n.timestamp ? new Date(n.timestamp).toLocaleDateString() : 'N/A'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info" 
+                                onclick="window.open('https://blockserved.com', '_blank')">
+                            View
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        // No notices served yet
+        return '<tr><td colspan="5" class="text-center text-muted">No notices served yet</td></tr>';
     }
 };
 
