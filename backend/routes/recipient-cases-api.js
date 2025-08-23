@@ -111,7 +111,10 @@ router.get('/wallet/:address', async (req, res) => {
                     csr.alert_token_id,
                     csr.document_token_id,
                     csr.ipfs_hash,
+                    csr.encryption_key,
                     csr.served_at,
+                    csr.accepted,
+                    csr.accepted_at,
                     COALESCE(csr.server_name, c.server_address) as server_name,
                     COALESCE(csr.issuing_agency, (c.metadata->>'issuingAgency')::text) as issuing_agency,
                     COALESCE(csr.page_count, c.page_count, (c.metadata->>'pageCount')::int) as page_count,
@@ -135,7 +138,10 @@ router.get('/wallet/:address', async (req, res) => {
                     alert_token_id,
                     document_token_id,
                     ipfs_hash,
+                    encryption_key,
                     served_at,
+                    accepted,
+                    accepted_at,
                     server_name,
                     issuing_agency,
                     page_count,
@@ -187,7 +193,10 @@ router.get('/wallet/:address', async (req, res) => {
                 document_token_id: row.document_token_id,
                 transaction_hash: row.transaction_hash,
                 ipfs_hash: row.ipfs_hash,
+                encryption_key: row.encryption_key,
                 served_at: row.served_at,
+                accepted: row.accepted || false,
+                accepted_at: row.accepted_at,
                 server_name: row.server_name || 'Unknown Server',
                 issuing_agency: row.issuing_agency || 'Unknown Agency',
                 page_count: row.page_count || 1,
@@ -232,10 +241,13 @@ router.get('/:caseNumber/document', async (req, res) => {
             SELECT 
                 case_number,
                 ipfs_hash,
+                encryption_key,
                 document_token_id,
                 alert_token_id,
                 page_count,
                 served_at,
+                accepted,
+                accepted_at,
                 server_name,
                 issuing_agency,
                 status
@@ -304,10 +316,13 @@ router.get('/:caseNumber/document', async (req, res) => {
             notice: {
                 case_number: caseData.case_number,
                 ipfs_hash: caseData.ipfs_hash,
+                encryption_key: caseData.encryption_key,
                 document_token_id: caseData.document_token_id,
                 alert_token_id: caseData.alert_token_id,
                 page_count: caseData.page_count,
                 served_at: caseData.served_at,
+                accepted: caseData.accepted || false,
+                accepted_at: caseData.accepted_at,
                 server_name: caseData.server_name,
                 issuing_agency: caseData.issuing_agency,
                 status: caseData.status,
@@ -368,10 +383,12 @@ router.post('/:caseNumber/acknowledge', async (req, res) => {
             req.headers['user-agent']
         ]);
         
-        // Update case_service_records status
+        // Update case_service_records status and acceptance
         await pool.query(`
             UPDATE case_service_records
-            SET status = 'acknowledged'
+            SET status = 'acknowledged',
+                accepted = true,
+                accepted_at = NOW()
             WHERE case_number = $1
         `, [caseNumber]);
         

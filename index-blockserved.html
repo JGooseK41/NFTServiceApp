@@ -1388,9 +1388,14 @@
                             <span>${new Date(notice.served_at || notice.created_at).toLocaleDateString()}</span>
                         </div>
                         <div class="detail-item">
-                            <i class="bi bi-hash"></i>
+                            <i class="bi bi-envelope-check"></i>
                             <strong>Alert NFT:</strong>
-                            <span>#${notice.alert_token_id}</span>
+                            <span>#${notice.alert_token_id} (In Your Wallet)</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="bi bi-file-earmark-text"></i>
+                            <strong>Document NFT:</strong>
+                            <span>#${notice.document_token_id || 'Pending'} (Permanent Record)</span>
                         </div>
                         <div class="detail-item">
                             <i class="bi bi-file-text"></i>
@@ -1406,15 +1411,15 @@
                     
                     <div class="notice-actions">
                         <button class="btn-view" onclick='viewDocument(${JSON.stringify(notice)})'>
-                            <i class="bi bi-eye"></i> View Document
+                            <i class="bi bi-eye"></i> View Legal Notices
                         </button>
                         ${!notice.accepted ? `
-                            <button class="btn-sign" onclick='signNotice(${JSON.stringify(notice)})'>
-                                <i class="bi bi-pen"></i> Sign & Acknowledge
+                            <button class="btn-sign" onclick='viewAndSign(${JSON.stringify(notice)})'>
+                                <i class="bi bi-pen"></i> Sign Document
                             </button>
                         ` : `
                             <button class="btn-sign" disabled>
-                                <i class="bi bi-check"></i> Already Signed
+                                <i class="bi bi-check"></i> Document Signed
                             </button>
                         `}
                     </div>
@@ -1424,8 +1429,8 @@
             });
         }
 
-        // View document
-        async function viewDocument(notice) {
+        // View document (shows both Alert and Document NFTs)
+        async function viewDocument(notice, signMode = false) {
             currentNotice = notice;
             viewStartTime = Date.now();
             
@@ -1434,13 +1439,19 @@
             
             // Show modal
             document.getElementById('documentModal').classList.add('active');
-            document.getElementById('modalTitle').textContent = `Legal Document - Case #${notice.case_number}`;
+            document.getElementById('modalTitle').textContent = `Legal Notices - Case #${notice.case_number}`;
+            
+            // Hide sign button by default, will show only for Document NFT in sign mode
+            const signButton = document.getElementById('signButton');
+            if (signButton) {
+                signButton.style.display = signMode && !notice.accepted ? 'inline-block' : 'none';
+            }
             
             // Load document
             document.getElementById('modalBody').innerHTML = `
                 <div class="loading-state">
                     <div class="spinner"></div>
-                    <p>Loading document...</p>
+                    <p>Loading legal notices...</p>
                 </div>
             `;
             
@@ -1450,7 +1461,7 @@
                 const data = await response.json();
                 
                 if (data.success && data.notice) {
-                    displayDocumentContent(data.notice);
+                    displayDocumentContent(data.notice, signMode);
                     // Log document open
                     await logNoticeView(notice.case_number, 'document_open');
                 }
@@ -1459,10 +1470,15 @@
                 document.getElementById('modalBody').innerHTML = `
                     <div class="alert-message alert-error">
                         <i class="bi bi-exclamation-triangle-fill"></i>
-                        Failed to load document. Please try again.
+                        Failed to load notices. Please try again.
                     </div>
                 `;
             }
+        }
+        
+        // View and Sign - opens modal in sign mode for Document NFT
+        async function viewAndSign(notice) {
+            await viewDocument(notice, true);
         }
         
         // Log notice view to backend
@@ -1519,14 +1535,20 @@
                     const docImage = notice.images.document_image || notice.images.document_thumbnail;
                     imageContent += `
                         <div class="document-section" style="margin-top: 20px;">
-                            <h4><i class="bi bi-file-text-fill"></i> Legal Document</h4>
+                            <h4><i class="bi bi-file-earmark-text"></i> Document NFT - Legal Content</h4>
                             <div class="image-container" style="margin: 15px 0;">
                                 <img src="${docImage}" 
-                                     alt="Legal Document" 
+                                     alt="Document NFT - Legal Content" 
                                      style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: pointer;"
                                      onclick="window.open('${docImage}', '_blank')"
                                      title="Click to view full size">
                             </div>
+                            ${signMode && !notice.accepted ? `
+                                <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 5px; padding: 10px; margin: 10px 0;">
+                                    <i class="bi bi-exclamation-triangle"></i> <strong>Signature Required</strong><br>
+                                    <span style="font-size: 13px;">This document requires your signature for acknowledgment.</span>
+                                </div>
+                            ` : ''}
                         </div>
                     `;
                 }
@@ -1601,16 +1623,33 @@
             }
         }
 
-        // Sign notice
-        async function signNotice(notice) {
+        // Sign document (only for Document NFT)
+        async function signDocument() {
+            const notice = currentNotice;
+            if (!notice) {
+                showAlert('No document selected', 'error');
+                return;
+            }
+            
             if (!currentWallet) {
                 showAlert('Please connect your wallet first', 'error');
                 return;
             }
             
+            // Ensure this is for Document NFT, not Alert NFT
+            if (!notice.document_token_id) {
+                showAlert('Document NFT not available for signing', 'error');
+                return;
+            }
+            
+            if (notice.accepted) {
+                showAlert('Document already signed', 'info');
+                return;
+            }
+            
             try {
-                // Create signature message
-                const message = `I acknowledge receipt of legal notice for Case #${notice.case_number} served on ${new Date(notice.served_at).toISOString()}`;
+                // Create signature message specifically for Document NFT
+                const message = `I acknowledge and accept the legal document (Document NFT #${notice.document_token_id}) for Case #${notice.case_number} served on ${new Date(notice.served_at).toISOString()}`;
                 
                 // Sign with TronLink
                 const signature = await tronWeb.trx.sign(tronWeb.toHex(message));
@@ -1717,14 +1756,21 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    showAlert('Document signed and legally acknowledged!', 'success');
-                    // Log document action
-                    await logDocumentAction(notice.case_number, 'signed');
+                    showAlert('Document NFT signed and legally acknowledged!', 'success');
+                    // Update the current notice object
+                    notice.accepted = true;
+                    notice.accepted_at = new Date().toISOString();
+                    notice.signature = signature;
+                    // Log document action specifically for Document NFT
+                    await logDocumentAction(notice.case_number, 'document_nft_signed');
+                    
+                    // Show receipt options
+                    showSignatureReceipt(notice);
+                    
                     // Reload notices to update status
                     loadNotices();
-                    closeDocumentModal();
                 } else {
-                    showAlert('Failed to sign document. Please try again.', 'error');
+                    showAlert('Failed to sign Document NFT. Please try again.', 'error');
                 }
             } catch (error) {
                 console.error('Error signing document:', error);
@@ -1742,6 +1788,212 @@
             document.getElementById('documentModal').classList.remove('active');
             currentNotice = null;
             viewStartTime = null;
+        }
+        
+        // Show signature receipt with permanent access instructions
+        function showSignatureReceipt(notice) {
+            const receiptHTML = generateReceipt(notice);
+            
+            // Update modal to show receipt
+            document.getElementById('modalTitle').textContent = 'Legal Notice Receipt - Save for Your Records';
+            document.getElementById('modalBody').innerHTML = `
+                <div class="receipt-container" id="receiptContent">
+                    ${receiptHTML}
+                </div>
+                <div class="receipt-actions" style="margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                    <button onclick="printReceipt()" class="btn btn-primary">
+                        <i class="bi bi-printer"></i> Print Receipt
+                    </button>
+                    <button onclick="downloadReceiptHTML()" class="btn btn-secondary">
+                        <i class="bi bi-download"></i> Download as HTML
+                    </button>
+                    <button onclick="copyIPFSInfo()" class="btn btn-secondary">
+                        <i class="bi bi-clipboard"></i> Copy IPFS Info
+                    </button>
+                    <button onclick="closeDocumentModal()" class="btn btn-secondary">
+                        <i class="bi bi-x-lg"></i> Close
+                    </button>
+                </div>
+            `;
+        }
+        
+        // Generate receipt HTML
+        function generateReceipt(notice) {
+            const signatureDate = new Date(notice.accepted_at || new Date());
+            const ipfsGateways = [
+                'https://ipfs.io/ipfs/',
+                'https://gateway.pinata.cloud/ipfs/',
+                'https://cloudflare-ipfs.com/ipfs/',
+                'https://gateway.ipfs.io/ipfs/'
+            ];
+            
+            return `
+                <div style="font-family: 'Arial', sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; border: 2px solid #2c3e50; border-radius: 10px; background: white;">
+                    <div style="text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 20px; margin-bottom: 20px;">
+                        <h2 style="color: #2c3e50; margin: 0;">LEGAL NOTICE RECEIPT</h2>
+                        <p style="color: #666; margin: 10px 0 0 0;">BlockServed - Blockchain Verified Legal Service</p>
+                    </div>
+                    
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                        <h3 style="color: #2c3e50; margin: 0 0 10px 0;">Notice Information</h3>
+                        <table style="width: 100%; font-size: 14px;">
+                            <tr><td style="padding: 5px 0;"><strong>Case Number:</strong></td><td>${notice.case_number}</td></tr>
+                            <tr><td style="padding: 5px 0;"><strong>Issuing Agency:</strong></td><td>${notice.issuing_agency || 'Legal Services'}</td></tr>
+                            <tr><td style="padding: 5px 0;"><strong>Served Date:</strong></td><td>${new Date(notice.served_at).toLocaleString()}</td></tr>
+                            <tr><td style="padding: 5px 0;"><strong>Signed Date:</strong></td><td>${signatureDate.toLocaleString()}</td></tr>
+                            <tr><td style="padding: 5px 0;"><strong>Alert NFT ID:</strong></td><td>#${notice.alert_token_id}</td></tr>
+                            <tr><td style="padding: 5px 0;"><strong>Document NFT ID:</strong></td><td>#${notice.document_token_id}</td></tr>
+                            <tr><td style="padding: 5px 0;"><strong>Recipient Wallet:</strong></td><td style="word-break: break-all;">${currentWallet}</td></tr>
+                        </table>
+                    </div>
+                    
+                    ${notice.ipfs_hash ? `
+                    <div style="background: #e8f4fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #3498db;">
+                        <h3 style="color: #2c3e50; margin: 0 0 10px 0;"><i class="bi bi-key-fill"></i> Permanent Document Access</h3>
+                        <p style="margin: 5px 0; font-size: 14px;"><strong>IPFS Hash:</strong></p>
+                        <div style="background: white; padding: 10px; border-radius: 5px; word-break: break-all; font-family: monospace; font-size: 12px; margin-bottom: 10px;">
+                            ${notice.ipfs_hash}
+                        </div>
+                        
+                        ${notice.encryption_key ? `
+                        <p style="margin: 10px 0 5px 0; font-size: 14px;"><strong>Decryption Key:</strong></p>
+                        <div style="background: #fff3cd; padding: 10px; border-radius: 5px; word-break: break-all; font-family: monospace; font-size: 12px; border: 1px solid #ffc107;">
+                            ${notice.encryption_key}
+                        </div>
+                        <p style="margin: 10px 0 0 0; font-size: 12px; color: #856404;">
+                            <i class="bi bi-exclamation-triangle-fill"></i> <strong>Important:</strong> Keep this decryption key safe. You'll need it to decrypt your document.
+                        </p>
+                        ` : ''}
+                    </div>
+                    
+                    <div style="background: #f0f8ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                        <h3 style="color: #2c3e50; margin: 0 0 10px 0;"><i class="bi bi-globe"></i> How to Access Your Document on IPFS</h3>
+                        <ol style="margin: 10px 0; padding-left: 20px; font-size: 14px;">
+                            <li style="margin: 5px 0;">Use any IPFS gateway by combining the gateway URL with your IPFS hash:</li>
+                        </ol>
+                        <div style="background: white; padding: 10px; border-radius: 5px; margin: 10px 0;">
+                            ${ipfsGateways.map(gateway => `
+                                <div style="margin: 5px 0; font-size: 12px;">
+                                    <code style="background: #f5f5f5; padding: 5px; border-radius: 3px; display: block; overflow-x: auto;">
+                                        ${gateway}${notice.ipfs_hash}
+                                    </code>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <ol start="2" style="margin: 10px 0; padding-left: 20px; font-size: 14px;">
+                            <li style="margin: 5px 0;">Download the encrypted file from any gateway above</li>
+                            ${notice.encryption_key ? '<li style="margin: 5px 0;">Use the decryption key above to decrypt the document</li>' : ''}
+                            <li style="margin: 5px 0;">Your document is permanently stored and will always be accessible</li>
+                        </ol>
+                    </div>
+                    ` : ''}
+                    
+                    <div style="background: #fff9e6; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ffc107;">
+                        <h3 style="color: #2c3e50; margin: 0 0 10px 0;"><i class="bi bi-shield-check"></i> Blockchain Verification</h3>
+                        <p style="margin: 5px 0; font-size: 14px;">Your legal notice is permanently recorded on the TRON blockchain:</p>
+                        <ul style="margin: 10px 0; padding-left: 20px; font-size: 13px;">
+                            <li>Transaction Hash: <code>${notice.transaction_hash || 'Pending confirmation'}</code></li>
+                            <li>Contract Address: <code>TXYZMnBGkXe2V9AyqufvPCqBsaUvLWYhsb</code></li>
+                            <li>Network: TRON Mainnet</li>
+                        </ul>
+                        <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">
+                            View on TronScan: <a href="https://tronscan.org/#/token721/TXYZMnBGkXe2V9AyqufvPCqBsaUvLWYhsb" target="_blank" style="color: #3498db;">Contract Explorer</a>
+                        </p>
+                    </div>
+                    
+                    <div style="border-top: 2px solid #2c3e50; padding-top: 20px; margin-top: 20px; text-align: center;">
+                        <p style="margin: 5px 0; font-size: 12px; color: #666;">
+                            <strong>Digital Signature:</strong> ${notice.signature ? notice.signature.substring(0, 20) + '...' : 'Not available'}
+                        </p>
+                        <p style="margin: 10px 0 0 0; font-size: 11px; color: #999;">
+                            Generated on ${new Date().toLocaleString()} • Keep this receipt for your records
+                        </p>
+                        <p style="margin: 5px 0 0 0; font-size: 11px; color: #999;">
+                            This receipt confirms your legal acknowledgment of the served documents.
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Print receipt
+        function printReceipt() {
+            const printWindow = window.open('', '_blank');
+            const receiptContent = document.getElementById('receiptContent').innerHTML;
+            
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Legal Notice Receipt - Case #${currentNotice.case_number}</title>
+                    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+                    <style>
+                        @media print {
+                            body { margin: 0; }
+                            .no-print { display: none; }
+                        }
+                    </style>
+                </head>
+                <body onload="window.print(); window.close();">
+                    ${receiptContent}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+        }
+        
+        // Download receipt as HTML
+        function downloadReceiptHTML() {
+            const receiptContent = document.getElementById('receiptContent').innerHTML;
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Legal Notice Receipt - Case #${currentNotice.case_number}</title>
+                    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+                </head>
+                <body>
+                    ${receiptContent}
+                </body>
+                </html>
+            `;
+            
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `BlockServed_Receipt_${currentNotice.case_number}_${Date.now()}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        // Copy IPFS information to clipboard
+        async function copyIPFSInfo() {
+            if (!currentNotice || !currentNotice.ipfs_hash) {
+                showAlert('No IPFS information available', 'error');
+                return;
+            }
+            
+            const ipfsInfo = `IPFS Hash: ${currentNotice.ipfs_hash}\n` +
+                           `${currentNotice.encryption_key ? 'Decryption Key: ' + currentNotice.encryption_key + '\n' : ''}` +
+                           `Access URL: https://ipfs.io/ipfs/${currentNotice.ipfs_hash}`;
+            
+            try {
+                await navigator.clipboard.writeText(ipfsInfo);
+                showAlert('IPFS information copied to clipboard!', 'success');
+            } catch (err) {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = ipfsInfo;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showAlert('IPFS information copied to clipboard!', 'success');
+            }
         }
         
         // Log document action to backend
