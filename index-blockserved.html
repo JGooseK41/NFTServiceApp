@@ -97,6 +97,221 @@
             gap: 8px;
         }
 
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+                padding: 15px;
+            }
+            
+            .logo-text h1 {
+                font-size: 20px;
+            }
+            
+            .wallet-section {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .connect-btn {
+                width: 100%;
+                max-width: 300px;
+            }
+            
+            .main-container {
+                padding: 0 15px;
+                margin: 20px auto;
+            }
+            
+            .info-banner {
+                padding: 20px;
+                border-radius: 12px;
+            }
+            
+            .info-banner h1 {
+                font-size: 24px !important;
+            }
+            
+            .info-banner p {
+                font-size: 16px !important;
+            }
+            
+            .steps-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .notice-card {
+                padding: 15px;
+                border-radius: 8px;
+                margin-bottom: 15px;
+            }
+            
+            .notice-card:hover {
+                transform: none;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            }
+            
+            .notice-header {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .notice-title h4 {
+                font-size: 16px;
+            }
+            
+            .notice-details {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .detail-item {
+                font-size: 14px;
+            }
+            
+            .status-badge {
+                font-size: 11px;
+                padding: 3px 8px;
+            }
+            
+            .document-modal {
+                margin: 0;
+                max-height: 100vh;
+                height: 100vh;
+                border-radius: 0;
+            }
+            
+            .modal-header, .modal-body, .modal-footer {
+                padding: 15px;
+            }
+            
+            .table-container {
+                overflow-x: auto;
+            }
+            
+            table {
+                font-size: 14px;
+            }
+            
+            /* Mobile-specific button styles */
+            .btn {
+                padding: 12px 20px;
+                font-size: 16px;
+                touch-action: manipulation;
+            }
+            
+            /* Prevent zoom on input focus */
+            input, select, textarea {
+                font-size: 16px !important;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .info-banner h1 {
+                font-size: 20px !important;
+            }
+            
+            .logo-icon {
+                width: 35px;
+                height: 35px;
+                font-size: 18px;
+            }
+            
+            .notice-card h3 {
+                font-size: 18px;
+            }
+        }
+        
+        /* Mobile Wallet Connection Modal */
+        .mobile-wallet-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 10000;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .mobile-wallet-modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .mobile-wallet-content {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .mobile-wallet-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        
+        .mobile-wallet-header h2 {
+            color: var(--primary-color);
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .wallet-option {
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .wallet-option:hover {
+            border-color: var(--secondary-color);
+            background: #f8f9fa;
+        }
+        
+        .wallet-option h4 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+        
+        .wallet-option p {
+            color: var(--text-light);
+            font-size: 14px;
+            margin: 0;
+        }
+        
+        .mobile-instructions {
+            background: #fff4e5;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        
+        .mobile-instructions h5 {
+            color: #ff9800;
+            margin-bottom: 10px;
+        }
+        
+        .mobile-instructions ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .mobile-instructions li {
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+
         .wallet-status.connected {
             background: #d4f1e4;
             color: var(--success-color);
@@ -561,6 +776,57 @@
         </div>
     </header>
 
+    <!-- Mobile Wallet Connection Modal -->
+    <div id="mobileWalletModal" class="mobile-wallet-modal">
+        <div class="mobile-wallet-content">
+            <div class="mobile-wallet-header">
+                <i class="bi bi-phone" style="font-size: 48px; color: var(--secondary-color); margin-bottom: 15px;"></i>
+                <h2>Mobile Wallet Connection</h2>
+                <p style="color: var(--text-light);">To view your legal documents on mobile, you need to access this site from within your wallet app</p>
+            </div>
+            
+            <div class="mobile-instructions">
+                <h5><i class="bi bi-exclamation-triangle-fill"></i> Important for Mobile Users</h5>
+                <p style="margin-bottom: 10px;">Mobile browsers cannot connect directly to wallet apps for security reasons. You must:</p>
+                <ol>
+                    <li>Open your <strong>TronLink</strong> wallet app</li>
+                    <li>Navigate to the built-in browser (DApp Browser)</li>
+                    <li>Enter this URL: <strong>blockserved.com</strong></li>
+                    <li>Your wallet will automatically connect</li>
+                </ol>
+            </div>
+            
+            <div class="wallet-option" onclick="openInTronLink()">
+                <h4><i class="bi bi-wallet2"></i> Open in TronLink</h4>
+                <p>If you have TronLink installed, click here to open this site in the TronLink browser</p>
+            </div>
+            
+            <div class="wallet-option" onclick="copyUrlToClipboard()">
+                <h4><i class="bi bi-clipboard"></i> Copy URL</h4>
+                <p>Copy the URL to paste into your wallet's browser</p>
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <h5 style="color: var(--primary-color); margin-bottom: 10px;">Don't have TronLink?</h5>
+                <p style="font-size: 14px; margin-bottom: 10px;">Download the official TronLink wallet app:</p>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <a href="https://apps.apple.com/app/tronlink/id1453530188" target="_blank" class="btn btn-primary" style="font-size: 14px;">
+                        <i class="bi bi-apple"></i> App Store
+                    </a>
+                    <a href="https://play.google.com/store/apps/details?id=com.tronlinkpro.wallet" target="_blank" class="btn btn-primary" style="font-size: 14px;">
+                        <i class="bi bi-google-play"></i> Google Play
+                    </a>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <button onclick="closeMobileWalletModal()" class="btn btn-secondary">
+                    Try Desktop Instead
+                </button>
+            </div>
+        </div>
+    </div>
+    
     <!-- Main Container -->
     <div class="main-container">
         <!-- Information Banner -->
@@ -744,6 +1010,26 @@
         document.addEventListener('DOMContentLoaded', function() {
             checkTronLink();
             setupEventListeners();
+            
+            // Check if mobile user on first load
+            const deviceInfo = detectDeviceType();
+            if (deviceInfo.isMobile && !deviceInfo.isWalletBrowser) {
+                // Add mobile indicator to the page
+                const mobileNotice = document.createElement('div');
+                mobileNotice.className = 'alert-message alert-info';
+                mobileNotice.style.cssText = 'margin: 15px; text-align: center;';
+                mobileNotice.innerHTML = `
+                    <i class="bi bi-phone" style="font-size: 20px;"></i>
+                    <p style="margin: 10px 0 5px 0; font-weight: 600;">Mobile Device Detected</p>
+                    <p style="font-size: 14px; margin: 5px 0;">For the best experience, open this site in your TronLink wallet browser</p>
+                `;
+                
+                // Insert after header
+                const mainContainer = document.querySelector('.main-container');
+                if (mainContainer && !deviceInfo.isWalletBrowser) {
+                    mainContainer.insertBefore(mobileNotice, mainContainer.firstChild);
+                }
+            }
         });
 
         // Setup event listeners
@@ -759,16 +1045,109 @@
 
         // Check if TronLink is available
         function checkTronLink() {
+            const deviceInfo = detectDeviceType();
+            
             if (window.tronWeb && window.tronWeb.ready) {
                 tronWeb = window.tronWeb;
                 handleWalletConnected();
+                
+                // Show success message for mobile users
+                if (deviceInfo.isMobile) {
+                    showAlert('Wallet connected successfully from mobile!', 'success');
+                }
             } else {
-                setTimeout(checkTronLink, 500);
+                // On mobile, show helpful message after a few attempts
+                if (deviceInfo.isMobile && !window.tronWeb) {
+                    setTimeout(() => {
+                        if (!window.tronWeb && !currentWallet) {
+                            console.log('Mobile detected without wallet connection');
+                            // Don't auto-show modal, let user click connect button
+                        }
+                    }, 3000);
+                } else {
+                    setTimeout(checkTronLink, 500);
+                }
             }
         }
 
+        // Check if mobile and show appropriate guidance
+        function checkMobileWallet() {
+            const deviceType = detectDeviceType();
+            
+            // Check if we're in a wallet browser (TronLink or similar)
+            const isInWalletBrowser = window.tronWeb && window.tronWeb.ready;
+            
+            if (deviceType.isMobile && !isInWalletBrowser) {
+                // Show mobile wallet connection modal
+                document.getElementById('mobileWalletModal').classList.add('active');
+                return false;
+            }
+            
+            return true;
+        }
+        
+        // Open in TronLink browser
+        function openInTronLink() {
+            const currentUrl = window.location.href;
+            const tronLinkUrl = `tronlink://open?url=${encodeURIComponent(currentUrl)}`;
+            
+            // Try to open in TronLink
+            window.location.href = tronLinkUrl;
+            
+            // Fallback message after a delay
+            setTimeout(() => {
+                showAlert('If TronLink did not open, please open it manually and navigate to blockserved.com', 'info');
+            }, 2000);
+        }
+        
+        // Copy URL to clipboard
+        function copyUrlToClipboard() {
+            const url = 'https://blockserved.com';
+            
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(() => {
+                    showAlert('URL copied! Now open your wallet app and paste it in the browser', 'success');
+                }).catch(() => {
+                    fallbackCopyToClipboard(url);
+                });
+            } else {
+                fallbackCopyToClipboard(url);
+            }
+        }
+        
+        // Fallback copy method for older browsers
+        function fallbackCopyToClipboard(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.top = '0';
+            textArea.style.left = '0';
+            textArea.style.opacity = '0';
+            document.body.appendChild(textArea);
+            textArea.select();
+            
+            try {
+                document.execCommand('copy');
+                showAlert('URL copied! Now open your wallet app and paste it in the browser', 'success');
+            } catch (err) {
+                showAlert('Please manually copy: blockserved.com', 'info');
+            }
+            
+            document.body.removeChild(textArea);
+        }
+        
+        // Close mobile wallet modal
+        function closeMobileWalletModal() {
+            document.getElementById('mobileWalletModal').classList.remove('active');
+        }
+        
         // Connect wallet
         async function connectWallet() {
+            // Check if mobile and needs guidance
+            if (!checkMobileWallet()) {
+                return;
+            }
+            
             try {
                 if (!window.tronWeb) {
                     showAlert('Please install TronLink wallet extension', 'error');
@@ -831,12 +1210,18 @@
             else if (/ios|iphone|ipad/i.test(ua)) os = 'iOS';
             else if (/linux/i.test(ua)) os = 'Linux';
             
+            // Check if in wallet browser
+            const isWalletBrowser = window.tronWeb && window.tronWeb.ready;
+            
             return {
                 type: isDesktop ? 'Desktop' : (isTablet ? 'Tablet' : 'Mobile'),
                 os: os,
                 isMobile: isMobile,
                 isTablet: isTablet,
-                isDesktop: isDesktop
+                isDesktop: isDesktop,
+                isWalletBrowser: isWalletBrowser,
+                screenWidth: window.innerWidth,
+                screenHeight: window.innerHeight
             };
         }
         
@@ -1147,22 +1532,36 @@
                 }
                 
                 if (imageContent) {
+                    const deviceInfo = detectDeviceType();
                     modalBody.innerHTML = `
                         <div class="document-info">
                             <p><strong>Case Number:</strong> ${notice.case_number}</p>
                             <p><strong>Served:</strong> ${new Date(notice.served_at).toLocaleString()}</p>
                             <p><strong>Page Count:</strong> ${notice.page_count || 1} pages</p>
                         </div>
+                        ${deviceInfo.isMobile ? '<p style="text-align: center; color: var(--text-light); font-size: 12px; margin: 10px 0;"><i class="bi bi-hand-index"></i> Pinch to zoom • Swipe to scroll</p>' : ''}
                         ${imageContent}
-                        <div class="action-buttons" style="margin-top: 20px; display: flex; gap: 10px;">
-                            <button onclick="printDocumentImages('${notice.case_number}')" class="btn btn-secondary">
+                        <div class="action-buttons" style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
+                            <button onclick="printDocumentImages('${notice.case_number}')" class="btn btn-secondary" style="${deviceInfo.isMobile ? 'flex: 1; min-width: 120px;' : ''}">
                                 <i class="bi bi-printer"></i> Print
                             </button>
-                            <button onclick="downloadDocumentImages('${notice.case_number}')" class="btn btn-secondary">
+                            <button onclick="downloadDocumentImages('${notice.case_number}')" class="btn btn-secondary" style="${deviceInfo.isMobile ? 'flex: 1; min-width: 120px;' : ''}">
                                 <i class="bi bi-download"></i> Download
                             </button>
                         </div>
                     `;
+                    
+                    // Enable pinch-to-zoom on mobile for images
+                    if (deviceInfo.isMobile) {
+                        setTimeout(() => {
+                            const images = modalBody.querySelectorAll('img');
+                            images.forEach(img => {
+                                img.style.touchAction = 'pinch-zoom';
+                                img.style.userSelect = 'none';
+                            });
+                        }, 100);
+                    }
+                    
                     return;
                 }
             }
