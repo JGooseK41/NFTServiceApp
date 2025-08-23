@@ -723,9 +723,14 @@
 
         // Handle wallet connection
         async function handleWalletConnected() {
-            if (!window.tronWeb || !window.tronWeb.ready) return;
+            console.log('BlockServed: Handling wallet connection...');
+            if (!window.tronWeb || !window.tronWeb.ready) {
+                console.log('BlockServed: TronWeb not ready in handleWalletConnected');
+                return;
+            }
             
             currentWallet = window.tronWeb.defaultAddress.base58;
+            console.log('BlockServed: Connected wallet:', currentWallet);
             
             // Update UI
             const walletStatus = document.getElementById('walletStatus');
@@ -738,12 +743,17 @@
             document.getElementById('connectWallet').style.display = 'none';
             
             // Load notices
+            console.log('BlockServed: Loading notices for wallet...');
             loadNotices();
         }
 
         // Load notices for the connected wallet
         async function loadNotices() {
-            if (!currentWallet) return;
+            console.log('BlockServed: loadNotices called, wallet:', currentWallet);
+            if (!currentWallet) {
+                console.log('BlockServed: No wallet connected, skipping load');
+                return;
+            }
             
             // Show loading state
             document.getElementById('loadingState').style.display = 'block';
@@ -751,7 +761,9 @@
             document.getElementById('noticesContainer').innerHTML = '';
             
             try {
-                const response = await fetch(`${BACKEND_URL}/api/recipient-cases/wallet/${currentWallet}`);
+                const url = `${BACKEND_URL}/api/recipient-cases/wallet/${currentWallet}`;
+                console.log('BlockServed: Fetching from:', url);
+                const response = await fetch(url);
                 const data = await response.json();
                 
                 document.getElementById('loadingState').style.display = 'none';
