@@ -7,6 +7,25 @@
   # No build command needed for static site
   # command = "echo 'No build required'"
 
+# ====================
+# DOMAIN-BASED ROUTING
+# ====================
+
+# BlockServed.com - Serve the recipient portal
+[[redirects]]
+  from = "https://blockserved.com"
+  to = "/index-blockserved.html"
+  status = 200
+  force = true
+  conditions = {Host = ["blockserved.com"]}
+  
+[[redirects]]
+  from = "https://www.blockserved.com"
+  to = "/index-blockserved.html"
+  status = 200
+  force = true
+  conditions = {Host = ["www.blockserved.com"]}
+
 [build.environment]
   # Node version for any functions
   NODE_VERSION = "18"

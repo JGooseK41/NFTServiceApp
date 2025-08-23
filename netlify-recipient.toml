@@ -6,17 +6,17 @@
 # Redirect rules for recipient site
 [[redirects]]
   from = "/"
-  to = "/recipient.html"
+  to = "/index-blockserved.html"
   status = 200
 
 [[redirects]]
   from = "/view"
-  to = "/recipient.html"
+  to = "/index-blockserved.html"
   status = 200
 
 [[redirects]]
   from = "/notice"
-  to = "/recipient.html"
+  to = "/index-blockserved.html"
   status = 200
 
 # Headers for security and performance

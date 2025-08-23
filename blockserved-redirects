@@ -1,0 +1,8 @@
+# BlockServed.com specific redirects
+# This file should be used as _redirects when deploying BlockServed separately
+
+# API proxy to Render backend
+/api/* https://nftserviceapp.onrender.com/api/:splat 200
+
+# Main app serves the new professional BlockServed interface
+/* /index-blockserved.html 200
