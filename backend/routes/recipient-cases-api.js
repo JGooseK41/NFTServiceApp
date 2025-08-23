@@ -219,4 +219,57 @@ router.post('/:caseNumber/acknowledge', async (req, res) => {
     }
 });
 
+/**
+ * GET /api/recipient-cases/test/:caseNumber
+ * Test endpoint to check if a case exists
+ */
+router.get('/test/:caseNumber', async (req, res) => {
+    try {
+        const { caseNumber } = req.params;
+        console.log(`Testing case: ${caseNumber}`);
+        
+        const query = `
+            SELECT case_number, recipients, served_at
+            FROM case_service_records
+            WHERE case_number = $1
+        `;
+        
+        const result = await pool.query(query, [caseNumber]);
+        
+        if (result.rows.length > 0) {
+            const record = result.rows[0];
+            let recipients = [];
+            try {
+                recipients = typeof record.recipients === 'string' ? 
+                    JSON.parse(record.recipients) : record.recipients;
+            } catch (e) {
+                console.log('Error parsing recipients:', e);
+            }
+            
+            res.json({
+                success: true,
+                found: true,
+                case_number: record.case_number,
+                served_at: record.served_at,
+                recipients: recipients,
+                recipients_count: Array.isArray(recipients) ? recipients.length : 0,
+                raw_recipients: record.recipients
+            });
+        } else {
+            res.json({
+                success: true,
+                found: false,
+                message: `Case ${caseNumber} not found in case_service_records`
+            });
+        }
+        
+    } catch (error) {
+        console.error('Test endpoint error:', error);
+        res.status(500).json({ 
+            error: 'Test failed',
+            details: error.message
+        });
+    }
+});
+
 module.exports = router;
