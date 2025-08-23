@@ -94,6 +94,7 @@ ensureColumns();
 /**
  * GET /api/recipient-cases/wallet/:address
  * Get all cases served to a specific wallet address
+ * Returns both Alert NFTs (owned by wallet) and paired Document NFTs (owned by contract)
  */
 router.get('/wallet/:address', async (req, res) => {
     try {
@@ -107,6 +108,11 @@ router.get('/wallet/:address', async (req, res) => {
             });
         }
         
+        // The key insight: Document NFTs are ALWAYS Alert NFT ID + 1
+        // When a notice is served, the contract mints:
+        // - Alert NFT (ID n) to recipient wallet
+        // - Document NFT (ID n+1) to contract address
+        
         // First, let's try a simpler query without the join to see if it works
         let query;
         let result;
@@ -119,7 +125,15 @@ router.get('/wallet/:address', async (req, res) => {
                     csr.recipients,
                     csr.transaction_hash,
                     csr.alert_token_id,
-                    csr.document_token_id,
+                    -- If document_token_id is missing, calculate it as alert_token_id + 1
+                    COALESCE(
+                        csr.document_token_id, 
+                        CASE 
+                            WHEN csr.alert_token_id IS NOT NULL 
+                            THEN (csr.alert_token_id::int + 1)::text 
+                            ELSE NULL 
+                        END
+                    ) as document_token_id,
                     csr.ipfs_hash,
                     csr.encryption_key,
                     csr.served_at,
@@ -146,7 +160,15 @@ router.get('/wallet/:address', async (req, res) => {
                     recipients,
                     transaction_hash,
                     alert_token_id,
-                    document_token_id,
+                    -- If document_token_id is missing, calculate it as alert_token_id + 1
+                    COALESCE(
+                        document_token_id, 
+                        CASE 
+                            WHEN alert_token_id IS NOT NULL 
+                            THEN (alert_token_id::int + 1)::text 
+                            ELSE NULL 
+                        END
+                    ) as document_token_id,
                     ipfs_hash,
                     encryption_key,
                     served_at,
@@ -252,7 +274,15 @@ router.get('/:caseNumber/document', async (req, res) => {
                 case_number,
                 ipfs_hash,
                 encryption_key,
-                document_token_id,
+                -- If document_token_id is missing, calculate it as alert_token_id + 1
+                COALESCE(
+                    document_token_id,
+                    CASE 
+                        WHEN alert_token_id IS NOT NULL 
+                        THEN (alert_token_id::int + 1)::text 
+                        ELSE NULL 
+                    END
+                ) as document_token_id,
                 alert_token_id,
                 page_count,
                 served_at,
