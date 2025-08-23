@@ -7,6 +7,27 @@
 const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');
+const cors = require('cors');
+
+// CORS configuration for BlockServed
+const corsOptions = {
+    origin: [
+        'https://blockserved.com',
+        'https://www.blockserved.com',
+        'https://theblockservice.com',
+        'https://www.theblockservice.com',
+        'https://nft-legal-service.netlify.app',
+        'http://localhost:8080',
+        'http://localhost:3000',
+        'http://localhost:3001'
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+// Apply CORS to all routes
+router.use(cors(corsOptions));
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
