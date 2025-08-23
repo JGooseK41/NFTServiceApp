@@ -564,49 +564,110 @@
     <!-- Main Container -->
     <div class="main-container">
         <!-- Information Banner -->
-        <div class="info-banner">
-            <h2>You Have Been Served Legal Documents</h2>
-            <p>
-                This portal allows you to securely view and acknowledge legal notices that have been served to you via blockchain technology. 
-                These notices are legally binding and have been recorded on the TRON blockchain for permanent verification.
-            </p>
+        <div class="info-banner" id="mainBanner">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 25px; border-radius: 50px; display: inline-block; margin-bottom: 20px;">
+                    <i class="bi bi-exclamation-triangle-fill" style="font-size: 20px; margin-right: 10px;"></i>
+                    <span style="font-weight: 600; font-size: 18px;">IMPORTANT LEGAL NOTICE</span>
+                </div>
+                <h1 style="font-size: 36px; font-weight: 700; color: var(--primary-color); margin-bottom: 15px;">
+                    You Have Received Official Legal Documents
+                </h1>
+                <p style="font-size: 20px; color: var(--text-dark); max-width: 800px; margin: 0 auto;">
+                    Legal documents have been served to your wallet address through blockchain-verified delivery
+                </p>
+            </div>
             
-            <div class="alert-message alert-info">
-                <i class="bi bi-info-circle-fill"></i>
+            <div class="alert-message" style="background: #fff4e5; border-left: 4px solid #ff9800; margin: 30px 0;">
+                <i class="bi bi-shield-lock-fill" style="color: #ff9800; font-size: 24px;"></i>
                 <div>
-                    <strong>Important:</strong> These are official legal documents. Please review them carefully and take appropriate action as required by law.
+                    <strong style="font-size: 18px; color: var(--primary-color);">Your Privacy is Protected</strong><br>
+                    <p style="margin: 10px 0; line-height: 1.6;">
+                        Your documents are <strong>completely private</strong> and can only be accessed by connecting the wallet that received the notice. 
+                        Your wallet address is your unique identifier - no personal information is stored or displayed publicly.
+                    </p>
+                </div>
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 25px; border-radius: 12px; margin: 25px 0;">
+                <h3 style="color: var(--primary-color); margin-bottom: 20px;">Why This is Important</h3>
+                <div style="display: grid; gap: 15px;">
+                    <div style="display: flex; align-items: start; gap: 12px;">
+                        <i class="bi bi-check-circle-fill" style="color: var(--success-color); font-size: 20px; flex-shrink: 0;"></i>
+                        <p style="margin: 0;"><strong>Legal Requirement:</strong> These documents may require your response within a specific timeframe as mandated by law.</p>
+                    </div>
+                    <div style="display: flex; align-items: start; gap: 12px;">
+                        <i class="bi bi-check-circle-fill" style="color: var(--success-color); font-size: 20px; flex-shrink: 0;"></i>
+                        <p style="margin: 0;"><strong>Permanent Record:</strong> Service of these documents has been permanently recorded on the blockchain, creating an immutable proof of delivery.</p>
+                    </div>
+                    <div style="display: flex; align-items: start; gap: 12px;">
+                        <i class="bi bi-check-circle-fill" style="color: var(--success-color); font-size: 20px; flex-shrink: 0;"></i>
+                        <p style="margin: 0;"><strong>Time-Sensitive:</strong> Failure to respond may result in default judgments or other legal consequences.</p>
+                    </div>
                 </div>
             </div>
 
-            <div class="steps-container">
-                <div class="step-card">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <h4>Connect Your Wallet</h4>
-                        <p>Use the wallet that received the notice NFT</p>
+            <div style="background: #e8f5e9; padding: 25px; border-radius: 12px; margin: 25px 0;">
+                <h3 style="color: var(--primary-color); margin-bottom: 20px;">How to Access Your Documents</h3>
+                <div class="steps-container">
+                    <div class="step-card" style="background: white;">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h4>Connect Your Wallet</h4>
+                            <p>Connect the TRON wallet that received the legal notice. This is your secure identity - only you can access your documents.</p>
+                        </div>
+                    </div>
+                    <div class="step-card" style="background: white;">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h4>View Your Documents</h4>
+                            <p>Once connected, all legal notices served to your wallet will automatically appear. Documents are retrieved from our secure database.</p>
+                        </div>
+                    </div>
+                    <div class="step-card" style="background: white;">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h4>Accept or Decline Service</h4>
+                            <p>You can accept service by signing with your wallet, which will provide you with decryption keys for permanent IPFS access.</p>
+                        </div>
                     </div>
                 </div>
-                <div class="step-card">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <h4>View Your Notices</h4>
-                        <p>All served documents will appear automatically</p>
+            </div>
+            
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px; margin: 25px 0; color: white;">
+                <h3 style="margin-bottom: 20px;"><i class="bi bi-lock-fill"></i> Document Storage & Privacy</h3>
+                <div style="display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
+                    <div>
+                        <h5 style="margin-bottom: 10px;"><i class="bi bi-cloud-arrow-up"></i> Permanent IPFS Storage</h5>
+                        <p style="font-size: 14px; opacity: 0.95;">Your documents are permanently stored on IPFS (InterPlanetary File System), ensuring they can never be deleted or altered.</p>
+                    </div>
+                    <div>
+                        <h5 style="margin-bottom: 10px;"><i class="bi bi-shield-check"></i> Encrypted for Privacy</h5>
+                        <p style="font-size: 14px; opacity: 0.95;">All documents are encrypted. Only recipients who accept service receive the decryption key, ensuring complete privacy.</p>
+                    </div>
+                    <div>
+                        <h5 style="margin-bottom: 10px;"><i class="bi bi-key"></i> Your Keys, Your Access</h5>
+                        <p style="font-size: 14px; opacity: 0.95;">Once you accept service and receive your decryption key, you can access your documents anytime, anywhere, without using this site.</p>
                     </div>
                 </div>
-                <div class="step-card">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <h4>Read Documents</h4>
-                        <p>Click to view the full legal documents</p>
-                    </div>
+            </div>
+            
+            <div class="alert-message alert-warning" style="margin: 25px 0;">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <div>
+                    <strong>Legal Notice:</strong> If you choose to decline service, you can still view your documents through this portal. 
+                    However, accepting service provides you with permanent, independent access via IPFS decryption keys. 
+                    Please note that declining service does not prevent legal proceedings from continuing.
                 </div>
-                <div class="step-card">
-                    <div class="step-number">4</div>
-                    <div class="step-content">
-                        <h4>Acknowledge Receipt</h4>
-                        <p>Sign to confirm you've received the notice</p>
-                    </div>
-                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <button id="connectWalletMain" class="connect-btn" style="font-size: 18px; padding: 15px 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <i class="bi bi-wallet2"></i> Connect Wallet to View Your Legal Documents
+                </button>
+                <p style="margin-top: 15px; color: var(--text-light); font-size: 14px;">
+                    <i class="bi bi-lock"></i> Secure connection via TronLink • No personal data required • Only your wallet address is used
+                </p>
             </div>
         </div>
 
@@ -688,6 +749,12 @@
         // Setup event listeners
         function setupEventListeners() {
             document.getElementById('connectWallet').addEventListener('click', connectWallet);
+            
+            // Add listener for main connect button if it exists
+            const mainConnectBtn = document.getElementById('connectWalletMain');
+            if (mainConnectBtn) {
+                mainConnectBtn.addEventListener('click', connectWallet);
+            }
         }
 
         // Check if TronLink is available
@@ -738,6 +805,12 @@
             `;
             
             document.getElementById('connectWallet').style.display = 'none';
+            
+            // Hide main info banner and main connect button
+            const mainBanner = document.getElementById('mainBanner');
+            if (mainBanner) {
+                mainBanner.style.display = 'none';
+            }
             
             // Load notices
             loadNotices();
@@ -1036,30 +1109,81 @@
         function displayDocumentContent(notice) {
             const modalBody = document.getElementById('modalBody');
             
-            // If there's an IPFS hash and encryption key, show encrypted document notice
-            if (notice.ipfsHash && notice.encryptionKey) {
+            // Check if images are available
+            if (notice.images) {
+                let imageContent = '';
+                
+                // Show alert image if available
+                if (notice.images.alert_image || notice.images.alert_thumbnail) {
+                    const alertImage = notice.images.alert_image || notice.images.alert_thumbnail;
+                    imageContent += `
+                        <div class="document-section">
+                            <h4><i class="bi bi-bell-fill"></i> Service Alert</h4>
+                            <div class="image-container" style="margin: 15px 0;">
+                                <img src="${alertImage}" 
+                                     alt="Service Alert" 
+                                     style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
+                                     onclick="window.open('${alertImage}', '_blank')">
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Show document image if available
+                if (notice.images.document_image || notice.images.document_thumbnail) {
+                    const docImage = notice.images.document_image || notice.images.document_thumbnail;
+                    imageContent += `
+                        <div class="document-section" style="margin-top: 20px;">
+                            <h4><i class="bi bi-file-text-fill"></i> Legal Document</h4>
+                            <div class="image-container" style="margin: 15px 0;">
+                                <img src="${docImage}" 
+                                     alt="Legal Document" 
+                                     style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: pointer;"
+                                     onclick="window.open('${docImage}', '_blank')"
+                                     title="Click to view full size">
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                if (imageContent) {
+                    modalBody.innerHTML = `
+                        <div class="document-info">
+                            <p><strong>Case Number:</strong> ${notice.case_number}</p>
+                            <p><strong>Served:</strong> ${new Date(notice.served_at).toLocaleString()}</p>
+                            <p><strong>Page Count:</strong> ${notice.page_count || 1} pages</p>
+                        </div>
+                        ${imageContent}
+                        <div class="action-buttons" style="margin-top: 20px; display: flex; gap: 10px;">
+                            <button onclick="printDocumentImages('${notice.case_number}')" class="btn btn-secondary">
+                                <i class="bi bi-printer"></i> Print
+                            </button>
+                            <button onclick="downloadDocumentImages('${notice.case_number}')" class="btn btn-secondary">
+                                <i class="bi bi-download"></i> Download
+                            </button>
+                        </div>
+                    `;
+                    return;
+                }
+            }
+            
+            // Fallback to IPFS info if no images
+            if (notice.ipfs_hash) {
                 modalBody.innerHTML = `
                     <div class="alert-message alert-info">
                         <i class="bi bi-lock-fill"></i>
                         <div>
                             <strong>Encrypted Document Available</strong><br>
-                            This document is stored securely on IPFS. Use the decryption key provided to view the full document.
+                            This document is stored securely on IPFS.
                         </div>
                     </div>
                     
                     <div class="document-info">
                         <h4>Document Information</h4>
-                        <p><strong>IPFS Hash:</strong> <code>${notice.ipfsHash}</code></p>
-                        <p><strong>Encryption Key:</strong> <code>${notice.encryptionKey}</code></p>
-                        <p><strong>Page Count:</strong> ${notice.pageCount} pages</p>
+                        <p><strong>IPFS Hash:</strong> <code>${notice.ipfs_hash}</code></p>
+                        <p><strong>Page Count:</strong> ${notice.page_count || 1} pages</p>
+                        <p><strong>Served:</strong> ${new Date(notice.served_at).toLocaleString()}</p>
                     </div>
-                    
-                    ${notice.documentPreview ? `
-                        <div class="document-preview">
-                            <h4>Document Preview</h4>
-                            <img src="${notice.documentPreview}" style="max-width: 100%; border: 1px solid #ddd; border-radius: 8px;">
-                        </div>
-                    ` : ''}
                 `;
             } else {
                 modalBody.innerHTML = `
@@ -1275,6 +1399,109 @@ Transaction Hash: ${currentNotice.transaction_hash}
             URL.revokeObjectURL(url);
         }
 
+        // Print document images
+        async function printDocumentImages(caseNumber) {
+            try {
+                // Log document action
+                await logDocumentAction(caseNumber, 'print');
+                
+                // Create a new window for printing
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>Legal Notice - Case #${caseNumber}</title>
+                        <style>
+                            @media print {
+                                body { margin: 0; }
+                                img { max-width: 100%; page-break-inside: avoid; }
+                                .page-break { page-break-after: always; }
+                            }
+                            body { font-family: Arial, sans-serif; }
+                            h1 { text-align: center; }
+                            .document-section { margin: 20px 0; }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>Legal Notice - Case #${caseNumber}</h1>
+                        <p>Printed: ${new Date().toLocaleString()}</p>
+                `);
+                
+                // Get the images from the current modal
+                const images = document.querySelectorAll('#modalBody img');
+                images.forEach((img, index) => {
+                    if (index > 0) {
+                        printWindow.document.write('<div class="page-break"></div>');
+                    }
+                    printWindow.document.write(`
+                        <div class="document-section">
+                            <img src="${img.src}" alt="${img.alt}" style="width: 100%;">
+                        </div>
+                    `);
+                });
+                
+                printWindow.document.write('</body></html>');
+                printWindow.document.close();
+                
+                setTimeout(() => {
+                    printWindow.print();
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error printing document:', error);
+                showAlert('Failed to print document', 'error');
+            }
+        }
+        
+        // Download document images
+        async function downloadDocumentImages(caseNumber) {
+            try {
+                // Log document action
+                await logDocumentAction(caseNumber, 'download');
+                
+                // Get images from the modal
+                const images = document.querySelectorAll('#modalBody img');
+                
+                images.forEach((img, index) => {
+                    const link = document.createElement('a');
+                    link.href = img.src;
+                    link.download = `legal-notice-${caseNumber}-${index + 1}.png`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                });
+                
+                showAlert('Documents downloaded successfully', 'success');
+                
+            } catch (error) {
+                console.error('Error downloading document:', error);
+                showAlert('Failed to download document', 'error');
+            }
+        }
+        
+        // Log document action
+        async function logDocumentAction(caseNumber, actionType) {
+            try {
+                await fetch(`${BACKEND_URL}/api/recipient-logs/document-action`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        case_number: caseNumber,
+                        wallet_address: currentWallet,
+                        action_type: actionType,
+                        metadata: {
+                            timestamp: new Date().toISOString(),
+                            sessionId: sessionId
+                        }
+                    })
+                });
+                console.log(`Document action logged: ${caseNumber} - ${actionType}`);
+            } catch (error) {
+                console.error('Failed to log document action:', error);
+            }
+        }
+        
         // Show alert message
         function showAlert(message, type = 'info') {
             const alertDiv = document.createElement('div');

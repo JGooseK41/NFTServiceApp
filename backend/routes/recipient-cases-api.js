@@ -148,8 +148,8 @@ router.get('/wallet/:address', async (req, res) => {
             result = await pool.query(query, [address, `%${address}%`]);
         }
         
-        // Transform data for frontend
-        const notices = result.rows.map(row => {
+        // Transform data for frontend and include images
+        const notices = await Promise.all(result.rows.map(async row => {
             // Parse recipients
             let recipientsList = [];
             try {
@@ -157,6 +157,28 @@ router.get('/wallet/:address', async (req, res) => {
                     JSON.parse(row.recipients) : row.recipients;
             } catch (e) {
                 console.log('Error parsing recipients:', e);
+            }
+            
+            // Try to fetch images for this case
+            let images = null;
+            try {
+                const imageQuery = await pool.query(`
+                    SELECT alert_image, document_image, alert_thumbnail, document_thumbnail
+                    FROM images 
+                    WHERE case_number = $1 OR notice_id = $2
+                    LIMIT 1
+                `, [row.case_number, row.alert_token_id]);
+                
+                if (imageQuery.rows.length > 0) {
+                    images = {
+                        alert_image: imageQuery.rows[0].alert_image,
+                        document_image: imageQuery.rows[0].document_image,
+                        alert_thumbnail: imageQuery.rows[0].alert_thumbnail,
+                        document_thumbnail: imageQuery.rows[0].document_thumbnail
+                    };
+                }
+            } catch (e) {
+                console.log('Could not fetch images:', e.message);
             }
             
             return {
@@ -171,9 +193,10 @@ router.get('/wallet/:address', async (req, res) => {
                 page_count: row.page_count || 1,
                 status: row.status || 'served',
                 recipients_count: recipientsList.length,
-                is_recipient: recipientsList.includes(address)
+                is_recipient: recipientsList.includes(address),
+                images: images // Include images if available
             };
-        });
+        }));
         
         console.log(`Found ${notices.length} notices for wallet ${address}`);
         
@@ -210,6 +233,7 @@ router.get('/:caseNumber/document', async (req, res) => {
                 case_number,
                 ipfs_hash,
                 document_token_id,
+                alert_token_id,
                 page_count,
                 served_at,
                 server_name,
@@ -230,17 +254,64 @@ router.get('/:caseNumber/document', async (req, res) => {
         
         const caseData = result.rows[0];
         
+        // Try to fetch images for this case
+        let images = null;
+        try {
+            const imageQuery = await pool.query(`
+                SELECT alert_image, document_image, alert_thumbnail, document_thumbnail
+                FROM images 
+                WHERE case_number = $1 OR notice_id = $2 OR notice_id = $3
+                LIMIT 1
+            `, [caseNumber, caseData.alert_token_id, caseData.document_token_id]);
+            
+            if (imageQuery.rows.length > 0) {
+                images = {
+                    alert_image: imageQuery.rows[0].alert_image,
+                    document_image: imageQuery.rows[0].document_image,
+                    alert_thumbnail: imageQuery.rows[0].alert_thumbnail,
+                    document_thumbnail: imageQuery.rows[0].document_thumbnail
+                };
+            }
+        } catch (e) {
+            console.log('Could not fetch images from images table:', e.message);
+            
+            // Try fallback to notice_components table
+            try {
+                const fallbackQuery = await pool.query(`
+                    SELECT 
+                        alert_thumbnail_url as alert_thumbnail,
+                        document_unencrypted_url as document_image
+                    FROM notice_components
+                    WHERE case_number = $1 OR alert_id = $2 OR document_id = $3
+                    LIMIT 1
+                `, [caseNumber, caseData.alert_token_id, caseData.document_token_id]);
+                
+                if (fallbackQuery.rows.length > 0) {
+                    images = {
+                        alert_image: fallbackQuery.rows[0].alert_thumbnail,
+                        document_image: fallbackQuery.rows[0].document_image,
+                        alert_thumbnail: fallbackQuery.rows[0].alert_thumbnail,
+                        document_thumbnail: fallbackQuery.rows[0].document_image
+                    };
+                }
+            } catch (fallbackError) {
+                console.log('Could not fetch images from notice_components:', fallbackError.message);
+            }
+        }
+        
         res.json({
             success: true,
             notice: {
                 case_number: caseData.case_number,
                 ipfs_hash: caseData.ipfs_hash,
                 document_token_id: caseData.document_token_id,
+                alert_token_id: caseData.alert_token_id,
                 page_count: caseData.page_count,
                 served_at: caseData.served_at,
                 server_name: caseData.server_name,
                 issuing_agency: caseData.issuing_agency,
-                status: caseData.status
+                status: caseData.status,
+                images: images
             }
         });
         
@@ -1016,6 +1087,280 @@ router.post('/test-add', async (req, res) => {
         console.error('Error adding test case:', error);
         res.status(500).json({ 
             error: 'Failed to add case',
+            details: error.message
+        });
+    }
+});
+
+/**
+ * GET /api/recipient-cases/:caseNumber/images
+ * Get all images (alert and document) for a specific case
+ */
+router.get('/:caseNumber/images', async (req, res) => {
+    try {
+        const { caseNumber } = req.params;
+        const walletAddress = req.headers['x-wallet-address'] || req.query.wallet;
+        
+        console.log(`Fetching images for case: ${caseNumber}`);
+        
+        // First get the case to verify access and get token IDs
+        const caseQuery = await pool.query(`
+            SELECT 
+                case_number,
+                alert_token_id,
+                document_token_id,
+                recipients
+            FROM case_service_records
+            WHERE case_number = $1
+        `, [caseNumber]);
+        
+        if (caseQuery.rows.length === 0) {
+            return res.status(404).json({
+                error: 'Case not found',
+                success: false
+            });
+        }
+        
+        const caseData = caseQuery.rows[0];
+        
+        // Verify recipient access if wallet provided
+        if (walletAddress) {
+            let recipientsList = [];
+            try {
+                recipientsList = typeof caseData.recipients === 'string' ? 
+                    JSON.parse(caseData.recipients) : caseData.recipients;
+            } catch (e) {
+                console.log('Error parsing recipients:', e);
+            }
+            
+            if (!recipientsList.includes(walletAddress)) {
+                return res.status(403).json({
+                    error: 'Access denied - not a recipient of this notice',
+                    success: false
+                });
+            }
+        }
+        
+        // Try to fetch images from multiple sources
+        let images = null;
+        
+        // 1. Try images table first
+        try {
+            const imageQuery = await pool.query(`
+                SELECT 
+                    alert_image, 
+                    document_image, 
+                    alert_thumbnail, 
+                    document_thumbnail,
+                    created_at,
+                    updated_at
+                FROM images 
+                WHERE case_number = $1 
+                   OR notice_id = $2 
+                   OR notice_id = $3
+                LIMIT 1
+            `, [caseNumber, caseData.alert_token_id, caseData.document_token_id]);
+            
+            if (imageQuery.rows.length > 0) {
+                images = imageQuery.rows[0];
+                images.source = 'images_table';
+            }
+        } catch (e) {
+            console.log('Images table not available:', e.message);
+        }
+        
+        // 2. Try notice_components table as fallback
+        if (!images) {
+            try {
+                const fallbackQuery = await pool.query(`
+                    SELECT 
+                        alert_thumbnail_url,
+                        document_unencrypted_url,
+                        created_at
+                    FROM notice_components
+                    WHERE case_number = $1 
+                       OR alert_id = $2 
+                       OR document_id = $3
+                    LIMIT 1
+                `, [caseNumber, caseData.alert_token_id, caseData.document_token_id]);
+                
+                if (fallbackQuery.rows.length > 0) {
+                    images = {
+                        alert_image: fallbackQuery.rows[0].alert_thumbnail_url,
+                        document_image: fallbackQuery.rows[0].document_unencrypted_url,
+                        alert_thumbnail: fallbackQuery.rows[0].alert_thumbnail_url,
+                        document_thumbnail: fallbackQuery.rows[0].document_unencrypted_url,
+                        created_at: fallbackQuery.rows[0].created_at,
+                        source: 'notice_components'
+                    };
+                }
+            } catch (fallbackError) {
+                console.log('Notice components fallback failed:', fallbackError.message);
+            }
+        }
+        
+        // 3. Try notice_images table as last resort
+        if (!images) {
+            try {
+                const lastResortQuery = await pool.query(`
+                    SELECT 
+                        image_data,
+                        image_type,
+                        created_at
+                    FROM notice_images
+                    WHERE notice_id = $1 
+                       OR notice_id = $2
+                    ORDER BY created_at DESC
+                    LIMIT 2
+                `, [caseData.alert_token_id, caseData.document_token_id]);
+                
+                if (lastResortQuery.rows.length > 0) {
+                    const alertImage = lastResortQuery.rows.find(r => r.notice_id === caseData.alert_token_id);
+                    const docImage = lastResortQuery.rows.find(r => r.notice_id === caseData.document_token_id);
+                    
+                    images = {
+                        alert_image: alertImage?.image_data,
+                        document_image: docImage?.image_data,
+                        alert_thumbnail: alertImage?.image_data,
+                        document_thumbnail: docImage?.image_data,
+                        created_at: lastResortQuery.rows[0].created_at,
+                        source: 'notice_images'
+                    };
+                }
+            } catch (lastError) {
+                console.log('Notice images fallback failed:', lastError.message);
+            }
+        }
+        
+        if (!images) {
+            return res.status(404).json({
+                error: 'No images found for this case',
+                success: false,
+                case_number: caseNumber
+            });
+        }
+        
+        res.json({
+            success: true,
+            case_number: caseNumber,
+            alert_token_id: caseData.alert_token_id,
+            document_token_id: caseData.document_token_id,
+            images: images
+        });
+        
+    } catch (error) {
+        console.error('Error fetching images:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch images',
+            success: false,
+            details: error.message
+        });
+    }
+});
+
+/**
+ * GET /api/recipient-cases/token/:tokenId/image
+ * Get image for a specific token ID (alert or document)
+ */
+router.get('/token/:tokenId/image', async (req, res) => {
+    try {
+        const { tokenId } = req.params;
+        const imageType = req.query.type || 'full'; // 'full' or 'thumbnail'
+        
+        console.log(`Fetching image for token: ${tokenId}, type: ${imageType}`);
+        
+        let image = null;
+        
+        // Try images table first
+        try {
+            const query = await pool.query(`
+                SELECT 
+                    alert_image, 
+                    document_image, 
+                    alert_thumbnail, 
+                    document_thumbnail,
+                    case_number
+                FROM images 
+                WHERE notice_id = $1
+                LIMIT 1
+            `, [tokenId]);
+            
+            if (query.rows.length > 0) {
+                const row = query.rows[0];
+                // Determine if this is an alert or document token
+                if (row.alert_image || row.alert_thumbnail) {
+                    image = {
+                        data: imageType === 'thumbnail' ? row.alert_thumbnail : row.alert_image,
+                        type: 'alert',
+                        case_number: row.case_number
+                    };
+                } else if (row.document_image || row.document_thumbnail) {
+                    image = {
+                        data: imageType === 'thumbnail' ? row.document_thumbnail : row.document_image,
+                        type: 'document',
+                        case_number: row.case_number
+                    };
+                }
+            }
+        } catch (e) {
+            console.log('Images table query failed:', e.message);
+        }
+        
+        // Try notice_components fallback
+        if (!image) {
+            try {
+                const query = await pool.query(`
+                    SELECT 
+                        alert_thumbnail_url,
+                        document_unencrypted_url,
+                        case_number,
+                        alert_id,
+                        document_id
+                    FROM notice_components
+                    WHERE alert_id = $1 OR document_id = $1
+                    LIMIT 1
+                `, [tokenId]);
+                
+                if (query.rows.length > 0) {
+                    const row = query.rows[0];
+                    if (row.alert_id === tokenId) {
+                        image = {
+                            data: row.alert_thumbnail_url,
+                            type: 'alert',
+                            case_number: row.case_number
+                        };
+                    } else if (row.document_id === tokenId) {
+                        image = {
+                            data: row.document_unencrypted_url,
+                            type: 'document',
+                            case_number: row.case_number
+                        };
+                    }
+                }
+            } catch (fallbackError) {
+                console.log('Notice components fallback failed:', fallbackError.message);
+            }
+        }
+        
+        if (!image) {
+            return res.status(404).json({
+                error: 'Image not found for this token',
+                success: false,
+                token_id: tokenId
+            });
+        }
+        
+        res.json({
+            success: true,
+            token_id: tokenId,
+            image: image
+        });
+        
+    } catch (error) {
+        console.error('Error fetching token image:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch image',
+            success: false,
             details: error.message
         });
     }
