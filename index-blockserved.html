@@ -677,8 +677,10 @@
 
         // Initialize on load
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('BlockServed: DOM loaded, initializing...');
             checkTronLink();
             setupEventListeners();
+            console.log('BlockServed: Ready for wallet connection');
         });
 
         // Setup event listeners
@@ -688,10 +690,13 @@
 
         // Check if TronLink is available
         function checkTronLink() {
+            console.log('BlockServed: Checking for TronLink...');
             if (window.tronWeb && window.tronWeb.ready) {
+                console.log('BlockServed: TronLink found and ready');
                 tronWeb = window.tronWeb;
                 handleWalletConnected();
             } else {
+                console.log('BlockServed: TronLink not ready, retrying in 500ms...');
                 setTimeout(checkTronLink, 500);
             }
         }
