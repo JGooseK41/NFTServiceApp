@@ -746,7 +746,7 @@
             document.getElementById('noticesContainer').innerHTML = '';
             
             try {
-                const response = await fetch(`${BACKEND_URL}/api/notices/recipient/${currentWallet}`);
+                const response = await fetch(`${BACKEND_URL}/api/recipient-cases/wallet/${currentWallet}`);
                 const data = await response.json();
                 
                 document.getElementById('loadingState').style.display = 'none';
@@ -850,7 +850,7 @@
             
             try {
                 // Fetch document details
-                const response = await fetch(`${BACKEND_URL}/api/notices/${notice.alert_token_id}/document`);
+                const response = await fetch(`${BACKEND_URL}/api/recipient-cases/${notice.case_number}/document`);
                 const data = await response.json();
                 
                 if (data.success && data.notice) {
@@ -928,7 +928,7 @@
                 const signature = await tronWeb.trx.sign(tronWeb.toHex(message));
                 
                 // Send to backend
-                const response = await fetch(`${BACKEND_URL}/api/notices/${notice.alert_token_id}/decrypt`, {
+                const response = await fetch(`${BACKEND_URL}/api/recipient-cases/${notice.case_number}/acknowledge`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
