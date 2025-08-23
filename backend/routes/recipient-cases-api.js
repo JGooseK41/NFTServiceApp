@@ -319,6 +319,169 @@ router.post('/:caseNumber/acknowledge', async (req, res) => {
 });
 
 /**
+ * GET /api/recipient-cases/find-all-historical
+ * Find ALL historical data across all tables
+ */
+router.get('/find-all-historical', async (req, res) => {
+    console.log('Searching for all historical data...');
+    const result = { 
+        tables_searched: [],
+        cases_found: {},
+        recipients_found: {},
+        reconstruction: [],
+        errors: []
+    };
+    
+    try {
+        // 1. Search cases table
+        try {
+            const casesQuery = `
+                SELECT 
+                    case_number,
+                    server_address,
+                    server_name,
+                    issuing_agency,
+                    page_count,
+                    status,
+                    created_at,
+                    metadata
+                FROM cases
+                ORDER BY created_at DESC
+            `;
+            const cases = await pool.query(casesQuery);
+            result.tables_searched.push('cases');
+            
+            cases.rows.forEach(c => {
+                result.cases_found[c.case_number] = {
+                    case_number: c.case_number,
+                    server_name: c.server_name || c.server_address,
+                    issuing_agency: c.issuing_agency,
+                    page_count: c.page_count,
+                    status: c.status,
+                    created_at: c.created_at,
+                    from_table: 'cases'
+                };
+            });
+        } catch (e) {
+            result.errors.push(`cases: ${e.message}`);
+        }
+        
+        // 2. Search notice_images for recipients
+        try {
+            const imagesQuery = `
+                SELECT 
+                    notice_id,
+                    case_number,
+                    recipient_address,
+                    created_at
+                FROM notice_images
+                WHERE recipient_address IS NOT NULL
+            `;
+            const images = await pool.query(imagesQuery);
+            result.tables_searched.push('notice_images');
+            
+            images.rows.forEach(img => {
+                if (!result.recipients_found[img.recipient_address]) {
+                    result.recipients_found[img.recipient_address] = [];
+                }
+                if (img.case_number) {
+                    result.recipients_found[img.recipient_address].push(img.case_number);
+                }
+            });
+        } catch (e) {
+            result.errors.push(`notice_images: ${e.message}`);
+        }
+        
+        // 3. Search alert_metadata
+        try {
+            const alertQuery = `
+                SELECT 
+                    alert_id,
+                    case_number,
+                    recipient_address,
+                    transaction_hash
+                FROM alert_metadata
+                WHERE case_number IS NOT NULL
+            `;
+            const alerts = await pool.query(alertQuery);
+            result.tables_searched.push('alert_metadata');
+            
+            alerts.rows.forEach(alert => {
+                if (alert.recipient_address && alert.case_number) {
+                    if (!result.recipients_found[alert.recipient_address]) {
+                        result.recipients_found[alert.recipient_address] = [];
+                    }
+                    result.recipients_found[alert.recipient_address].push(alert.case_number);
+                    
+                    // Update case with alert info
+                    if (result.cases_found[alert.case_number]) {
+                        result.cases_found[alert.case_number].alert_token_id = alert.alert_id;
+                        result.cases_found[alert.case_number].transaction_hash = alert.transaction_hash;
+                    }
+                }
+            });
+        } catch (e) {
+            result.errors.push(`alert_metadata: ${e.message}`);
+        }
+        
+        // 4. Get current case_service_records
+        const currentRecords = await pool.query('SELECT case_number FROM case_service_records');
+        const existingCases = new Set(currentRecords.rows.map(r => r.case_number));
+        
+        // 5. Reconstruct missing data
+        for (const [recipient, caseNumbers] of Object.entries(result.recipients_found)) {
+            for (const caseNum of caseNumbers) {
+                if (!existingCases.has(caseNum)) {
+                    try {
+                        const caseData = result.cases_found[caseNum] || {};
+                        await pool.query(`
+                            INSERT INTO case_service_records (
+                                case_number,
+                                recipients,
+                                transaction_hash,
+                                alert_token_id,
+                                served_at,
+                                server_name,
+                                issuing_agency,
+                                page_count,
+                                status
+                            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                            ON CONFLICT (case_number) DO NOTHING
+                        `, [
+                            caseNum,
+                            JSON.stringify([recipient]),
+                            caseData.transaction_hash,
+                            caseData.alert_token_id,
+                            caseData.created_at || new Date(),
+                            caseData.server_name || 'Process Server',
+                            caseData.issuing_agency || 'Fort Lauderdale Police',
+                            caseData.page_count || 1,
+                            caseData.status || 'served'
+                        ]);
+                        result.reconstruction.push(`Added ${caseNum} for ${recipient}`);
+                    } catch (e) {
+                        result.errors.push(`Reconstruct ${caseNum}: ${e.message}`);
+                    }
+                }
+            }
+        }
+        
+        // 6. Final summary
+        const finalCount = await pool.query('SELECT COUNT(*) FROM case_service_records');
+        result.total_cases_found = Object.keys(result.cases_found).length;
+        result.total_recipients = Object.keys(result.recipients_found).length;
+        result.final_record_count = parseInt(finalCount.rows[0].count);
+        result.success = true;
+        
+    } catch (error) {
+        result.success = false;
+        result.error = error.message;
+    }
+    
+    res.json(result);
+});
+
+/**
  * GET /api/recipient-cases/audit-and-fix
  * Audit database and reconstruct missing data
  */
