@@ -319,6 +319,91 @@ router.post('/:caseNumber/acknowledge', async (req, res) => {
 });
 
 /**
+ * GET /api/recipient-cases/audit-and-fix
+ * Audit database and reconstruct missing data
+ */
+router.get('/audit-and-fix', async (req, res) => {
+    console.log('Starting data audit and reconstruction...');
+    const audit = { tables: {}, reconstruction: [], errors: [] };
+    
+    try {
+        // 1. Check case_service_records
+        const serviceRecords = await pool.query(
+            'SELECT case_number, recipients, alert_token_id FROM case_service_records'
+        );
+        audit.tables.case_service_records = serviceRecords.rows.length;
+        
+        // 2. Check transaction_tracking
+        try {
+            const transactions = await pool.query(
+                'SELECT case_number, recipient_addresses, alert_token_id FROM transaction_tracking WHERE case_number IS NOT NULL'
+            );
+            audit.tables.transaction_tracking = transactions.rows.length;
+            
+            // Reconstruct from transaction_tracking
+            for (const tx of transactions.rows) {
+                if (tx.case_number && tx.recipient_addresses) {
+                    try {
+                        await pool.query(`
+                            INSERT INTO case_service_records (
+                                case_number, recipients, alert_token_id, served_at
+                            ) VALUES ($1, $2, $3, NOW())
+                            ON CONFLICT (case_number) DO UPDATE
+                            SET recipients = COALESCE(case_service_records.recipients, EXCLUDED.recipients),
+                                alert_token_id = COALESCE(case_service_records.alert_token_id, EXCLUDED.alert_token_id)
+                        `, [tx.case_number, tx.recipient_addresses, tx.alert_token_id]);
+                        audit.reconstruction.push(`Reconstructed ${tx.case_number} from transaction_tracking`);
+                    } catch (e) {
+                        audit.errors.push(`Failed to reconstruct ${tx.case_number}: ${e.message}`);
+                    }
+                }
+            }
+        } catch (e) {
+            audit.errors.push(`transaction_tracking: ${e.message}`);
+        }
+        
+        // 3. Add known blockchain data for case 34-4343902
+        try {
+            await pool.query(`
+                INSERT INTO case_service_records (
+                    case_number, recipients, transaction_hash, alert_token_id, served_at
+                ) VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (case_number) DO UPDATE
+                SET recipients = EXCLUDED.recipients,
+                    transaction_hash = EXCLUDED.transaction_hash,
+                    alert_token_id = EXCLUDED.alert_token_id
+            `, [
+                '34-4343902',
+                JSON.stringify(['TFfagVe1aZpSfYaruY6xJfVPYZBuMj57FH']),
+                '5d9b720b22fa2a203b39d221fe8657e272304b20737377e0003bfd84dcecc4c0',
+                '37',
+                '2025-08-21T14:27:30Z'
+            ]);
+            audit.reconstruction.push('Added case 34-4343902 from blockchain data');
+        } catch (e) {
+            audit.errors.push(`Adding 34-4343902: ${e.message}`);
+        }
+        
+        // 4. Final check for recipient
+        const recipientCheck = await pool.query(`
+            SELECT case_number, recipients, alert_token_id
+            FROM case_service_records
+            WHERE recipients::text LIKE '%TFfagVe1aZpSfYaruY6xJfVPYZBuMj57FH%'
+        `);
+        
+        audit.recipient_cases = recipientCheck.rows;
+        audit.success = true;
+        audit.message = `Audit complete. Found ${recipientCheck.rows.length} cases for TFfagVe1aZpSfYaruY6xJfVPYZBuMj57FH`;
+        
+    } catch (error) {
+        audit.success = false;
+        audit.error = error.message;
+    }
+    
+    res.json(audit);
+});
+
+/**
  * POST /api/recipient-cases/test-add
  * Test endpoint to manually add a case (for testing only)
  */
