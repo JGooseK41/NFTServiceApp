@@ -41,12 +41,12 @@ async function ensureColumns() {
         await pool.query(`
             UPDATE case_service_records csr
             SET 
-                server_name = COALESCE(csr.server_name, c.server_address, c.server_name),
-                issuing_agency = COALESCE(csr.issuing_agency, c.issuing_agency, (c.metadata->>'issuingAgency')::text),
+                server_name = COALESCE(csr.server_name, c.server_address),
+                issuing_agency = COALESCE(csr.issuing_agency, (c.metadata->>'issuingAgency')::text),
                 page_count = COALESCE(csr.page_count, c.page_count, (c.metadata->>'pageCount')::int),
                 status = COALESCE(csr.status, c.status, 'served')
             FROM cases c
-            WHERE csr.case_number = c.case_number
+            WHERE csr.case_number = c.case_number::text
             AND (csr.server_name IS NULL OR csr.issuing_agency IS NULL OR csr.page_count IS NULL)
         `).catch(e => console.log('Could not update existing records:', e.message));
         
@@ -85,12 +85,12 @@ router.get('/wallet/:address', async (req, res) => {
                 csr.document_token_id,
                 csr.ipfs_hash,
                 csr.served_at,
-                COALESCE(csr.server_name, c.server_address, c.server_name) as server_name,
-                COALESCE(csr.issuing_agency, c.issuing_agency, (c.metadata->>'issuingAgency')::text) as issuing_agency,
+                COALESCE(csr.server_name, c.server_address) as server_name,
+                COALESCE(csr.issuing_agency, (c.metadata->>'issuingAgency')::text) as issuing_agency,
                 COALESCE(csr.page_count, c.page_count, (c.metadata->>'pageCount')::int, (c.metadata->>'documentCount')::int) as page_count,
                 COALESCE(csr.status, c.status) as status
             FROM case_service_records csr
-            LEFT JOIN cases c ON csr.case_number = c.case_number
+            LEFT JOIN cases c ON csr.case_number = c.case_number::text
             WHERE csr.recipients::jsonb ? $1
                OR LOWER(csr.recipients::text) LIKE LOWER($2)
             ORDER BY csr.served_at DESC
