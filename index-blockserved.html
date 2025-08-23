@@ -1344,6 +1344,15 @@
                 document.getElementById('loadingState').style.display = 'none';
                 
                 if (data.success && data.notices && data.notices.length > 0) {
+                    console.log('BlockServed: Notices received:', data.notices);
+                    console.log('BlockServed: First notice details:', {
+                        case_number: data.notices[0].case_number,
+                        alert_token_id: data.notices[0].alert_token_id,
+                        document_token_id: data.notices[0].document_token_id,
+                        ipfs_hash: data.notices[0].ipfs_hash,
+                        encryption_key: data.notices[0].encryption_key,
+                        images: data.notices[0].images
+                    });
                     displayNotices(data.notices);
                     document.getElementById('noticeCount').textContent = data.notices.length;
                 } else {
