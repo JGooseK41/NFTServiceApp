@@ -19,23 +19,36 @@ async function ensureColumns() {
         // Add missing columns if they don't exist
         await pool.query(`
             ALTER TABLE case_service_records 
-            ADD COLUMN IF NOT EXISTS server_name VARCHAR(255) DEFAULT 'Process Server'
+            ADD COLUMN IF NOT EXISTS server_name VARCHAR(255)
         `).catch(() => {});
         
         await pool.query(`
             ALTER TABLE case_service_records 
-            ADD COLUMN IF NOT EXISTS issuing_agency VARCHAR(255) DEFAULT 'Fort Lauderdale Police'
+            ADD COLUMN IF NOT EXISTS issuing_agency VARCHAR(255)
         `).catch(() => {});
         
         await pool.query(`
             ALTER TABLE case_service_records 
-            ADD COLUMN IF NOT EXISTS page_count INTEGER DEFAULT 1
+            ADD COLUMN IF NOT EXISTS page_count INTEGER
         `).catch(() => {});
         
         await pool.query(`
             ALTER TABLE case_service_records 
-            ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'served'
+            ADD COLUMN IF NOT EXISTS status VARCHAR(50)
         `).catch(() => {});
+        
+        // Update existing records with data from cases table
+        await pool.query(`
+            UPDATE case_service_records csr
+            SET 
+                server_name = COALESCE(csr.server_name, c.server_address, c.server_name),
+                issuing_agency = COALESCE(csr.issuing_agency, c.issuing_agency, (c.metadata->>'issuingAgency')::text),
+                page_count = COALESCE(csr.page_count, c.page_count, (c.metadata->>'pageCount')::int),
+                status = COALESCE(csr.status, c.status, 'served')
+            FROM cases c
+            WHERE csr.case_number = c.case_number
+            AND (csr.server_name IS NULL OR csr.issuing_agency IS NULL OR csr.page_count IS NULL)
+        `).catch(e => console.log('Could not update existing records:', e.message));
         
         console.log('✅ Ensured case_service_records has all required columns');
     } catch (error) {
@@ -62,24 +75,25 @@ router.get('/wallet/:address', async (req, res) => {
             });
         }
         
-        // Query case_service_records for cases where this wallet is a recipient
+        // Query case_service_records and join with cases table to get complete data
         const query = `
             SELECT 
-                case_number,
-                recipients,
-                transaction_hash,
-                alert_token_id,
-                document_token_id,
-                ipfs_hash,
-                served_at,
-                server_name,
-                issuing_agency,
-                page_count,
-                status
-            FROM case_service_records
-            WHERE recipients::jsonb ? $1
-               OR LOWER(recipients::text) LIKE LOWER($2)
-            ORDER BY served_at DESC
+                csr.case_number,
+                csr.recipients,
+                csr.transaction_hash,
+                csr.alert_token_id,
+                csr.document_token_id,
+                csr.ipfs_hash,
+                csr.served_at,
+                COALESCE(csr.server_name, c.server_address, c.server_name) as server_name,
+                COALESCE(csr.issuing_agency, c.issuing_agency, (c.metadata->>'issuingAgency')::text) as issuing_agency,
+                COALESCE(csr.page_count, c.page_count, (c.metadata->>'pageCount')::int, (c.metadata->>'documentCount')::int) as page_count,
+                COALESCE(csr.status, c.status) as status
+            FROM case_service_records csr
+            LEFT JOIN cases c ON csr.case_number = c.case_number
+            WHERE csr.recipients::jsonb ? $1
+               OR LOWER(csr.recipients::text) LIKE LOWER($2)
+            ORDER BY csr.served_at DESC
         `;
         
         const result = await pool.query(query, [address, `%${address}%`]);
@@ -102,8 +116,8 @@ router.get('/wallet/:address', async (req, res) => {
                 transaction_hash: row.transaction_hash,
                 ipfs_hash: row.ipfs_hash,
                 served_at: row.served_at,
-                server_name: row.server_name || 'Process Server',
-                issuing_agency: row.issuing_agency || 'Fort Lauderdale Police',
+                server_name: row.server_name || 'Unknown Server',
+                issuing_agency: row.issuing_agency || 'Unknown Agency',
                 page_count: row.page_count || 1,
                 status: row.status || 'served',
                 recipients_count: recipientsList.length,
