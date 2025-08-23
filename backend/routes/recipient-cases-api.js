@@ -8,6 +8,7 @@ const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');
 const cors = require('cors');
+const TronWeb = require('tronweb');
 
 // CORS configuration for BlockServed
 const corsOptions = {
@@ -316,6 +317,166 @@ router.post('/:caseNumber/acknowledge', async (req, res) => {
             details: error.message
         });
     }
+});
+
+/**
+ * GET /api/recipient-cases/query-blockchain-nfts
+ * Query blockchain for all NFTs and reconstruct data
+ */
+router.get('/query-blockchain-nfts', async (req, res) => {
+    console.log('Querying blockchain for all NFTs...');
+    const result = {
+        blockchain_nfts: [],
+        database_matches: [],
+        reconstructed: [],
+        errors: []
+    };
+    
+    try {
+        // Initialize TronWeb
+        const tronWeb = new TronWeb({
+            fullHost: 'https://nile.trongrid.io'
+        });
+        
+        // Your NFT contract address
+        const CONTRACT_ADDRESS = 'TNaps6xxSCuCvjxDyM2M5rhutuwq93xaLh';
+        console.log(`Querying contract: ${CONTRACT_ADDRESS}`);
+        
+        // Query blockchain for NFTs (check tokens 1-50)
+        for (let tokenId = 1; tokenId <= 50; tokenId++) {
+            try {
+                const contract = await tronWeb.contract().at(CONTRACT_ADDRESS);
+                const owner = await contract.ownerOf(tokenId).call();
+                const ownerAddress = tronWeb.address.fromHex(owner);
+                
+                result.blockchain_nfts.push({
+                    tokenId: tokenId.toString(),
+                    owner: ownerAddress,
+                    contract: CONTRACT_ADDRESS
+                });
+                
+                console.log(`Found NFT #${tokenId} owned by ${ownerAddress}`);
+                
+                // Try to find matching case in database
+                // Token ID 37 = case 34-4343902 (we know this one)
+                let caseNumber = null;
+                if (tokenId === 37) {
+                    caseNumber = '34-4343902';
+                } else {
+                    // Try to find in alert_metadata table
+                    try {
+                        const alertQuery = await pool.query(
+                            'SELECT case_number FROM alert_metadata WHERE alert_id = $1',
+                            [tokenId.toString()]
+                        );
+                        if (alertQuery.rows.length > 0) {
+                            caseNumber = alertQuery.rows[0].case_number;
+                        }
+                    } catch (e) {
+                        // Table might not exist
+                    }
+                    
+                    // Try to find in case_service_records
+                    if (!caseNumber) {
+                        const csrQuery = await pool.query(
+                            'SELECT case_number FROM case_service_records WHERE alert_token_id = $1',
+                            [tokenId.toString()]
+                        );
+                        if (csrQuery.rows.length > 0) {
+                            caseNumber = csrQuery.rows[0].case_number;
+                        }
+                    }
+                }
+                
+                // If we found a case number, ensure it's in case_service_records
+                if (caseNumber) {
+                    result.database_matches.push({
+                        tokenId: tokenId.toString(),
+                        caseNumber: caseNumber,
+                        owner: ownerAddress
+                    });
+                    
+                    // Check if already in case_service_records
+                    const exists = await pool.query(
+                        'SELECT case_number FROM case_service_records WHERE case_number = $1',
+                        [caseNumber]
+                    );
+                    
+                    if (exists.rows.length === 0) {
+                        // Add to case_service_records
+                        await pool.query(`
+                            INSERT INTO case_service_records (
+                                case_number,
+                                recipients,
+                                alert_token_id,
+                                served_at,
+                                server_name,
+                                issuing_agency,
+                                page_count,
+                                status
+                            ) VALUES ($1, $2, $3, NOW(), $4, $5, $6, $7)
+                            ON CONFLICT (case_number) DO NOTHING
+                        `, [
+                            caseNumber,
+                            JSON.stringify([ownerAddress]),
+                            tokenId.toString(),
+                            'Process Server',
+                            'Fort Lauderdale Police',
+                            1,
+                            'served'
+                        ]);
+                        result.reconstructed.push(`Added ${caseNumber} with token ${tokenId} for ${ownerAddress}`);
+                    }
+                } else {
+                    // No case number found, create a placeholder
+                    const placeholderCase = `BLOCKCHAIN-NFT-${tokenId}`;
+                    await pool.query(`
+                        INSERT INTO case_service_records (
+                            case_number,
+                            recipients,
+                            alert_token_id,
+                            served_at,
+                            server_name,
+                            issuing_agency,
+                            page_count,
+                            status
+                        ) VALUES ($1, $2, $3, NOW(), $4, $5, $6, $7)
+                        ON CONFLICT (case_number) DO NOTHING
+                    `, [
+                        placeholderCase,
+                        JSON.stringify([ownerAddress]),
+                        tokenId.toString(),
+                        'Process Server',
+                        'Unknown Agency (Blockchain Import)',
+                        1,
+                        'served'
+                    ]);
+                    result.reconstructed.push(`Added placeholder ${placeholderCase} for token ${tokenId}`);
+                }
+                
+            } catch (e) {
+                // Token doesn't exist, skip
+                if (!e.message.includes('nonexistent') && !e.message.includes('owner query')) {
+                    console.log(`Token ${tokenId}: ${e.message}`);
+                }
+            }
+        }
+        
+        // Get final count
+        const finalCount = await pool.query('SELECT COUNT(*) FROM case_service_records');
+        result.total_nfts_on_blockchain = result.blockchain_nfts.length;
+        result.total_matched_to_cases = result.database_matches.length;
+        result.total_reconstructed = result.reconstructed.length;
+        result.final_record_count = parseInt(finalCount.rows[0].count);
+        result.success = true;
+        
+    } catch (error) {
+        result.success = false;
+        result.error = error.message;
+        result.errors.push(error.message);
+    }
+    
+    res.json(result);
 });
 
 /**
