@@ -320,6 +320,104 @@ router.post('/:caseNumber/acknowledge', async (req, res) => {
 });
 
 /**
+ * GET /api/recipient-cases/add-all-38-tokens
+ * Add placeholder records for all 38 NFT tokens
+ */
+router.get('/add-all-38-tokens', async (req, res) => {
+    console.log('Adding placeholder records for all 38 NFT tokens...');
+    const result = {
+        added: [],
+        existing: [],
+        errors: []
+    };
+    
+    try {
+        // Known mappings
+        const knownTokens = {
+            '37': { case: '34-4343902', recipient: 'TFfagVe1aZpSfYaruY6xJfVPYZBuMj57FH' }
+        };
+        
+        // Process all 38 tokens
+        for (let tokenId = 1; tokenId <= 38; tokenId++) {
+            const tokenIdStr = tokenId.toString();
+            
+            // Check if already exists
+            const exists = await pool.query(
+                'SELECT case_number FROM case_service_records WHERE alert_token_id = $1',
+                [tokenIdStr]
+            );
+            
+            if (exists.rows.length > 0) {
+                result.existing.push({
+                    tokenId: tokenIdStr,
+                    case_number: exists.rows[0].case_number
+                });
+                continue;
+            }
+            
+            // Determine case number and recipient
+            let caseNumber, recipients;
+            if (knownTokens[tokenIdStr]) {
+                caseNumber = knownTokens[tokenIdStr].case;
+                recipients = [knownTokens[tokenIdStr].recipient];
+            } else {
+                // Create placeholder for unknown tokens
+                caseNumber = `TOKEN-${tokenIdStr}-PLACEHOLDER`;
+                recipients = ['Pending Identification'];
+            }
+            
+            // Insert record
+            try {
+                await pool.query(`
+                    INSERT INTO case_service_records (
+                        case_number,
+                        recipients,
+                        alert_token_id,
+                        served_at,
+                        server_name,
+                        issuing_agency,
+                        page_count,
+                        status
+                    ) VALUES ($1, $2, $3, NOW(), $4, $5, $6, $7)
+                    ON CONFLICT (case_number) 
+                    DO UPDATE SET alert_token_id = EXCLUDED.alert_token_id
+                `, [
+                    caseNumber,
+                    JSON.stringify(recipients),
+                    tokenIdStr,
+                    'Process Server',
+                    'Pending',
+                    1,
+                    knownTokens[tokenIdStr] ? 'served' : 'pending'
+                ]);
+                
+                result.added.push({
+                    tokenId: tokenIdStr,
+                    case_number: caseNumber,
+                    recipients: recipients
+                });
+            } catch (e) {
+                result.errors.push(`Token ${tokenIdStr}: ${e.message}`);
+            }
+        }
+        
+        // Get final count
+        const finalCount = await pool.query('SELECT COUNT(*) FROM case_service_records');
+        result.total_processed = 38;
+        result.total_added = result.added.length;
+        result.total_existing = result.existing.length;
+        result.final_record_count = parseInt(finalCount.rows[0].count);
+        result.success = true;
+        
+    } catch (error) {
+        result.success = false;
+        result.error = error.message;
+    }
+    
+    res.json(result);
+});
+
+/**
  * GET /api/recipient-cases/reconstruct-all-38-tokens  
  * Reconstruct data for all 38 NFT tokens that were minted
  */
