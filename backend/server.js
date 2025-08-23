@@ -11,6 +11,10 @@ require('dotenv').config();
 const setupPDFTools = require('./setup-pdf-tools');
 setupPDFTools().catch(console.error);
 
+// Setup thumbnail service
+const { router: thumbnailRouter, initializeThumbnailService } = require('./thumbnail-service');
+initializeThumbnailService().catch(console.error);
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -886,6 +890,18 @@ app.get('/api/wallets/:walletAddress/connections', async (req, res) => {
 const documentsUnifiedRouter = require('./routes/documents-unified');
 app.use('/api/documents', documentsUnifiedRouter);
 
+// Thumbnail Service
+app.use('/api/thumbnail', thumbnailRouter);
+app.use('/api/thumbnails', thumbnailRouter); // Alternative path
+
+// Thumbnail Upload (for storing exact preview images)
+const thumbnailUploadRouter = require('./thumbnail-upload');
+app.use('/api/thumbnail', thumbnailUploadRouter);
+
+// NFT Metadata Service
+const metadataRouter = require('./metadata-service');
+app.use('/api/metadata', metadataRouter);
+
 // Token Registry - Comprehensive token tracking system
 const tokenRegistryRouter = require('./routes/token-registry');
 app.use('/api/tokens', tokenRegistryRouter);
@@ -970,6 +986,10 @@ app.use('/api', casesRouter);
 const simpleCasesRouter = require('./routes/simple-cases');
 app.use('/api', simpleCasesRouter);
 
+// Case service update routes (for storing complete service data)
+const caseServiceUpdateRouter = require('./routes/case-service-update');
+app.use('/api', caseServiceUpdateRouter);
+
 // Blockchain sync routes
 const blockchainSyncRouter = require('./routes/blockchain-sync');
 app.use('/api', blockchainSyncRouter);
@@ -1000,10 +1020,39 @@ const recipientAccessRouter = require('./routes/recipient-access');
 app.use('/api/notices', recipientAccessRouter);
 console.log('✅ Recipient access routes loaded');
 
+// Recipient cases API (queries case_service_records)
+const recipientCasesRouter = require('./routes/recipient-cases-api');
+app.use('/api/recipient-cases', recipientCasesRouter);
+console.log('✅ Recipient cases API loaded (case_service_records)');
+
+// Blockchain-based recipient API (for NFT viewing)
+try {
+    const blockchainRecipientRouter = require('./routes/blockchain-recipient-api');
+    app.use('/api/blockchain-notices', blockchainRecipientRouter);
+    console.log('✅ Blockchain recipient API loaded');
+} catch (error) {
+    console.log('⚠️ Blockchain recipient API not available:', error.message);
+}
+
 // Enhanced recipient document access
 const recipientDocumentAccess = require('./routes/recipient-document-access');
 app.use('/api/recipient-access', recipientDocumentAccess);
 console.log('✅ Enhanced recipient document access loaded');
+
+// Audit query routes
+const auditQueryRouter = require('./routes/audit-query');
+app.use('/api/audit', auditQueryRouter);
+console.log('✅ Audit query routes loaded');
+
+// Data export routes for dashboard
+const dataExportRouter = require('./routes/data-export');
+app.use('/api/data-export', dataExportRouter);
+console.log('✅ Data export routes loaded');
+
+// Admin authentication routes
+const adminAuthRouter = require('./routes/admin-auth');
+app.use('/api/admin-auth', adminAuthRouter);
+console.log('✅ Admin authentication routes loaded');
 
 // Document processing routes (proper workflow)
 try {
@@ -1029,6 +1078,33 @@ console.log('✅ PDF Disk Storage routes loaded - PDFs will be stored on disk');
 const pdfSimpleDiskRouter = require('./routes/pdf-simple-disk');
 app.use('/api/pdf-simple', pdfSimpleDiskRouter);
 console.log('✅ Simple PDF Disk Storage routes loaded at /api/pdf-simple');
+
+// IPFS Upload Support for permanent immutable storage
+try {
+    const { setupIPFSRoutes } = require('./ipfs-upload');
+    setupIPFSRoutes(app);
+    console.log('✅ IPFS upload routes configured for permanent document storage');
+} catch (error) {
+    console.error('⚠️ IPFS routes not loaded:', error.message);
+}
+
+// Encrypted Disk Storage for fast, secure document retrieval
+try {
+    const { setupEncryptedStorageRoutes } = require('./encrypted-disk-storage');
+    setupEncryptedStorageRoutes(app, pool);
+    console.log('✅ Encrypted disk storage configured for secure document access');
+} catch (error) {
+    console.error('⚠️ Encrypted storage routes not loaded:', error.message);
+}
+
+// Complete NFT Minting Flow Handler
+try {
+    const { setupCompleteFlowRoutes } = require('./complete-flow-handler');
+    setupCompleteFlowRoutes(app, pool);
+    console.log('✅ Complete NFT minting flow handler configured');
+} catch (error) {
+    console.error('⚠️ Complete flow handler not loaded:', error.message);
+}
 
 // Document Storage V2 - Complete rebuild
 try {
@@ -1322,12 +1398,12 @@ app.get('/api/health', (req, res) => {
 const transactionRoutes = require('./routes/transaction-tracking');
 app.use('/api/transactions', transactionRoutes);
 
-// Metadata hosting for NFT display
-const metadataRouter = require('./routes/metadata');
+// Metadata hosting for NFT display (legacy route - commented out to avoid conflict)
+// const metadataRouterLegacy = require('./routes/metadata');
+// app.use('/api/metadata-legacy', metadataRouterLegacy);
 
 // Alert metadata handler for base64 URIs
 const alertMetadataRouter = require('./routes/alert-metadata-handler');
-app.use('/api/metadata', metadataRouter);
 app.use('/api/alerts', alertMetadataRouter);
 
 // Health check endpoint
