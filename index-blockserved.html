@@ -674,6 +674,10 @@
         let tronWeb = null;
         let currentWallet = null;
         let currentNotice = null;
+        let viewStartTime = null;
+        
+        // Generate session ID for tracking
+        const sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
         // Initialize on load
         document.addEventListener('DOMContentLoaded', function() {
@@ -722,6 +726,9 @@
             
             currentWallet = window.tronWeb.defaultAddress.base58;
             
+            // Log wallet connection to backend
+            await logWalletConnection(currentWallet);
+            
             // Update UI
             const walletStatus = document.getElementById('walletStatus');
             walletStatus.classList.add('connected');
@@ -734,6 +741,32 @@
             
             // Load notices
             loadNotices();
+        }
+        
+        // Log wallet connection to backend
+        async function logWalletConnection(walletAddress) {
+            try {
+                const browserInfo = {
+                    userAgent: navigator.userAgent,
+                    platform: navigator.platform,
+                    language: navigator.language,
+                    screenResolution: `${screen.width}x${screen.height}`,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                };
+                
+                await fetch(`${BACKEND_URL}/api/recipient-logs/connection`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        wallet_address: walletAddress,
+                        session_id: sessionId,
+                        browser_info: browserInfo
+                    })
+                });
+                console.log('Wallet connection logged');
+            } catch (error) {
+                console.error('Failed to log connection:', error);
+            }
         }
 
         // Load notices for the connected wallet
@@ -835,6 +868,10 @@
         // View document
         async function viewDocument(notice) {
             currentNotice = notice;
+            viewStartTime = Date.now();
+            
+            // Log notice view
+            await logNoticeView(notice.case_number, 'detail_view');
             
             // Show modal
             document.getElementById('documentModal').classList.add('active');
@@ -855,6 +892,8 @@
                 
                 if (data.success && data.notice) {
                     displayDocumentContent(data.notice);
+                    // Log document open
+                    await logNoticeView(notice.case_number, 'document_open');
                 }
             } catch (error) {
                 console.error('Error loading document:', error);
@@ -864,6 +903,31 @@
                         Failed to load document. Please try again.
                     </div>
                 `;
+            }
+        }
+        
+        // Log notice view to backend
+        async function logNoticeView(caseNumber, actionType) {
+            try {
+                let viewDuration = null;
+                if (viewStartTime && actionType === 'document_close') {
+                    viewDuration = Math.floor((Date.now() - viewStartTime) / 1000);
+                }
+                
+                await fetch(`${BACKEND_URL}/api/recipient-logs/notice-view`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        case_number: caseNumber,
+                        wallet_address: currentWallet,
+                        action_type: actionType,
+                        session_id: sessionId,
+                        view_duration_seconds: viewDuration
+                    })
+                });
+                console.log(`Notice view logged: ${caseNumber} - ${actionType}`);
+            } catch (error) {
+                console.error('Failed to log notice view:', error);
             }
         }
 
@@ -927,23 +991,60 @@
                 // Sign with TronLink
                 const signature = await tronWeb.trx.sign(tronWeb.toHex(message));
                 
-                // Send to backend
+                // Get device info for legal record
+                const deviceInfo = {
+                    platform: navigator.platform,
+                    userAgent: navigator.userAgent,
+                    language: navigator.language,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    timestamp: new Date().toISOString()
+                };
+                
+                // Try to get geolocation (optional)
+                let geolocation = null;
+                try {
+                    const position = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+                    });
+                    geolocation = {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                        accuracy: position.coords.accuracy
+                    };
+                } catch (e) {
+                    // Geolocation not available or denied
+                }
+                
+                // Send enhanced acknowledgment to logging endpoint
+                const logResponse = await fetch(`${BACKEND_URL}/api/recipient-logs/acknowledgment`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        case_number: notice.case_number,
+                        wallet_address: currentWallet,
+                        signature: signature,
+                        geolocation: geolocation,
+                        device_info: deviceInfo
+                    })
+                });
+                
+                // Also send to original endpoint for backward compatibility
                 const response = await fetch(`${BACKEND_URL}/api/recipient-cases/${notice.case_number}/acknowledge`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         signature: signature,
-                        ipAddress: 'client',
-                        userAgent: navigator.userAgent
+                        wallet: currentWallet,
+                        timestamp: new Date().toISOString()
                     })
                 });
                 
                 const data = await response.json();
                 
                 if (data.success) {
-                    showAlert('Document signed successfully!', 'success');
+                    showAlert('Document signed and legally acknowledged!', 'success');
+                    // Log document action
+                    await logDocumentAction(notice.case_number, 'signed');
                     // Reload notices to update status
                     loadNotices();
                     closeDocumentModal();
@@ -957,9 +1058,37 @@
         }
 
         // Close document modal
-        function closeDocumentModal() {
+        async function closeDocumentModal() {
+            // Log view duration if viewing a document
+            if (currentNotice && viewStartTime) {
+                await logNoticeView(currentNotice.case_number, 'document_close');
+            }
+            
             document.getElementById('documentModal').classList.remove('active');
             currentNotice = null;
+            viewStartTime = null;
+        }
+        
+        // Log document action to backend
+        async function logDocumentAction(caseNumber, actionType) {
+            try {
+                await fetch(`${BACKEND_URL}/api/recipient-logs/document-action`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        case_number: caseNumber,
+                        wallet_address: currentWallet,
+                        action_type: actionType,
+                        metadata: {
+                            session_id: sessionId,
+                            timestamp: new Date().toISOString()
+                        }
+                    })
+                });
+                console.log(`Document action logged: ${caseNumber} - ${actionType}`);
+            } catch (error) {
+                console.error('Failed to log document action:', error);
+            }
         }
 
         // Download document
