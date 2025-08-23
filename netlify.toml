@@ -13,18 +13,11 @@
 
 # BlockServed.com - Serve the recipient portal
 [[redirects]]
-  from = "https://blockserved.com"
+  from = "/*"
   to = "/index-blockserved.html"
   status = 200
   force = true
-  conditions = {Host = ["blockserved.com"]}
-  
-[[redirects]]
-  from = "https://www.blockserved.com"
-  to = "/index-blockserved.html"
-  status = 200
-  force = true
-  conditions = {Host = ["www.blockserved.com"]}
+  conditions = {Host = ["blockserved.com", "www.blockserved.com"]}
 
 [build.environment]
   # Node version for any functions
