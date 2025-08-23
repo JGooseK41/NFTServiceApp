@@ -764,19 +764,31 @@
                 const url = `${BACKEND_URL}/api/recipient-cases/wallet/${currentWallet}`;
                 console.log('BlockServed: Fetching from:', url);
                 const response = await fetch(url);
+                console.log('BlockServed: Response status:', response.status);
+                
+                if (!response.ok) {
+                    console.error('BlockServed: Response not OK:', response.status, response.statusText);
+                    const errorText = await response.text();
+                    console.error('BlockServed: Error response:', errorText);
+                }
+                
                 const data = await response.json();
+                console.log('BlockServed: Response data:', data);
                 
                 document.getElementById('loadingState').style.display = 'none';
                 
                 if (data.success && data.notices && data.notices.length > 0) {
+                    console.log('BlockServed: Found', data.notices.length, 'notices');
                     displayNotices(data.notices);
                     document.getElementById('noticeCount').textContent = data.notices.length;
                 } else {
+                    console.log('BlockServed: No notices found for wallet');
                     document.getElementById('emptyState').style.display = 'block';
                     document.getElementById('noticeCount').textContent = '0';
                 }
             } catch (error) {
-                console.error('Error loading notices:', error);
+                console.error('BlockServed: Error loading notices:', error);
+                console.error('BlockServed: Error details:', error.message);
                 document.getElementById('loadingState').style.display = 'none';
                 document.getElementById('emptyState').style.display = 'block';
                 showAlert('Failed to load notices. Please try again.', 'error');
