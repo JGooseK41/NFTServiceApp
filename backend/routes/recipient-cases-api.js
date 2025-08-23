@@ -447,8 +447,8 @@ router.get('/add-all-38-tokens', async (req, res) => {
             '37': { case: '34-4343902', recipient: 'TFfagVe1aZpSfYaruY6xJfVPYZBuMj57FH' }
         };
         
-        // Process all 38 tokens
-        for (let tokenId = 1; tokenId <= 38; tokenId++) {
+        // Process all 46 tokens (updated based on blockchain data)
+        for (let tokenId = 1; tokenId <= 46; tokenId++) {
             const tokenIdStr = tokenId.toString();
             
             // Check if already exists
