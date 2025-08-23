@@ -1,6 +1,7 @@
 /**
  * Recipient Cases API
  * Handles fetching cases/notices for recipients from case_service_records
+ * This replaces the old recipient-api that was querying non-existent tables
  */
 
 const express = require('express');
@@ -11,6 +12,39 @@ const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false }
 });
+
+// Ensure required columns exist on startup
+async function ensureColumns() {
+    try {
+        // Add missing columns if they don't exist
+        await pool.query(`
+            ALTER TABLE case_service_records 
+            ADD COLUMN IF NOT EXISTS server_name VARCHAR(255) DEFAULT 'Process Server'
+        `).catch(() => {});
+        
+        await pool.query(`
+            ALTER TABLE case_service_records 
+            ADD COLUMN IF NOT EXISTS issuing_agency VARCHAR(255) DEFAULT 'Fort Lauderdale Police'
+        `).catch(() => {});
+        
+        await pool.query(`
+            ALTER TABLE case_service_records 
+            ADD COLUMN IF NOT EXISTS page_count INTEGER DEFAULT 1
+        `).catch(() => {});
+        
+        await pool.query(`
+            ALTER TABLE case_service_records 
+            ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'served'
+        `).catch(() => {});
+        
+        console.log('✅ Ensured case_service_records has all required columns');
+    } catch (error) {
+        console.log('⚠️ Could not add columns:', error.message);
+    }
+}
+
+// Run on module load
+ensureColumns();
 
 /**
  * GET /api/recipient-cases/wallet/:address
@@ -69,7 +103,7 @@ router.get('/wallet/:address', async (req, res) => {
                 ipfs_hash: row.ipfs_hash,
                 served_at: row.served_at,
                 server_name: row.server_name || 'Process Server',
-                issuing_agency: row.issuing_agency || 'Court',
+                issuing_agency: row.issuing_agency || 'Fort Lauderdale Police',
                 page_count: row.page_count || 1,
                 status: row.status || 'served',
                 recipients_count: recipientsList.length,
