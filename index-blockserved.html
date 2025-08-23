@@ -1507,8 +1507,29 @@
         }
 
         // Display document content
-        function displayDocumentContent(notice) {
+        function displayDocumentContent(notice, signMode = false) {
             const modalBody = document.getElementById('modalBody');
+            const deviceInfo = detectDeviceType();
+            
+            // Build the NFT pairing info header
+            let headerInfo = `
+                <div class="nft-pairing-info" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h5 style="margin: 0 0 10px 0; color: var(--primary-color);"><i class="bi bi-link-45deg"></i> Legal Notice Package</h5>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
+                        <div style="padding: 10px; background: white; border-radius: 5px; border-left: 3px solid var(--success-color);">
+                            <strong><i class="bi bi-envelope-check"></i> Alert NFT #${notice.alert_token_id}</strong><br>
+                            <span style="color: var(--text-light);">Proof of Service (In Your Wallet)</span>
+                        </div>
+                        <div style="padding: 10px; background: white; border-radius: 5px; border-left: 3px solid var(--secondary-color);">
+                            <strong><i class="bi bi-file-earmark-text"></i> Document NFT #${notice.document_token_id || 'Pending'}</strong><br>
+                            <span style="color: var(--text-light);">Legal Document (Permanent Record)</span>
+                        </div>
+                    </div>
+                    <p style="margin: 10px 0 0 0; font-size: 13px; color: var(--text-light);">
+                        <i class="bi bi-info-circle"></i> Both NFTs constitute your complete legal notice. The Alert NFT proves delivery, while the Document NFT contains the full legal content.
+                    </p>
+                </div>
+            `;
             
             // Check if images are available
             if (notice.images) {
@@ -1554,11 +1575,12 @@
                 }
                 
                 if (imageContent) {
-                    const deviceInfo = detectDeviceType();
                     modalBody.innerHTML = `
+                        ${headerInfo}
                         <div class="document-info">
                             <p><strong>Case Number:</strong> ${notice.case_number}</p>
                             <p><strong>Served:</strong> ${new Date(notice.served_at).toLocaleString()}</p>
+                            <p><strong>Issuing Agency:</strong> ${notice.issuing_agency || 'Legal Services'}</p>
                             <p><strong>Page Count:</strong> ${notice.page_count || 1} pages</p>
                         </div>
                         ${deviceInfo.isMobile ? '<p style="text-align: center; color: var(--text-light); font-size: 12px; margin: 10px 0;"><i class="bi bi-hand-index"></i> Pinch to zoom • Swipe to scroll</p>' : ''}
@@ -1570,6 +1592,11 @@
                             <button onclick="downloadDocumentImages('${notice.case_number}')" class="btn btn-secondary" style="${deviceInfo.isMobile ? 'flex: 1; min-width: 120px;' : ''}">
                                 <i class="bi bi-download"></i> Download
                             </button>
+                            ${signMode && !notice.accepted ? `
+                                <button onclick="signDocument()" class="btn btn-primary" style="${deviceInfo.isMobile ? 'flex: 1; min-width: 120px;' : ''}">
+                                    <i class="bi bi-pen"></i> Sign Document
+                                </button>
+                            ` : ''}
                         </div>
                     `;
                     
@@ -1591,6 +1618,7 @@
             // Fallback to IPFS info if no images
             if (notice.ipfs_hash) {
                 modalBody.innerHTML = `
+                    ${headerInfo}
                     <div class="alert-message alert-info">
                         <i class="bi bi-lock-fill"></i>
                         <div>
@@ -1601,16 +1629,34 @@
                     
                     <div class="document-info">
                         <h4>Document Information</h4>
+                        <p><strong>Case Number:</strong> ${notice.case_number}</p>
                         <p><strong>IPFS Hash:</strong> <code>${notice.ipfs_hash}</code></p>
                         <p><strong>Page Count:</strong> ${notice.page_count || 1} pages</p>
                         <p><strong>Served:</strong> ${new Date(notice.served_at).toLocaleString()}</p>
                     </div>
+                    ${signMode && !notice.accepted ? `
+                        <div class="action-buttons" style="margin-top: 20px; text-align: center;">
+                            <button onclick="signDocument()" class="btn btn-primary">
+                                <i class="bi bi-pen"></i> Sign Document
+                            </button>
+                        </div>
+                    ` : ''}
                 `;
             } else {
                 modalBody.innerHTML = `
-                    <div class="alert-message alert-info">
-                        <i class="bi bi-info-circle"></i>
-                        Document details are being prepared. Please check back later.
+                    ${headerInfo}
+                    <div class="alert-message alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <div>
+                            <strong>Document Loading</strong><br>
+                            The document content is being prepared. You have received both the Alert NFT (in your wallet) and Document NFT (permanent record) for this legal notice.
+                        </div>
+                    </div>
+                    <div class="document-info">
+                        <p><strong>Case Number:</strong> ${notice.case_number}</p>
+                        <p><strong>Alert NFT:</strong> #${notice.alert_token_id}</p>
+                        <p><strong>Document NFT:</strong> #${notice.document_token_id || 'Pending'}</p>
+                        <p><strong>Served:</strong> ${new Date(notice.served_at).toLocaleString()}</p>
                     </div>
                 `;
             }
