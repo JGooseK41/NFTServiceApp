@@ -320,6 +320,116 @@ router.post('/:caseNumber/acknowledge', async (req, res) => {
 });
 
 /**
+ * GET /api/recipient-cases/update-with-blockchain-data
+ * Update all tokens with actual blockchain ownership data
+ */
+router.get('/update-with-blockchain-data', async (req, res) => {
+    console.log('Updating tokens with actual blockchain data...');
+    const result = {
+        updated: [],
+        errors: [],
+        summary: {}
+    };
+    
+    // Actual blockchain data from NFT transfers
+    const blockchainData = [
+        // First batch - 2 days ago
+        { tokenId: 31, owner: 'TD1F37V4cAFH1YQCYVLtcFyFXkZUs7mBDE', tx: '5d9b720b22fa2a203b39d221fe8657e272304b20737377e0003bfd84dcecc4c0' },
+        { tokenId: 32, owner: 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN', tx: '5d9b720b22fa2a203b39d221fe8657e272304b20737377e0003bfd84dcecc4c0' },
+        { tokenId: 33, owner: 'TAr8S97Xw3xhrGkZSghXQ85SFuP5XDU4cF', tx: '5d9b720b22fa2a203b39d221fe8657e272304b20737377e0003bfd84dcecc4c0' },
+        { tokenId: 34, owner: 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN', tx: '5d9b720b22fa2a203b39d221fe8657e272304b20737377e0003bfd84dcecc4c0' },
+        { tokenId: 35, owner: 'TBrjqKepMQKeZWjebMip2bH5872fiD3F6Q', tx: '5d9b720b22fa2a203b39d221fe8657e272304b20737377e0003bfd84dcecc4c0' },
+        { tokenId: 36, owner: 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN', tx: '5d9b720b22fa2a203b39d221fe8657e272304b20737377e0003bfd84dcecc4c0' },
+        { tokenId: 37, owner: 'TFfagVe1aZpSfYaruY6xJfVPYZBuMj57FH', tx: '5d9b720b22fa2a203b39d221fe8657e272304b20737377e0003bfd84dcecc4c0' },
+        { tokenId: 38, owner: 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN', tx: '5d9b720b22fa2a203b39d221fe8657e272304b20737377e0003bfd84dcecc4c0' },
+        // Second batch - 1 day ago
+        { tokenId: 39, owner: 'TArxGhbLdY6ApwaCYZbwdZYiHBG96heiwp', tx: '033b50d5d7510d247274d9dd535b50a61706ec987415ee8f4847c14e75f867f5' },
+        { tokenId: 40, owner: 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN', tx: '033b50d5d7510d247274d9dd535b50a61706ec987415ee8f4847c14e75f867f5' },
+        { tokenId: 41, owner: 'TUNKp7upGiHt9tamt37VfjHRPUUbZ1yNKS', tx: '033b50d5d7510d247274d9dd535b50a61706ec987415ee8f4847c14e75f867f5' },
+        { tokenId: 42, owner: 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN', tx: '033b50d5d7510d247274d9dd535b50a61706ec987415ee8f4847c14e75f867f5' },
+        { tokenId: 43, owner: 'TVPPcD8P8QWK5eix6B6r5nVNaUFUHfUohe', tx: '033b50d5d7510d247274d9dd535b50a61706ec987415ee8f4847c14e75f867f5' },
+        { tokenId: 44, owner: 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN', tx: '033b50d5d7510d247274d9dd535b50a61706ec987415ee8f4847c14e75f867f5' },
+        { tokenId: 45, owner: 'TCULAeahAiC9nvurUzxvusGRLD2JxoY5Yw', tx: '033b50d5d7510d247274d9dd535b50a61706ec987415ee8f4847c14e75f867f5' },
+        { tokenId: 46, owner: 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN', tx: '033b50d5d7510d247274d9dd535b50a61706ec987415ee8f4847c14e75f867f5' }
+    ];
+    
+    try {
+        // Update each token with blockchain data
+        for (const token of blockchainData) {
+            try {
+                // Keep existing case number for token 37, update placeholder case numbers for others
+                let updateResult;
+                if (token.tokenId === 37) {
+                    // Token 37 already has correct case number
+                    updateResult = await pool.query(`
+                        UPDATE case_service_records
+                        SET 
+                            recipients = $1,
+                            transaction_hash = $2,
+                            status = 'served'
+                        WHERE alert_token_id = $3
+                        RETURNING case_number
+                    `, [
+                        JSON.stringify([token.owner]),
+                        token.tx,
+                        token.tokenId.toString()
+                    ]);
+                } else {
+                    // Update placeholder records
+                    updateResult = await pool.query(`
+                        UPDATE case_service_records
+                        SET 
+                            recipients = $1,
+                            transaction_hash = $2,
+                            status = 'served',
+                            issuing_agency = 'Fort Lauderdale Police'
+                        WHERE alert_token_id = $3
+                        RETURNING case_number
+                    `, [
+                        JSON.stringify([token.owner]),
+                        token.tx,
+                        token.tokenId.toString()
+                    ]);
+                }
+                
+                if (updateResult.rowCount > 0) {
+                    result.updated.push({
+                        tokenId: token.tokenId,
+                        owner: token.owner,
+                        case: updateResult.rows[0].case_number
+                    });
+                }
+            } catch (e) {
+                result.errors.push(`Token ${token.tokenId}: ${e.message}`);
+            }
+        }
+        
+        // Generate summary by wallet
+        const walletSummary = {};
+        blockchainData.forEach(token => {
+            if (!walletSummary[token.owner]) {
+                walletSummary[token.owner] = {
+                    tokens: [],
+                    count: 0
+                };
+            }
+            walletSummary[token.owner].tokens.push(token.tokenId);
+            walletSummary[token.owner].count++;
+        });
+        
+        result.summary = walletSummary;
+        result.total_updated = result.updated.length;
+        result.success = true;
+        
+    } catch (error) {
+        result.success = false;
+        result.error = error.message;
+    }
+    
+    res.json(result);
+});
+
+/**
  * GET /api/recipient-cases/add-all-38-tokens
  * Add placeholder records for all 38 NFT tokens
  */
