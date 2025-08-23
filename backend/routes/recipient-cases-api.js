@@ -1617,6 +1617,110 @@ router.get('/token/:tokenId/image', async (req, res) => {
 });
 
 /**
+ * POST /api/recipient-cases/fix-recipients
+ * Fix recipient addresses for Alert NFTs that exist but have wrong recipients
+ */
+router.post('/fix-recipients', async (req, res) => {
+    try {
+        console.log('Fixing recipient addresses for known NFT ownership...');
+        
+        // Known ownership data
+        const knownOwnership = [
+            {
+                wallet: 'TFfagVe1aZpSfYaruY6xJfVPYZBuMj57FH',
+                alertTokenIds: ['1', '17', '29', '37']
+            }
+        ];
+        
+        const results = [];
+        let fixedCount = 0;
+        
+        for (const ownership of knownOwnership) {
+            for (const alertId of ownership.alertTokenIds) {
+                // Check current recipients
+                const checkQuery = `
+                    SELECT recipients, case_number 
+                    FROM case_service_records 
+                    WHERE alert_token_id = $1
+                `;
+                
+                const checkResult = await pool.query(checkQuery, [alertId]);
+                
+                if (checkResult.rows.length > 0) {
+                    const currentRecipients = checkResult.rows[0].recipients;
+                    const recipientsList = typeof currentRecipients === 'string' 
+                        ? JSON.parse(currentRecipients) 
+                        : currentRecipients;
+                    
+                    if (!recipientsList.includes(ownership.wallet)) {
+                        // Update recipients to include the correct wallet
+                        const updateQuery = `
+                            UPDATE case_service_records 
+                            SET recipients = $1::jsonb 
+                            WHERE alert_token_id = $2
+                            RETURNING *
+                        `;
+                        
+                        await pool.query(updateQuery, [
+                            JSON.stringify([ownership.wallet]),
+                            alertId
+                        ]);
+                        
+                        fixedCount++;
+                        results.push({
+                            alertId,
+                            status: 'fixed',
+                            oldRecipients: recipientsList,
+                            newRecipients: [ownership.wallet]
+                        });
+                        
+                        console.log(`Fixed Alert NFT #${alertId} recipients`);
+                    } else {
+                        results.push({
+                            alertId,
+                            status: 'already_correct',
+                            recipients: recipientsList
+                        });
+                    }
+                } else {
+                    results.push({
+                        alertId,
+                        status: 'not_found'
+                    });
+                }
+            }
+        }
+        
+        // Verify the fix
+        const verification = await pool.query(`
+            SELECT 
+                COUNT(*) as notice_count,
+                array_agg(alert_token_id ORDER BY alert_token_id::int) as alert_tokens
+            FROM case_service_records 
+            WHERE recipients::text ILIKE '%TFfagVe1aZpSfYaruY6xJfVPYZBuMj57FH%'
+        `);
+        
+        res.json({
+            success: true,
+            message: `Fixed ${fixedCount} recipient entries`,
+            results,
+            verification: {
+                totalNotices: verification.rows[0].notice_count,
+                alertTokens: verification.rows[0].alert_tokens
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error fixing recipients:', error);
+        res.status(500).json({ 
+            error: 'Failed to fix recipients',
+            success: false,
+            details: error.message
+        });
+    }
+});
+
+/**
  * POST /api/recipient-cases/recover-orphaned-notices
  * Recover orphaned Alert NFTs and add them to the database
  * Based on known ownership patterns
