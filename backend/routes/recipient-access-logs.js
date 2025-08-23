@@ -112,6 +112,50 @@ router.post('/connection', async (req, res) => {
     try {
         const { wallet_address, session_id, browser_info } = req.body;
         
+        // Get IP address (handle proxies)
+        const ipAddress = req.headers['x-forwarded-for'] || 
+                         req.headers['x-real-ip'] || 
+                         req.connection.remoteAddress ||
+                         req.ip;
+        
+        // Extract clean IP if it includes port
+        const cleanIp = ipAddress.includes(':') ? ipAddress.split(':').pop() : ipAddress;
+        
+        // Try to get geolocation from IP (using free service)
+        let ipGeolocation = null;
+        try {
+            const fetch = require('node-fetch');
+            const geoResponse = await fetch(`http://ip-api.com/json/${cleanIp}?fields=status,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as`);
+            const geoData = await geoResponse.json();
+            if (geoData.status === 'success') {
+                ipGeolocation = {
+                    country: geoData.country,
+                    countryCode: geoData.countryCode,
+                    region: geoData.regionName,
+                    city: geoData.city,
+                    zip: geoData.zip,
+                    latitude: geoData.lat,
+                    longitude: geoData.lon,
+                    timezone: geoData.timezone,
+                    isp: geoData.isp,
+                    org: geoData.org
+                };
+            }
+        } catch (geoError) {
+            console.log('Could not get IP geolocation:', geoError.message);
+        }
+        
+        // Enhanced browser info with geolocation
+        const enhancedBrowserInfo = {
+            ...browser_info,
+            ipGeolocation: ipGeolocation,
+            headers: {
+                acceptLanguage: req.headers['accept-language'],
+                acceptEncoding: req.headers['accept-encoding'],
+                accept: req.headers['accept']
+            }
+        };
+        
         const result = await pool.query(`
             INSERT INTO recipient_connections (
                 wallet_address,
@@ -123,13 +167,13 @@ router.post('/connection', async (req, res) => {
             RETURNING id, connected_at
         `, [
             wallet_address,
-            req.ip || req.connection.remoteAddress,
+            cleanIp,
             req.headers['user-agent'],
             session_id,
-            browser_info
+            enhancedBrowserInfo
         ]);
         
-        console.log(`Wallet connected: ${wallet_address} at ${result.rows[0].connected_at}`);
+        console.log(`Wallet connected: ${wallet_address} from ${cleanIp} (${ipGeolocation?.city || 'Unknown'}, ${ipGeolocation?.country || 'Unknown'}) at ${result.rows[0].connected_at}`);
         
         res.json({
             success: true,

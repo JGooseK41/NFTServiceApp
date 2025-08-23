@@ -743,15 +743,116 @@
             loadNotices();
         }
         
+        // Detect device type
+        function detectDeviceType() {
+            const ua = navigator.userAgent.toLowerCase();
+            const isMobile = /mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua);
+            const isTablet = /tablet|ipad/i.test(ua) || (isMobile && screen.width >= 768);
+            const isDesktop = !isMobile && !isTablet;
+            
+            // Detect OS
+            let os = 'Unknown';
+            if (/windows/i.test(ua)) os = 'Windows';
+            else if (/mac/i.test(ua)) os = 'MacOS';
+            else if (/android/i.test(ua)) os = 'Android';
+            else if (/ios|iphone|ipad/i.test(ua)) os = 'iOS';
+            else if (/linux/i.test(ua)) os = 'Linux';
+            
+            return {
+                type: isDesktop ? 'Desktop' : (isTablet ? 'Tablet' : 'Mobile'),
+                os: os,
+                isMobile: isMobile,
+                isTablet: isTablet,
+                isDesktop: isDesktop
+            };
+        }
+        
+        // Detect wallet provider
+        function detectWalletProvider() {
+            if (window.tronLink) {
+                return {
+                    provider: 'TronLink',
+                    version: window.tronLink.version || 'Unknown',
+                    type: 'Browser Extension',
+                    ready: window.tronLink.ready
+                };
+            } else if (window.tronWeb) {
+                // Could be injected by other wallets
+                return {
+                    provider: 'TronWeb Compatible',
+                    version: 'Unknown',
+                    type: 'Unknown',
+                    ready: window.tronWeb.ready
+                };
+            }
+            return {
+                provider: 'None',
+                version: null,
+                type: null,
+                ready: false
+            };
+        }
+        
         // Log wallet connection to backend
         async function logWalletConnection(walletAddress) {
             try {
+                // Detect device and wallet info
+                const deviceType = detectDeviceType();
+                const walletInfo = detectWalletProvider();
+                
+                // Comprehensive device and browser information
                 const browserInfo = {
+                    // Browser details
                     userAgent: navigator.userAgent,
-                    platform: navigator.platform,
+                    appName: navigator.appName,
+                    appVersion: navigator.appVersion,
+                    vendor: navigator.vendor,
                     language: navigator.language,
+                    languages: navigator.languages,
+                    cookieEnabled: navigator.cookieEnabled,
+                    onLine: navigator.onLine,
+                    doNotTrack: navigator.doNotTrack,
+                    
+                    // Device type detection
+                    deviceType: deviceType.type,
+                    operatingSystem: deviceType.os,
+                    isMobile: deviceType.isMobile,
+                    isTablet: deviceType.isTablet,
+                    isDesktop: deviceType.isDesktop,
+                    
+                    // Wallet information
+                    walletProvider: walletInfo.provider,
+                    walletVersion: walletInfo.version,
+                    walletType: walletInfo.type,
+                    
+                    // Device details
+                    platform: navigator.platform,
+                    hardwareConcurrency: navigator.hardwareConcurrency,
+                    deviceMemory: navigator.deviceMemory,
+                    maxTouchPoints: navigator.maxTouchPoints,
+                    
+                    // Screen details
                     screenResolution: `${screen.width}x${screen.height}`,
-                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                    screenColorDepth: screen.colorDepth,
+                    screenPixelDepth: screen.pixelDepth,
+                    availableScreenSize: `${screen.availWidth}x${screen.availHeight}`,
+                    
+                    // Window details
+                    windowSize: `${window.innerWidth}x${window.innerHeight}`,
+                    devicePixelRatio: window.devicePixelRatio,
+                    
+                    // Timezone and locale
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    timezoneOffset: new Date().getTimezoneOffset(),
+                    locale: Intl.DateTimeFormat().resolvedOptions().locale,
+                    
+                    // Connection info
+                    connection: navigator.connection ? {
+                        effectiveType: navigator.connection.effectiveType,
+                        downlink: navigator.connection.downlink,
+                        rtt: navigator.connection.rtt,
+                        saveData: navigator.connection.saveData
+                    } : null
                 };
                 
                 await fetch(`${BACKEND_URL}/api/recipient-logs/connection`, {
@@ -991,13 +1092,64 @@
                 // Sign with TronLink
                 const signature = await tronWeb.trx.sign(tronWeb.toHex(message));
                 
-                // Get device info for legal record
+                // Detect device and wallet for legal record
+                const deviceType = detectDeviceType();
+                const walletInfo = detectWalletProvider();
+                
+                // Get comprehensive device info for legal record
                 const deviceInfo = {
+                    // Device identification
                     platform: navigator.platform,
                     userAgent: navigator.userAgent,
+                    vendor: navigator.vendor,
+                    
+                    // Device type
+                    deviceType: deviceType.type,
+                    operatingSystem: deviceType.os,
+                    isMobile: deviceType.isMobile,
+                    isDesktop: deviceType.isDesktop,
+                    
+                    // Language and locale
                     language: navigator.language,
+                    languages: navigator.languages,
+                    locale: Intl.DateTimeFormat().resolvedOptions().locale,
+                    
+                    // Time information
                     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    timestamp: new Date().toISOString()
+                    timezoneOffset: new Date().getTimezoneOffset(),
+                    timestamp: new Date().toISOString(),
+                    
+                    // Screen info for forensics
+                    screenResolution: `${screen.width}x${screen.height}`,
+                    windowSize: `${window.innerWidth}x${window.innerHeight}`,
+                    colorDepth: screen.colorDepth,
+                    
+                    // Device capabilities
+                    touchPoints: navigator.maxTouchPoints,
+                    deviceMemory: navigator.deviceMemory,
+                    hardwareConcurrency: navigator.hardwareConcurrency,
+                    
+                    // Browser state
+                    cookieEnabled: navigator.cookieEnabled,
+                    onLine: navigator.onLine,
+                    referrer: document.referrer,
+                    
+                    // Wallet and signature metadata
+                    walletProvider: walletInfo.provider,
+                    walletVersion: walletInfo.version,
+                    walletType: walletInfo.type,
+                    signatureMethod: walletInfo.provider || 'TronLink',
+                    
+                    // Browser identification
+                    browserName: (function() {
+                        const ua = navigator.userAgent;
+                        if (ua.indexOf('Firefox') > -1) return 'Firefox';
+                        if (ua.indexOf('Chrome') > -1) return 'Chrome';
+                        if (ua.indexOf('Safari') > -1) return 'Safari';
+                        if (ua.indexOf('Edge') > -1) return 'Edge';
+                        if (ua.indexOf('Opera') > -1) return 'Opera';
+                        return 'Unknown';
+                    })()
                 };
                 
                 // Try to get geolocation (optional)
