@@ -320,116 +320,136 @@ router.post('/:caseNumber/acknowledge', async (req, res) => {
 });
 
 /**
- * GET /api/recipient-cases/query-blockchain-nfts
- * Query blockchain for all NFTs and reconstruct data
+ * GET /api/recipient-cases/reconstruct-all-38-tokens  
+ * Reconstruct data for all 38 NFT tokens that were minted
  */
-router.get('/query-blockchain-nfts', async (req, res) => {
-    console.log('Querying blockchain for all NFTs...');
+router.get('/reconstruct-all-38-tokens', async (req, res) => {
+    console.log('Reconstructing data for all 38 NFT tokens...');
     const result = {
-        blockchain_nfts: [],
-        database_matches: [],
+        known_tokens: [],
         reconstructed: [],
+        existing_data: [],
         errors: []
     };
     
     try {
-        // Initialize TronWeb
-        const tronWeb = new TronWeb({
-            fullHost: 'https://nile.trongrid.io'
+        // We know these facts:
+        // - 38 tokens were created in total
+        // - Token #37 belongs to TFfagVe1aZpSfYaruY6xJfVPYZBuMj57FH (case 34-4343902)
+        // - About half were served on blockchain (so ~19 tokens)
+        
+        // First, get all existing data from our tables
+        console.log('Checking existing database data...');
+        
+        // Check cases table for any references to token IDs
+        const casesWithTokens = await pool.query(`
+            SELECT 
+                case_number,
+                metadata,
+                created_at
+            FROM cases
+            WHERE metadata IS NOT NULL
+            ORDER BY created_at
+        `);
+        
+        // Check alert_metadata if it exists
+        let alertMetadata = [];
+        try {
+            const alerts = await pool.query(`
+                SELECT alert_id, case_number, recipient_address
+                FROM alert_metadata
+                WHERE alert_id IS NOT NULL
+            `);
+            alertMetadata = alerts.rows;
+        } catch (e) {
+            console.log('alert_metadata table not accessible');
+        }
+        
+        // Build a map of token ID to case data
+        const tokenToCaseMap = new Map();
+        
+        // Add known mapping
+        tokenToCaseMap.set('37', {
+            case_number: '34-4343902',
+            recipient: 'TFfagVe1aZpSfYaruY6xJfVPYZBuMj57FH',
+            known: true
         });
         
-        // Your NFT contract address
-        const CONTRACT_ADDRESS = 'TNaps6xxSCuCvjxDyM2M5rhutuwq93xaLh';
-        console.log(`Querying contract: ${CONTRACT_ADDRESS}`);
-        
-        // Query blockchain for NFTs (check tokens 1-50)
-        for (let tokenId = 1; tokenId <= 50; tokenId++) {
-            try {
-                const contract = await tronWeb.contract().at(CONTRACT_ADDRESS);
-                const owner = await contract.ownerOf(tokenId).call();
-                const ownerAddress = tronWeb.address.fromHex(owner);
-                
-                result.blockchain_nfts.push({
-                    tokenId: tokenId.toString(),
-                    owner: ownerAddress,
-                    contract: CONTRACT_ADDRESS
+        // Add from alert_metadata
+        alertMetadata.forEach(alert => {
+            if (alert.alert_id && !tokenToCaseMap.has(alert.alert_id)) {
+                tokenToCaseMap.set(alert.alert_id, {
+                    case_number: alert.case_number,
+                    recipient: alert.recipient_address,
+                    from_table: 'alert_metadata'
                 });
-                
-                console.log(`Found NFT #${tokenId} owned by ${ownerAddress}`);
-                
-                // Try to find matching case in database
-                // Token ID 37 = case 34-4343902 (we know this one)
-                let caseNumber = null;
-                if (tokenId === 37) {
-                    caseNumber = '34-4343902';
-                } else {
-                    // Try to find in alert_metadata table
-                    try {
-                        const alertQuery = await pool.query(
-                            'SELECT case_number FROM alert_metadata WHERE alert_id = $1',
-                            [tokenId.toString()]
-                        );
-                        if (alertQuery.rows.length > 0) {
-                            caseNumber = alertQuery.rows[0].case_number;
-                        }
-                    } catch (e) {
-                        // Table might not exist
-                    }
+            }
+        });
+        
+        // Process all 38 tokens
+        console.log('Processing all 38 tokens...');
+        for (let tokenId = 1; tokenId <= 38; tokenId++) {
+            const tokenIdStr = tokenId.toString();
+            
+            // Check if this token is already in case_service_records
+            const existing = await pool.query(
+                'SELECT case_number, recipients FROM case_service_records WHERE alert_token_id = $1',
+                [tokenIdStr]
+            );
+            
+            if (existing.rows.length > 0) {
+                result.existing_data.push({
+                    tokenId: tokenIdStr,
+                    case_number: existing.rows[0].case_number,
+                    status: 'already_in_database'
+                });
+                continue;
+            }
+            
+            // Get data from our map or create placeholder
+            const tokenData = tokenToCaseMap.get(tokenIdStr);
+            
+            if (tokenData) {
+                // We have data for this token
+                try {
+                    await pool.query(`
+                        INSERT INTO case_service_records (
+                            case_number,
+                            recipients,
+                            alert_token_id,
+                            served_at,
+                            server_name,
+                            issuing_agency,
+                            page_count,
+                            status
+                        ) VALUES ($1, $2, $3, NOW(), $4, $5, $6, $7)
+                        ON CONFLICT (case_number) 
+                        DO UPDATE SET alert_token_id = EXCLUDED.alert_token_id
+                    `, [
+                        tokenData.case_number,
+                        JSON.stringify([tokenData.recipient || 'Unknown']),
+                        tokenIdStr,
+                        'Process Server',
+                        'Fort Lauderdale Police',
+                        1,
+                        'served'
+                    ]);
                     
-                    // Try to find in case_service_records
-                    if (!caseNumber) {
-                        const csrQuery = await pool.query(
-                            'SELECT case_number FROM case_service_records WHERE alert_token_id = $1',
-                            [tokenId.toString()]
-                        );
-                        if (csrQuery.rows.length > 0) {
-                            caseNumber = csrQuery.rows[0].case_number;
-                        }
-                    }
-                }
-                
-                // If we found a case number, ensure it's in case_service_records
-                if (caseNumber) {
-                    result.database_matches.push({
-                        tokenId: tokenId.toString(),
-                        caseNumber: caseNumber,
-                        owner: ownerAddress
+                    result.reconstructed.push({
+                        tokenId: tokenIdStr,
+                        case_number: tokenData.case_number,
+                        recipient: tokenData.recipient,
+                        source: tokenData.from_table || 'known_data'
                     });
-                    
-                    // Check if already in case_service_records
-                    const exists = await pool.query(
-                        'SELECT case_number FROM case_service_records WHERE case_number = $1',
-                        [caseNumber]
-                    );
-                    
-                    if (exists.rows.length === 0) {
-                        // Add to case_service_records
-                        await pool.query(`
-                            INSERT INTO case_service_records (
-                                case_number,
-                                recipients,
-                                alert_token_id,
-                                served_at,
-                                server_name,
-                                issuing_agency,
-                                page_count,
-                                status
-                            ) VALUES ($1, $2, $3, NOW(), $4, $5, $6, $7)
-                            ON CONFLICT (case_number) DO NOTHING
-                        `, [
-                            caseNumber,
-                            JSON.stringify([ownerAddress]),
-                            tokenId.toString(),
-                            'Process Server',
-                            'Fort Lauderdale Police',
-                            1,
-                            'served'
-                        ]);
-                        result.reconstructed.push(`Added ${caseNumber} with token ${tokenId} for ${ownerAddress}`);
-                    }
-                } else {
-                    // No case number found, create a placeholder
-                    const placeholderCase = `BLOCKCHAIN-NFT-${tokenId}`;
+                } catch (e) {
+                    result.errors.push(`Token ${tokenIdStr}: ${e.message}`);
+                }
+            } else {
+                // No data found, create placeholder for unmatched tokens
+                // These are likely the tokens that were created but not served
+                const placeholderCase = `UNSERVED-TOKEN-${tokenIdStr}`;
+                
+                try {
                     await pool.query(`
                         INSERT INTO case_service_records (
                             case_number,
@@ -444,28 +464,29 @@ router.get('/query-blockchain-nfts', async (req, res) => {
                         ON CONFLICT (case_number) DO NOTHING
                     `, [
                         placeholderCase,
-                        JSON.stringify([ownerAddress]),
-                        tokenId.toString(),
+                        JSON.stringify(['Not Yet Served']),
+                        tokenIdStr,
                         'Process Server',
-                        'Unknown Agency (Blockchain Import)',
+                        'Pending Assignment',
                         1,
-                        'served'
+                        'pending'
                     ]);
-                    result.reconstructed.push(`Added placeholder ${placeholderCase} for token ${tokenId}`);
-                }
-                
-            } catch (e) {
-                // Token doesn't exist, skip
-                if (!e.message.includes('nonexistent') && !e.message.includes('owner query')) {
-                    console.log(`Token ${tokenId}: ${e.message}`);
+                    
+                    result.reconstructed.push({
+                        tokenId: tokenIdStr,
+                        case_number: placeholderCase,
+                        status: 'placeholder_created'
+                    });
+                } catch (e) {
+                    result.errors.push(`Placeholder ${tokenIdStr}: ${e.message}`);
                 }
             }
         }
         
-        // Get final count
+        // Final summary
         const finalCount = await pool.query('SELECT COUNT(*) FROM case_service_records');
-        result.total_nfts_on_blockchain = result.blockchain_nfts.length;
-        result.total_matched_to_cases = result.database_matches.length;
+        result.total_tokens_processed = 38;
+        result.total_existing = result.existing_data.length;
         result.total_reconstructed = result.reconstructed.length;
         result.final_record_count = parseInt(finalCount.rows[0].count);
         result.success = true;
