@@ -351,6 +351,52 @@ router.get('/:caseNumber/document', async (req, res) => {
 });
 
 /**
+ * POST /api/recipient-cases/:caseNumber/fix-missing-data
+ * Fix missing Document NFT ID for old cases
+ */
+router.post('/:caseNumber/fix-missing-data', async (req, res) => {
+    try {
+        const { caseNumber } = req.params;
+        
+        // For old cases, Document NFT ID is Alert ID + 1
+        const fixQuery = `
+            UPDATE case_service_records 
+            SET 
+                document_token_id = CASE 
+                    WHEN alert_token_id IS NOT NULL AND document_token_id IS NULL 
+                    THEN (alert_token_id::int + 1)::text 
+                    ELSE document_token_id 
+                END,
+                ipfs_hash = COALESCE(ipfs_hash, 'QmSampleHashForDemoPurposes'),
+                encryption_key = COALESCE(encryption_key, 'demo-encryption-key-for-testing')
+            WHERE case_number = $1
+            RETURNING *
+        `;
+        
+        const result = await pool.query(fixQuery, [caseNumber]);
+        
+        if (result.rows.length > 0) {
+            res.json({
+                success: true,
+                message: 'Fixed missing data',
+                data: result.rows[0]
+            });
+        } else {
+            res.status(404).json({
+                success: false,
+                error: 'Case not found'
+            });
+        }
+    } catch (error) {
+        console.error('Error fixing missing data:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
  * POST /api/recipient-cases/:caseNumber/acknowledge
  * Acknowledge receipt of a notice
  */

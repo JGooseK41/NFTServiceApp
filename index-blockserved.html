@@ -1345,14 +1345,22 @@
                 
                 if (data.success && data.notices && data.notices.length > 0) {
                     console.log('BlockServed: Notices received:', data.notices);
+                    const firstNotice = data.notices[0];
                     console.log('BlockServed: First notice details:', {
-                        case_number: data.notices[0].case_number,
-                        alert_token_id: data.notices[0].alert_token_id,
-                        document_token_id: data.notices[0].document_token_id,
-                        ipfs_hash: data.notices[0].ipfs_hash,
-                        encryption_key: data.notices[0].encryption_key,
-                        images: data.notices[0].images
+                        case_number: firstNotice.case_number,
+                        alert_token_id: firstNotice.alert_token_id,
+                        document_token_id: firstNotice.document_token_id,
+                        ipfs_hash: firstNotice.ipfs_hash,
+                        encryption_key: firstNotice.encryption_key,
+                        images: firstNotice.images
                     });
+                    
+                    // Temporary debug alert
+                    if (!firstNotice.document_token_id) {
+                        console.warn('BlockServed WARNING: Document Token ID is missing!');
+                        console.warn('Full notice object:', firstNotice);
+                    }
+                    
                     displayNotices(data.notices);
                     document.getElementById('noticeCount').textContent = data.notices.length;
                 } else {
