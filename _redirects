@@ -1,16 +1,12 @@
 # BlockServed.com Redirects
-# Serve recipient.html as the main page
-/              /recipient.html   200
-/index.html    /recipient.html   200
-
-# Mobile specific routes
-/mobile        /recipient-mobile.html   200
-/m             /recipient-mobile.html   200
+# Serve index-blockserved.html as the main page
+/              /index-blockserved.html   200
+/index.html    /index-blockserved.html   200
 
 # API proxy to Render backend
 /api/* https://nftserviceapp.onrender.com/api/:splat 200
 
 # Notice viewing paths
-/view          /recipient.html   200
-/notice        /recipient.html   200
-/n/*           /recipient.html   200
+/view          /index-blockserved.html   200
+/notice        /index-blockserved.html   200
+/n/*           /index-blockserved.html   200
