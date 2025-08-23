@@ -59,6 +59,16 @@ async function ensureColumns() {
             ADD COLUMN IF NOT EXISTS status VARCHAR(50)
         `).catch(() => {});
         
+        await pool.query(`
+            ALTER TABLE case_service_records 
+            ADD COLUMN IF NOT EXISTS accepted BOOLEAN DEFAULT FALSE
+        `).catch(() => {});
+        
+        await pool.query(`
+            ALTER TABLE case_service_records 
+            ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMP
+        `).catch(() => {});
+        
         // Update existing records with data from cases table
         await pool.query(`
             UPDATE case_service_records csr
