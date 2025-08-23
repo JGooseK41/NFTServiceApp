@@ -1020,6 +1020,11 @@ const recipientAccessRouter = require('./routes/recipient-access');
 app.use('/api/notices', recipientAccessRouter);
 console.log('✅ Recipient access routes loaded');
 
+// Recipient cases API (queries case_service_records)
+const recipientCasesRouter = require('./routes/recipient-cases-api');
+app.use('/api/recipient-cases', recipientCasesRouter);
+console.log('✅ Recipient cases API loaded (case_service_records)');
+
 // Blockchain-based recipient API (for NFT viewing)
 try {
     const blockchainRecipientRouter = require('./routes/blockchain-recipient-api');
