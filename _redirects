@@ -1,5 +1,11 @@
 # API proxy to Render backend
 /api/* https://nftserviceapp.onrender.com/api/:splat 200
 
+# BlockServed.com specific routing
+https://blockserved.com/* /index-blockserved.html 200!
+https://www.blockserved.com/* /index-blockserved.html 200!
+http://blockserved.com/* /index-blockserved.html 200!
+http://www.blockserved.com/* /index-blockserved.html 200!
+
 # Redirect short URLs to the main app with hash routing
 /n/*  /#notice-:splat  200!
