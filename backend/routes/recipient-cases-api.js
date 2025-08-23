@@ -318,4 +318,69 @@ router.post('/:caseNumber/acknowledge', async (req, res) => {
     }
 });
 
+/**
+ * POST /api/recipient-cases/test-add
+ * Test endpoint to manually add a case (for testing only)
+ */
+router.post('/test-add', async (req, res) => {
+    try {
+        const {
+            case_number,
+            recipients,
+            transaction_hash,
+            alert_token_id,
+            served_at
+        } = req.body;
+        
+        console.log('Manually adding case:', case_number);
+        
+        // Insert into case_service_records
+        const query = `
+            INSERT INTO case_service_records (
+                case_number,
+                recipients,
+                transaction_hash,
+                alert_token_id,
+                served_at,
+                server_name,
+                issuing_agency,
+                page_count,
+                status
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            ON CONFLICT (case_number) 
+            DO UPDATE SET 
+                recipients = EXCLUDED.recipients,
+                transaction_hash = EXCLUDED.transaction_hash,
+                alert_token_id = EXCLUDED.alert_token_id,
+                served_at = EXCLUDED.served_at
+            RETURNING *
+        `;
+        
+        const result = await pool.query(query, [
+            case_number,
+            JSON.stringify(recipients), // Ensure it's stored as JSON string
+            transaction_hash,
+            alert_token_id,
+            served_at || new Date(),
+            'Process Server',
+            'Fort Lauderdale Police',
+            1,
+            'served'
+        ]);
+        
+        res.json({
+            success: true,
+            message: 'Case added successfully',
+            data: result.rows[0]
+        });
+        
+    } catch (error) {
+        console.error('Error adding test case:', error);
+        res.status(500).json({ 
+            error: 'Failed to add case',
+            details: error.message
+        });
+    }
+});
+
 module.exports = router;
