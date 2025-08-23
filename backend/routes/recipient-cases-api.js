@@ -96,28 +96,56 @@ router.get('/wallet/:address', async (req, res) => {
             });
         }
         
-        // Query case_service_records and join with cases table to get complete data
-        const query = `
-            SELECT 
-                csr.case_number,
-                csr.recipients,
-                csr.transaction_hash,
-                csr.alert_token_id,
-                csr.document_token_id,
-                csr.ipfs_hash,
-                csr.served_at,
-                COALESCE(csr.server_name, c.server_address) as server_name,
-                COALESCE(csr.issuing_agency, (c.metadata->>'issuingAgency')::text) as issuing_agency,
-                COALESCE(csr.page_count, c.page_count, (c.metadata->>'pageCount')::int, (c.metadata->>'documentCount')::int) as page_count,
-                COALESCE(csr.status, c.status) as status
-            FROM case_service_records csr
-            LEFT JOIN cases c ON csr.case_number = c.case_number::text
-            WHERE csr.recipients::jsonb ? $1
-               OR LOWER(csr.recipients::text) LIKE LOWER($2)
-            ORDER BY csr.served_at DESC
-        `;
+        // First, let's try a simpler query without the join to see if it works
+        let query;
+        let result;
         
-        const result = await pool.query(query, [address, `%${address}%`]);
+        try {
+            // Try the full query with join
+            query = `
+                SELECT 
+                    csr.case_number,
+                    csr.recipients,
+                    csr.transaction_hash,
+                    csr.alert_token_id,
+                    csr.document_token_id,
+                    csr.ipfs_hash,
+                    csr.served_at,
+                    COALESCE(csr.server_name, c.server_address) as server_name,
+                    COALESCE(csr.issuing_agency, (c.metadata->>'issuingAgency')::text) as issuing_agency,
+                    COALESCE(csr.page_count, c.page_count, (c.metadata->>'pageCount')::int) as page_count,
+                    COALESCE(csr.status, c.status, 'served') as status
+                FROM case_service_records csr
+                LEFT JOIN cases c ON csr.case_number = c.case_number::text
+                WHERE csr.recipients::jsonb ? $1
+                   OR LOWER(csr.recipients::text) LIKE LOWER($2)
+                ORDER BY csr.served_at DESC
+            `;
+            result = await pool.query(query, [address, `%${address}%`]);
+        } catch (joinError) {
+            console.log('Join query failed, trying simple query:', joinError.message);
+            
+            // Fall back to simple query without join
+            query = `
+                SELECT 
+                    case_number,
+                    recipients,
+                    transaction_hash,
+                    alert_token_id,
+                    document_token_id,
+                    ipfs_hash,
+                    served_at,
+                    server_name,
+                    issuing_agency,
+                    page_count,
+                    status
+                FROM case_service_records
+                WHERE recipients::jsonb ? $1
+                   OR LOWER(recipients::text) LIKE LOWER($2)
+                ORDER BY served_at DESC
+            `;
+            result = await pool.query(query, [address, `%${address}%`]);
+        }
         
         // Transform data for frontend
         const notices = result.rows.map(row => {
@@ -157,10 +185,12 @@ router.get('/wallet/:address', async (req, res) => {
         
     } catch (error) {
         console.error('Error fetching recipient cases:', error);
+        console.error('Stack trace:', error.stack);
         res.status(500).json({ 
             error: 'Failed to fetch notices',
             success: false,
-            details: error.message
+            details: error.message,
+            hint: 'Check server logs for more details'
         });
     }
 });
