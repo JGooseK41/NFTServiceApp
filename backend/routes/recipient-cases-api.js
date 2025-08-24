@@ -2468,6 +2468,78 @@ router.post('/restore-ipfs-data', async (req, res) => {
 });
 
 /**
+ * GET /api/recipient-cases/cases-with-ipfs
+ * Find all cases that have IPFS data
+ */
+router.get('/cases-with-ipfs', async (req, res) => {
+    try {
+        console.log('Finding cases with IPFS data...');
+        
+        // Query for all records with IPFS data
+        const query = `
+            SELECT 
+                case_number,
+                alert_token_id,
+                document_token_id,
+                ipfs_hash,
+                encryption_key,
+                recipients,
+                served_at
+            FROM case_service_records
+            WHERE ipfs_hash IS NOT NULL 
+               AND ipfs_hash != ''
+               AND ipfs_hash != 'null'
+            ORDER BY alert_token_id::int
+        `;
+        
+        const result = await pool.query(query);
+        
+        // Also check for any placeholder or sample data
+        const placeholderQuery = `
+            SELECT 
+                case_number,
+                alert_token_id,
+                ipfs_hash,
+                CASE 
+                    WHEN ipfs_hash LIKE 'Qm%' THEN 'Looks like real IPFS'
+                    WHEN ipfs_hash LIKE '%sample%' THEN 'Sample data'
+                    WHEN ipfs_hash LIKE '%historical%' THEN 'Historical placeholder'
+                    WHEN ipfs_hash LIKE '%recovered%' THEN 'Recovered placeholder'
+                    ELSE 'Other'
+                END as ipfs_type
+            FROM case_service_records
+            WHERE ipfs_hash IS NOT NULL
+            ORDER BY alert_token_id::int
+        `;
+        
+        const placeholderResult = await pool.query(placeholderQuery);
+        
+        // Count by type
+        const typeCounts = {};
+        placeholderResult.rows.forEach(row => {
+            const type = row.ipfs_type;
+            typeCounts[type] = (typeCounts[type] || 0) + 1;
+        });
+        
+        res.json({
+            success: true,
+            totalWithIPFS: result.rows.length,
+            casesWithIPFS: result.rows,
+            ipfsDataTypes: typeCounts,
+            allIPFSRecords: placeholderResult.rows.slice(0, 20) // First 20 for review
+        });
+        
+    } catch (error) {
+        console.error('Error finding cases with IPFS:', error);
+        res.status(500).json({ 
+            error: 'Failed to find cases with IPFS',
+            success: false,
+            details: error.message
+        });
+    }
+});
+
+/**
  * POST /api/recipient-cases/create-admin-logs-table
  * Create the missing admin_access_logs table
  */
