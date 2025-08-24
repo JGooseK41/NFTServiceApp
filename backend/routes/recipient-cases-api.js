@@ -1629,8 +1629,18 @@ router.post('/fix-recipients', async (req, res) => {
             {
                 wallet: 'TFfagVe1aZpSfYaruY6xJfVPYZBuMj57FH',
                 alertTokenIds: ['1', '17', '29', '37']
-            }
+            },
+            // Note: Need full address for TBjqKep
+            // {
+            //     wallet: 'TBjqKep...',
+            //     alertTokenIds: ['13', '19', '27', '35']
+            // }
         ];
+        
+        // Also accept custom wallet/token pairs from request body
+        if (req.body && req.body.walletMappings) {
+            knownOwnership.push(...req.body.walletMappings);
+        }
         
         const results = [];
         let fixedCount = 0;
@@ -1841,6 +1851,249 @@ router.post('/recover-orphaned-notices', async (req, res) => {
         console.error('Error recovering orphaned notices:', error);
         res.status(500).json({ 
             error: 'Failed to recover orphaned notices',
+            success: false,
+            details: error.message
+        });
+    }
+});
+
+/**
+ * GET /api/recipient-cases/audit-all-notices
+ * Audit all Alert NFTs to find orphaned ones
+ */
+router.get('/audit-all-notices', async (req, res) => {
+    try {
+        console.log('Auditing all Alert NFTs...');
+        
+        // Get all Alert NFTs (odd token IDs)
+        const allNoticesQuery = `
+            SELECT 
+                alert_token_id,
+                document_token_id,
+                case_number,
+                recipients,
+                served_at
+            FROM case_service_records 
+            WHERE alert_token_id IS NOT NULL
+            ORDER BY alert_token_id::int
+        `;
+        
+        const allNotices = await pool.query(allNoticesQuery);
+        
+        // Analyze recipients
+        const orphanedNotices = [];
+        const noticesByWallet = {};
+        const suspiciousRecipients = [];
+        
+        for (const notice of allNotices.rows) {
+            const alertId = notice.alert_token_id;
+            const recipients = typeof notice.recipients === 'string' 
+                ? JSON.parse(notice.recipients) 
+                : notice.recipients;
+            
+            // Check if recipient looks like a wallet address
+            for (const recipient of recipients) {
+                if (!recipient || recipient.length < 34) {
+                    suspiciousRecipients.push({
+                        alertId,
+                        recipient,
+                        reason: 'Invalid address format'
+                    });
+                } else if (recipient.startsWith('T')) {
+                    // Valid TRON address
+                    if (!noticesByWallet[recipient]) {
+                        noticesByWallet[recipient] = [];
+                    }
+                    noticesByWallet[recipient].push(parseInt(alertId));
+                }
+            }
+            
+            // Check for common issues
+            if (!recipients || recipients.length === 0) {
+                orphanedNotices.push({
+                    alertId,
+                    issue: 'No recipients'
+                });
+            } else if (recipients.includes('CONTRACT_ADDRESS') || recipients.includes('TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN')) {
+                orphanedNotices.push({
+                    alertId,
+                    issue: 'Contract as recipient (should be actual wallet)',
+                    currentRecipients: recipients
+                });
+            }
+        }
+        
+        // Sort token IDs for each wallet
+        for (const wallet in noticesByWallet) {
+            noticesByWallet[wallet].sort((a, b) => a - b);
+        }
+        
+        // Identify patterns
+        const patterns = [];
+        
+        // Check for wallets with specific token patterns
+        for (const [wallet, tokens] of Object.entries(noticesByWallet)) {
+            // Check if tokens follow a pattern (e.g., every 12th token)
+            if (tokens.length > 1) {
+                const gaps = [];
+                for (let i = 1; i < tokens.length; i++) {
+                    gaps.push(tokens[i] - tokens[i-1]);
+                }
+                
+                // Check if gaps are consistent
+                const uniqueGaps = [...new Set(gaps)];
+                if (uniqueGaps.length === 1) {
+                    patterns.push({
+                        wallet,
+                        tokens,
+                        pattern: `Every ${uniqueGaps[0]/2} notices (gap of ${uniqueGaps[0]})`
+                    });
+                } else {
+                    patterns.push({
+                        wallet,
+                        tokens,
+                        pattern: 'Irregular'
+                    });
+                }
+            }
+        }
+        
+        res.json({
+            success: true,
+            summary: {
+                totalNotices: allNotices.rows.length,
+                uniqueWallets: Object.keys(noticesByWallet).length,
+                orphanedNotices: orphanedNotices.length,
+                suspiciousRecipients: suspiciousRecipients.length
+            },
+            noticesByWallet,
+            orphanedNotices,
+            suspiciousRecipients,
+            patterns,
+            recommendations: [
+                'Review orphaned notices and update recipients',
+                'Check suspicious recipients for data entry errors',
+                'Use pattern analysis to identify wallet ownership'
+            ]
+        });
+        
+    } catch (error) {
+        console.error('Error auditing notices:', error);
+        res.status(500).json({ 
+            error: 'Failed to audit notices',
+            success: false,
+            details: error.message
+        });
+    }
+});
+
+/**
+ * POST /api/recipient-cases/fix-all-orphaned
+ * Fix all orphaned notices based on patterns and known ownership
+ */
+router.post('/fix-all-orphaned', async (req, res) => {
+    try {
+        console.log('Fixing all orphaned notices...');
+        
+        // Known patterns from user input
+        const knownPatterns = {
+            'TFfagVe1aZpSfYaruY6xJfVPYZBuMj57FH': [1, 17, 29, 37],
+            // Add full address when known:
+            // 'TBjqKep...': [13, 19, 27, 35]
+        };
+        
+        // Accept additional mappings from request
+        if (req.body && req.body.walletMappings) {
+            for (const mapping of req.body.walletMappings) {
+                knownPatterns[mapping.wallet] = mapping.alertTokenIds;
+            }
+        }
+        
+        const results = [];
+        let totalFixed = 0;
+        
+        for (const [wallet, expectedTokens] of Object.entries(knownPatterns)) {
+            console.log(`Processing wallet ${wallet}...`);
+            
+            for (const tokenId of expectedTokens) {
+                const updateQuery = `
+                    UPDATE case_service_records 
+                    SET recipients = $1::jsonb,
+                        document_token_id = COALESCE(document_token_id, ($2::int + 1)::text)
+                    WHERE alert_token_id = $2
+                    AND (
+                        recipients IS NULL 
+                        OR recipients::text NOT LIKE $3
+                        OR recipients::text = '[]'
+                        OR recipients::text LIKE '%CONTRACT%'
+                    )
+                    RETURNING *
+                `;
+                
+                try {
+                    const result = await pool.query(updateQuery, [
+                        JSON.stringify([wallet]),
+                        tokenId.toString(),
+                        `%${wallet}%`
+                    ]);
+                    
+                    if (result.rows.length > 0) {
+                        totalFixed++;
+                        results.push({
+                            tokenId,
+                            wallet,
+                            status: 'fixed',
+                            caseNumber: result.rows[0].case_number
+                        });
+                        console.log(`Fixed Alert NFT #${tokenId} -> ${wallet}`);
+                    } else {
+                        results.push({
+                            tokenId,
+                            wallet,
+                            status: 'already_correct_or_not_found'
+                        });
+                    }
+                } catch (err) {
+                    results.push({
+                        tokenId,
+                        wallet,
+                        status: 'error',
+                        error: err.message
+                    });
+                }
+            }
+        }
+        
+        // Verify final state
+        const verificationQuery = `
+            SELECT 
+                recipients,
+                COUNT(*) as count,
+                array_agg(alert_token_id ORDER BY alert_token_id::int) as tokens
+            FROM case_service_records
+            WHERE recipients IS NOT NULL
+            GROUP BY recipients
+            ORDER BY count DESC
+        `;
+        
+        const verification = await pool.query(verificationQuery);
+        
+        res.json({
+            success: true,
+            message: `Fixed ${totalFixed} orphaned notices`,
+            totalFixed,
+            results,
+            finalState: verification.rows.map(row => ({
+                wallet: JSON.parse(row.recipients)[0] || 'Unknown',
+                noticeCount: row.count,
+                alertTokens: row.tokens
+            }))
+        });
+        
+    } catch (error) {
+        console.error('Error fixing orphaned notices:', error);
+        res.status(500).json({ 
+            error: 'Failed to fix orphaned notices',
             success: false,
             details: error.message
         });
