@@ -2701,7 +2701,7 @@ router.post('/restore-ipfs-from-images', async (req, res) => {
         
         // Find all notice_components with their simple_images
         const query = `
-            SELECT DISTINCT
+            SELECT 
                 nc.notice_id,
                 nc.alert_id,
                 nc.document_id,
