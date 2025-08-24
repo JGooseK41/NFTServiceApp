@@ -2799,4 +2799,108 @@ router.post('/restore-ipfs-from-images', async (req, res) => {
     }
 });
 
+/**
+ * GET /api/recipient-cases/check-latest-notices
+ * Check the latest notices for IPFS data
+ */
+router.get('/check-latest-notices', async (req, res) => {
+    try {
+        // Get the latest notices (highest Alert NFT IDs)
+        const latestQuery = `
+            SELECT 
+                case_number,
+                alert_token_id,
+                document_token_id,
+                recipients,
+                ipfs_hash,
+                encryption_key,
+                served_at
+            FROM case_service_records
+            WHERE alert_token_id IS NOT NULL
+            ORDER BY alert_token_id::int DESC
+            LIMIT 20
+        `;
+        
+        const latest = await pool.query(latestQuery);
+        
+        const results = {
+            latestNotices: [],
+            highTokenNotices: [],
+            summary: {
+                total: 0,
+                withIPFS: 0,
+                withKeys: 0
+            }
+        };
+        
+        let withIPFS = 0;
+        let withKeys = 0;
+        
+        latest.rows.forEach(row => {
+            const recipients = JSON.parse(row.recipients || '[]');
+            const hasIPFS = !!row.ipfs_hash;
+            const hasKey = !!row.encryption_key;
+            
+            if (hasIPFS) withIPFS++;
+            if (hasKey) withKeys++;
+            
+            results.latestNotices.push({
+                alertId: row.alert_token_id,
+                documentId: row.document_token_id,
+                caseNumber: row.case_number,
+                recipient: recipients[0] || 'Unknown',
+                hasIPFS,
+                hasEncryptionKey: hasKey,
+                ipfsHash: row.ipfs_hash,
+                servedAt: row.served_at
+            });
+        });
+        
+        results.summary = {
+            total: latest.rows.length,
+            withIPFS,
+            withKeys
+        };
+        
+        // Check the highest Alert NFT IDs specifically (39-45)
+        const highTokenQuery = `
+            SELECT 
+                alert_token_id,
+                case_number,
+                recipients,
+                ipfs_hash,
+                encryption_key
+            FROM case_service_records
+            WHERE alert_token_id::int >= 39
+            ORDER BY alert_token_id::int
+        `;
+        
+        const highTokens = await pool.query(highTokenQuery);
+        
+        highTokens.rows.forEach(row => {
+            const recipients = JSON.parse(row.recipients || '[]');
+            results.highTokenNotices.push({
+                alertId: row.alert_token_id,
+                caseNumber: row.case_number,
+                recipient: recipients[0] || 'Unknown',
+                hasIPFS: !!row.ipfs_hash,
+                hasKey: !!row.encryption_key
+            });
+        });
+        
+        res.json({
+            success: true,
+            ...results
+        });
+        
+    } catch (error) {
+        console.error('Error checking latest notices:', error);
+        res.status(500).json({ 
+            error: 'Failed to check latest notices',
+            success: false,
+            details: error.message
+        });
+    }
+});
+
 module.exports = router;
