@@ -1024,9 +1024,9 @@ console.log('✅ Recipient access routes loaded');
 const recipientCasesRouter = require('./routes/recipient-cases-api');
 app.use('/api/recipient-cases', recipientCasesRouter);
 
-// Blockchain sync API
-const blockchainSyncRouter = require('./routes/blockchain-sync-api');
-app.use('/api/blockchain-sync', blockchainSyncRouter);
+// Blockchain sync API for fixing recipients
+const blockchainSyncApiRouter = require('./routes/blockchain-sync-api');
+app.use('/api/blockchain-sync', blockchainSyncApiRouter);
 console.log('✅ Recipient cases API loaded (case_service_records)');
 
 // Recipient access logging API
