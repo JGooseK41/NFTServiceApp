@@ -2228,6 +2228,246 @@ router.post('/add-missing-historical-nfts', async (req, res) => {
 });
 
 /**
+ * GET /api/recipient-cases/find-ipfs-data
+ * Find IPFS data across all tables
+ */
+router.get('/find-ipfs-data', async (req, res) => {
+    try {
+        console.log('Searching for IPFS data across tables...');
+        
+        const results = {};
+        
+        // Check notice_components table
+        try {
+            const noticeComponentsQuery = `
+                SELECT 
+                    notice_id,
+                    alert_id,
+                    document_id,
+                    ipfs_hash,
+                    document_ipfs_hash,
+                    encryption_key,
+                    case_number
+                FROM notice_components
+                WHERE (ipfs_hash IS NOT NULL OR document_ipfs_hash IS NOT NULL)
+                LIMIT 20
+            `;
+            
+            const noticeComponents = await pool.query(noticeComponentsQuery);
+            results.notice_components = {
+                count: noticeComponents.rows.length,
+                samples: noticeComponents.rows
+            };
+        } catch (err) {
+            results.notice_components = { error: err.message };
+        }
+        
+        // Check complete_flow_documents table
+        try {
+            const flowDocsQuery = `
+                SELECT 
+                    token_id,
+                    ipfs_hash,
+                    encryption_key,
+                    case_number,
+                    created_at
+                FROM complete_flow_documents
+                WHERE ipfs_hash IS NOT NULL
+                ORDER BY token_id::int
+                LIMIT 20
+            `;
+            
+            const flowDocs = await pool.query(flowDocsQuery);
+            results.complete_flow_documents = {
+                count: flowDocs.rows.length,
+                samples: flowDocs.rows
+            };
+        } catch (err) {
+            results.complete_flow_documents = { error: err.message };
+        }
+        
+        // Check cases table
+        try {
+            const casesQuery = `
+                SELECT 
+                    token_id,
+                    alert_token_id,
+                    document_token_id,
+                    ipfs_hash,
+                    case_number
+                FROM cases
+                WHERE ipfs_hash IS NOT NULL
+                LIMIT 20
+            `;
+            
+            const cases = await pool.query(casesQuery);
+            results.cases = {
+                count: cases.rows.length,
+                samples: cases.rows
+            };
+        } catch (err) {
+            results.cases = { error: err.message };
+        }
+        
+        // Check documents_v2 table
+        try {
+            const docsV2Query = `
+                SELECT 
+                    id,
+                    case_number,
+                    token_id,
+                    ipfs_hash,
+                    encrypted_ipfs,
+                    created_at
+                FROM documents_v2
+                WHERE ipfs_hash IS NOT NULL OR encrypted_ipfs IS NOT NULL
+                LIMIT 20
+            `;
+            
+            const docsV2 = await pool.query(docsV2Query);
+            results.documents_v2 = {
+                count: docsV2.rows.length,
+                samples: docsV2.rows
+            };
+        } catch (err) {
+            results.documents_v2 = { error: err.message };
+        }
+        
+        res.json({
+            success: true,
+            message: 'IPFS data search complete',
+            results
+        });
+        
+    } catch (error) {
+        console.error('Error finding IPFS data:', error);
+        res.status(500).json({ 
+            error: 'Failed to find IPFS data',
+            success: false,
+            details: error.message
+        });
+    }
+});
+
+/**
+ * POST /api/recipient-cases/restore-ipfs-data
+ * Restore IPFS data from other tables to case_service_records
+ */
+router.post('/restore-ipfs-data', async (req, res) => {
+    try {
+        console.log('Restoring IPFS data to case_service_records...');
+        
+        let restoredCount = 0;
+        const results = [];
+        
+        // First, try to restore from notice_components
+        try {
+            const noticeComponentsData = await pool.query(`
+                SELECT 
+                    alert_id,
+                    document_id,
+                    ipfs_hash,
+                    document_ipfs_hash,
+                    encryption_key,
+                    case_number
+                FROM notice_components
+                WHERE (ipfs_hash IS NOT NULL OR document_ipfs_hash IS NOT NULL)
+                  AND alert_id IS NOT NULL
+            `);
+            
+            for (const row of noticeComponentsData.rows) {
+                const ipfsToUse = row.document_ipfs_hash || row.ipfs_hash;
+                
+                if (ipfsToUse && row.alert_id) {
+                    const updateResult = await pool.query(`
+                        UPDATE case_service_records
+                        SET ipfs_hash = COALESCE(ipfs_hash, $1),
+                            encryption_key = COALESCE(encryption_key, $2)
+                        WHERE alert_token_id = $3
+                        AND (ipfs_hash IS NULL OR encryption_key IS NULL)
+                        RETURNING alert_token_id
+                    `, [ipfsToUse, row.encryption_key, row.alert_id]);
+                    
+                    if (updateResult.rows.length > 0) {
+                        restoredCount++;
+                        results.push({
+                            alertId: row.alert_id,
+                            source: 'notice_components',
+                            ipfsHash: ipfsToUse
+                        });
+                    }
+                }
+            }
+        } catch (err) {
+            console.log('Error restoring from notice_components:', err.message);
+        }
+        
+        // Try to restore from complete_flow_documents
+        try {
+            const flowDocsData = await pool.query(`
+                SELECT 
+                    token_id,
+                    ipfs_hash,
+                    encryption_key,
+                    case_number
+                FROM complete_flow_documents
+                WHERE ipfs_hash IS NOT NULL
+            `);
+            
+            for (const row of flowDocsData.rows) {
+                // Token IDs in complete_flow might be Alert IDs
+                const updateResult = await pool.query(`
+                    UPDATE case_service_records
+                    SET ipfs_hash = COALESCE(ipfs_hash, $1),
+                        encryption_key = COALESCE(encryption_key, $2)
+                    WHERE (alert_token_id = $3 OR document_token_id = $3)
+                    AND (ipfs_hash IS NULL OR encryption_key IS NULL)
+                    RETURNING alert_token_id
+                `, [row.ipfs_hash, row.encryption_key, row.token_id]);
+                
+                if (updateResult.rows.length > 0) {
+                    restoredCount++;
+                    results.push({
+                        alertId: updateResult.rows[0].alert_token_id,
+                        source: 'complete_flow_documents',
+                        ipfsHash: row.ipfs_hash
+                    });
+                }
+            }
+        } catch (err) {
+            console.log('Error restoring from complete_flow_documents:', err.message);
+        }
+        
+        // Verify what we restored
+        const verifyQuery = `
+            SELECT 
+                COUNT(*) as total_with_ipfs,
+                COUNT(CASE WHEN ipfs_hash IS NOT NULL THEN 1 END) as has_ipfs,
+                COUNT(CASE WHEN encryption_key IS NOT NULL THEN 1 END) as has_key
+            FROM case_service_records
+        `;
+        
+        const verification = await pool.query(verifyQuery);
+        
+        res.json({
+            success: true,
+            message: `Restored IPFS data for ${restoredCount} records`,
+            restoredCount,
+            results: results.slice(0, 20), // First 20 results
+            verification: verification.rows[0]
+        });
+        
+    } catch (error) {
+        console.error('Error restoring IPFS data:', error);
+        res.status(500).json({ 
+            error: 'Failed to restore IPFS data',
+            success: false,
+            details: error.message
+        });
+    }
+});
+
+/**
  * POST /api/recipient-cases/create-admin-logs-table
  * Create the missing admin_access_logs table
  */
