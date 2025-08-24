@@ -2590,4 +2590,106 @@ router.post('/create-admin-logs-table', async (req, res) => {
     }
 });
 
+/**
+ * GET /api/recipient-cases/debug/v1-document-storage
+ * Check v1 document storage patterns
+ */
+router.get('/debug/v1-document-storage', async (req, res) => {
+    try {
+        const results = {};
+        
+        // Check notice_components for document data
+        const componentsQuery = `
+            SELECT 
+                notice_id,
+                alert_id,
+                document_id,
+                case_number,
+                document_data IS NOT NULL as has_document_data,
+                document_ipfs_hash,
+                ipfs_hash,
+                OCTET_LENGTH(document_data) as data_size,
+                created_at
+            FROM notice_components
+            WHERE alert_id IN ('1', '3', '5', '7', '9', '11', '13', '15', '17', '19', 
+                              '21', '23', '25', '27', '29', '31', '33', '35', '37', '39')
+            ORDER BY alert_id::int
+            LIMIT 20
+        `;
+        
+        const components = await pool.query(componentsQuery);
+        results.notice_components = components.rows;
+        
+        // Check simple_images table
+        const imagesQuery = `
+            SELECT 
+                notice_id,
+                image_type,
+                OCTET_LENGTH(image_data) as data_size,
+                metadata,
+                created_at
+            FROM simple_images
+            WHERE notice_id IN (
+                SELECT DISTINCT notice_id FROM notice_components 
+                WHERE alert_id IN ('1', '3', '5', '7', '9', '11', '13', '15', '17', '19')
+                AND notice_id IS NOT NULL
+            )
+            ORDER BY notice_id, image_type
+            LIMIT 50
+        `;
+        
+        const images = await pool.query(imagesQuery);
+        
+        // Group images by notice_id
+        const imagesByNotice = {};
+        images.rows.forEach(row => {
+            if (!imagesByNotice[row.notice_id]) {
+                imagesByNotice[row.notice_id] = [];
+            }
+            imagesByNotice[row.notice_id].push({
+                type: row.image_type,
+                size: row.data_size,
+                metadata: row.metadata,
+                created: row.created_at
+            });
+        });
+        results.simple_images = imagesByNotice;
+        
+        // Summary statistics
+        const summaryQuery = `
+            SELECT 
+                'notice_components' as table_name,
+                COUNT(*) as total_records,
+                COUNT(CASE WHEN document_data IS NOT NULL THEN 1 END) as with_data,
+                COUNT(CASE WHEN ipfs_hash IS NOT NULL OR document_ipfs_hash IS NOT NULL THEN 1 END) as with_ipfs
+            FROM notice_components
+            WHERE alert_id IS NOT NULL
+            
+            UNION ALL
+            
+            SELECT 
+                'simple_images' as table_name,
+                COUNT(DISTINCT notice_id) as total_records,
+                COUNT(DISTINCT notice_id) as with_data,
+                0 as with_ipfs
+            FROM simple_images
+        `;
+        
+        const summary = await pool.query(summaryQuery);
+        results.summary = summary.rows;
+        
+        res.json({
+            success: true,
+            ...results
+        });
+        
+    } catch (error) {
+        console.error('Error checking v1 document storage:', error);
+        res.status(500).json({ 
+            error: 'Failed to check v1 document storage',
+            details: error.message
+        });
+    }
+});
+
 module.exports = router;
