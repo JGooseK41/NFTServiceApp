@@ -2604,7 +2604,6 @@ router.get('/debug/v1-document-storage', async (req, res) => {
                 notice_id,
                 alert_id,
                 document_id,
-                case_number,
                 document_data IS NOT NULL as has_document_data,
                 document_ipfs_hash,
                 ipfs_hash,
