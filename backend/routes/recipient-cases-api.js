@@ -2837,7 +2837,13 @@ router.get('/check-latest-notices', async (req, res) => {
         let withKeys = 0;
         
         latest.rows.forEach(row => {
-            const recipients = JSON.parse(row.recipients || '[]');
+            let recipients = [];
+            try {
+                recipients = typeof row.recipients === 'string' ? JSON.parse(row.recipients) : row.recipients || [];
+            } catch (e) {
+                // If parsing fails, treat as single recipient string
+                recipients = [row.recipients];
+            }
             const hasIPFS = !!row.ipfs_hash;
             const hasKey = !!row.encryption_key;
             
@@ -2878,7 +2884,12 @@ router.get('/check-latest-notices', async (req, res) => {
         const highTokens = await pool.query(highTokenQuery);
         
         highTokens.rows.forEach(row => {
-            const recipients = JSON.parse(row.recipients || '[]');
+            let recipients = [];
+            try {
+                recipients = typeof row.recipients === 'string' ? JSON.parse(row.recipients) : row.recipients || [];
+            } catch (e) {
+                recipients = [row.recipients];
+            }
             results.highTokenNotices.push({
                 alertId: row.alert_token_id,
                 caseNumber: row.case_number,
