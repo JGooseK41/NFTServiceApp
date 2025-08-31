@@ -1016,6 +1016,11 @@ const diskBrowserRouter = require('./routes/disk-browser');
 app.use('/api/disk-browser', diskBrowserRouter);
 console.log('✅ Disk browser loaded at /api/disk-browser');
 
+// Diagnostic endpoint for debugging case issues
+const diagnosticRouter = require('./routes/diagnostic-cases');
+app.use('/api/diagnostic', diagnosticRouter);
+console.log('✅ Diagnostic endpoints loaded at /api/diagnostic');
+
 // Case management routes (2-stage workflow) - DISABLED (using case-api-routes instead)
 // const caseRouter = require('./case-api');
 // app.use('/api', caseRouter);
