@@ -323,72 +323,86 @@ class CaseManager {
 
     /**
      * List cases for a server
+     * Primary identity: Server wallet address
+     * Returns ALL cases/notices for this wallet ONLY
      */
     async listCases(serverAddress, status = null) {
         try {
-            console.log(`Listing cases for server: ${serverAddress}`);
+            console.log(`Listing cases for server wallet: ${serverAddress}`);
             
-            // First try the cases table
-            let query = `
-                SELECT id, status, created_at, served_at, 
-                       metadata->>'pageCount' as page_count,
-                       metadata->>'fileSize' as file_size,
-                       recipient_address, ipfs_hash, alert_nft_id
-                FROM cases 
-                WHERE server_address = $1
+            // COMPREHENSIVE QUERY: Get everything for this wallet
+            // Hierarchy: Wallet -> Cases -> Notices/Recipients
+            
+            // UNION query to get ALL cases from ALL sources for this wallet
+            const query = `
+                WITH all_cases AS (
+                    -- Get from case_service_records (primary source)
+                    SELECT 
+                        case_number as id,
+                        COALESCE(status, 'served') as status,
+                        created_at,
+                        created_at as served_at,
+                        page_count,
+                        NULL as file_size,
+                        recipients as recipient_address,
+                        ipfs_hash,
+                        alert_token_id as alert_nft_id,
+                        'case_service_records' as source
+                    FROM case_service_records
+                    WHERE server_address = $1
+                       OR server_address LIKE $2
+                    
+                    UNION ALL
+                    
+                    -- Get from cases table
+                    SELECT 
+                        id,
+                        status,
+                        created_at,
+                        served_at,
+                        metadata->>'pageCount' as page_count,
+                        metadata->>'fileSize' as file_size,
+                        recipient_address,
+                        ipfs_hash,
+                        alert_nft_id,
+                        'cases' as source
+                    FROM cases
+                    WHERE server_address = $1
+                       OR server_address LIKE $2
+                )
+                SELECT DISTINCT ON (id) * FROM all_cases
+                ORDER BY id, created_at DESC
+                LIMIT 100
             `;
-            const params = [serverAddress];
             
-            if (status) {
-                query += ' AND status = $2';
-                params.push(status);
-            }
-            
-            query += ' ORDER BY created_at DESC LIMIT 100';
-            
+            const params = [serverAddress, `${serverAddress}%`];
             const result = await this.db.query(query, params);
             
-            // If no results, also check case_service_records as fallback
-            if (result.rows.length === 0) {
-                console.log(`No cases in cases table, checking case_service_records...`);
-                
-                const serviceQuery = `
-                    SELECT DISTINCT
-                        csr.case_number as id,
-                        'served' as status,
-                        csr.created_at,
-                        csr.created_at as served_at,
-                        csr.page_count as page_count,
-                        NULL as file_size,
-                        csr.recipients as recipient_address,
-                        csr.ipfs_hash,
-                        csr.alert_token_id as alert_nft_id
-                    FROM case_service_records csr
-                    WHERE csr.server_address = $1
-                    OR csr.server_address LIKE $2
-                    ORDER BY csr.created_at DESC
-                    LIMIT 100
-                `;
-                
-                const serviceResult = await this.db.query(serviceQuery, [
-                    serverAddress,
-                    `%${serverAddress}%`
-                ]);
-                
-                if (serviceResult.rows.length > 0) {
-                    console.log(`Found ${serviceResult.rows.length} cases in case_service_records`);
-                    return {
-                        success: true,
-                        cases: serviceResult.rows,
-                        source: 'case_service_records'
-                    };
+            console.log(`Found ${result.rows.length} total cases for wallet ${serverAddress}`);
+            
+            // Group by status if needed
+            const casesByStatus = {};
+            result.rows.forEach(row => {
+                const caseStatus = row.status || 'unknown';
+                if (!casesByStatus[caseStatus]) {
+                    casesByStatus[caseStatus] = [];
                 }
-            }
+                casesByStatus[caseStatus].push(row);
+            });
+            
+            console.log('Cases by status:', Object.keys(casesByStatus).map(s => `${s}: ${casesByStatus[s].length}`).join(', '));
+            
+            // Filter by status if requested
+            const filteredCases = status 
+                ? result.rows.filter(c => c.status === status)
+                : result.rows;
             
             return {
                 success: true,
-                cases: result.rows,
-                source: 'cases'
+                cases: filteredCases,
+                total_cases: result.rows.length,
+                by_status: casesByStatus,
+                wallet: serverAddress
             };
             
         } catch (error) {
