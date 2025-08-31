@@ -326,6 +326,9 @@ class CaseManager {
      */
     async listCases(serverAddress, status = null) {
         try {
+            console.log(`Listing cases for server: ${serverAddress}`);
+            
+            // First try the cases table
             let query = `
                 SELECT id, status, created_at, served_at, 
                        metadata->>'pageCount' as page_count,
@@ -345,9 +348,47 @@ class CaseManager {
             
             const result = await this.db.query(query, params);
             
+            // If no results, also check case_service_records as fallback
+            if (result.rows.length === 0) {
+                console.log(`No cases in cases table, checking case_service_records...`);
+                
+                const serviceQuery = `
+                    SELECT DISTINCT
+                        csr.case_number as id,
+                        'served' as status,
+                        csr.created_at,
+                        csr.created_at as served_at,
+                        csr.page_count as page_count,
+                        NULL as file_size,
+                        csr.recipients as recipient_address,
+                        csr.ipfs_hash,
+                        csr.alert_token_id as alert_nft_id
+                    FROM case_service_records csr
+                    WHERE csr.server_address = $1
+                    OR csr.server_address LIKE $2
+                    ORDER BY csr.created_at DESC
+                    LIMIT 100
+                `;
+                
+                const serviceResult = await this.db.query(serviceQuery, [
+                    serverAddress,
+                    `%${serverAddress}%`
+                ]);
+                
+                if (serviceResult.rows.length > 0) {
+                    console.log(`Found ${serviceResult.rows.length} cases in case_service_records`);
+                    return {
+                        success: true,
+                        cases: serviceResult.rows,
+                        source: 'case_service_records'
+                    };
+                }
+            }
+            
             return {
                 success: true,
-                cases: result.rows
+                cases: result.rows,
+                source: 'cases'
             };
             
         } catch (error) {
@@ -691,17 +732,25 @@ class CaseManager {
         // Run cleanup every hour
         setInterval(async () => {
             console.log('🧹 Running cleanup job');
-            await this.diskStorage.cleanupTemp();
+            
+            // Check if cleanupTemp method exists before calling it
+            if (this.diskStorage && typeof this.diskStorage.cleanupTemp === 'function') {
+                await this.diskStorage.cleanupTemp();
+            } else {
+                console.log('⚠️ cleanupTemp method not available, skipping temp cleanup');
+            }
             
             // Also check disk usage
-            const stats = await this.diskStorage.getDiskStats();
-            if (stats) {
-                console.log(`💾 Disk usage: ${stats.used}/${stats.total} (${stats.percentUsed})`);
-                
-                // Alert if disk is getting full
-                const percentUsed = parseInt(stats.percentUsed);
-                if (percentUsed > 80) {
-                    console.warn('⚠️ Disk usage is above 80%!');
+            if (this.diskStorage && typeof this.diskStorage.getDiskStats === 'function') {
+                const stats = await this.diskStorage.getDiskStats();
+                if (stats) {
+                    console.log(`💾 Disk usage: ${stats.used}/${stats.total} (${stats.percentUsed})`);
+                    
+                    // Alert if disk is getting full
+                    const percentUsed = parseInt(stats.percentUsed);
+                    if (percentUsed > 80) {
+                        console.warn('⚠️ Disk usage is above 80%!');
+                    }
                 }
             }
         }, 60 * 60 * 1000); // Every hour

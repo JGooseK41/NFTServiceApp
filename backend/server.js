@@ -1006,6 +1006,16 @@ app.use('/', noticeImagesRouter);
 const simpleImagesRouter = require('./routes/simple-images');
 app.use('/api/images', simpleImagesRouter);
 
+// Case documents API (retrieve PDF documents and images by case number)
+const caseDocumentsRouter = require('./routes/case-documents-retrieval');
+app.use('/api/case-documents', caseDocumentsRouter);
+console.log('✅ Case documents retrieval API loaded at /api/case-documents');
+
+// Disk browser for debugging (view files on Render disk)
+const diskBrowserRouter = require('./routes/disk-browser');
+app.use('/api/disk-browser', diskBrowserRouter);
+console.log('✅ Disk browser loaded at /api/disk-browser');
+
 // Case management routes (2-stage workflow) - DISABLED (using case-api-routes instead)
 // const caseRouter = require('./case-api');
 // app.use('/api', caseRouter);
@@ -1033,6 +1043,11 @@ console.log('✅ Recipient cases API loaded (case_service_records)');
 const recipientLogsRouter = require('./routes/recipient-access-logs');
 app.use('/api/recipient-logs', recipientLogsRouter);
 console.log('✅ Recipient access logging API loaded');
+
+// Recipient document viewing with logging (for refused signatures)
+const recipientDocumentRouter = require('./routes/recipient-document-view');
+app.use('/api/recipient', recipientDocumentRouter);
+console.log('✅ Recipient document viewing loaded with access logging');
 
 // Blockchain-based recipient API (for NFT viewing)
 try {

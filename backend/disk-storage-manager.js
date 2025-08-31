@@ -204,6 +204,19 @@ class DiskStorageManager {
     }
 
     /**
+     * Check if a case exists on disk
+     */
+    async caseExists(caseId) {
+        try {
+            const pdfPath = path.join(this.directories.cases || this.basePath, caseId, 'document.pdf');
+            await fs.access(pdfPath);
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    /**
      * Get disk usage statistics
      */
     async getDiskStats() {
@@ -223,6 +236,49 @@ class DiskStorageManager {
             console.log('Could not get disk stats:', error.message);
         }
         return null;
+    }
+
+    /**
+     * Clean up temporary files older than 24 hours
+     */
+    async cleanupTemp() {
+        const tempPath = path.join(this.basePath, 'temp');
+        const now = Date.now();
+        const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+        
+        try {
+            // Ensure temp directory exists
+            await fs.mkdir(tempPath, { recursive: true });
+            
+            // Read all files in temp directory
+            const files = await fs.readdir(tempPath);
+            let cleaned = 0;
+            
+            for (const file of files) {
+                const filePath = path.join(tempPath, file);
+                try {
+                    const stats = await fs.stat(filePath);
+                    const age = now - stats.mtimeMs;
+                    
+                    // Delete if older than 24 hours
+                    if (age > maxAge) {
+                        await fs.unlink(filePath);
+                        cleaned++;
+                    }
+                } catch (err) {
+                    console.log(`Could not check/delete temp file ${file}:`, err.message);
+                }
+            }
+            
+            if (cleaned > 0) {
+                console.log(`🧹 Cleaned up ${cleaned} old temp files`);
+            }
+            
+            return cleaned;
+        } catch (error) {
+            console.log('Error during temp cleanup:', error.message);
+            return 0;
+        }
     }
 }
 
