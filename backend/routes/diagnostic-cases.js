@@ -228,4 +228,134 @@ router.get('/wallet-formats', async (req, res) => {
     }
 });
 
+/**
+ * GET /api/diagnostic/wallet-tokens/:address
+ * Check all data sources for a wallet's tokens
+ */
+router.get('/wallet-tokens/:address', async (req, res) => {
+    const { address } = req.params;
+
+    console.log(`\n=== DIAGNOSTIC: Wallet tokens for ${address} ===`);
+
+    try {
+        const results = {
+            wallet_address: address,
+            timestamp: new Date().toISOString(),
+            case_service_records: [],
+            notice_components: [],
+            images: [],
+            served_notices: [],
+            summary: {}
+        };
+
+        // 1. Check case_service_records
+        const csr = await pool.query(`
+            SELECT
+                case_number,
+                alert_token_id,
+                document_token_id,
+                ipfs_hash,
+                encryption_key IS NOT NULL as has_encryption_key,
+                transaction_hash,
+                server_name,
+                served_at,
+                recipients
+            FROM case_service_records
+            WHERE recipients::text ILIKE $1
+            ORDER BY COALESCE(alert_token_id::int, 0)
+        `, [`%${address}%`]);
+
+        results.case_service_records = csr.rows;
+
+        // Get token IDs for further queries
+        const tokenIds = csr.rows.map(r => r.alert_token_id).filter(Boolean);
+
+        // 2. Check notice_components
+        if (tokenIds.length > 0) {
+            const nc = await pool.query(`
+                SELECT
+                    notice_id,
+                    alert_id,
+                    document_id,
+                    case_number,
+                    recipient_address,
+                    alert_thumbnail_url IS NOT NULL as has_alert_thumbnail,
+                    document_unencrypted_url IS NOT NULL as has_document_url,
+                    document_ipfs_hash,
+                    document_encryption_key IS NOT NULL as has_doc_encryption_key,
+                    created_at
+                FROM notice_components
+                WHERE alert_id = ANY($1::text[])
+                   OR document_id = ANY($1::text[])
+                   OR recipient_address ILIKE $2
+            `, [tokenIds, `%${address}%`]);
+
+            results.notice_components = nc.rows;
+        }
+
+        // 3. Check images table
+        try {
+            const images = await pool.query(`
+                SELECT
+                    notice_id,
+                    case_number,
+                    alert_image IS NOT NULL as has_alert_image,
+                    document_image IS NOT NULL as has_document_image,
+                    recipient_address,
+                    created_at
+                FROM images
+                WHERE notice_id = ANY($1::text[])
+                   OR recipient_address ILIKE $2
+            `, [tokenIds, `%${address}%`]);
+
+            results.images = images.rows;
+        } catch (e) {
+            results.images_error = e.message;
+        }
+
+        // 4. Check served_notices
+        const served = await pool.query(`
+            SELECT
+                notice_id,
+                alert_id,
+                document_id,
+                case_number,
+                ipfs_hash,
+                recipient_address,
+                served_at
+            FROM served_notices
+            WHERE recipient_address ILIKE $1
+               OR alert_id = ANY($2::text[])
+        `, [`%${address}%`, tokenIds]);
+
+        results.served_notices = served.rows;
+
+        // 5. Generate summary
+        const hasPlaceholders = csr.rows.some(r => r.case_number?.includes('PLACEHOLDER'));
+        const missingIpfs = csr.rows.filter(r => !r.ipfs_hash).length;
+        const hasDocumentUrls = results.notice_components.some(r => r.has_document_url);
+
+        results.summary = {
+            total_tokens: csr.rows.length,
+            has_placeholder_cases: hasPlaceholders,
+            missing_ipfs_hashes: missingIpfs,
+            has_document_urls_in_notice_components: hasDocumentUrls,
+            has_images_records: results.images.length > 0,
+            has_served_notices: results.served_notices.length > 0,
+            diagnosis: hasPlaceholders ?
+                'Placeholder case numbers indicate document data was not linked during serve process' :
+                'Case data appears properly linked'
+        };
+
+        res.json(results);
+
+    } catch (error) {
+        console.error('Wallet tokens diagnostic error:', error);
+        res.status(500).json({
+            error: 'Diagnostic failed',
+            message: error.message
+        });
+    }
+});
+
 module.exports = router;
