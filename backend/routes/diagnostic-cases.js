@@ -362,4 +362,69 @@ router.get('/wallet-tokens/:address', async (req, res) => {
     }
 });
 
+/**
+ * GET /api/diagnostic/contract-info
+ * Get contract address, admin info, and registered process servers
+ */
+router.get('/contract-info', async (req, res) => {
+    try {
+        const results = {
+            contract: {
+                address: 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN',
+                network: 'TRON Mainnet',
+                admin: 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY'
+            },
+            roles: {
+                ADMIN_ROLE: '0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775',
+                PROCESS_SERVER_ROLE: '0x9a92bf3818086a9bc9c8993fc551e796975ad86e56e648d4a3c3e8d756cc039c'
+            },
+            registered_servers: [],
+            database_servers: []
+        };
+
+        // Get servers from database
+        try {
+            const servers = await pool.query(`
+                SELECT
+                    wallet_address,
+                    server_name,
+                    company_name,
+                    status,
+                    is_verified,
+                    created_at
+                FROM process_servers
+                ORDER BY created_at DESC
+            `);
+            results.database_servers = servers.rows;
+        } catch (e) {
+            results.database_servers_error = e.message;
+        }
+
+        // Get unique server addresses from case_service_records
+        try {
+            const activeServers = await pool.query(`
+                SELECT DISTINCT
+                    server_address,
+                    COUNT(*) as cases_served
+                FROM case_service_records
+                WHERE server_address IS NOT NULL
+                GROUP BY server_address
+                ORDER BY cases_served DESC
+            `);
+            results.active_servers = activeServers.rows;
+        } catch (e) {
+            results.active_servers_error = e.message;
+        }
+
+        res.json(results);
+
+    } catch (error) {
+        console.error('Contract info error:', error);
+        res.status(500).json({
+            error: 'Failed to get contract info',
+            message: error.message
+        });
+    }
+});
+
 module.exports = router;
