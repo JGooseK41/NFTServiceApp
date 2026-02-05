@@ -317,7 +317,48 @@ router.post('/documents',
                         
                         console.log(`  ✅ Images stored for ${noticeId}`);
                     }
-                    
+
+                    // Create/update case_service_records - THIS IS CRITICAL for BlockServed
+                    await client.query(`
+                        INSERT INTO case_service_records (
+                            case_number,
+                            alert_token_id,
+                            document_token_id,
+                            ipfs_hash,
+                            encryption_key,
+                            recipients,
+                            server_address,
+                            server_name,
+                            issuing_agency,
+                            page_count,
+                            served_at,
+                            status,
+                            created_at
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), $11, NOW())
+                        ON CONFLICT (case_number)
+                        DO UPDATE SET
+                            alert_token_id = COALESCE(EXCLUDED.alert_token_id, case_service_records.alert_token_id),
+                            document_token_id = COALESCE(EXCLUDED.document_token_id, case_service_records.document_token_id),
+                            ipfs_hash = COALESCE(EXCLUDED.ipfs_hash, case_service_records.ipfs_hash),
+                            encryption_key = COALESCE(EXCLUDED.encryption_key, case_service_records.encryption_key),
+                            recipients = EXCLUDED.recipients,
+                            updated_at = NOW()
+                    `, [
+                        data.caseNumber,
+                        alertId,
+                        documentId,
+                        data.ipfsHash,
+                        data.encryptionKey,
+                        JSON.stringify([recipient]),
+                        data.serverAddress,
+                        'Process Server',
+                        data.issuingAgency,
+                        1,
+                        'served'
+                    ]);
+
+                    console.log(`  ✅ case_service_records created/updated for ${data.caseNumber}`);
+
                     // Record success in batch items
                     await client.query(`
                         INSERT INTO notice_batch_items
