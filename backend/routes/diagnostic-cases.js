@@ -314,21 +314,25 @@ router.get('/wallet-tokens/:address', async (req, res) => {
         }
 
         // 4. Check served_notices
-        const served = await pool.query(`
-            SELECT
-                notice_id,
-                alert_id,
-                document_id,
-                case_number,
-                ipfs_hash,
-                recipient_address,
-                served_at
-            FROM served_notices
-            WHERE recipient_address ILIKE $1
-               OR alert_id = ANY($2::text[])
-        `, [`%${address}%`, tokenIds]);
+        try {
+            const served = await pool.query(`
+                SELECT
+                    notice_id,
+                    alert_id,
+                    document_id,
+                    case_number,
+                    ipfs_hash,
+                    recipient_address,
+                    created_at
+                FROM served_notices
+                WHERE recipient_address ILIKE $1
+                   OR alert_id = ANY($2::text[])
+            `, [`%${address}%`, tokenIds]);
 
-        results.served_notices = served.rows;
+            results.served_notices = served.rows;
+        } catch (e) {
+            results.served_notices_error = e.message;
+        }
 
         // 5. Generate summary
         const hasPlaceholders = csr.rows.some(r => r.case_number?.includes('PLACEHOLDER'));
