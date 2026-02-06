@@ -437,4 +437,42 @@ async function createTables() {
 // Initialize tables on startup
 createTables();
 
+/**
+ * POST /api/cases/run-migration
+ * Manually trigger database migration (for when auto-deploy doesn't restart server)
+ */
+router.post('/cases/run-migration', async (req, res) => {
+    try {
+        console.log('Manual migration triggered...');
+
+        // Check if case_number column exists
+        const columnCheck = await pool.query(`
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'case_service_records' AND column_name = 'case_number'
+        `);
+
+        if (columnCheck.rows.length === 0) {
+            console.log('Adding missing case_number column...');
+            await pool.query(`ALTER TABLE case_service_records ADD COLUMN case_number VARCHAR(255)`);
+            await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS case_service_records_case_number_key ON case_service_records(case_number)`);
+
+            res.json({
+                success: true,
+                message: 'Migration completed - case_number column added'
+            });
+        } else {
+            res.json({
+                success: true,
+                message: 'Migration not needed - case_number column already exists'
+            });
+        }
+    } catch (error) {
+        console.error('Migration error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 module.exports = router;
