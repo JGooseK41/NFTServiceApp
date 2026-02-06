@@ -558,6 +558,20 @@ router.post('/cases/run-migration', async (req, res) => {
             ON case_service_records(case_number)
         `).catch(e => results.push(`Index note: ${e.message}`));
 
+        // ALSO check and update the 'cases' table
+        const casesColumns = await pool.query(`
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'cases'
+        `);
+        const existingCasesColumns = casesColumns.rows.map(r => r.column_name);
+        results.push(`Cases table columns: ${existingCasesColumns.join(', ')}`);
+
+        if (!existingCasesColumns.includes('case_number')) {
+            console.log('Adding case_number column to cases table...');
+            await pool.query(`ALTER TABLE cases ADD COLUMN case_number VARCHAR(255)`);
+            results.push('Added case_number to cases table');
+        }
+
         res.json({
             success: true,
             message: 'Migration completed',
