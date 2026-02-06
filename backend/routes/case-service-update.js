@@ -147,7 +147,7 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
         }
 
         // Store service details in a dedicated table (case_number is the key, no need for case_id)
-        await client.query(`
+        const insertResult = await client.query(`
             INSERT INTO case_service_records (
                 case_number,
                 transaction_hash,
@@ -172,6 +172,7 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
                 page_count = EXCLUDED.page_count,
                 served_at = EXCLUDED.served_at,
                 updated_at = NOW()
+            RETURNING id, case_number
         `, [
             caseNumber,
             transactionHash,
@@ -184,6 +185,7 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
             servedAt || new Date().toISOString(),
             serverAddress || req.headers['x-server-address']
         ]);
+        console.log('INSERT result:', insertResult.rows);
 
         // Update notice_components if they exist (optional - may not exist in all deployments)
         if (alertTokenId || documentTokenId) {
