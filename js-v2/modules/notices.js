@@ -1000,7 +1000,26 @@ window.notices = {
             // First check if we have fresh mint data
             if (this.lastMintResult && this.lastMintResult.caseNumber === caseNumber) {
                 console.log('Using fresh mint data for receipt:', this.lastMintResult);
-                await this.generateReceiptPDF(this.lastMintResult);
+
+                // Use unified receipt style via proofOfService module
+                if (window.proofOfService && window.proofOfService.printReceipt) {
+                    // Convert fresh mint data to receipt format
+                    const receiptData = {
+                        caseNumber: this.lastMintResult.caseNumber,
+                        serverAddress: window.wallet?.address || window.tronWeb?.defaultAddress?.base58,
+                        servedAt: this.lastMintResult.timestamp,
+                        transactionHash: this.lastMintResult.alertTxId,
+                        alertTokenId: this.lastMintResult.receipt?.alertTokenId,
+                        documentTokenId: this.lastMintResult.receipt?.documentTokenId,
+                        recipients: [this.lastMintResult.recipient].filter(Boolean),
+                        alertImage: this.lastMintResult.thumbnail,
+                        ipfsHash: this.lastMintResult.ipfsHash
+                    };
+                    await window.proofOfService.printReceipt(receiptData);
+                } else {
+                    // Fallback to simple PDF if proofOfService not available
+                    await this.generateReceiptPDF(this.lastMintResult);
+                }
                 return;
             }
 
