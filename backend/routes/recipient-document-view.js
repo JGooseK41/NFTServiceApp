@@ -184,9 +184,9 @@ router.get('/document/:caseNumber/view', async (req, res) => {
         if (!pdfBuffer) {
             // Check database for stored path
             const dbCheck = await pool.query(`
-                SELECT pdf_path FROM cases WHERE id = $1 OR case_number = $1
+                SELECT pdf_path FROM cases WHERE id::text = $1 OR case_number = $1
                 UNION
-                SELECT file_path as pdf_path FROM document_storage 
+                SELECT file_path as pdf_path FROM document_storage
                 WHERE case_number = $1 OR notice_id = $1
                 LIMIT 1
             `, [caseNumber]);

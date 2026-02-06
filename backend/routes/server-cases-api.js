@@ -328,8 +328,8 @@ router.get('/:walletAddress/case/:caseNumber', async (req, res) => {
             FROM case_service_records
             WHERE case_number = $1
             UNION ALL
-            SELECT 
-                id as case_number,
+            SELECT
+                id::text as case_number,
                 alert_nft_id as alert_token_id,
                 document_nft_id as document_token_id,
                 recipient_address as recipients,

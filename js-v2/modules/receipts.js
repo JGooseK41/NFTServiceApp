@@ -5,7 +5,24 @@ window.receipts = {
     async init() {
         console.log('Initializing receipts module...');
     },
-    
+
+    // Add a new receipt to storage
+    addReceipt(receipt) {
+        if (!receipt) return;
+        try {
+            const receipts = JSON.parse(localStorage.getItem('legalnotice_receipts') || '[]');
+            // Avoid duplicates
+            const exists = receipts.some(r => r.receiptId === receipt.receiptId);
+            if (!exists) {
+                receipts.push(receipt);
+                localStorage.setItem('legalnotice_receipts', JSON.stringify(receipts));
+                console.log('Receipt added:', receipt.receiptId);
+            }
+        } catch (error) {
+            console.error('Failed to add receipt:', error);
+        }
+    },
+
     // Load and display receipts
     async loadReceipts() {
         const receipts = window.storage.getReceipts();
