@@ -43,7 +43,16 @@
                 </ul>
                 <div class="ms-3">
                     <button id="connectWallet" class="btn btn-primary btn-sm">Connect Wallet</button>
-                    <span id="walletAddress" class="text-white ms-2" style="display:none;"></span>
+                    <div id="walletDropdown" class="dropdown" style="display:none;">
+                        <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <span id="walletAddress"></span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><span class="dropdown-item-text small text-muted" id="walletFullAddress"></span></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" onclick="app.disconnectWallet(); return false;">Disconnect Wallet</a></li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
