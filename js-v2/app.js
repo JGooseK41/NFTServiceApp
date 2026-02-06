@@ -362,22 +362,17 @@ window.app = {
                     this.state.tronWeb = window.wallet.tronWeb;
                     
                     // Update UI
-                    document.getElementById('connectWallet').style.display = 'none';
-                    const addressElement = document.getElementById('walletAddress');
-                    if (addressElement) {
-                        addressElement.textContent = this.formatAddress(this.state.userAddress);
-                        addressElement.style.display = 'inline';
-                    }
-                    
+                    this.updateWalletUI(this.state.userAddress);
+
                     // Initialize contract with wallet
                     if (window.contract) {
                         await window.contract.initialize(this.state.tronWeb);
                         this.state.contract = window.contract.instance;
                     }
-                    
+
                     // Register server if needed
                     await this.registerServer();
-                    
+
                     this.hideProcessing();
                     this.showSuccess('Wallet connected successfully');
                 }
@@ -407,19 +402,14 @@ window.app = {
                 window.wallet.connected = true;
                 
                 // Update UI
-                document.getElementById('connectWallet').style.display = 'none';
-                const addressElement = document.getElementById('walletAddress');
-                if (addressElement) {
-                    addressElement.textContent = this.formatAddress(this.state.userAddress);
-                    addressElement.style.display = 'inline';
-                }
-                
+                this.updateWalletUI(this.state.userAddress);
+
                 // Initialize contract
                 if (window.contract) {
                     await window.contract.initialize(window.tronWeb);
                     this.state.contract = window.contract.instance;
                 }
-                
+
                 console.log('Wallet auto-connected:', this.state.userAddress);
             } catch (error) {
                 console.log('Auto-connection setup failed:', error);
@@ -1906,7 +1896,48 @@ window.app = {
     formatTRX(amount) {
         return (amount / 1e6).toFixed(2);
     },
-    
+
+    // Update wallet UI after connection
+    updateWalletUI(address) {
+        document.getElementById('connectWallet').style.display = 'none';
+
+        const dropdown = document.getElementById('walletDropdown');
+        const addressElement = document.getElementById('walletAddress');
+        const fullAddressElement = document.getElementById('walletFullAddress');
+
+        if (dropdown) {
+            dropdown.style.display = 'block';
+        }
+        if (addressElement) {
+            addressElement.textContent = this.formatAddress(address);
+        }
+        if (fullAddressElement) {
+            fullAddressElement.textContent = address;
+        }
+    },
+
+    // Disconnect wallet
+    disconnectWallet() {
+        // Reset app state
+        this.state.walletConnected = false;
+        this.state.userAddress = null;
+        this.state.tronWeb = null;
+        this.state.contract = null;
+
+        // Call wallet module disconnect
+        if (window.wallet) {
+            window.wallet.disconnect();
+        }
+
+        // Note: wallet.disconnect() reloads the page, so the UI reset below
+        // is just a fallback in case that doesn't happen
+        document.getElementById('connectWallet').style.display = 'block';
+        const dropdown = document.getElementById('walletDropdown');
+        if (dropdown) {
+            dropdown.style.display = 'none';
+        }
+    },
+
     // Set up drag and drop
     setupDragAndDrop() {
         console.log('Setting up drag and drop...');
@@ -2225,13 +2256,10 @@ window.app = {
     handleAccountChange(newAddress) {
         console.log('Account changed to:', newAddress);
         this.state.userAddress = newAddress;
-        
+
         // Update UI
-        const addressElement = document.getElementById('walletAddress');
-        if (addressElement) {
-            addressElement.textContent = this.formatAddress(newAddress);
-        }
-        
+        this.updateWalletUI(newAddress);
+
         // Reload page data
         this.loadPageData(this.state.currentPage);
     },
