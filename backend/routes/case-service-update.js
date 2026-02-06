@@ -439,23 +439,43 @@ createTables();
 
 /**
  * GET /api/cases/check-schema
- * Check the actual database schema
+ * Check the actual database schema for BOTH tables
  */
 router.get('/cases/check-schema', async (req, res) => {
+    const results = {};
     try {
-        // Test a simple SELECT with case_number
-        const testQuery = await pool.query(`SELECT case_number FROM case_service_records LIMIT 1`);
+        // Check case_service_records
+        try {
+            const csrTest = await pool.query(`SELECT case_number FROM case_service_records LIMIT 1`);
+            results.case_service_records = { works: true, rows: csrTest.rowCount };
+        } catch (e) {
+            results.case_service_records = { works: false, error: e.message };
+        }
+
+        // Check cases table
+        try {
+            const casesTest = await pool.query(`SELECT case_number FROM cases LIMIT 1`);
+            results.cases = { works: true, rows: casesTest.rowCount };
+        } catch (e) {
+            results.cases = { works: false, error: e.message };
+        }
+
+        // Get column lists for both tables
+        const csrCols = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name = 'case_service_records'`);
+        const casesCols = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name = 'cases'`);
+
+        results.case_service_records_columns = csrCols.rows.map(r => r.column_name);
+        results.cases_columns = casesCols.rows.map(r => r.column_name);
 
         res.json({
             success: true,
-            message: 'case_number column works!',
-            rowCount: testQuery.rowCount
+            results
         });
     } catch (error) {
         res.status(500).json({
             success: false,
             error: error.message,
-            hint: 'Query failed - column might not exist in this pool connection'
+            results
         });
     }
 });
