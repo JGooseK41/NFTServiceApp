@@ -282,6 +282,10 @@ window.notices = {
                         cases[caseIndex].documentTokenId = documentTokenId;
                         cases[caseIndex].alertImage = alertImage;
                         cases[caseIndex].recipients = data.recipients || [data.recipient];
+                        // Store IPFS hash for document retrieval
+                        cases[caseIndex].ipfsDocument = documentData.ipfsHash;
+                        cases[caseIndex].ipfsHash = documentData.ipfsHash;
+                        cases[caseIndex].encryptionKey = documentData.encryptionKey;
                         localStorage.setItem('legalnotice_cases', JSON.stringify(cases));
                     }
                     
@@ -317,7 +321,7 @@ window.notices = {
                     documentTxId: String(txResult.documentTx || ''),
                     caseNumber: data.caseNumber,
                     generatedAt: new Date().toISOString(),
-                    verificationUrl: `https://tronscan.org/#/transaction/${txResult.alertTx}`,
+                    verificationUrl: window.getTronScanUrl ? window.getTronScanUrl(txResult.alertTx) : `https://tronscan.org/#/transaction/${txResult.alertTx}`,
                     accessUrl: `https://blockserved.com/notice/${noticeId}`
                 };
             }
@@ -667,7 +671,7 @@ window.notices = {
             ...data,
             receiptId: `RCPT-${data.noticeId}`,
             generatedAt: new Date().toISOString(),
-            verificationUrl: `https://tronscan.org/#/transaction/${data.txId}`,
+            verificationUrl: window.getTronScanUrl ? window.getTronScanUrl(data.txId) : `https://tronscan.org/#/transaction/${data.txId}`,
             accessUrl: `https://blockserved.com/notice/${data.noticeId}`
         });
         
@@ -837,7 +841,7 @@ window.notices = {
                                     <ul class="list-unstyled">
                                         <li><strong>Alert NFT TX:</strong><br>
                                             <small class="text-break">
-                                                <a href="https://tronscan.org/#/transaction/${data.alertTxId}" 
+                                                <a href="${window.getTronScanUrl ? window.getTronScanUrl(data.alertTxId) : 'https://tronscan.org/#/transaction/' + data.alertTxId}"
                                                    target="_blank" class="text-decoration-none">
                                                     ${String(data.alertTxId).substring(0, 20)}...
                                                     <i class="bi bi-box-arrow-up-right"></i>
@@ -846,7 +850,7 @@ window.notices = {
                                         </li>
                                         <li><strong>Document NFT TX:</strong><br>
                                             <small class="text-break">
-                                                <a href="https://tronscan.org/#/transaction/${data.documentTxId}" 
+                                                <a href="${window.getTronScanUrl ? window.getTronScanUrl(data.documentTxId) : 'https://tronscan.org/#/transaction/' + data.documentTxId}"
                                                    target="_blank" class="text-decoration-none">
                                                     ${String(data.documentTxId).substring(0, 20)}...
                                                     <i class="bi bi-box-arrow-up-right"></i>
@@ -1087,7 +1091,7 @@ window.notices = {
                     </div>
                     <div class="detail-row">
                         <span class="label">Verification:</span>
-                        <span class="value">View on TronScan: https://tronscan.org/#/transaction/${data.alertTxId}</span>
+                        <span class="value">View on TronScan: ${window.getTronScanUrl ? window.getTronScanUrl(data.alertTxId) : 'https://tronscan.org/#/transaction/' + data.alertTxId}</span>
                     </div>
                 </div>
                 

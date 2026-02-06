@@ -289,7 +289,7 @@ window.cases = {
                             <br>
                             <small style="font-size: 10px; line-height: 1.2;">
                                 Tx: <code>${txHash.substring(0, 8)}...</code>
-                                <a href="https://tronscan.org/#/transaction/${txHash}" target="_blank" 
+                                <a href="${window.getTronScanUrl ? window.getTronScanUrl(txHash) : 'https://tronscan.org/#/transaction/' + txHash}" target="_blank"
                                    class="text-info" title="View on TronScan">
                                     <i class="bi bi-box-arrow-up-right"></i>
                                 </a>
@@ -1024,7 +1024,7 @@ window.cases = {
                                         </div>
                                         ${txHash ? `
                                         <div class="col-md-6">
-                                            <a href="https://tronscan.org/#/transaction/${txHash}" target="_blank" class="btn btn-info w-100">
+                                            <a href="${window.getTronScanUrl ? window.getTronScanUrl(txHash) : 'https://tronscan.org/#/transaction/' + txHash}" target="_blank" class="btn btn-info w-100">
                                                 <i class="bi bi-box-arrow-up-right"></i> View on TronScan
                                             </a>
                                         </div>
@@ -1122,7 +1122,7 @@ window.cases = {
                                         ${txHash ? `
                                         <div class="receipt-field">
                                             <span class="receipt-label">Verification URL:</span><br>
-                                            <small>https://tronscan.org/#/transaction/${txHash}</small>
+                                            <small>${window.getTronScanUrl ? window.getTronScanUrl(txHash) : 'https://tronscan.org/#/transaction/' + txHash}</small>
                                         </div>
                                         ` : ''}
                                     </div>
@@ -1662,7 +1662,7 @@ window.cases = {
                                 <div class="card-body">
                                     <p class="mb-2"><strong>Transaction Hash:</strong></p>
                                     <code class="text-break">${trackingData.signature_tx}</code>
-                                    <a href="https://tronscan.org/#/transaction/${trackingData.signature_tx}" target="_blank" class="btn btn-sm btn-outline-success mt-2">
+                                    <a href="${window.getTronScanUrl ? window.getTronScanUrl(trackingData.signature_tx) : 'https://tronscan.org/#/transaction/' + trackingData.signature_tx}" target="_blank" class="btn btn-sm btn-outline-success mt-2">
                                         <i class="bi bi-box-arrow-up-right"></i> View on TronScan
                                     </a>
                                 </div>
@@ -1857,13 +1857,34 @@ window.cases = {
                 return;
             }
             
-            // Ensure we have IPFS document
-            const ipfsHash = caseData.ipfsDocument || caseData.ipfs_document || 
-                           caseData.metadata?.ipfsHash || caseData.metadata?.ipfs_hash;
-            
+            // Ensure we have IPFS document - check multiple possible field names
+            const ipfsHash = caseData.ipfsDocument || caseData.ipfs_document ||
+                           caseData.ipfsHash || caseData.ipfs_hash ||
+                           caseData.metadata?.ipfsHash || caseData.metadata?.ipfs_hash ||
+                           caseData.metadata?.ipfsDocument || caseData.metadata?.ipfs_document;
+
             if (!ipfsHash) {
-                window.app.showError('No IPFS document found for this case');
-                return;
+                // Try to fetch from backend if not in local cache
+                console.log('IPFS hash not in local cache, fetching from backend...');
+                try {
+                    const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+                    const response = await fetch(`${backendUrl}/api/cases/${caseId}/service-data`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.case?.ipfsHash || data.case?.ipfsDocument) {
+                            caseData.ipfsHash = data.case.ipfsHash || data.case.ipfsDocument;
+                        }
+                    }
+                } catch (e) {
+                    console.log('Could not fetch IPFS hash from backend:', e.message);
+                }
+
+                // Check again after backend fetch
+                const finalIpfsHash = caseData.ipfsHash || caseData.ipfsDocument;
+                if (!finalIpfsHash) {
+                    window.app.showError('No IPFS document found for this case. The document may still be processing.');
+                    return;
+                }
             }
             
             // Prepare case data for stamping

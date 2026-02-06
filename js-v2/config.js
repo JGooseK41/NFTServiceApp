@@ -162,6 +162,23 @@ window.getCurrentNetwork = function() {
     return window.AppConfig.network[current];
 };
 
+// Helper to get TronScan URL for current network
+window.getTronScanUrl = function(txHash) {
+    const current = window.AppConfig.network.current;
+    const baseUrl = current === 'nile'
+        ? 'https://nile.tronscan.org/#/transaction/'
+        : 'https://tronscan.org/#/transaction/';
+    return baseUrl + (txHash || '');
+};
+
+// Helper to get TronScan base URL (without transaction)
+window.getTronScanBase = function() {
+    const current = window.AppConfig.network.current;
+    return current === 'nile'
+        ? 'https://nile.tronscan.org'
+        : 'https://tronscan.org';
+};
+
 // Helper to get API endpoint URL
 window.getApiUrl = function(endpoint, params = {}) {
     const baseUrl = window.AppConfig.backend.baseUrl;
