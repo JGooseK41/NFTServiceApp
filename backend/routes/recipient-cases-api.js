@@ -97,17 +97,31 @@ ensureColumns();
  */
 router.get('/debug', async (req, res) => {
     try {
-        // Get case_service_records
+        // First check what columns exist
+        const columnsResult = await pool.query(`
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'case_service_records'
+            ORDER BY column_name
+        `);
+        const existingColumns = columnsResult.rows.map(r => r.column_name);
+
+        // Build query dynamically based on existing columns
+        const wantedColumns = ['case_number', 'recipients', 'transaction_hash', 'alert_token_id', 'served_at', 'server_address'];
+        const availableColumns = wantedColumns.filter(c => existingColumns.includes(c));
+
+        if (availableColumns.length === 0) {
+            return res.json({
+                success: false,
+                existingColumns,
+                error: 'No expected columns found in case_service_records'
+            });
+        }
+
+        // Get case_service_records with available columns
         const csrResult = await pool.query(`
-            SELECT
-                case_number,
-                recipients,
-                transaction_hash,
-                alert_token_id,
-                served_at,
-                server_address
+            SELECT ${availableColumns.join(', ')}
             FROM case_service_records
-            ORDER BY served_at DESC
+            ORDER BY ${existingColumns.includes('served_at') ? 'served_at' : 'id'} DESC
             LIMIT 20
         `);
 

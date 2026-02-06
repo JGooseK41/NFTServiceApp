@@ -438,6 +438,29 @@ async function createTables() {
 createTables();
 
 /**
+ * GET /api/cases/check-schema
+ * Check the actual database schema
+ */
+router.get('/cases/check-schema', async (req, res) => {
+    try {
+        // Test a simple SELECT with case_number
+        const testQuery = await pool.query(`SELECT case_number FROM case_service_records LIMIT 1`);
+
+        res.json({
+            success: true,
+            message: 'case_number column works!',
+            rowCount: testQuery.rowCount
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            hint: 'Query failed - column might not exist in this pool connection'
+        });
+    }
+});
+
+/**
  * POST /api/cases/run-migration
  * Manually trigger database migration (for when auto-deploy doesn't restart server)
  */
