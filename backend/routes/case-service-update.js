@@ -592,7 +592,9 @@ router.post('/cases/run-migration', async (req, res) => {
                 { name: 'recipients', type: 'JSONB' },
                 { name: 'page_count', type: 'INTEGER DEFAULT 1' },
                 { name: 'served_at', type: 'TIMESTAMP' },
-                { name: 'server_address', type: 'VARCHAR(255)' }
+                { name: 'server_address', type: 'VARCHAR(255)' },
+                { name: 'chain', type: "VARCHAR(50) DEFAULT 'tron-mainnet'" },
+                { name: 'explorer_url', type: 'TEXT' }
             ];
 
             for (const col of requiredColumns) {
@@ -649,6 +651,13 @@ router.post('/cases/run-migration', async (req, res) => {
             console.log('Adding case_number column to cases table...');
             await pool.query(`ALTER TABLE cases ADD COLUMN case_number VARCHAR(255)`);
             results.push('Added case_number to cases table');
+        }
+
+        // Add chain column to cases table for multi-chain support
+        if (!existingCasesColumns.includes('chain')) {
+            console.log('Adding chain column to cases table...');
+            await pool.query(`ALTER TABLE cases ADD COLUMN chain VARCHAR(50) DEFAULT 'tron-mainnet'`);
+            results.push('Added chain to cases table');
         }
 
         // Check the type of id column
