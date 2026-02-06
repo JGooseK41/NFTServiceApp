@@ -572,19 +572,35 @@ router.post('/cases/run-migration', async (req, res) => {
             results.push('Added case_number to cases table');
         }
 
-        // Ensure id column has a default sequence for auto-increment
-        try {
-            // Create sequence if it doesn't exist
-            await pool.query(`CREATE SEQUENCE IF NOT EXISTS cases_id_seq`);
-            // Get current max id to set sequence start
-            const maxId = await pool.query(`SELECT COALESCE(MAX(id), 0) as max_id FROM cases`);
-            const startVal = (maxId.rows[0].max_id || 0) + 1;
-            await pool.query(`ALTER SEQUENCE cases_id_seq RESTART WITH ${startVal}`);
-            // Set default on id column
-            await pool.query(`ALTER TABLE cases ALTER COLUMN id SET DEFAULT nextval('cases_id_seq')`);
-            results.push(`Set up auto-increment on cases.id starting at ${startVal}`);
-        } catch (e) {
-            results.push(`Note: Could not set up auto-increment on cases.id: ${e.message}`);
+        // Check the type of id column
+        const idTypeCheck = await pool.query(`
+            SELECT data_type FROM information_schema.columns
+            WHERE table_name = 'cases' AND column_name = 'id'
+        `);
+        const idType = idTypeCheck.rows[0]?.data_type;
+        results.push(`cases.id column type: ${idType}`);
+
+        // If id is text, we need to generate UUID or text IDs
+        // If id is integer, set up auto-increment
+        if (idType === 'integer') {
+            try {
+                await pool.query(`CREATE SEQUENCE IF NOT EXISTS cases_id_seq`);
+                const maxId = await pool.query(`SELECT COALESCE(MAX(id), 0) as max_id FROM cases`);
+                const startVal = (maxId.rows[0].max_id || 0) + 1;
+                await pool.query(`ALTER SEQUENCE cases_id_seq RESTART WITH ${startVal}`);
+                await pool.query(`ALTER TABLE cases ALTER COLUMN id SET DEFAULT nextval('cases_id_seq')`);
+                results.push(`Set up auto-increment on cases.id starting at ${startVal}`);
+            } catch (e) {
+                results.push(`Note: Could not set up auto-increment: ${e.message}`);
+            }
+        } else if (idType === 'text' || idType === 'character varying') {
+            // For text IDs, set a default using gen_random_uuid() or similar
+            try {
+                await pool.query(`ALTER TABLE cases ALTER COLUMN id SET DEFAULT gen_random_uuid()::text`);
+                results.push('Set up UUID default on text id column');
+            } catch (e) {
+                results.push(`Note: Could not set UUID default: ${e.message}`);
+            }
         }
 
         res.json({
