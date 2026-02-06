@@ -1397,6 +1397,9 @@ window.cases = {
         });
     },
     
+    // Store tracking data for recipients (used by detail view)
+    recipientTrackingData: {},
+
     // Fetch status for all recipients in a case
     async fetchRecipientStatus(caseNumber) {
         try {
@@ -1407,7 +1410,7 @@ window.cases = {
             }
 
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-            const response = await fetch(`${backendUrl}/api/server/${walletAddress}/case/${caseNumber}/recipient-status`);
+            const response = await fetch(`${backendUrl}/api/server/${walletAddress}/case/${caseNumber}/recipient-status?detailed=true`);
 
             if (!response.ok) {
                 console.error('Failed to fetch recipient status:', response.status);
@@ -1417,8 +1420,14 @@ window.cases = {
             const data = await response.json();
 
             if (data.success && data.recipients) {
+                // Store tracking data for later use
+                this.recipientTrackingData[caseNumber] = {};
+
                 // Update status badges for each recipient
                 data.recipients.forEach(recipientData => {
+                    // Store tracking data
+                    this.recipientTrackingData[caseNumber][recipientData.recipient] = recipientData;
+
                     const badge = document.querySelector(`.recipient-status[data-recipient="${recipientData.recipient}"]`);
                     if (badge) {
                         // Determine badge color based on status
@@ -1438,19 +1447,31 @@ window.cases = {
 
                         badge.className = `badge ${badgeClass} ms-2 recipient-status`;
                         badge.setAttribute('data-recipient', recipientData.recipient);
+                        badge.setAttribute('data-case', caseNumber);
+                        badge.style.cursor = 'pointer';
                         badge.innerHTML = statusText;
+                        badge.onclick = () => this.showRecipientTrackingDetails(recipientData.recipient, caseNumber);
 
-                        // Add tooltip with details
+                        // Build tooltip with tracking info
+                        let tooltip = [];
                         if (recipientData.viewed_at) {
-                            badge.title = `Viewed: ${new Date(recipientData.viewed_at).toLocaleString()}`;
+                            tooltip.push(`Viewed: ${new Date(recipientData.viewed_at).toLocaleString()}`);
                         }
                         if (recipientData.signed_at) {
-                            badge.title = `Signed: ${new Date(recipientData.signed_at).toLocaleString()}`;
+                            tooltip.push(`Signed: ${new Date(recipientData.signed_at).toLocaleString()}`);
                         }
+                        if (recipientData.tracking?.geolocation?.city) {
+                            tooltip.push(`Location: ${recipientData.tracking.geolocation.city}, ${recipientData.tracking.geolocation.country}`);
+                        }
+                        if (recipientData.tracking?.ip_address) {
+                            tooltip.push(`IP: ${recipientData.tracking.ip_address}`);
+                        }
+                        tooltip.push('Click for details');
+                        badge.title = tooltip.join('\n');
                     }
                 });
 
-                console.log('Updated recipient status:', data.summary);
+                console.log('Updated recipient status with tracking:', data.summary);
             }
 
         } catch (error) {
@@ -1458,33 +1479,243 @@ window.cases = {
         }
     },
 
-    // Check individual recipient activity
+    // Show detailed tracking information for a recipient
+    showRecipientTrackingDetails(recipientAddress, caseNumber) {
+        const trackingData = this.recipientTrackingData[caseNumber]?.[recipientAddress];
+        if (!trackingData) {
+            window.app.showInfo('No tracking data available for this recipient');
+            return;
+        }
+
+        const tracking = trackingData.tracking || {};
+        const geo = tracking.geolocation || {};
+
+        // Build modal HTML
+        const modalHtml = `
+            <div class="modal fade" id="trackingDetailModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-dark text-white">
+                            <h5 class="modal-title"><i class="bi bi-geo-alt"></i> Recipient Tracking Details</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <!-- Recipient Info -->
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0"><i class="bi bi-person"></i> Recipient</h6>
+                                </div>
+                                <div class="card-body">
+                                    <code class="fs-6">${recipientAddress}</code>
+                                    <span class="badge ${trackingData.status === 'Signed For' ? 'bg-success' : trackingData.status === 'Viewed' ? 'bg-info' : 'bg-warning text-dark'} ms-2">
+                                        ${trackingData.status}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Status Timeline -->
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0"><i class="bi bi-clock-history"></i> Status Timeline</h6>
+                                </div>
+                                <div class="card-body">
+                                    <ul class="list-group list-group-flush">
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <span><i class="bi bi-send-check text-success"></i> Delivered</span>
+                                            <span class="text-muted">On blockchain mint</span>
+                                        </li>
+                                        ${trackingData.viewed ? `
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <span><i class="bi bi-eye text-info"></i> Viewed</span>
+                                            <span>${trackingData.viewed_at ? new Date(trackingData.viewed_at).toLocaleString() : 'Yes'}</span>
+                                        </li>
+                                        ` : `
+                                        <li class="list-group-item d-flex justify-content-between text-muted">
+                                            <span><i class="bi bi-eye-slash"></i> Not Yet Viewed</span>
+                                            <span>-</span>
+                                        </li>
+                                        `}
+                                        ${trackingData.signed ? `
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <span><i class="bi bi-pen text-success"></i> Signed For</span>
+                                            <span>${trackingData.signed_at ? new Date(trackingData.signed_at).toLocaleString() : 'Yes'}</span>
+                                        </li>
+                                        ` : `
+                                        <li class="list-group-item d-flex justify-content-between text-muted">
+                                            <span><i class="bi bi-pen"></i> Not Yet Signed</span>
+                                            <span>-</span>
+                                        </li>
+                                        `}
+                                    </ul>
+                                    ${trackingData.view_count > 1 ? `<small class="text-muted mt-2 d-block">Total views: ${trackingData.view_count}</small>` : ''}
+                                </div>
+                            </div>
+
+                            <!-- Geolocation & Connection Info -->
+                            ${tracking.ip_address || geo.city ? `
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0"><i class="bi bi-globe"></i> Connection Information</h6>
+                                </div>
+                                <div class="card-body">
+                                    <table class="table table-sm mb-0">
+                                        ${tracking.ip_address ? `
+                                        <tr>
+                                            <td class="fw-bold" style="width: 120px">IP Address</td>
+                                            <td><code>${tracking.ip_address}</code></td>
+                                        </tr>
+                                        ` : ''}
+                                        ${geo.city ? `
+                                        <tr>
+                                            <td class="fw-bold">City</td>
+                                            <td>${geo.city}${geo.region ? `, ${geo.region}` : ''}</td>
+                                        </tr>
+                                        ` : ''}
+                                        ${geo.country ? `
+                                        <tr>
+                                            <td class="fw-bold">Country</td>
+                                            <td>${geo.country}</td>
+                                        </tr>
+                                        ` : ''}
+                                        ${geo.timezone ? `
+                                        <tr>
+                                            <td class="fw-bold">Timezone</td>
+                                            <td>${geo.timezone}</td>
+                                        </tr>
+                                        ` : ''}
+                                        ${geo.isp ? `
+                                        <tr>
+                                            <td class="fw-bold">ISP</td>
+                                            <td>${geo.isp}</td>
+                                        </tr>
+                                        ` : ''}
+                                        ${tracking.language ? `
+                                        <tr>
+                                            <td class="fw-bold">Language</td>
+                                            <td>${tracking.language}</td>
+                                        </tr>
+                                        ` : ''}
+                                        ${tracking.last_connection ? `
+                                        <tr>
+                                            <td class="fw-bold">Last Connected</td>
+                                            <td>${new Date(tracking.last_connection).toLocaleString()}</td>
+                                        </tr>
+                                        ` : ''}
+                                    </table>
+                                </div>
+                            </div>
+                            ` : `
+                            <div class="alert alert-secondary">
+                                <i class="bi bi-info-circle"></i> No connection tracking data available yet.
+                                Tracking data is recorded when the recipient visits BlockServed.
+                            </div>
+                            `}
+
+                            <!-- Connection History -->
+                            ${tracking.connection_history && tracking.connection_history.length > 0 ? `
+                            <div class="card mb-3">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0"><i class="bi bi-list-ul"></i> Connection History</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                                        <table class="table table-sm table-striped mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Time</th>
+                                                    <th>IP</th>
+                                                    <th>Location</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${tracking.connection_history.map(conn => `
+                                                <tr>
+                                                    <td>${conn.connected_at ? new Date(conn.connected_at).toLocaleString() : '-'}</td>
+                                                    <td><code>${conn.ip_address || '-'}</code></td>
+                                                    <td>${conn.city && conn.country ? `${conn.city}, ${conn.country}` : '-'}</td>
+                                                </tr>
+                                                `).join('')}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            ` : ''}
+
+                            <!-- Browser/Device Info -->
+                            ${tracking.user_agent ? `
+                            <div class="card">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0"><i class="bi bi-laptop"></i> Browser Information</h6>
+                                </div>
+                                <div class="card-body">
+                                    <small class="text-muted text-break">${tracking.user_agent}</small>
+                                </div>
+                            </div>
+                            ` : ''}
+
+                            ${trackingData.signature_tx ? `
+                            <div class="card mt-3">
+                                <div class="card-header bg-success text-white">
+                                    <h6 class="mb-0"><i class="bi bi-patch-check"></i> Blockchain Signature</h6>
+                                </div>
+                                <div class="card-body">
+                                    <p class="mb-2"><strong>Transaction Hash:</strong></p>
+                                    <code class="text-break">${trackingData.signature_tx}</code>
+                                    <a href="https://tronscan.org/#/transaction/${trackingData.signature_tx}" target="_blank" class="btn btn-sm btn-outline-success mt-2">
+                                        <i class="bi bi-box-arrow-up-right"></i> View on TronScan
+                                    </a>
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remove existing modal if any
+        const existingModal = document.getElementById('trackingDetailModal');
+        if (existingModal) existingModal.remove();
+
+        // Add and show modal
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        const modal = new bootstrap.Modal(document.getElementById('trackingDetailModal'));
+        modal.show();
+
+        // Cleanup on close
+        document.getElementById('trackingDetailModal').addEventListener('hidden.bs.modal', function() {
+            this.remove();
+        });
+    },
+
+    // Check individual recipient activity (legacy - now uses tracking details)
     async checkRecipientActivity(recipientAddress, caseNumber) {
+        // First try to show from cached tracking data
+        if (this.recipientTrackingData[caseNumber]?.[recipientAddress]) {
+            this.showRecipientTrackingDetails(recipientAddress, caseNumber);
+            return;
+        }
+
+        // Otherwise fetch and then show
         try {
-            window.app.showProcessing('Checking recipient activity...');
-
-            const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-            const response = await fetch(`${backendUrl}/api/audit/recipient/${recipientAddress}?caseNumber=${caseNumber}`);
-
+            window.app.showProcessing('Fetching recipient tracking data...');
+            await this.fetchRecipientStatus(caseNumber);
             window.app.hideProcessing();
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch recipient activity');
-            }
-
-            const data = await response.json();
-
-            if (data.events.length === 0) {
-                window.app.showInfo(`Recipient ${recipientAddress.substring(0, 8)}... has not viewed their notice yet`);
+            if (this.recipientTrackingData[caseNumber]?.[recipientAddress]) {
+                this.showRecipientTrackingDetails(recipientAddress, caseNumber);
             } else {
-                const lastView = data.events[0];
-                window.app.showSuccess(`Recipient last viewed on ${new Date(lastView.timestamp).toLocaleString()} from IP ${lastView.ipAddress}`);
+                window.app.showInfo(`No tracking data available for recipient ${recipientAddress.substring(0, 8)}...`);
             }
 
         } catch (error) {
             window.app.hideProcessing();
             console.error('Error checking recipient activity:', error);
-            window.app.showError('Failed to check recipient activity');
+            window.app.showError('Failed to fetch recipient tracking data');
         }
     },
     

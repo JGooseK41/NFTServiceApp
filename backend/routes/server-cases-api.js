@@ -523,10 +523,12 @@ router.post('/:walletAddress/link-orphaned', async (req, res) => {
 /**
  * GET /api/server/:walletAddress/case/:caseNumber/recipient-status
  * Get status of all recipients for a specific case (viewed, signed, etc.)
+ * Includes detailed forensic tracking: IP, geolocation, timezone, browser info
  * Server can only check status for their own cases
  */
 router.get('/:walletAddress/case/:caseNumber/recipient-status', async (req, res) => {
     const { walletAddress, caseNumber } = req.params;
+    const { detailed = 'true' } = req.query; // Include detailed tracking by default
 
     console.log(`Fetching recipient status for case ${caseNumber} by server ${walletAddress}`);
 
@@ -558,11 +560,13 @@ router.get('/:walletAddress/case/:caseNumber/recipient-status', async (req, res)
 
         // Get status for each recipient
         const recipientStatuses = await Promise.all(recipients.map(async (recipientAddress) => {
-            // Check document views
+            // Check document views (with IP and metadata)
             const viewResult = await pool.query(`
                 SELECT
                     view_type,
                     viewed_at,
+                    ip_address,
+                    user_agent,
                     metadata
                 FROM document_views
                 WHERE case_number = $1
@@ -570,7 +574,48 @@ router.get('/:walletAddress/case/:caseNumber/recipient-status', async (req, res)
                 ORDER BY viewed_at DESC
             `, [caseNumber, recipientAddress]).catch(() => ({ rows: [] }));
 
-            // Check for signatures/acknowledgments
+            // Check recipient_notice_views for additional view data
+            const noticeViewResult = await pool.query(`
+                SELECT
+                    viewed_at,
+                    action_type,
+                    view_duration_seconds,
+                    ip_address,
+                    user_agent
+                FROM recipient_notice_views
+                WHERE case_number = $1
+                AND wallet_address = $2
+                ORDER BY viewed_at DESC
+            `, [caseNumber, recipientAddress]).catch(() => ({ rows: [] }));
+
+            // Get wallet connection history with geolocation
+            const connectionResult = await pool.query(`
+                SELECT
+                    connected_at,
+                    ip_address,
+                    user_agent,
+                    browser_info
+                FROM recipient_connections
+                WHERE wallet_address = $1
+                ORDER BY connected_at DESC
+                LIMIT 5
+            `, [recipientAddress]).catch(() => ({ rows: [] }));
+
+            // Check for signatures/acknowledgments with device info
+            const acknowledgmentResult = await pool.query(`
+                SELECT
+                    acknowledged_at,
+                    ip_address,
+                    user_agent,
+                    geolocation,
+                    device_info,
+                    signature
+                FROM recipient_acknowledgments
+                WHERE case_number = $1
+                AND wallet_address = $2
+            `, [caseNumber, recipientAddress]).catch(() => ({ rows: [] }));
+
+            // Check case_service_records for acceptance
             const signatureResult = await pool.query(`
                 SELECT
                     accepted,
@@ -595,10 +640,13 @@ router.get('/:walletAddress/case/:caseNumber/recipient-status', async (req, res)
                 AND acceptor_address = $2
             `, [`%${caseNumber}%`, recipientAddress]).catch(() => ({ rows: [] }));
 
-            const hasViewed = viewResult.rows.length > 0;
-            const lastView = viewResult.rows[0];
-            const hasSigned = signatureResult.rows.length > 0 || acceptanceResult.rows.length > 0;
-            const signatureData = acceptanceResult.rows[0] || signatureResult.rows[0];
+            // Combine all views
+            const allViews = [...viewResult.rows, ...noticeViewResult.rows];
+            const hasViewed = allViews.length > 0;
+            const lastView = viewResult.rows[0] || noticeViewResult.rows[0];
+            const hasSigned = signatureResult.rows.length > 0 || acceptanceResult.rows.length > 0 || acknowledgmentResult.rows.length > 0;
+            const signatureData = acknowledgmentResult.rows[0] || acceptanceResult.rows[0] || signatureResult.rows[0];
+            const lastConnection = connectionResult.rows[0];
 
             // Determine status
             let status = 'Delivered';
@@ -608,16 +656,74 @@ router.get('/:walletAddress/case/:caseNumber/recipient-status', async (req, res)
                 status = 'Viewed';
             }
 
-            return {
+            // Extract geolocation from browser_info if available
+            let geolocation = null;
+            if (lastConnection?.browser_info?.ipGeolocation) {
+                geolocation = lastConnection.browser_info.ipGeolocation;
+            } else if (signatureData?.geolocation) {
+                geolocation = signatureData.geolocation;
+            }
+
+            // Extract language from headers
+            let language = null;
+            if (lastConnection?.browser_info?.headers?.acceptLanguage) {
+                language = lastConnection.browser_info.headers.acceptLanguage;
+            }
+
+            // Build response
+            const recipientStatus = {
                 recipient: recipientAddress,
                 status: status,
                 viewed: hasViewed,
                 viewed_at: lastView?.viewed_at || null,
-                view_count: viewResult.rows.length,
+                view_count: allViews.length,
                 signed: hasSigned,
-                signed_at: signatureData?.accepted_at || null,
+                signed_at: signatureData?.accepted_at || signatureData?.acknowledged_at || null,
                 signature_tx: signatureData?.transaction_hash || null
             };
+
+            // Add detailed tracking if requested
+            if (detailed === 'true') {
+                recipientStatus.tracking = {
+                    // Connection info
+                    last_connection: lastConnection?.connected_at || null,
+                    ip_address: lastView?.ip_address || lastConnection?.ip_address || null,
+                    user_agent: lastView?.user_agent || lastConnection?.user_agent || null,
+
+                    // Geolocation from IP
+                    geolocation: geolocation ? {
+                        country: geolocation.country,
+                        region: geolocation.region,
+                        city: geolocation.city,
+                        timezone: geolocation.timezone,
+                        isp: geolocation.isp
+                    } : null,
+
+                    // Browser preferences
+                    language: language,
+
+                    // Device info from signing
+                    device_info: signatureData?.device_info || null,
+
+                    // View history
+                    view_history: viewResult.rows.slice(0, 5).map(v => ({
+                        viewed_at: v.viewed_at,
+                        view_type: v.view_type,
+                        ip_address: v.ip_address
+                    })),
+
+                    // Connection history
+                    connection_history: connectionResult.rows.map(c => ({
+                        connected_at: c.connected_at,
+                        ip_address: c.ip_address,
+                        city: c.browser_info?.ipGeolocation?.city,
+                        country: c.browser_info?.ipGeolocation?.country,
+                        timezone: c.browser_info?.ipGeolocation?.timezone
+                    }))
+                };
+            }
+
+            return recipientStatus;
         }));
 
         // Calculate summary
