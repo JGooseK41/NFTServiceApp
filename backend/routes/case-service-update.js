@@ -146,10 +146,9 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
             }
         }
 
-        // Store service details in a dedicated table
+        // Store service details in a dedicated table (case_number is the key, no need for case_id)
         await client.query(`
             INSERT INTO case_service_records (
-                case_id,
                 case_number,
                 transaction_hash,
                 alert_token_id,
@@ -161,8 +160,8 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
                 served_at,
                 server_address,
                 created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
-            ON CONFLICT (case_number) 
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+            ON CONFLICT (case_number)
             DO UPDATE SET
                 transaction_hash = EXCLUDED.transaction_hash,
                 alert_token_id = EXCLUDED.alert_token_id,
@@ -174,7 +173,6 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
                 served_at = EXCLUDED.served_at,
                 updated_at = NOW()
         `, [
-            caseId,
             caseNumber,
             transactionHash,
             alertTokenId,
