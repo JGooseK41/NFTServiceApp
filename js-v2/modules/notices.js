@@ -224,7 +224,8 @@ window.notices = {
             documentTokenId = toBigIntSafe(documentTokenId);
 
             // Always save service data to backend using the case number from form
-            const caseIdentifier = data.caseNumber || window.app?.currentCaseId;
+            // Trim whitespace to prevent URL encoding issues (e.g., "test 5 " -> "test%205%20")
+            const caseIdentifier = (data.caseNumber || window.app?.currentCaseId || '').trim();
             if (caseIdentifier) {
                 try {
                     // Store alert image for receipt
@@ -235,7 +236,7 @@ window.notices = {
                     console.log(`Saving service data to backend for case: ${caseIdentifier}`);
                     console.log('Recipients:', data.recipients || [data.recipient]);
 
-                    const serviceUpdateResponse = await fetch(`${backendUrl}/api/cases/${caseIdentifier}/service-complete`, {
+                    const serviceUpdateResponse = await fetch(`${backendUrl}/api/cases/${encodeURIComponent(caseIdentifier)}/service-complete`, {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json',
@@ -316,7 +317,8 @@ window.notices = {
                     serverId,
                     thumbnail,
                     encrypted: data.encrypt !== false,
-                    ipfsHash: documentData.ipfsHash
+                    ipfsHash: documentData.ipfsHash,
+                    encryptionKey: documentData.encryptionKey
                 });
             } catch (receiptError) {
                 console.error('Failed to generate receipt:', receiptError);
@@ -329,10 +331,12 @@ window.notices = {
                     caseNumber: data.caseNumber,
                     generatedAt: new Date().toISOString(),
                     verificationUrl: window.getTronScanUrl ? window.getTronScanUrl(txResult.alertTx) : `https://tronscan.org/#/transaction/${txResult.alertTx}`,
-                    accessUrl: `https://blockserved.com/notice/${noticeId}`
+                    accessUrl: `https://blockserved.com/notice/${noticeId}`,
+                    ipfsHash: documentData.ipfsHash,
+                    encryptionKey: documentData.encryptionKey
                 };
             }
-            
+
             // Show success confirmation with receipt
             this.showSuccessConfirmation({
                 success: true,
@@ -344,7 +348,9 @@ window.notices = {
                 caseNumber: data.caseNumber,
                 recipient: data.recipient,
                 thumbnail,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                ipfsHash: documentData.ipfsHash,
+                encryptionKey: documentData.encryptionKey
             });
             
             return {
@@ -865,7 +871,8 @@ window.notices = {
             timestamp: data.timestamp,
             thumbnail: data.thumbnail,
             receipt: data.receipt,
-            ipfsHash: data.receipt?.ipfsHash || null,
+            ipfsHash: data.ipfsHash || data.receipt?.ipfsHash || null,
+            encryptionKey: data.encryptionKey || data.receipt?.encryptionKey || null,
             isLiteContract: isLiteContract
         };
 
@@ -1141,11 +1148,13 @@ window.notices = {
                 window.app.showProcessing('Fetching and stamping document...');
             }
 
-            // Load PDF-lib
+            // Load PDF-lib and CryptoJS (for decryption)
             await this.loadPDFLib();
+            await this.loadCryptoJS();
 
             // Fetch the original document
             let pdfBytes = null;
+            let isEncrypted = false;
 
             // Try IPFS first
             if (data.ipfsHash) {
@@ -1155,7 +1164,8 @@ window.notices = {
                     const response = await fetch(`${ipfsGateway}${data.ipfsHash}`);
                     if (response.ok) {
                         pdfBytes = await response.arrayBuffer();
-                        console.log('Document fetched from IPFS, size:', pdfBytes.byteLength);
+                        isEncrypted = true; // IPFS documents are always encrypted
+                        console.log('Document fetched from IPFS, size:', pdfBytes.byteLength, 'encrypted:', isEncrypted);
                     }
                 } catch (e) {
                     console.log('IPFS fetch failed, trying backend...');
@@ -1169,6 +1179,8 @@ window.notices = {
                     const response = await fetch(`${backendUrl}/api/recipient/document/${data.caseNumber}/view`);
                     if (response.ok) {
                         pdfBytes = await response.arrayBuffer();
+                        // Backend may serve decrypted documents
+                        isEncrypted = false;
                         console.log('Document fetched from backend, size:', pdfBytes.byteLength);
                     }
                 } catch (e) {
@@ -1178,6 +1190,72 @@ window.notices = {
 
             if (!pdfBytes) {
                 throw new Error('Could not fetch original document');
+            }
+
+            // Decrypt if necessary
+            if (isEncrypted && data.encryptionKey) {
+                console.log('Decrypting document with encryption key...');
+                try {
+                    // IPFS stores the encrypted string (Base64 OpenSSL format), not binary
+                    // Convert ArrayBuffer back to string
+                    const uint8Array = new Uint8Array(pdfBytes);
+                    let encryptedString = '';
+                    for (let i = 0; i < uint8Array.length; i++) {
+                        encryptedString += String.fromCharCode(uint8Array[i]);
+                    }
+
+                    console.log('Encrypted string length:', encryptedString.length);
+                    console.log('Encrypted string preview:', encryptedString.substring(0, 50) + '...');
+
+                    // Decrypt using CryptoJS AES (expects Base64 cipher string)
+                    const decrypted = CryptoJS.AES.decrypt(encryptedString, data.encryptionKey);
+
+                    if (!decrypted || decrypted.sigBytes <= 0) {
+                        throw new Error('Decryption produced empty result');
+                    }
+
+                    // Convert WordArray to Uint8Array (raw binary PDF data)
+                    const decryptedWords = decrypted.words;
+                    const sigBytes = decrypted.sigBytes;
+                    const decryptedArray = new Uint8Array(sigBytes);
+
+                    for (let i = 0; i < sigBytes; i++) {
+                        decryptedArray[i] = (decryptedWords[i >>> 2] >>> (24 - (i % 4) * 8)) & 0xff;
+                    }
+
+                    pdfBytes = decryptedArray.buffer;
+                    console.log('Document decrypted, new size:', pdfBytes.byteLength);
+
+                    // Verify PDF header
+                    const pdfHeader = new TextDecoder().decode(decryptedArray.slice(0, 5));
+                    if (pdfHeader !== '%PDF-') {
+                        console.warn('Decrypted content does not appear to be a PDF, header:', pdfHeader);
+                    }
+                } catch (decryptError) {
+                    console.error('Decryption failed:', decryptError);
+                    // Try using documents module's decrypt function as fallback
+                    if (window.documents && window.documents.decryptDocument) {
+                        try {
+                            // The documents module expects the encrypted string, not ArrayBuffer
+                            const uint8Array = new Uint8Array(pdfBytes);
+                            let encryptedString = '';
+                            for (let i = 0; i < uint8Array.length; i++) {
+                                encryptedString += String.fromCharCode(uint8Array[i]);
+                            }
+                            const decryptedBlob = await window.documents.decryptDocument(encryptedString, data.encryptionKey);
+                            pdfBytes = await decryptedBlob.arrayBuffer();
+                            console.log('Document decrypted via documents module, size:', pdfBytes.byteLength);
+                        } catch (fallbackError) {
+                            console.error('Fallback decryption also failed:', fallbackError);
+                            throw new Error('Failed to decrypt document - encryption key may be invalid');
+                        }
+                    } else {
+                        throw new Error('Failed to decrypt document: ' + decryptError.message);
+                    }
+                }
+            } else if (isEncrypted && !data.encryptionKey) {
+                console.warn('Document is encrypted but no encryption key provided');
+                throw new Error('Document is encrypted but no encryption key available');
             }
 
             // Load the PDF

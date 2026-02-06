@@ -22,7 +22,8 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
     const client = await pool.connect();
     
     try {
-        const { caseNumber } = req.params;
+        // Trim case number to prevent issues with trailing whitespace
+        const caseNumber = (req.params.caseNumber || '').trim();
         const {
             transactionHash,
             alertTokenId,
@@ -38,6 +39,13 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
             serverAddress,
             metadata = {}
         } = req.body;
+
+        if (!caseNumber) {
+            return res.status(400).json({
+                success: false,
+                error: 'Case number is required'
+            });
+        }
 
         console.log(`Updating case ${caseNumber} with service data`);
         console.log('Alert Token ID:', alertTokenId);
@@ -238,8 +246,16 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
  */
 router.get('/cases/:caseNumber/service-data', async (req, res) => {
     try {
-        const { caseNumber } = req.params;
-        
+        // Trim case number to prevent issues with trailing whitespace
+        const caseNumber = (req.params.caseNumber || '').trim();
+
+        if (!caseNumber) {
+            return res.status(400).json({
+                success: false,
+                error: 'Case number is required'
+            });
+        }
+
         console.log(`Fetching service data for case ${caseNumber}`);
 
         // Get case data with all service information
