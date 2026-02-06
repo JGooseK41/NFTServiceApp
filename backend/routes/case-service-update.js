@@ -85,18 +85,13 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
         } else {
             caseId = caseCheck.rows[0].id;
             
-            // Update existing case
+            // Update existing case - merge new metadata with existing
             await client.query(`
-                UPDATE cases 
-                SET 
+                UPDATE cases
+                SET
                     status = 'served',
                     updated_at = NOW(),
-                    metadata = jsonb_set(
-                        COALESCE(metadata, '{}'::jsonb),
-                        '{}',
-                        $1::jsonb,
-                        true
-                    )
+                    metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb
                 WHERE id = $2
             `, [
                 JSON.stringify({
@@ -219,10 +214,18 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Error updating case service data:', error);
+        console.error('Error details:', {
+            code: error.code,
+            detail: error.detail,
+            table: error.table,
+            column: error.column,
+            constraint: error.constraint
+        });
         res.status(500).json({
             success: false,
             error: 'Failed to update case service data',
-            message: error.message
+            message: error.message,
+            detail: error.detail || null
         });
     } finally {
         client.release();
