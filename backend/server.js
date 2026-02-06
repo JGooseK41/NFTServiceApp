@@ -118,6 +118,11 @@ app.use(morgan('combined'));
 // Serve uploaded files from both local and mounted disk
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Serve js-v2 frontend
+app.use('/v2', express.static(path.join(__dirname, '..', 'js-v2')));
+// Also serve at root for direct access
+app.use('/app', express.static(path.join(__dirname, '..', 'js-v2')));
+
 // Serve files from mounted Render disk if available
 const DISK_MOUNT_PATH = process.env.DISK_MOUNT_PATH || '/var/data';
 if (require('fs').existsSync(DISK_MOUNT_PATH)) {
