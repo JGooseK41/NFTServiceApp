@@ -998,12 +998,16 @@ window.app = {
             }
             
             // Show energy rental modal directly
+            const isLite = window.contract?.isLiteContract?.() || getCurrentNetwork()?.contractType === 'lite';
+            const minEnergy = isLite ? 350000 : 3000000;
+            const estimatedEnergy = isLite ? 300000 : Math.max(minEnergy, Math.ceil(totalSizeMB * 1400000));
+
             if (window.StreamlinedEnergyFlow) {
                 window.StreamlinedEnergyFlow.showEnergyModal({
                     currentEnergy: energyAvailable,
                     energyDetails: {
-                        total: Math.max(3000000, Math.ceil(totalSizeMB * 1400000)),
-                        estimatedTRXBurn: (Math.max(3000000, Math.ceil(totalSizeMB * 1400000)) * 0.00042).toFixed(2)
+                        total: estimatedEnergy,
+                        estimatedTRXBurn: (estimatedEnergy * 0.00042).toFixed(2)
                     },
                     documentSizeMB: totalSizeMB,
                     onComplete: () => {
@@ -1507,14 +1511,16 @@ window.app = {
             const bandwidthUsed = resources.freeNetUsed + (resources.NetUsed || 0);
             const bandwidthAvailable = bandwidthTotal - bandwidthUsed;
             
-            // Minimum recommended energy (3 million)
-            const MINIMUM_ENERGY = 3000000;
+            // Minimum recommended energy - Lite contract needs ~300K, V5 needs ~3M
+            const isLiteContract = window.contract?.isLiteContract?.() || getCurrentNetwork()?.contractType === 'lite';
+            const MINIMUM_ENERGY = isLiteContract ? 350000 : 3000000; // 350K for Lite, 3M for V5
             const energySufficient = energyAvailable >= MINIMUM_ENERGY;
-            
-            // Calculate estimated document size (rough estimate based on number of files)
-            const documentCount = this.state.fileQueue.length || 0;
-            const estimatedSizeMB = documentCount * 0.5; // Estimate 0.5MB per document
-            const estimatedEnergyNeeded = Math.max(MINIMUM_ENERGY, Math.ceil(estimatedSizeMB * 1400000));
+
+            // Calculate estimated energy based on recipients
+            const recipientCount = document.querySelectorAll('.recipient-input').length || 1;
+            const estimatedEnergyNeeded = isLiteContract
+                ? recipientCount * 300000  // ~300K per serve for Lite
+                : Math.max(MINIMUM_ENERGY, recipientCount * 1500000); // ~1.5M per recipient for V5
             
             // Display resources
             document.getElementById('walletResourcesContent').innerHTML = `
@@ -1629,12 +1635,16 @@ window.app = {
             }
             
             // Show streamlined energy rental
+            const isLiteContract = window.contract?.isLiteContract?.() || getCurrentNetwork()?.contractType === 'lite';
+            const defaultEnergy = isLiteContract ? 350000 : 3000000;
+            const neededEnergy = this.estimatedEnergyNeeded || defaultEnergy;
+
             if (window.StreamlinedEnergyFlow) {
                 window.StreamlinedEnergyFlow.showEnergyModal({
                     currentEnergy: this.currentEnergy || 0,
                     energyDetails: {
-                        total: this.estimatedEnergyNeeded || 3000000,
-                        estimatedTRXBurn: ((this.estimatedEnergyNeeded || 3000000) * 0.00042).toFixed(2)
+                        total: neededEnergy,
+                        estimatedTRXBurn: (neededEnergy * 0.00042).toFixed(2)
                     },
                     documentSizeMB: totalSizeMB,
                     onComplete: () => {
