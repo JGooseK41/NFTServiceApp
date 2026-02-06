@@ -64,6 +64,20 @@ async function ensureTablesExist() {
             )
         `);
 
+        // Ensure there's at least one admin (contract owner)
+        const CONTRACT_OWNER = 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY';
+        await pool.query(`
+            INSERT INTO admin_users (wallet_address, name, role, is_active, permissions)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (wallet_address) DO NOTHING
+        `, [
+            CONTRACT_OWNER,
+            'Contract Owner',
+            'super_admin',
+            true,
+            JSON.stringify({ manage_admins: true, view_all_data: true, modify_settings: true, sync_blockchain: true })
+        ]);
+
         console.log('✅ Essential database tables verified');
     } catch (error) {
         console.error('Warning: Could not verify database tables:', error.message);
