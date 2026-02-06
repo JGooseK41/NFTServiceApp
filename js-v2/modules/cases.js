@@ -1033,20 +1033,26 @@ window.cases = {
                                 </div>
                             </div>
                             
-                            <!-- Recipients List -->
+                            <!-- Recipients List with Status -->
                             <div class="card mb-3">
-                                <div class="card-header">
+                                <div class="card-header d-flex justify-content-between align-items-center">
                                     <h6 class="mb-0"><i class="bi bi-people"></i> Recipients (${recipients.length})</h6>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="cases.fetchRecipientStatus('${caseNumber}')" title="Refresh status for all recipients">
+                                        <i class="bi bi-arrow-clockwise"></i> Refresh Status
+                                    </button>
                                 </div>
                                 <div class="card-body">
-                                    <div class="list-group">
+                                    <div class="list-group" id="recipientsStatusList">
                                         ${recipients.map((r, i) => `
-                                            <div class="list-group-item d-flex justify-content-between align-items-center">
-                                                <code>${r}</code>
-                                                <button class="btn btn-sm btn-outline-dark" 
+                                            <div class="list-group-item d-flex justify-content-between align-items-center" data-recipient="${r}">
+                                                <div>
+                                                    <code>${r}</code>
+                                                    <span class="badge bg-secondary ms-2 recipient-status" data-recipient="${r}">Checking...</span>
+                                                </div>
+                                                <button class="btn btn-sm btn-outline-dark"
                                                         onclick="cases.checkRecipientActivity('${r}', '${caseNumber}')"
-                                                        title="Check if this recipient viewed their notice">
-                                                    <i class="bi bi-search"></i> Check Activity
+                                                        title="Check detailed activity">
+                                                    <i class="bi bi-search"></i>
                                                 </button>
                                             </div>
                                         `).join('')}
@@ -1230,11 +1236,16 @@ window.cases = {
         
         // Add modal to page
         document.body.insertAdjacentHTML('beforeend', modalHtml);
-        
+
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('receiptModal'));
         modal.show();
-        
+
+        // Fetch recipient status after modal is shown
+        setTimeout(() => {
+            this.fetchRecipientStatus(caseNumber);
+        }, 100);
+
         // Clean up on close
         document.getElementById('receiptModal').addEventListener('hidden.bs.modal', function() {
             this.remove();
@@ -1242,7 +1253,7 @@ window.cases = {
             if (styles) styles.remove();
         });
     },
-    
+
     // View audit log for a case
     async viewAuditLog(caseId) {
         try {
@@ -1386,29 +1397,90 @@ window.cases = {
         });
     },
     
+    // Fetch status for all recipients in a case
+    async fetchRecipientStatus(caseNumber) {
+        try {
+            const walletAddress = window.wallet?.address;
+            if (!walletAddress) {
+                console.log('No wallet connected, cannot fetch recipient status');
+                return;
+            }
+
+            const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+            const response = await fetch(`${backendUrl}/api/server/${walletAddress}/case/${caseNumber}/recipient-status`);
+
+            if (!response.ok) {
+                console.error('Failed to fetch recipient status:', response.status);
+                return;
+            }
+
+            const data = await response.json();
+
+            if (data.success && data.recipients) {
+                // Update status badges for each recipient
+                data.recipients.forEach(recipientData => {
+                    const badge = document.querySelector(`.recipient-status[data-recipient="${recipientData.recipient}"]`);
+                    if (badge) {
+                        // Determine badge color based on status
+                        let badgeClass = 'bg-secondary';
+                        let statusText = recipientData.status;
+
+                        if (recipientData.status === 'Signed For') {
+                            badgeClass = 'bg-success';
+                            statusText = '✓ Signed For';
+                        } else if (recipientData.status === 'Viewed') {
+                            badgeClass = 'bg-info';
+                            statusText = '👁 Viewed';
+                        } else {
+                            badgeClass = 'bg-warning text-dark';
+                            statusText = '📬 Delivered';
+                        }
+
+                        badge.className = `badge ${badgeClass} ms-2 recipient-status`;
+                        badge.setAttribute('data-recipient', recipientData.recipient);
+                        badge.innerHTML = statusText;
+
+                        // Add tooltip with details
+                        if (recipientData.viewed_at) {
+                            badge.title = `Viewed: ${new Date(recipientData.viewed_at).toLocaleString()}`;
+                        }
+                        if (recipientData.signed_at) {
+                            badge.title = `Signed: ${new Date(recipientData.signed_at).toLocaleString()}`;
+                        }
+                    }
+                });
+
+                console.log('Updated recipient status:', data.summary);
+            }
+
+        } catch (error) {
+            console.error('Error fetching recipient status:', error);
+        }
+    },
+
     // Check individual recipient activity
     async checkRecipientActivity(recipientAddress, caseNumber) {
         try {
             window.app.showProcessing('Checking recipient activity...');
-            
+
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
             const response = await fetch(`${backendUrl}/api/audit/recipient/${recipientAddress}?caseNumber=${caseNumber}`);
-            
+
             window.app.hideProcessing();
-            
+
             if (!response.ok) {
                 throw new Error('Failed to fetch recipient activity');
             }
-            
+
             const data = await response.json();
-            
+
             if (data.events.length === 0) {
                 window.app.showInfo(`Recipient ${recipientAddress.substring(0, 8)}... has not viewed their notice yet`);
             } else {
                 const lastView = data.events[0];
                 window.app.showSuccess(`Recipient last viewed on ${new Date(lastView.timestamp).toLocaleString()} from IP ${lastView.ipAddress}`);
             }
-            
+
         } catch (error) {
             window.app.hideProcessing();
             console.error('Error checking recipient activity:', error);
