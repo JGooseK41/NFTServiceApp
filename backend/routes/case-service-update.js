@@ -441,6 +441,28 @@ async function createTables() {
 createTables();
 
 /**
+ * GET /api/cases/query-record/:caseNumber
+ * Query a specific record from case_service_records
+ */
+router.get('/cases/query-record/:caseNumber', async (req, res) => {
+    try {
+        const { caseNumber } = req.params;
+        const result = await pool.query(
+            `SELECT * FROM case_service_records WHERE case_number = $1`,
+            [caseNumber]
+        );
+        res.json({
+            success: true,
+            found: result.rows.length > 0,
+            record: result.rows[0] || null,
+            allRecordsCount: (await pool.query('SELECT COUNT(*) FROM case_service_records')).rows[0].count
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
  * GET /api/cases/check-schema
  * Check the actual database schema for BOTH tables
  */
