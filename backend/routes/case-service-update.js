@@ -185,18 +185,23 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
             serverAddress || req.headers['x-server-address']
         ]);
 
-        // Update notice_components if they exist
+        // Update notice_components if they exist (optional - may not exist in all deployments)
         if (alertTokenId || documentTokenId) {
-            await client.query(`
-                UPDATE notice_components
-                SET 
-                    alert_token_id = COALESCE($1, alert_token_id),
-                    document_token_id = COALESCE($2, document_token_id),
-                    transaction_hash = COALESCE($3, transaction_hash),
-                    status = 'served',
-                    updated_at = NOW()
-                WHERE case_number = $4
-            `, [alertTokenId, documentTokenId, transactionHash, caseNumber]);
+            try {
+                await client.query(`
+                    UPDATE notice_components
+                    SET
+                        alert_token_id = COALESCE($1, alert_token_id),
+                        document_token_id = COALESCE($2, document_token_id),
+                        transaction_hash = COALESCE($3, transaction_hash),
+                        status = 'served',
+                        updated_at = NOW()
+                    WHERE case_number = $4
+                `, [alertTokenId, documentTokenId, transactionHash, caseNumber]);
+            } catch (e) {
+                // Table may not exist or have these columns - that's OK
+                console.log('Note: notice_components update skipped:', e.message);
+            }
         }
 
         await client.query('COMMIT');
