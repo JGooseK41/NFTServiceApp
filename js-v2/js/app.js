@@ -140,13 +140,8 @@ window.app = {
                     this.state.tronWeb = window.wallet.tronWeb;
                     
                     // Update UI
-                    document.getElementById('connectWallet').style.display = 'none';
-                    const addressElement = document.getElementById('walletAddress');
-                    if (addressElement) {
-                        addressElement.textContent = this.formatAddress(this.state.userAddress);
-                        addressElement.style.display = 'inline';
-                    }
-                    
+                    this.updateWalletUI(this.state.userAddress);
+
                     // Initialize contract with wallet
                     if (window.contract) {
                         await window.contract.initialize(this.state.tronWeb);
@@ -185,13 +180,8 @@ window.app = {
                 window.wallet.connected = true;
                 
                 // Update UI
-                document.getElementById('connectWallet').style.display = 'none';
-                const addressElement = document.getElementById('walletAddress');
-                if (addressElement) {
-                    addressElement.textContent = this.formatAddress(this.state.userAddress);
-                    addressElement.style.display = 'inline';
-                }
-                
+                this.updateWalletUI(this.state.userAddress);
+
                 // Initialize contract
                 if (window.contract) {
                     await window.contract.initialize(window.tronWeb);
@@ -472,6 +462,47 @@ window.app = {
         if (!address) return '';
         return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
     },
+
+    // Update wallet UI after connection
+    updateWalletUI(address) {
+        document.getElementById('connectWallet').style.display = 'none';
+
+        const dropdown = document.getElementById('walletDropdown');
+        const addressElement = document.getElementById('walletAddress');
+        const fullAddressElement = document.getElementById('walletFullAddress');
+
+        if (dropdown) {
+            dropdown.style.display = 'block';
+        }
+        if (addressElement) {
+            addressElement.textContent = this.formatAddress(address);
+        }
+        if (fullAddressElement) {
+            fullAddressElement.textContent = address;
+        }
+    },
+
+    // Disconnect wallet
+    disconnectWallet() {
+        // Reset app state
+        this.state.walletConnected = false;
+        this.state.userAddress = null;
+        this.state.tronWeb = null;
+        this.state.contract = null;
+
+        // Call wallet module disconnect
+        if (window.wallet) {
+            window.wallet.disconnect();
+        }
+
+        // Note: wallet.disconnect() reloads the page, so the UI reset below
+        // is just a fallback in case that doesn't happen
+        document.getElementById('connectWallet').style.display = 'block';
+        const dropdown = document.getElementById('walletDropdown');
+        if (dropdown) {
+            dropdown.style.display = 'none';
+        }
+    },
     
     // Format TRX amount
     formatTRX(amount) {
@@ -482,13 +513,10 @@ window.app = {
     handleAccountChange(newAddress) {
         console.log('Account changed to:', newAddress);
         this.state.userAddress = newAddress;
-        
+
         // Update UI
-        const addressElement = document.getElementById('walletAddress');
-        if (addressElement) {
-            addressElement.textContent = this.formatAddress(newAddress);
-        }
-        
+        this.updateWalletUI(newAddress);
+
         // Reload page data
         this.loadPageData(this.state.currentPage);
     }
