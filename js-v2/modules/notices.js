@@ -1294,8 +1294,8 @@ window.notices = {
                     opacity: 0.9
                 });
 
-                // "SERVED BY BLOCKSERVED" text
-                page.drawText('SERVED BY BLOCKSERVED', {
+                // "SERVED VIA WWW.BLOCKSERVED.COM" text
+                page.drawText('SERVED VIA WWW.BLOCKSERVED.COM', {
                     x: stampX + 10,
                     y: stampY + 45,
                     size: 10,
@@ -1322,7 +1322,7 @@ window.notices = {
                 });
 
                 // Verification URL
-                page.drawText('Verify: blockserved.com', {
+                page.drawText('www.blockserved.com', {
                     x: stampX + 10,
                     y: stampY + 8,
                     size: 6,

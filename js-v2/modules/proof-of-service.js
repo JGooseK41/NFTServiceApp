@@ -205,17 +205,23 @@ window.proofOfService = {
                 <div class="blockchain-info">
                     <h2>Blockchain Verification</h2>
                     <div class="field">
+                        <span class="label">Network:</span>
+                        <span class="value">${window.AppConfig?.network?.current === 'nile' ? 'TRON Nile Testnet' : 'TRON Mainnet'}</span>
+                    </div>
+                    <div class="field">
                         <span class="label">Transaction Hash:</span>
                     </div>
                     <div class="tx-hash">
+                        ${receipt.transactionHash ? `
                         <a href="${this.getTronScanUrl(receipt.transactionHash)}" target="_blank" style="color: #0066cc; text-decoration: none;">
                             ${receipt.transactionHash}
                         </a>
+                        ` : 'Not available - service data may not be synced'}
                     </div>
 
                     <div class="field">
                         <span class="label">NFT Token ID:</span>
-                        <span class="value">#${receipt.alertTokenId || 'N/A'}</span>
+                        <span class="value">${receipt.alertTokenId ? '#' + receipt.alertTokenId : 'N/A'}</span>
                     </div>
                     <div class="field">
                         <span class="label">Server Wallet Address:</span>
@@ -224,9 +230,11 @@ window.proofOfService = {
                     <div class="field">
                         <span class="label">Verify on TronScan:</span>
                         <span class="value">
+                            ${receipt.transactionHash ? `
                             <a href="${this.getTronScanUrl(receipt.transactionHash)}" target="_blank" style="color: #0066cc;">
                                 Click to verify transaction
                             </a>
+                            ` : 'Transaction data not available'}
                         </span>
                     </div>
                 </div>
@@ -273,15 +281,22 @@ VERIFICATION: This NFT serves as permanent proof on the blockchain that you rece
                             </tr>
                         </thead>
                         <tbody>
-                            ${receipt.recipients.map((r, i) => `
+                            ${(receipt.recipients || []).map((r, i) => `
                                 <tr>
                                     <td style="font-family: monospace; font-size: 11px;">
-                                        ${typeof r === 'string' ? r : r.address}
+                                        ${typeof r === 'string' ? r : (r.address || 'N/A')}
                                     </td>
-                                    <td>#${parseInt(receipt.alertTokenId) + (i * 2)}</td>
+                                    <td>${receipt.alertTokenId ? '#' + (parseInt(receipt.alertTokenId) + (i * 2)) : 'N/A'}</td>
                                     <td>Delivered</td>
                                 </tr>
                             `).join('')}
+                            ${(!receipt.recipients || receipt.recipients.length === 0) ? `
+                                <tr>
+                                    <td colspan="3" style="text-align: center; color: #666;">
+                                        No recipient data available
+                                    </td>
+                                </tr>
+                            ` : ''}
                         </tbody>
                     </table>
                 </div>
@@ -289,8 +304,9 @@ VERIFICATION: This NFT serves as permanent proof on the blockchain that you rece
                 <div class="verification-section">
                     <h2>How to Verify This Service</h2>
                     <ol>
+                        ${receipt.transactionHash ? `
                         <li>
-                            <strong>Click to Verify Transaction:</strong><br>
+                            <strong>Verify on TronScan:</strong><br>
                             <a href="${this.getTronScanUrl(receipt.transactionHash)}" target="_blank" style="color: #0066cc;">
                                 ${this.getTronScanUrl(receipt.transactionHash)}
                             </a>
@@ -301,6 +317,14 @@ VERIFICATION: This NFT serves as permanent proof on the blockchain that you rece
                                 ${receipt.transactionHash}
                             </div>
                         </li>
+                        ` : `
+                        <li>
+                            <strong>Transaction Details:</strong><br>
+                            <div style="background: #fff; padding: 8px; margin: 10px 0; border: 1px solid #ccc;">
+                                Transaction data not yet synced. Please try again later.
+                            </div>
+                        </li>
+                        `}
                         <li>
                             <strong>Verify Recipients:</strong><br>
                             Check that the recipient addresses match those listed above
@@ -319,16 +343,16 @@ VERIFICATION: This NFT serves as permanent proof on the blockchain that you rece
                 <div class="seal">
                     *** OFFICIAL BLOCKCHAIN SERVICE ***<br>
                     This document certifies that legal notice was properly served<br>
-                    via blockchain technology on the TRON network
+                    via blockchain technology on the ${window.AppConfig?.network?.current === 'nile' ? 'TRON Nile Testnet' : 'TRON Mainnet'}
                 </div>
                 
                 <div class="signature-section">
                     <h2>Server Affirmation</h2>
                     <p>
-                        I hereby affirm under penalty of perjury that on <strong>${new Date(receipt.servedAt).toLocaleDateString()}</strong>,
+                        I hereby affirm under penalty of perjury that on <strong>${receipt.servedAt ? new Date(receipt.servedAt).toLocaleDateString() : 'the date recorded'}</strong>,
                         I served the legal documents described above to the listed recipient addresses via blockchain technology
-                        using the wallet address <strong>${receipt.serverAddress}</strong> as recorded in transaction
-                        <strong>${receipt.transactionHash.substring(0, 20)}...</strong> on the TRON blockchain network.
+                        using the wallet address <strong>${receipt.serverAddress || 'on record'}</strong>${receipt.transactionHash ? ` as recorded in transaction
+                        <strong>${receipt.transactionHash.substring(0, 20)}...</strong>` : ''} on the TRON blockchain network.
                     </p>
                     
                     <div style="margin-top: 40px;">
