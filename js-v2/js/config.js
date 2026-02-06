@@ -5,14 +5,16 @@ window.AppConfig = {
         mainnet: {
             fullHost: 'https://api.trongrid.io',
             contractAddress: 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN', // v5 Enumerable contract
-            chainId: '0x2b6653dc'
+            chainId: '0x2b6653dc',
+            contractType: 'v5' // Uses v5 Enumerable contract
         },
         nile: {
             fullHost: 'https://nile.trongrid.io',
-            contractAddress: '', // Add if you have testnet contract
-            chainId: '0x8dd8f8'
+            contractAddress: 'TUM1cojG7vdtph81H2Dy2VyRqoa1v9FywW', // Lite contract on Nile testnet
+            chainId: '0x8dd8f8',
+            contractType: 'lite' // Uses Lite contract
         },
-        current: 'mainnet' // Change to 'nile' for testnet
+        current: 'nile' // Change to 'mainnet' for production
     },
     
     // Backend Configuration
@@ -53,10 +55,17 @@ window.AppConfig = {
         
         // Energy estimates
         energyEstimates: {
+            // V5 contract
             createAlert: 65000,
             createDocument: 75000,
             updateFee: 30000,
-            grantRole: 40000
+            grantRole: 40000,
+            // Lite contract
+            serveNotice: 280000,      // ~280K energy for Lite serve
+            serveNoticeBatch: 280000, // Per notice in batch
+            acknowledgeNotice: 30000, // ~28K for acknowledge
+            setServer: 50000,
+            setFee: 30000
         },
         
         // Role definitions

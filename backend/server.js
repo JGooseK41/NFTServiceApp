@@ -11,9 +11,15 @@ require('dotenv').config();
 const setupPDFTools = require('./setup-pdf-tools');
 setupPDFTools().catch(console.error);
 
-// Setup thumbnail service
-const { router: thumbnailRouter, initializeThumbnailService } = require('./thumbnail-service');
-initializeThumbnailService().catch(console.error);
+// Setup thumbnail service (optional - requires canvas module)
+let thumbnailRouter = null;
+try {
+    const thumbnailService = require('./thumbnail-service');
+    thumbnailRouter = thumbnailService.router;
+    thumbnailService.initializeThumbnailService().catch(console.error);
+} catch (err) {
+    console.warn('Thumbnail service not available (canvas module not installed):', err.message);
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -890,9 +896,11 @@ app.get('/api/wallets/:walletAddress/connections', async (req, res) => {
 const documentsUnifiedRouter = require('./routes/documents-unified');
 app.use('/api/documents', documentsUnifiedRouter);
 
-// Thumbnail Service
-app.use('/api/thumbnail', thumbnailRouter);
-app.use('/api/thumbnails', thumbnailRouter); // Alternative path
+// Thumbnail Service (only if canvas module available)
+if (thumbnailRouter) {
+    app.use('/api/thumbnail', thumbnailRouter);
+    app.use('/api/thumbnails', thumbnailRouter); // Alternative path
+}
 
 // Thumbnail Upload (for storing exact preview images)
 const thumbnailUploadRouter = require('./thumbnail-upload');
@@ -1445,9 +1453,13 @@ app.get('/api/health', (req, res) => {
 });
 
 // Case Management with Render Disk Storage
-const caseApiRoutes = require('./case-api-routes');
-app.use('/api', caseApiRoutes);
-console.log('✅ Case Management API routes loaded');
+try {
+    const caseApiRoutes = require('./case-api-routes');
+    app.use('/api', caseApiRoutes);
+    console.log('✅ Case Management API routes loaded');
+} catch (err) {
+    console.warn('⚠️ Case Management API not loaded (sharp/canvas not available):', err.message);
+}
 
 // Mobile Document Viewer API Endpoints
 app.post('/api/documents/view/:noticeId', async (req, res) => {

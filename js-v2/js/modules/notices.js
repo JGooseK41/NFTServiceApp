@@ -100,8 +100,8 @@ window.notices = {
                 
             } else {
                 // Single recipient - use regular method
-                console.log('Creating notices for single recipient...');
-                
+                console.log('Creating notice for single recipient...');
+
                 const nftData = {
                     noticeId,
                     recipient: data.recipients[0],
@@ -118,21 +118,29 @@ window.notices = {
                     legalRights: 'You have the right to respond to this legal notice within the specified timeframe',
                     sponsorFees: false
                 };
-                
-                // Create Alert NFT
+
+                // Create Alert NFT (Lite contract only creates one NFT)
                 const alertResult = await window.contract.createAlertNFT(nftData);
-                
-                // Create Document NFT
-                const documentResult = await window.contract.createDocumentNFT({
-                    ...nftData,
-                    legalRights: 'This document requires your signature. Please review and sign by the deadline.'
-                });
-                
-                txResults.push({
-                    alertTx: alertResult.txId,
-                    documentTx: documentResult.txId,
-                    success: alertResult.success && documentResult.success
-                });
+
+                // For Lite contract, we only create Alert NFT (no Document NFT)
+                if (window.contract.isLiteContract()) {
+                    txResults.push({
+                        alertTx: alertResult.txId,
+                        success: alertResult.success
+                    });
+                } else {
+                    // V5 contract - also create Document NFT
+                    const documentResult = await window.contract.createDocumentNFT({
+                        ...nftData,
+                        legalRights: 'This document requires your signature. Please review and sign by the deadline.'
+                    });
+
+                    txResults.push({
+                        alertTx: alertResult.txId,
+                        documentTx: documentResult.txId,
+                        success: alertResult.success && documentResult.success
+                    });
+                }
             }
             
             const txResult = txResults[0]; // For now, use first result

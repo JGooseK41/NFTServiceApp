@@ -1,0 +1,9 @@
+{
+  "network": "nile",
+  "contractAddress": "TUM1cojG7vdtph81H2Dy2VyRqoa1v9FywW",
+  "txHash": "fd78d97de224488111569059b337e400ca66983d56c2c742dcca9e5b5f8eab44",
+  "deployer": "TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY",
+  "serviceFee": 10000000,
+  "energyUsed": 4435371,
+  "deployedAt": "2026-02-06T00:29:04.703Z"
+}
