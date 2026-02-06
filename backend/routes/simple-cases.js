@@ -62,8 +62,8 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
             UNION ALL
             
             -- Get draft cases from cases table that aren't in served_notices
-            SELECT 
-                c.id as case_number,
+            SELECT
+                c.id::text as case_number,
                 c.server_address,
                 NULL as recipient_address,
                 NULL as recipient_name,

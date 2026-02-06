@@ -49,8 +49,9 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
         await client.query('BEGIN');
 
         // First, check if we have a cases table entry
+        // Use case_number (text) or id::text for comparison since caseNumber is a string
         const caseCheck = await client.query(
-            'SELECT id FROM cases WHERE case_number = $1 OR id = $1',
+            'SELECT id FROM cases WHERE case_number = $1 OR id::text = $1',
             [caseNumber]
         );
 
@@ -117,18 +118,29 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
 
         // Store alert image if provided
         if (alertImage) {
-            // Check if notice_images table exists and store the alert image
-            await client.query(`
-                INSERT INTO notice_images (
-                    case_number,
-                    alert_image,
-                    created_at
-                ) VALUES ($1, $2, NOW())
-                ON CONFLICT (case_number) 
-                DO UPDATE SET 
-                    alert_image = EXCLUDED.alert_image,
-                    created_at = NOW()
-            `, [caseNumber, alertImage]);
+            // Try to store in notice_images table (may not exist in all deployments)
+            try {
+                await client.query(`
+                    INSERT INTO notice_images (
+                        case_number,
+                        alert_image,
+                        created_at
+                    ) VALUES ($1, $2, NOW())
+                    ON CONFLICT (case_number)
+                    DO UPDATE SET
+                        alert_image = EXCLUDED.alert_image,
+                        created_at = NOW()
+                `, [caseNumber, alertImage]);
+            } catch (imageError) {
+                // Table might not exist - store in cases metadata instead
+                console.log('notice_images table not available, storing in metadata');
+                await client.query(`
+                    UPDATE cases
+                    SET alert_preview = $1,
+                        updated_at = NOW()
+                    WHERE case_number = $2 OR id::text = $2
+                `, [alertImage, caseNumber]);
+            }
         }
 
         // Store service details in a dedicated table
