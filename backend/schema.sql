@@ -88,6 +88,33 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Admin users table
+CREATE TABLE IF NOT EXISTS admin_users (
+    id SERIAL PRIMARY KEY,
+    wallet_address VARCHAR(100) UNIQUE NOT NULL,
+    name VARCHAR(255),
+    role VARCHAR(50) DEFAULT 'admin',
+    is_active BOOLEAN DEFAULT true,
+    is_blockchain_synced BOOLEAN DEFAULT false,
+    permissions JSONB DEFAULT '{}',
+    added_by VARCHAR(100),
+    last_sync_at TIMESTAMP,
+    last_login_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Admin access logs table
+CREATE TABLE IF NOT EXISTS admin_access_logs (
+    id SERIAL PRIMARY KEY,
+    admin_wallet VARCHAR(100) NOT NULL,
+    action VARCHAR(50) NOT NULL,
+    details JSONB,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Wallet connection tracking table
 CREATE TABLE IF NOT EXISTS wallet_connections (
     id SERIAL PRIMARY KEY,
@@ -129,6 +156,15 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_wallet_connections_address ON wallet_connections(LOWER(wallet_address));
 CREATE INDEX IF NOT EXISTS idx_wallet_connections_event ON wallet_connections(event_type);
 CREATE INDEX IF NOT EXISTS idx_wallet_connections_timestamp ON wallet_connections(connected_at);
+
+-- Indexes for admin_users table
+CREATE INDEX IF NOT EXISTS idx_admin_users_wallet ON admin_users(wallet_address);
+CREATE INDEX IF NOT EXISTS idx_admin_users_role ON admin_users(role);
+
+-- Indexes for admin_access_logs table
+CREATE INDEX IF NOT EXISTS idx_admin_access_logs_wallet ON admin_access_logs(admin_wallet);
+CREATE INDEX IF NOT EXISTS idx_admin_access_logs_action ON admin_access_logs(action);
+CREATE INDEX IF NOT EXISTS idx_admin_access_logs_created ON admin_access_logs(created_at DESC);
 
 -- Trigger to update the updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()

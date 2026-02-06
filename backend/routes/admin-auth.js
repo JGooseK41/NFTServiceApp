@@ -35,14 +35,19 @@ const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || 'TNaps6xxSCuCvjxDyM2M5r
 router.get('/check/:walletAddress', async (req, res) => {
     try {
         const { walletAddress } = req.params;
-        
-        // Log the check attempt
+
+        // Log the check attempt (non-blocking, ignore errors if table doesn't exist)
         const ipAddress = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'];
-        await pool.query(`
-            INSERT INTO admin_access_logs (admin_wallet, action, ip_address, user_agent)
-            VALUES ($1, $2, $3, $4)
-        `, [walletAddress, 'admin_check', ipAddress, req.headers['user-agent']]);
-        
+        try {
+            await pool.query(`
+                INSERT INTO admin_access_logs (admin_wallet, action, ip_address, user_agent)
+                VALUES ($1, $2, $3, $4)
+            `, [walletAddress, 'admin_check', ipAddress, req.headers['user-agent']]);
+        } catch (logError) {
+            // Silently ignore if logging table doesn't exist
+            console.log('Admin access logging skipped:', logError.message);
+        }
+
         // Check if wallet is in admin table
         const result = await pool.query(`
             SELECT 
@@ -74,18 +79,22 @@ router.get('/check/:walletAddress', async (req, res) => {
             WHERE wallet_address = $1
         `, [walletAddress]);
         
-        // Log successful admin access
-        await pool.query(`
-            INSERT INTO admin_access_logs (admin_wallet, action, details, ip_address, user_agent)
-            VALUES ($1, $2, $3, $4, $5)
-        `, [
-            walletAddress, 
-            'admin_login', 
-            JSON.stringify({ role: admin.role }),
-            ipAddress,
-            req.headers['user-agent']
-        ]);
-        
+        // Log successful admin access (non-blocking)
+        try {
+            await pool.query(`
+                INSERT INTO admin_access_logs (admin_wallet, action, details, ip_address, user_agent)
+                VALUES ($1, $2, $3, $4, $5)
+            `, [
+                walletAddress,
+                'admin_login',
+                JSON.stringify({ role: admin.role }),
+                ipAddress,
+                req.headers['user-agent']
+            ]);
+        } catch (logError) {
+            console.log('Admin login logging skipped:', logError.message);
+        }
+
         res.json({
             success: true,
             isAdmin: true,
@@ -207,16 +216,20 @@ router.post('/add', async (req, res) => {
                 updated_at = CURRENT_TIMESTAMP
         `, [walletAddress, name, role, JSON.stringify(permissions), adminWallet]);
         
-        // Log the action
-        await pool.query(`
-            INSERT INTO admin_access_logs (admin_wallet, action, details)
-            VALUES ($1, $2, $3)
-        `, [
-            adminWallet,
-            'add_admin',
-            JSON.stringify({ newAdmin: walletAddress, role })
-        ]);
-        
+        // Log the action (non-blocking)
+        try {
+            await pool.query(`
+                INSERT INTO admin_access_logs (admin_wallet, action, details)
+                VALUES ($1, $2, $3)
+            `, [
+                adminWallet,
+                'add_admin',
+                JSON.stringify({ newAdmin: walletAddress, role })
+            ]);
+        } catch (logError) {
+            console.log('Admin action logging skipped:', logError.message);
+        }
+
         res.json({
             success: true,
             message: 'Admin added successfully'
@@ -268,16 +281,20 @@ router.post('/remove', async (req, res) => {
             WHERE wallet_address = $1
         `, [walletAddress]);
         
-        // Log the action
-        await pool.query(`
-            INSERT INTO admin_access_logs (admin_wallet, action, details)
-            VALUES ($1, $2, $3)
-        `, [
-            adminWallet,
-            'remove_admin',
-            JSON.stringify({ removedAdmin: walletAddress })
-        ]);
-        
+        // Log the action (non-blocking)
+        try {
+            await pool.query(`
+                INSERT INTO admin_access_logs (admin_wallet, action, details)
+                VALUES ($1, $2, $3)
+            `, [
+                adminWallet,
+                'remove_admin',
+                JSON.stringify({ removedAdmin: walletAddress })
+            ]);
+        } catch (logError) {
+            console.log('Admin action logging skipped:', logError.message);
+        }
+
         res.json({
             success: true,
             message: 'Admin removed successfully'
@@ -372,16 +389,20 @@ router.post('/sync-blockchain', async (req, res) => {
             ]);
         }
         
-        // Log the sync
-        await pool.query(`
-            INSERT INTO admin_access_logs (admin_wallet, action, details)
-            VALUES ($1, $2, $3)
-        `, [
-            adminWallet,
-            'blockchain_sync',
-            JSON.stringify({ contractOwner })
-        ]);
-        
+        // Log the sync (non-blocking)
+        try {
+            await pool.query(`
+                INSERT INTO admin_access_logs (admin_wallet, action, details)
+                VALUES ($1, $2, $3)
+            `, [
+                adminWallet,
+                'blockchain_sync',
+                JSON.stringify({ contractOwner })
+            ]);
+        } catch (logError) {
+            console.log('Blockchain sync logging skipped:', logError.message);
+        }
+
         res.json({
             success: true,
             message: 'Blockchain sync completed',
@@ -420,22 +441,31 @@ router.get('/activity', async (req, res) => {
         }
         
         // Get activity logs
-        const result = await pool.query(`
-            SELECT 
-                admin_wallet,
-                action,
-                details,
-                ip_address,
-                created_at
-            FROM admin_access_logs
-            ORDER BY created_at DESC
-            LIMIT $1
-        `, [limit]);
-        
-        res.json({
-            success: true,
-            activities: result.rows
-        });
+        try {
+            const result = await pool.query(`
+                SELECT
+                    admin_wallet,
+                    action,
+                    details,
+                    ip_address,
+                    created_at
+                FROM admin_access_logs
+                ORDER BY created_at DESC
+                LIMIT $1
+            `, [limit]);
+
+            res.json({
+                success: true,
+                activities: result.rows
+            });
+        } catch (tableError) {
+            // Table doesn't exist yet
+            res.json({
+                success: true,
+                activities: [],
+                message: 'Activity logging not yet configured'
+            });
+        }
         
     } catch (error) {
         console.error('Error fetching activity:', error);

@@ -30,6 +30,49 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
+// Ensure essential tables exist at startup
+async function ensureTablesExist() {
+    try {
+        // Admin users table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS admin_users (
+                id SERIAL PRIMARY KEY,
+                wallet_address VARCHAR(100) UNIQUE NOT NULL,
+                name VARCHAR(255),
+                role VARCHAR(50) DEFAULT 'admin',
+                is_active BOOLEAN DEFAULT true,
+                is_blockchain_synced BOOLEAN DEFAULT false,
+                permissions JSONB DEFAULT '{}',
+                added_by VARCHAR(100),
+                last_sync_at TIMESTAMP,
+                last_login_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Admin access logs table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS admin_access_logs (
+                id SERIAL PRIMARY KEY,
+                admin_wallet VARCHAR(100) NOT NULL,
+                action VARCHAR(50) NOT NULL,
+                details JSONB,
+                ip_address VARCHAR(45),
+                user_agent TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        console.log('✅ Essential database tables verified');
+    } catch (error) {
+        console.error('Warning: Could not verify database tables:', error.message);
+    }
+}
+
+// Run table check at startup
+ensureTablesExist();
+
 // Middleware
 // Enhanced CORS configuration
 const { configureCORS, allowedOrigins } = require('./cors');
