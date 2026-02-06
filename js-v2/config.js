@@ -5,14 +5,16 @@ window.AppConfig = {
         mainnet: {
             fullHost: 'https://api.trongrid.io',
             contractAddress: 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN', // v5 Enumerable contract
-            chainId: '0x2b6653dc'
+            chainId: '0x2b6653dc',
+            contractType: 'v5'
         },
         nile: {
             fullHost: 'https://nile.trongrid.io',
-            contractAddress: '', // Add if you have testnet contract
-            chainId: '0x8dd8f8'
+            contractAddress: 'TUM1cojG7vdtph81H2Dy2VyRqoa1v9FywW', // Lite contract on Nile
+            chainId: '0x8dd8f8',
+            contractType: 'lite'
         },
-        current: 'mainnet' // Change to 'nile' for testnet
+        current: 'nile' // Using Nile testnet for Lite contract testing
     },
     
     // Backend Configuration
