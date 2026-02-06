@@ -706,4 +706,250 @@ router.post('/cases/run-migration', async (req, res) => {
     }
 });
 
+/**
+ * POST /api/cases/sync-from-blockchain
+ * Retroactively sync past serves from blockchain data
+ * Queries NFT transfer events and populates case_service_records
+ */
+router.post('/cases/sync-from-blockchain', async (req, res) => {
+    const TronWeb = require('tronweb');
+    const results = [];
+
+    try {
+        const { serverAddress, contractAddress, network = 'nile' } = req.body;
+
+        if (!serverAddress) {
+            return res.status(400).json({
+                success: false,
+                error: 'serverAddress is required'
+            });
+        }
+
+        // Configure TronWeb for the appropriate network
+        const fullHost = network === 'nile'
+            ? 'https://nile.trongrid.io'
+            : 'https://api.trongrid.io';
+
+        const defaultContract = network === 'nile'
+            ? 'TUM1cojG7vdtph81H2Dy2VyRqoa1v9FywW'
+            : 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN';
+
+        const contract = contractAddress || defaultContract;
+
+        console.log(`Syncing blockchain data for server: ${serverAddress}`);
+        console.log(`Network: ${network}, Contract: ${contract}`);
+        results.push(`Syncing from ${network} network, contract ${contract}`);
+
+        const tronWeb = new TronWeb({
+            fullHost: fullHost,
+            headers: { "TRON-PRO-API-KEY": process.env.TRONGRID_API_KEY || '' }
+        });
+
+        // Get Transfer events from the contract
+        // This gets all NFT transfers (mints are transfers from address 0)
+        let events = [];
+        try {
+            // Query events from the contract
+            const eventResult = await tronWeb.getEventResult(contract, {
+                eventName: 'Transfer',
+                size: 200,
+                onlyConfirmed: true
+            });
+            events = eventResult || [];
+            results.push(`Found ${events.length} Transfer events`);
+        } catch (e) {
+            results.push(`Event query error: ${e.message}`);
+            // Try alternative method - get transactions for the server address
+        }
+
+        // Filter for mints (from = 0x0) sent by this server
+        const mints = [];
+        for (const event of events) {
+            try {
+                const from = event.result?.from || event.result?.[0];
+                const to = event.result?.to || event.result?.[1];
+                const tokenId = event.result?.tokenId || event.result?.[2];
+
+                // Check if this is a mint (from zero address)
+                const isFromZero = from === '0' || from === '0x0' ||
+                    from === '410000000000000000000000000000000000000000' ||
+                    from === 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb'; // Zero address in base58
+
+                if (isFromZero && to) {
+                    // Convert to base58 if needed
+                    let recipientAddress = to;
+                    if (to.startsWith('41') && to.length === 42) {
+                        recipientAddress = tronWeb.address.fromHex(to);
+                    }
+
+                    mints.push({
+                        recipient: recipientAddress,
+                        tokenId: tokenId?.toString(),
+                        transactionHash: event.transaction,
+                        timestamp: event.timestamp,
+                        blockNumber: event.block
+                    });
+                }
+            } catch (e) {
+                // Skip malformed events
+            }
+        }
+
+        results.push(`Found ${mints.length} mint events`);
+
+        // Now try to match mints with existing cases and insert records
+        let synced = 0;
+        let skipped = 0;
+
+        for (const mint of mints) {
+            try {
+                // Check if we already have this transaction in case_service_records
+                const existing = await pool.query(
+                    'SELECT id FROM case_service_records WHERE transaction_hash = $1',
+                    [mint.transactionHash]
+                );
+
+                if (existing.rows.length > 0) {
+                    skipped++;
+                    continue;
+                }
+
+                // Try to find a matching case by looking at cases table
+                // Check if there's a case that was created around this time
+                const caseMatch = await pool.query(`
+                    SELECT case_number, server_address, metadata
+                    FROM cases
+                    WHERE server_address = $1
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                `, [serverAddress]);
+
+                if (caseMatch.rows.length > 0) {
+                    const caseData = caseMatch.rows[0];
+
+                    // Insert into case_service_records
+                    await pool.query(`
+                        INSERT INTO case_service_records (
+                            case_number,
+                            transaction_hash,
+                            alert_token_id,
+                            recipients,
+                            served_at,
+                            server_address,
+                            chain,
+                            created_at
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+                        ON CONFLICT (case_number)
+                        DO UPDATE SET
+                            transaction_hash = COALESCE(EXCLUDED.transaction_hash, case_service_records.transaction_hash),
+                            alert_token_id = COALESCE(EXCLUDED.alert_token_id, case_service_records.alert_token_id),
+                            recipients = COALESCE(EXCLUDED.recipients, case_service_records.recipients)
+                    `, [
+                        caseData.case_number,
+                        mint.transactionHash,
+                        mint.tokenId,
+                        JSON.stringify([mint.recipient]),
+                        mint.timestamp ? new Date(mint.timestamp) : new Date(),
+                        serverAddress,
+                        network === 'nile' ? 'tron-nile' : 'tron-mainnet'
+                    ]);
+
+                    synced++;
+                    results.push(`Synced: ${caseData.case_number} -> ${mint.recipient} (token #${mint.tokenId})`);
+                }
+            } catch (e) {
+                results.push(`Error syncing mint: ${e.message}`);
+            }
+        }
+
+        results.push(`Synced ${synced} records, skipped ${skipped} duplicates`);
+
+        res.json({
+            success: true,
+            message: 'Blockchain sync completed',
+            synced,
+            skipped,
+            totalEvents: events.length,
+            mintEvents: mints.length,
+            results
+        });
+
+    } catch (error) {
+        console.error('Blockchain sync error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            results
+        });
+    }
+});
+
+/**
+ * POST /api/cases/manual-recipient-fix
+ * Manually add recipient to a case's service records
+ * For cases where we know the recipient but blockchain query failed
+ */
+router.post('/cases/manual-recipient-fix', async (req, res) => {
+    try {
+        const {
+            caseNumber,
+            recipientAddress,
+            transactionHash,
+            tokenId,
+            serverAddress,
+            chain = 'tron-nile'
+        } = req.body;
+
+        if (!caseNumber || !recipientAddress) {
+            return res.status(400).json({
+                success: false,
+                error: 'caseNumber and recipientAddress are required'
+            });
+        }
+
+        console.log(`Manual fix: Adding ${recipientAddress} to case ${caseNumber}`);
+
+        // Upsert the record
+        const result = await pool.query(`
+            INSERT INTO case_service_records (
+                case_number,
+                transaction_hash,
+                alert_token_id,
+                recipients,
+                served_at,
+                server_address,
+                chain,
+                created_at
+            ) VALUES ($1, $2, $3, $4, NOW(), $5, $6, NOW())
+            ON CONFLICT (case_number)
+            DO UPDATE SET
+                transaction_hash = COALESCE(EXCLUDED.transaction_hash, case_service_records.transaction_hash),
+                alert_token_id = COALESCE(EXCLUDED.alert_token_id, case_service_records.alert_token_id),
+                recipients = EXCLUDED.recipients,
+                updated_at = NOW()
+            RETURNING *
+        `, [
+            caseNumber,
+            transactionHash || null,
+            tokenId || null,
+            JSON.stringify([recipientAddress]),
+            serverAddress || null,
+            chain
+        ]);
+
+        res.json({
+            success: true,
+            message: `Added ${recipientAddress} to case ${caseNumber}`,
+            record: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Manual fix error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
 module.exports = router;
