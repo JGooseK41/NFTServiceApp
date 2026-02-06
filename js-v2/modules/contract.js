@@ -55,7 +55,13 @@ window.contract = {
             }
         }
     },
-    
+
+    // Check if using Lite contract
+    isLiteContract() {
+        const network = getCurrentNetwork();
+        return network?.contractType === 'lite';
+    },
+
     // Initialize contract with wallet
     async initialize(tronWeb) {
         if (!tronWeb) {
@@ -321,44 +327,72 @@ window.contract = {
                 console.error('Available contract methods:', Object.keys(this.instance));
                 throw new Error('serveNotice method not found in contract');
             }
-            
-            // Calculate fees
-            const creationFee = await this.instance.creationFee().call();
-            const sponsorshipFee = data.sponsorFees ? await this.instance.sponsorshipFee().call() : 0;
-            const totalFee = parseInt(creationFee) + parseInt(sponsorshipFee);
-            
-            console.log('Calling serveNotice with parameters:', {
-                recipient: recipientAddress,
-                ipfsHash: data.ipfsHash || '',
-                encryptionKey: data.encryptionKey || '',
-                agency: data.agency || 'Legal Services',
-                noticeType: 'alert',
-                caseNumber: data.caseNumber,
-                caseDetails: data.caseDetails || data.noticeText,
-                legalRights: data.legalRights || 'You have the right to respond within the specified deadline',
-                sponsorFees: data.sponsorFees || false,
-                metadataUri: metadataUri.substring(0, 100) + '...'
-            });
-            
-            // Use v5 serveNotice function
-            const tx = await this.instance.serveNotice(
-                recipientAddress,                  // recipient address (string)
-                data.ipfsHash || '',               // encryptedIPFS
-                data.encryptionKey || '',          // encryptionKey
-                data.agency || 'Legal Services',   // issuingAgency
-                'alert',                           // noticeType
-                data.caseNumber,                   // caseNumber
-                data.caseDetails || data.noticeText, // caseDetails
-                data.legalRights || 'You have the right to respond within the specified deadline', // legalRights
-                data.sponsorFees || false,         // sponsorFees
-                metadataUri                        // metadataURI with embedded Base64 image
-            ).send({
-                feeLimit: 150000000,  // 150 TRX fee limit
-                callValue: totalFee,  // Send the required fees
-                shouldPollResponse: true
-            });
-            
-            console.log('Alert NFT created with v5 contract:', tx);
+
+            // Check if using Lite contract
+            const isLite = this.isLiteContract();
+            console.log('Contract type:', isLite ? 'Lite' : 'V5');
+
+            let tx;
+
+            if (isLite) {
+                // LITE CONTRACT: Uses serviceFee() and simpler serveNotice(recipient, metadataUri)
+                const serviceFee = await this.instance.serviceFee().call();
+                console.log('Lite contract service fee:', serviceFee.toString());
+
+                console.log('Calling Lite serveNotice with parameters:', {
+                    recipient: recipientAddress,
+                    metadataUri: metadataUri.substring(0, 100) + '...'
+                });
+
+                tx = await this.instance.serveNotice(
+                    recipientAddress,    // recipient address
+                    metadataUri          // metadataURI with embedded Base64 metadata
+                ).send({
+                    feeLimit: 150000000,      // 150 TRX fee limit
+                    callValue: serviceFee,    // Send the service fee
+                    shouldPollResponse: true
+                });
+
+                console.log('Alert NFT created with Lite contract:', tx);
+            } else {
+                // V5 CONTRACT: Uses creationFee/sponsorshipFee and full serveNotice signature
+                const creationFee = await this.instance.creationFee().call();
+                const sponsorshipFee = data.sponsorFees ? await this.instance.sponsorshipFee().call() : 0;
+                const totalFee = parseInt(creationFee) + parseInt(sponsorshipFee);
+
+                console.log('Calling V5 serveNotice with parameters:', {
+                    recipient: recipientAddress,
+                    ipfsHash: data.ipfsHash || '',
+                    encryptionKey: data.encryptionKey || '',
+                    agency: data.agency || 'Legal Services',
+                    noticeType: 'alert',
+                    caseNumber: data.caseNumber,
+                    caseDetails: data.caseDetails || data.noticeText,
+                    legalRights: data.legalRights || 'You have the right to respond within the specified deadline',
+                    sponsorFees: data.sponsorFees || false,
+                    metadataUri: metadataUri.substring(0, 100) + '...'
+                });
+
+                tx = await this.instance.serveNotice(
+                    recipientAddress,                  // recipient address (string)
+                    data.ipfsHash || '',               // encryptedIPFS
+                    data.encryptionKey || '',          // encryptionKey
+                    data.agency || 'Legal Services',   // issuingAgency
+                    'alert',                           // noticeType
+                    data.caseNumber,                   // caseNumber
+                    data.caseDetails || data.noticeText, // caseDetails
+                    data.legalRights || 'You have the right to respond within the specified deadline', // legalRights
+                    data.sponsorFees || false,         // sponsorFees
+                    metadataUri                        // metadataURI with embedded Base64 image
+                ).send({
+                    feeLimit: 150000000,  // 150 TRX fee limit
+                    callValue: totalFee,  // Send the required fees
+                    shouldPollResponse: true
+                });
+
+                console.log('Alert NFT created with V5 contract:', tx);
+            }
+
             return { success: true, txId: tx, metadata };
             
         } catch (error) {
