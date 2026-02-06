@@ -809,8 +809,23 @@ window.notices = {
         alert('Document signing will be implemented');
     },
     
+    // Store last mint result for print/export functions
+    lastMintResult: null,
+
     // Show success confirmation modal with receipt options
     showSuccessConfirmation(data) {
+        // Store the mint result so print/export functions can access it
+        this.lastMintResult = {
+            caseNumber: data.caseNumber,
+            alertTxId: data.alertTxId,
+            documentTxId: data.documentTxId,
+            recipient: data.recipient,
+            timestamp: data.timestamp,
+            thumbnail: data.thumbnail,
+            receipt: data.receipt,
+            ipfsHash: data.receipt?.ipfsHash || null
+        };
+
         const modalHtml = `
             <div class="modal fade" id="mintSuccessModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
                 <div class="modal-dialog modal-lg">
@@ -914,36 +929,268 @@ window.notices = {
         });
     },
     
-    // Print service receipt using proof of service module
+    // Print service receipt directly using fresh mint data
     async printServiceReceipt(caseNumber) {
         try {
-            // Check if cases module is loaded
+            // First check if we have fresh mint data
+            if (this.lastMintResult && this.lastMintResult.caseNumber === caseNumber) {
+                console.log('Using fresh mint data for receipt:', this.lastMintResult);
+                await this.generateReceiptPDF(this.lastMintResult);
+                return;
+            }
+
+            // Fallback to cases module lookup
             if (window.cases && window.cases.printReceipt) {
                 await window.cases.printReceipt(caseNumber);
             } else {
-                console.error('Cases module not available');
-                window.app.showError('Please navigate to Cases tab to print receipts');
+                console.error('No fresh mint data and cases module not available');
+                window.app.showError('Receipt data not available. Please try again from the Cases tab.');
             }
         } catch (error) {
             console.error('Failed to print receipt:', error);
             window.app.showError('Failed to print receipt: ' + error.message);
         }
     },
-    
-    // Export stamped documents using proof of service module
+
+    // Generate receipt PDF directly
+    async generateReceiptPDF(data) {
+        // Load jsPDF if needed
+        await this.loadJSPDF();
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        // Title
+        doc.setFontSize(20);
+        doc.text('PROOF OF SERVICE', 105, 20, { align: 'center' });
+
+        doc.setFontSize(12);
+        doc.text('Blockchain-Verified Legal Notice Delivery', 105, 30, { align: 'center' });
+
+        // Success badge
+        doc.setFillColor(40, 167, 69);
+        doc.rect(65, 35, 80, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(10);
+        doc.text('SUCCESSFULLY DELIVERED', 105, 41, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+
+        let y = 55;
+
+        // Service Details section
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('Service Details', 20, y);
+        doc.setFont(undefined, 'normal');
+        y += 10;
+
+        doc.setFontSize(10);
+        doc.text(`Case Number: ${data.caseNumber}`, 20, y);
+        y += 7;
+        doc.text(`Date Served: ${new Date(data.timestamp).toLocaleDateString()}`, 20, y);
+        y += 7;
+        doc.text(`Time Served: ${new Date(data.timestamp).toLocaleTimeString()}`, 20, y);
+        y += 12;
+
+        // Recipient section
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('Recipient Information', 20, y);
+        doc.setFont(undefined, 'normal');
+        y += 10;
+
+        doc.setFontSize(10);
+        doc.text(`Wallet Address: ${data.recipient || 'N/A'}`, 20, y);
+        y += 7;
+        doc.text(`Access URL: https://blockserved.com/notice/${data.caseNumber}`, 20, y);
+        y += 12;
+
+        // Blockchain Verification section
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('Blockchain Verification', 20, y);
+        doc.setFont(undefined, 'normal');
+        y += 10;
+
+        doc.setFontSize(10);
+        doc.text('Alert NFT Transaction:', 20, y);
+        y += 7;
+        doc.setFontSize(8);
+        doc.text(String(data.alertTxId || 'N/A'), 20, y);
+        y += 10;
+
+        doc.setFontSize(10);
+        doc.text('Document NFT Transaction:', 20, y);
+        y += 7;
+        doc.setFontSize(8);
+        doc.text(String(data.documentTxId || 'N/A'), 20, y);
+        y += 10;
+
+        doc.setFontSize(10);
+        const tronScanUrl = window.getTronScanUrl ? window.getTronScanUrl(data.alertTxId) : `https://tronscan.org/#/transaction/${data.alertTxId}`;
+        doc.text(`Verification URL: ${tronScanUrl}`, 20, y);
+        y += 15;
+
+        // Add thumbnail if available and checkbox is checked
+        const includeImage = document.getElementById('includeNFTImage')?.checked ?? true;
+        if (includeImage && data.thumbnail) {
+            try {
+                doc.setFontSize(14);
+                doc.setFont(undefined, 'bold');
+                doc.text('Alert NFT Preview', 20, y);
+                y += 5;
+                doc.addImage(data.thumbnail, 'PNG', 20, y, 60, 80);
+                y += 85;
+            } catch (e) {
+                console.log('Could not add thumbnail to PDF:', e);
+            }
+        }
+
+        // Footer
+        doc.setFontSize(9);
+        doc.setTextColor(100, 100, 100);
+        doc.text('This document certifies that legal notice was successfully delivered via blockchain technology.', 105, 280, { align: 'center' });
+        doc.text(`Generated: ${new Date().toLocaleString()} | TheBlockService.com`, 105, 285, { align: 'center' });
+
+        // Save PDF
+        doc.save(`proof_of_service_${data.caseNumber}.pdf`);
+    },
+
+    // Export stamped documents directly using fresh mint data
     async exportStampedDocs(caseNumber) {
         try {
-            // Check if cases module is loaded
+            // First check if we have fresh mint data
+            if (this.lastMintResult && this.lastMintResult.caseNumber === caseNumber) {
+                console.log('Using fresh mint data for export:', this.lastMintResult);
+                await this.generateStampedDocumentPDF(this.lastMintResult);
+                return;
+            }
+
+            // Fallback to cases module lookup
             if (window.cases && window.cases.exportStamped) {
                 await window.cases.exportStamped(caseNumber);
             } else {
-                console.error('Cases module not available');
-                window.app.showError('Please navigate to Cases tab to export stamped documents');
+                console.error('No fresh mint data and cases module not available');
+                window.app.showError('Document data not available. Please try again from the Cases tab.');
             }
         } catch (error) {
             console.error('Failed to export stamped documents:', error);
             window.app.showError('Failed to export: ' + error.message);
         }
+    },
+
+    // Generate stamped document PDF directly
+    async generateStampedDocumentPDF(data) {
+        // Load jsPDF if needed
+        await this.loadJSPDF();
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        // Title
+        doc.setFontSize(18);
+        doc.text('STAMPED LEGAL DOCUMENT', 105, 20, { align: 'center' });
+
+        doc.setFontSize(11);
+        doc.text('Blockchain Delivery Confirmation', 105, 28, { align: 'center' });
+
+        // Delivery stamp box
+        doc.setDrawColor(40, 167, 69);
+        doc.setLineWidth(2);
+        doc.rect(130, 35, 65, 35);
+        doc.setFontSize(10);
+        doc.setTextColor(40, 167, 69);
+        doc.text('DELIVERED', 162.5, 45, { align: 'center' });
+        doc.setFontSize(8);
+        doc.text(new Date(data.timestamp).toLocaleDateString(), 162.5, 52, { align: 'center' });
+        doc.text(new Date(data.timestamp).toLocaleTimeString(), 162.5, 58, { align: 'center' });
+        doc.text('via Blockchain', 162.5, 65, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+
+        let y = 80;
+
+        // Case Information
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('Case Information', 20, y);
+        doc.setFont(undefined, 'normal');
+        y += 8;
+
+        doc.setFontSize(10);
+        doc.text(`Case Number: ${data.caseNumber}`, 20, y);
+        y += 7;
+        doc.text(`Served At: ${new Date(data.timestamp).toLocaleString()}`, 20, y);
+        y += 7;
+        doc.text(`Recipient: ${data.recipient || 'N/A'}`, 20, y);
+        y += 12;
+
+        // Blockchain Record
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text('Blockchain Record', 20, y);
+        doc.setFont(undefined, 'normal');
+        y += 8;
+
+        doc.setFontSize(10);
+        doc.text('Transaction Hash:', 20, y);
+        y += 6;
+        doc.setFontSize(8);
+        doc.text(String(data.alertTxId || 'N/A'), 20, y);
+        y += 10;
+
+        // IPFS Document Storage
+        if (data.ipfsHash) {
+            doc.setFontSize(10);
+            doc.text('IPFS Document Hash:', 20, y);
+            y += 6;
+            doc.setFontSize(8);
+            doc.text(String(data.ipfsHash), 20, y);
+            y += 10;
+        }
+
+        // Verification URL
+        doc.setFontSize(10);
+        const tronScanUrl = window.getTronScanUrl ? window.getTronScanUrl(data.alertTxId) : `https://tronscan.org/#/transaction/${data.alertTxId}`;
+        doc.text(`Verify at: ${tronScanUrl}`, 20, y);
+        y += 15;
+
+        // Add document preview if available
+        const includeImage = document.getElementById('includeNFTImage')?.checked ?? true;
+        if (includeImage && data.thumbnail) {
+            try {
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text('Document Preview', 20, y);
+                y += 5;
+                doc.addImage(data.thumbnail, 'PNG', 20, y, 80, 100);
+            } catch (e) {
+                console.log('Could not add thumbnail to PDF:', e);
+            }
+        }
+
+        // Footer
+        doc.setFontSize(9);
+        doc.setTextColor(100, 100, 100);
+        doc.text('This stamped document confirms blockchain delivery of legal notice.', 105, 280, { align: 'center' });
+        doc.text(`Generated: ${new Date().toLocaleString()} | TheBlockService.com`, 105, 285, { align: 'center' });
+
+        // Save PDF
+        doc.save(`stamped_document_${data.caseNumber}.pdf`);
+    },
+
+    // Load jsPDF library
+    async loadJSPDF() {
+        return new Promise((resolve) => {
+            if (window.jspdf) {
+                resolve();
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+            script.onload = resolve;
+            document.head.appendChild(script);
+        });
     },
     
     // Show failure confirmation modal
