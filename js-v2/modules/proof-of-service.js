@@ -4,7 +4,22 @@
  */
 
 window.proofOfService = {
-    
+
+    // Get network-aware TronScan URL
+    getTronScanUrl(txHash) {
+        // Use global helper if available
+        if (window.getTronScanUrl) {
+            return window.getTronScanUrl(txHash);
+        }
+        // Fallback: check current network
+        const isNile = window.AppConfig?.network?.current === 'nile' ||
+                      window.tronWeb?.fullNode?.host?.includes('nile');
+        const baseUrl = isNile
+            ? 'https://nile.tronscan.org/#/transaction/'
+            : 'https://tronscan.org/#/transaction/';
+        return baseUrl + (txHash || '');
+    },
+
     // Generate comprehensive proof of service receipt
     async generateServiceReceipt(caseData) {
         // Try to get alert image from various sources
@@ -192,49 +207,57 @@ window.proofOfService = {
                     <div class="field">
                         <span class="label">Transaction Hash:</span>
                     </div>
-                    <div class="tx-hash">${receipt.transactionHash}</div>
-                    
-                    <div class="field">
-                        <span class="label">Alert NFT Token ID:</span>
-                        <span class="value">#${receipt.alertTokenId}</span>
+                    <div class="tx-hash">
+                        <a href="${this.getTronScanUrl(receipt.transactionHash)}" target="_blank" style="color: #0066cc; text-decoration: none;">
+                            ${receipt.transactionHash}
+                        </a>
                     </div>
+
                     <div class="field">
-                        <span class="label">Document NFT Token ID:</span>
-                        <span class="value">#${receipt.documentTokenId}</span>
+                        <span class="label">NFT Token ID:</span>
+                        <span class="value">#${receipt.alertTokenId || 'N/A'}</span>
                     </div>
                     <div class="field">
                         <span class="label">Server Wallet Address:</span>
-                        <span class="value" style="font-size: 12px;">${receipt.serverAddress}</span>
+                        <span class="value" style="font-size: 12px;">${receipt.serverAddress || 'N/A'}</span>
+                    </div>
+                    <div class="field">
+                        <span class="label">Verify on TronScan:</span>
+                        <span class="value">
+                            <a href="${this.getTronScanUrl(receipt.transactionHash)}" target="_blank" style="color: #0066cc;">
+                                Click to verify transaction
+                            </a>
+                        </span>
                     </div>
                 </div>
                 
                 ${receipt.alertImage ? `
                 <div class="alert-image-section" style="margin: 30px 0; page-break-inside: avoid;">
-                    <h2>Alert Notice NFT</h2>
+                    <h2>Legal Notice NFT</h2>
                     <div style="text-align: center; margin: 20px 0;">
-                        <img src="${receipt.alertImage}" 
+                        <img src="${receipt.alertImage}"
                              style="max-width: 500px; width: 100%; border: 2px solid #ddd; border-radius: 8px;"
-                             alt="Alert Notice NFT">
+                             alt="Legal Notice NFT">
                     </div>
                     <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 20px;">
                         <p style="font-weight: bold; margin-bottom: 10px;">NFT Description (as shown in wallet):</p>
-                        <p style="white-space: pre-line;">⚖️ OFFICIAL LEGAL NOTICE ⚖️
+                        <p style="white-space: pre-line;">OFFICIAL LEGAL NOTICE
 
 You have been served with an official legal document that requires your attention.
 
-📋 WHAT THIS MEANS:
+WHAT THIS MEANS:
 This NFT represents legal service of process. You have been officially notified of a legal matter that requires your attention or response.
 
-📍 NEXT STEPS:
+NEXT STEPS:
 1. Visit www.BlockServed.com
 2. Connect your wallet
 3. View your complete legal documents
 4. Follow the instructions provided
 5. Respond within the specified timeframe
 
-⚠️ IMPORTANT: This is a time-sensitive legal matter. Ignoring this notice may result in legal consequences.
+IMPORTANT: This is a time-sensitive legal matter. Ignoring this notice may result in legal consequences.
 
-🔒 VERIFICATION: This NFT serves as permanent proof on the blockchain that you received legal notice on ${new Date(receipt.servedAt).toLocaleDateString()}</p>
+VERIFICATION: This NFT serves as permanent proof on the blockchain that you received legal notice on ${new Date(receipt.servedAt).toLocaleDateString()}</p>
                     </div>
                 </div>
                 ` : ''}
@@ -267,12 +290,13 @@ This NFT represents legal service of process. You have been officially notified 
                     <h2>How to Verify This Service</h2>
                     <ol>
                         <li>
-                            <strong>Visit TronScan:</strong><br>
-                            Go to: <code>https://tronscan.org</code>
+                            <strong>Click to Verify Transaction:</strong><br>
+                            <a href="${this.getTronScanUrl(receipt.transactionHash)}" target="_blank" style="color: #0066cc;">
+                                ${this.getTronScanUrl(receipt.transactionHash)}
+                            </a>
                         </li>
                         <li>
-                            <strong>Search for the Transaction:</strong><br>
-                            Copy and paste this transaction ID into the search bar:<br>
+                            <strong>Transaction ID:</strong><br>
                             <div style="background: #fff; padding: 8px; margin: 10px 0; border: 1px solid #ccc; word-break: break-all; font-family: monospace; font-size: 11px;">
                                 ${receipt.transactionHash}
                             </div>
@@ -283,11 +307,11 @@ This NFT represents legal service of process. You have been officially notified 
                         </li>
                         <li>
                             <strong>Confirm NFT Ownership:</strong><br>
-                            Search each recipient address to confirm they received the NFT tokens
+                            Search each recipient address to confirm they received the NFT token
                         </li>
                         <li>
                             <strong>Access Documents:</strong><br>
-                            Recipients can view their notices at: <code>www.BlockServed.com</code>
+                            Recipients can view their notices at: <a href="https://www.BlockServed.com" target="_blank">www.BlockServed.com</a>
                         </li>
                     </ol>
                 </div>

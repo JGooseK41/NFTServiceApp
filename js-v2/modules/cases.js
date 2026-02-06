@@ -1800,46 +1800,84 @@ window.cases = {
     // Print proof of service receipt
     async printReceipt(caseId) {
         try {
-            // Get case data
-            let caseData = this.getCaseData(caseId);
-            
-            if (!caseData) {
+            // First fetch fresh data from backend
+            const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+            let serviceData = null;
+
+            try {
+                const response = await fetch(`${backendUrl}/api/cases/${caseId}/service-data`);
+                if (response.ok) {
+                    const data = await response.json();
+                    serviceData = data.case;
+                    console.log('Fetched service data from backend:', serviceData);
+                }
+            } catch (e) {
+                console.log('Could not fetch from backend, using local data');
+            }
+
+            // Get local case data as fallback
+            let caseData = this.getCaseData(caseId) || {};
+
+            // Merge backend data with local data (backend takes precedence)
+            if (serviceData) {
+                caseData = { ...caseData, ...serviceData };
+            }
+
+            if (!caseData || Object.keys(caseData).length === 0) {
                 window.app.showError('Case not found');
                 return;
             }
-            
-            // Ensure we have the required proof of service data
-            if (!caseData.transactionHash && !caseData.transaction_hash) {
+
+            // Get transaction hash from various possible field names
+            const transactionHash = serviceData?.transactionHash || serviceData?.transaction_hash ||
+                                   caseData.transactionHash || caseData.transaction_hash ||
+                                   caseData.metadata?.transactionHash;
+
+            if (!transactionHash) {
                 window.app.showError('No transaction hash found for this case. Please ensure the case has been served.');
                 return;
             }
-            
+
+            // Get server/wallet address
+            const serverAddress = serviceData?.serverAddress || serviceData?.server_address ||
+                                 caseData.serverAddress || caseData.server_address ||
+                                 window.wallet?.address || window.tronWeb?.defaultAddress?.base58;
+
+            // Get recipients
+            let recipients = serviceData?.recipients || caseData.recipients || caseData.metadata?.recipients || [];
+            if (typeof recipients === 'string') {
+                try { recipients = JSON.parse(recipients); } catch (e) { recipients = [recipients]; }
+            }
+
             // Prepare case data for receipt generation
             const receiptData = {
-                caseNumber: caseData.caseNumber || caseData.case_number || caseId,
-                serverAddress: caseData.serverAddress || caseData.server_address || window.wallet?.address,
-                servedAt: caseData.servedAt || caseData.served_at || new Date().toISOString(),
-                transactionHash: caseData.transactionHash || caseData.transaction_hash,
-                alertTokenId: caseData.alertTokenId || caseData.alert_token_id || caseData.alertNftId,
-                documentTokenId: caseData.documentTokenId || caseData.document_token_id || caseData.documentNftId,
-                recipients: caseData.recipients || caseData.metadata?.recipients || [],
+                caseNumber: serviceData?.caseNumber || caseData.caseNumber || caseData.case_number || caseId,
+                serverAddress: serverAddress,
+                servedAt: serviceData?.servedAt || serviceData?.served_at || caseData.servedAt || caseData.served_at,
+                transactionHash: transactionHash,
+                alertTokenId: serviceData?.alertTokenId || serviceData?.alert_token_id || caseData.alertTokenId || caseData.alert_token_id,
+                documentTokenId: serviceData?.documentTokenId || serviceData?.document_token_id || caseData.documentTokenId || caseData.document_token_id,
+                recipients: recipients,
                 documents: caseData.documents || [],
-                agency: caseData.agency || caseData.metadata?.issuingAgency || caseData.metadata?.agency,
-                noticeType: caseData.noticeType || caseData.metadata?.noticeType || 'Legal Notice',
+                agency: serviceData?.agency || caseData.agency || caseData.metadata?.issuingAgency || caseData.metadata?.agency,
+                noticeType: serviceData?.noticeType || caseData.noticeType || caseData.metadata?.noticeType || 'Legal Notice',
                 metadata: caseData.metadata || {},
-                alertImage: caseData.alertImage || caseData.alertPreview || caseData.alertThumbnail || caseData.alert_image
+                alertImage: serviceData?.alertImage || serviceData?.alertPreview || caseData.alertImage || caseData.alertPreview || caseData.alert_image,
+                ipfsHash: serviceData?.ipfsHash || serviceData?.ipfsDocument || caseData.ipfsHash || caseData.ipfsDocument
             };
-            
+
+            console.log('Receipt data prepared:', receiptData);
+
             // Check if proofOfService module is loaded
             if (!window.proofOfService) {
                 console.error('Proof of Service module not loaded');
                 window.app.showError('Proof of Service module not available. Please refresh the page.');
                 return;
             }
-            
+
             // Generate and print the receipt
             await window.proofOfService.printReceipt(receiptData);
-            
+
         } catch (error) {
             console.error('Failed to print receipt:', error);
             window.app.showError('Failed to print receipt: ' + error.message);
