@@ -1,6 +1,18 @@
 // Notices Module - Handles the complete notice creation workflow
+
+// Helper to safely convert BigInt to Number for JSON serialization
+function toBigIntSafe(value) {
+    if (typeof value === 'bigint') {
+        return Number(value);
+    }
+    if (typeof value === 'string' && value.endsWith('n')) {
+        return Number(value.slice(0, -1));
+    }
+    return value;
+}
+
 window.notices = {
-    
+
     // Initialize module
     async init() {
         console.log('Initializing notices module...');
@@ -206,7 +218,11 @@ window.notices = {
                 alertTokenId = alertTokenId || baseId;
                 documentTokenId = documentTokenId || (baseId + 1);
             }
-            
+
+            // Convert BigInt values to numbers for JSON serialization
+            alertTokenId = toBigIntSafe(alertTokenId);
+            documentTokenId = toBigIntSafe(documentTokenId);
+
             // Mark case as served if we have a case ID
             if (window.app && window.app.currentCaseId) {
                 try {

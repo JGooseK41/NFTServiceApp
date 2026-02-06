@@ -344,16 +344,18 @@ window.contract = {
                     metadataUri: metadataUri.substring(0, 100) + '...'
                 });
 
-                tx = await this.instance.serveNotice(
+                // Don't use shouldPollResponse to get the transaction hash directly
+                const txResult = await this.instance.serveNotice(
                     recipientAddress,    // recipient address
                     metadataUri          // metadataURI with embedded Base64 metadata
                 ).send({
                     feeLimit: 150000000,      // 150 TRX fee limit
-                    callValue: serviceFee,    // Send the service fee
-                    shouldPollResponse: true
+                    callValue: serviceFee     // Send the service fee
                 });
 
-                console.log('Alert NFT created with Lite contract:', tx);
+                // txResult is the transaction hash string when shouldPollResponse is not used
+                tx = txResult;
+                console.log('Alert NFT created with Lite contract, txHash:', tx);
             } else {
                 // V5 CONTRACT: Uses creationFee/sponsorshipFee and full serveNotice signature
                 const creationFee = await this.instance.creationFee().call();
