@@ -126,7 +126,9 @@ app.use(cors({
   optionsSuccessStatus: 204
 }));
 
-app.use(express.json());
+// Increase body size limit to 10MB for base64 image uploads in service-complete
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(morgan('combined'));
 
 // Serve uploaded files from both local and mounted disk

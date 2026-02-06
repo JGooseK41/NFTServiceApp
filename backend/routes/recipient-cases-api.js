@@ -75,7 +75,7 @@ async function ensureColumns() {
             SET 
                 server_name = COALESCE(csr.server_name, c.server_address),
                 issuing_agency = COALESCE(csr.issuing_agency, (c.metadata->>'issuingAgency')::text),
-                page_count = COALESCE(csr.page_count, c.page_count, (c.metadata->>'pageCount')::int),
+                page_count = COALESCE(csr.page_count, (c.metadata->>'pageCount')::int),
                 status = COALESCE(csr.status, c.status, 'served')
             FROM cases c
             WHERE csr.case_number = c.case_number::text
@@ -226,7 +226,7 @@ router.get('/wallet/:address', async (req, res) => {
                     csr.accepted_at,
                     COALESCE(csr.server_name, c.server_address) as server_name,
                     COALESCE(csr.issuing_agency, (c.metadata->>'issuingAgency')::text) as issuing_agency,
-                    COALESCE(csr.page_count, c.page_count, (c.metadata->>'pageCount')::int) as page_count,
+                    COALESCE(csr.page_count, (c.metadata->>'pageCount')::int) as page_count,
                     COALESCE(csr.status, c.status, 'served') as status
                 FROM case_service_records csr
                 LEFT JOIN cases c ON csr.case_number = c.case_number::text
@@ -1131,12 +1131,9 @@ router.get('/find-all-historical', async (req, res) => {
         // 1. Search cases table
         try {
             const casesQuery = `
-                SELECT 
+                SELECT
                     case_number,
                     server_address,
-                    server_name,
-                    issuing_agency,
-                    page_count,
                     status,
                     created_at,
                     metadata
@@ -1145,13 +1142,14 @@ router.get('/find-all-historical', async (req, res) => {
             `;
             const cases = await pool.query(casesQuery);
             result.tables_searched.push('cases');
-            
+
             cases.rows.forEach(c => {
+                const meta = c.metadata || {};
                 result.cases_found[c.case_number] = {
                     case_number: c.case_number,
-                    server_name: c.server_name || c.server_address,
-                    issuing_agency: c.issuing_agency,
-                    page_count: c.page_count,
+                    server_name: meta.serverName || c.server_address,
+                    issuing_agency: meta.issuingAgency,
+                    page_count: meta.pageCount,
                     status: c.status,
                     created_at: c.created_at,
                     from_table: 'cases'
