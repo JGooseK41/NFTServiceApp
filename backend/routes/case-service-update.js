@@ -442,35 +442,90 @@ createTables();
  * Manually trigger database migration (for when auto-deploy doesn't restart server)
  */
 router.post('/cases/run-migration', async (req, res) => {
+    const results = [];
     try {
         console.log('Manual migration triggered...');
 
-        // Check if case_number column exists
-        const columnCheck = await pool.query(`
-            SELECT column_name FROM information_schema.columns
-            WHERE table_name = 'case_service_records' AND column_name = 'case_number'
+        // First, check if table exists at all
+        const tableCheck = await pool.query(`
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables
+                WHERE table_name = 'case_service_records'
+            )
         `);
 
-        if (columnCheck.rows.length === 0) {
-            console.log('Adding missing case_number column...');
-            await pool.query(`ALTER TABLE case_service_records ADD COLUMN case_number VARCHAR(255)`);
-            await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS case_service_records_case_number_key ON case_service_records(case_number)`);
-
-            res.json({
-                success: true,
-                message: 'Migration completed - case_number column added'
-            });
+        if (!tableCheck.rows[0].exists) {
+            // Create the table from scratch
+            console.log('Creating case_service_records table...');
+            await pool.query(`
+                CREATE TABLE case_service_records (
+                    id SERIAL PRIMARY KEY,
+                    case_id INTEGER,
+                    case_number VARCHAR(255),
+                    transaction_hash VARCHAR(255),
+                    alert_token_id VARCHAR(255),
+                    document_token_id VARCHAR(255),
+                    ipfs_hash VARCHAR(255),
+                    encryption_key TEXT,
+                    recipients JSONB,
+                    page_count INTEGER DEFAULT 1,
+                    served_at TIMESTAMP,
+                    server_address VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+            results.push('Created case_service_records table');
         } else {
-            res.json({
-                success: true,
-                message: 'Migration not needed - case_number column already exists'
-            });
+            // Table exists - check for missing columns
+            const columns = await pool.query(`
+                SELECT column_name FROM information_schema.columns
+                WHERE table_name = 'case_service_records'
+            `);
+            const existingColumns = columns.rows.map(r => r.column_name);
+            results.push(`Existing columns: ${existingColumns.join(', ')}`);
+
+            // Add missing columns
+            const requiredColumns = [
+                { name: 'case_number', type: 'VARCHAR(255)' },
+                { name: 'case_id', type: 'INTEGER' },
+                { name: 'transaction_hash', type: 'VARCHAR(255)' },
+                { name: 'alert_token_id', type: 'VARCHAR(255)' },
+                { name: 'document_token_id', type: 'VARCHAR(255)' },
+                { name: 'ipfs_hash', type: 'VARCHAR(255)' },
+                { name: 'encryption_key', type: 'TEXT' },
+                { name: 'recipients', type: 'JSONB' },
+                { name: 'page_count', type: 'INTEGER DEFAULT 1' },
+                { name: 'served_at', type: 'TIMESTAMP' },
+                { name: 'server_address', type: 'VARCHAR(255)' }
+            ];
+
+            for (const col of requiredColumns) {
+                if (!existingColumns.includes(col.name)) {
+                    console.log(`Adding missing column: ${col.name}`);
+                    await pool.query(`ALTER TABLE case_service_records ADD COLUMN ${col.name} ${col.type}`);
+                    results.push(`Added column: ${col.name}`);
+                }
+            }
         }
+
+        // Try to create unique index
+        await pool.query(`
+            CREATE UNIQUE INDEX IF NOT EXISTS case_service_records_case_number_key
+            ON case_service_records(case_number)
+        `).catch(e => results.push(`Index note: ${e.message}`));
+
+        res.json({
+            success: true,
+            message: 'Migration completed',
+            results
+        });
     } catch (error) {
         console.error('Migration error:', error);
         res.status(500).json({
             success: false,
-            error: error.message
+            error: error.message,
+            results
         });
     }
 });
