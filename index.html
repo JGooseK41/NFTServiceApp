@@ -286,11 +286,11 @@
                                         <!-- Hidden input for form validation -->
                                         <input type="hidden" id="documentFile" required>
                                         
-                                        <!-- Encryption option -->
-                                        <div class="form-check mt-3">
-                                            <input class="form-check-input" type="checkbox" id="encryptDocument" checked>
+                                        <!-- Encryption option (hidden for Lite contract - no IPFS upload) -->
+                                        <div class="form-check mt-3" id="encryptionOption" style="display: none;">
+                                            <input class="form-check-input" type="checkbox" id="encryptDocument">
                                             <label class="form-check-label" for="encryptDocument">
-                                                Encrypt document for recipients (recommended)
+                                                Encrypt document for recipients (V5 contract only)
                                             </label>
                                         </div>
                                     </div>
