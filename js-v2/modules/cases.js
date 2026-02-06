@@ -1849,6 +1849,10 @@ window.cases = {
                 try { recipients = JSON.parse(recipients); } catch (e) { recipients = [recipients]; }
             }
 
+            // Get chain info from backend data or derive from current network
+            const chainId = serviceData?.chain || caseData.chain || (window.getCurrentChainId ? window.getCurrentChainId() : 'tron-mainnet');
+            const chainInfo = window.getChainInfo ? window.getChainInfo(chainId) : null;
+
             // Prepare case data for receipt generation
             const receiptData = {
                 caseNumber: serviceData?.caseNumber || caseData.caseNumber || caseData.case_number || caseId,
@@ -1863,7 +1867,10 @@ window.cases = {
                 noticeType: serviceData?.noticeType || caseData.noticeType || caseData.metadata?.noticeType || 'Legal Notice',
                 metadata: caseData.metadata || {},
                 alertImage: serviceData?.alertImage || serviceData?.alertPreview || caseData.alertImage || caseData.alertPreview || caseData.alert_image,
-                ipfsHash: serviceData?.ipfsHash || serviceData?.ipfsDocument || caseData.ipfsHash || caseData.ipfsDocument
+                ipfsHash: serviceData?.ipfsHash || serviceData?.ipfsDocument || caseData.ipfsHash || caseData.ipfsDocument,
+                chain: chainId,
+                chainName: chainInfo?.name || 'Blockchain',
+                explorerUrl: serviceData?.explorerUrl || (window.getExplorerTxUrl ? window.getExplorerTxUrl(transactionHash, chainId) : null)
             };
 
             console.log('Receipt data prepared:', receiptData);

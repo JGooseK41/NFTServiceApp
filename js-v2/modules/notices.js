@@ -255,6 +255,8 @@ window.notices = {
                             pageCount: documentData.pageCount || 1,
                             servedAt: new Date().toISOString(),
                             serverAddress: window.wallet?.address || window.serverAddress,
+                            chain: window.getCurrentChainId ? window.getCurrentChainId() : 'tron-mainnet',
+                            explorerUrl: window.getExplorerTxUrl ? window.getExplorerTxUrl(txResult.alertTx) : null,
                             metadata: {
                                 noticeText: data.noticeText,
                                 caseDetails: data.caseDetails,
@@ -863,6 +865,9 @@ window.notices = {
             data.alertTxId === data.documentTxId; // Same TX means single NFT
 
         // Store the mint result so print/export functions can access it
+        const chainId = window.getCurrentChainId ? window.getCurrentChainId() : 'tron-mainnet';
+        const chainInfo = window.getChainInfo ? window.getChainInfo(chainId) : null;
+
         this.lastMintResult = {
             caseNumber: data.caseNumber,
             alertTxId: data.alertTxId,
@@ -873,7 +878,10 @@ window.notices = {
             receipt: data.receipt,
             ipfsHash: data.ipfsHash || data.receipt?.ipfsHash || null,
             encryptionKey: data.encryptionKey || data.receipt?.encryptionKey || null,
-            isLiteContract: isLiteContract
+            isLiteContract: isLiteContract,
+            chain: chainId,
+            chainName: chainInfo?.name || 'TRON',
+            explorerUrl: window.getExplorerTxUrl ? window.getExplorerTxUrl(data.alertTxId, chainId) : null
         };
 
         // Build blockchain confirmation section based on contract type
@@ -1013,7 +1021,10 @@ window.notices = {
                         documentTokenId: this.lastMintResult.receipt?.documentTokenId,
                         recipients: [this.lastMintResult.recipient].filter(Boolean),
                         alertImage: this.lastMintResult.thumbnail,
-                        ipfsHash: this.lastMintResult.ipfsHash
+                        ipfsHash: this.lastMintResult.ipfsHash,
+                        chain: this.lastMintResult.chain,
+                        chainName: this.lastMintResult.chainName,
+                        explorerUrl: this.lastMintResult.explorerUrl
                     };
                     await window.proofOfService.printReceipt(receiptData);
                 } else {

@@ -1,18 +1,88 @@
 // Configuration for LegalNotice v2
 window.AppConfig = {
-    // Network Configuration
+    // Chain Registry - Static mapping for all supported chains
+    // Used for display and explorer URLs regardless of current network
+    chains: {
+        'tron-mainnet': {
+            id: 'tron-mainnet',
+            name: 'TRON Mainnet',
+            shortName: 'TRON',
+            explorer: 'https://tronscan.org',
+            explorerTxPath: '/#/transaction/',
+            explorerAddressPath: '/#/address/',
+            currency: 'TRX',
+            icon: 'tron'
+        },
+        'tron-nile': {
+            id: 'tron-nile',
+            name: 'TRON Nile Testnet',
+            shortName: 'TRON Nile',
+            explorer: 'https://nile.tronscan.org',
+            explorerTxPath: '/#/transaction/',
+            explorerAddressPath: '/#/address/',
+            currency: 'TRX',
+            icon: 'tron',
+            isTestnet: true
+        },
+        'eth-mainnet': {
+            id: 'eth-mainnet',
+            name: 'Ethereum Mainnet',
+            shortName: 'Ethereum',
+            explorer: 'https://etherscan.io',
+            explorerTxPath: '/tx/',
+            explorerAddressPath: '/address/',
+            currency: 'ETH',
+            icon: 'ethereum'
+        },
+        'eth-sepolia': {
+            id: 'eth-sepolia',
+            name: 'Ethereum Sepolia Testnet',
+            shortName: 'Sepolia',
+            explorer: 'https://sepolia.etherscan.io',
+            explorerTxPath: '/tx/',
+            explorerAddressPath: '/address/',
+            currency: 'ETH',
+            icon: 'ethereum',
+            isTestnet: true
+        },
+        'base-mainnet': {
+            id: 'base-mainnet',
+            name: 'Base Mainnet',
+            shortName: 'Base',
+            explorer: 'https://basescan.org',
+            explorerTxPath: '/tx/',
+            explorerAddressPath: '/address/',
+            currency: 'ETH',
+            icon: 'base'
+        },
+        'base-sepolia': {
+            id: 'base-sepolia',
+            name: 'Base Sepolia Testnet',
+            shortName: 'Base Sepolia',
+            explorer: 'https://sepolia.basescan.org',
+            explorerTxPath: '/tx/',
+            explorerAddressPath: '/address/',
+            currency: 'ETH',
+            icon: 'base',
+            isTestnet: true
+        }
+    },
+
+    // Network Configuration (current active network)
     network: {
         mainnet: {
             fullHost: 'https://api.trongrid.io',
             contractAddress: 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN', // v5 Enumerable contract
             chainId: '0x2b6653dc',
-            contractType: 'v5'
+            contractType: 'v5',
+            chain: 'tron-mainnet' // Links to chain registry
         },
         nile: {
             fullHost: 'https://nile.trongrid.io',
             contractAddress: 'TUM1cojG7vdtph81H2Dy2VyRqoa1v9FywW', // Lite contract on Nile
             chainId: '0x8dd8f8',
-            contractType: 'lite'
+            contractType: 'lite',
+            chain: 'tron-nile' // Links to chain registry
         },
         current: 'nile' // Using Nile testnet for Lite contract testing
     },
@@ -162,21 +232,44 @@ window.getCurrentNetwork = function() {
     return window.AppConfig.network[current];
 };
 
-// Helper to get TronScan URL for current network
-window.getTronScanUrl = function(txHash) {
-    const current = window.AppConfig.network.current;
-    const baseUrl = current === 'nile'
-        ? 'https://nile.tronscan.org/#/transaction/'
-        : 'https://tronscan.org/#/transaction/';
-    return baseUrl + (txHash || '');
+// Helper to get current chain ID from network config
+window.getCurrentChainId = function() {
+    const network = window.getCurrentNetwork();
+    return network?.chain || 'tron-mainnet';
 };
 
-// Helper to get TronScan base URL (without transaction)
+// Helper to get chain info from registry
+window.getChainInfo = function(chainId) {
+    // If no chainId provided, use current network's chain
+    if (!chainId) {
+        chainId = window.getCurrentChainId();
+    }
+    return window.AppConfig.chains[chainId] || window.AppConfig.chains['tron-mainnet'];
+};
+
+// Helper to get explorer transaction URL for any chain
+window.getExplorerTxUrl = function(txHash, chainId) {
+    const chain = window.getChainInfo(chainId);
+    if (!txHash) return chain.explorer;
+    return chain.explorer + chain.explorerTxPath + txHash;
+};
+
+// Helper to get explorer address URL for any chain
+window.getExplorerAddressUrl = function(address, chainId) {
+    const chain = window.getChainInfo(chainId);
+    if (!address) return chain.explorer;
+    return chain.explorer + chain.explorerAddressPath + address;
+};
+
+// Legacy helper - get TronScan URL for current network (backwards compatible)
+window.getTronScanUrl = function(txHash) {
+    return window.getExplorerTxUrl(txHash, window.getCurrentChainId());
+};
+
+// Legacy helper - get TronScan base URL (backwards compatible)
 window.getTronScanBase = function() {
-    const current = window.AppConfig.network.current;
-    return current === 'nile'
-        ? 'https://nile.tronscan.org'
-        : 'https://tronscan.org';
+    const chain = window.getChainInfo(window.getCurrentChainId());
+    return chain.explorer;
 };
 
 // Helper to get API endpoint URL

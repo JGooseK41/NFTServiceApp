@@ -5,19 +5,39 @@
 
 window.proofOfService = {
 
-    // Get network-aware TronScan URL
-    getTronScanUrl(txHash) {
-        // Use global helper if available
+    // Get explorer URL for a transaction - chain-aware
+    getExplorerUrl(txHash, chainId) {
+        // Use the new chain-aware helper if available
+        if (window.getExplorerTxUrl) {
+            return window.getExplorerTxUrl(txHash, chainId);
+        }
+        // Fallback to legacy TronScan helper
         if (window.getTronScanUrl) {
             return window.getTronScanUrl(txHash);
         }
-        // Fallback: check current network
+        // Final fallback: check current network
         const isNile = window.AppConfig?.network?.current === 'nile' ||
                       window.tronWeb?.fullNode?.host?.includes('nile');
         const baseUrl = isNile
             ? 'https://nile.tronscan.org/#/transaction/'
             : 'https://tronscan.org/#/transaction/';
         return baseUrl + (txHash || '');
+    },
+
+    // Get chain display name
+    getChainName(chainId) {
+        if (window.getChainInfo) {
+            const chainInfo = window.getChainInfo(chainId);
+            return chainInfo?.name || 'Blockchain';
+        }
+        // Fallback for legacy
+        const current = window.AppConfig?.network?.current;
+        return current === 'nile' ? 'TRON Nile Testnet' : 'TRON Mainnet';
+    },
+
+    // Legacy alias for backwards compatibility
+    getTronScanUrl(txHash) {
+        return this.getExplorerUrl(txHash);
     },
 
     // Generate comprehensive proof of service receipt
@@ -47,6 +67,11 @@ window.proofOfService = {
         sessionStorage.setItem(`receipt_count_${caseNum}`, receiptCount.toString());
         const receiptId = receiptCount > 1 ? `${caseNum}-${receiptCount}` : caseNum;
         
+        // Get chain info - from data or current network
+        const chainId = caseData.chain || (window.getCurrentChainId ? window.getCurrentChainId() : 'tron-mainnet');
+        const chainName = caseData.chainName || this.getChainName(chainId);
+        const explorerUrl = caseData.explorerUrl || this.getExplorerUrl(caseData.transactionHash, chainId);
+
         const receipt = {
             receiptId: receiptId,
             generatedAt: new Date().toISOString(),
@@ -60,9 +85,12 @@ window.proofOfService = {
             documents: caseData.documents || [],
             agency: caseData.agency || caseData.metadata?.issuingAgency,
             noticeType: caseData.noticeType || caseData.metadata?.noticeType,
-            alertImage: alertImage
+            alertImage: alertImage,
+            chain: chainId,
+            chainName: chainName,
+            explorerUrl: explorerUrl
         };
-        
+
         return receipt;
     },
     
@@ -206,14 +234,14 @@ window.proofOfService = {
                     <h2>Blockchain Verification</h2>
                     <div class="field">
                         <span class="label">Network:</span>
-                        <span class="value">${window.AppConfig?.network?.current === 'nile' ? 'TRON Nile Testnet' : 'TRON Mainnet'}</span>
+                        <span class="value">${receipt.chainName || 'Blockchain'}</span>
                     </div>
                     <div class="field">
                         <span class="label">Transaction Hash:</span>
                     </div>
                     <div class="tx-hash">
                         ${receipt.transactionHash ? `
-                        <a href="${this.getTronScanUrl(receipt.transactionHash)}" target="_blank" style="color: #0066cc; text-decoration: none;">
+                        <a href="${receipt.explorerUrl || this.getExplorerUrl(receipt.transactionHash, receipt.chain)}" target="_blank" style="color: #0066cc; text-decoration: none;">
                             ${receipt.transactionHash}
                         </a>
                         ` : 'Not available - service data may not be synced'}
@@ -228,10 +256,10 @@ window.proofOfService = {
                         <span class="value" style="font-size: 12px;">${receipt.serverAddress || 'N/A'}</span>
                     </div>
                     <div class="field">
-                        <span class="label">Verify on TronScan:</span>
+                        <span class="label">Verify on Explorer:</span>
                         <span class="value">
                             ${receipt.transactionHash ? `
-                            <a href="${this.getTronScanUrl(receipt.transactionHash)}" target="_blank" style="color: #0066cc;">
+                            <a href="${receipt.explorerUrl || this.getExplorerUrl(receipt.transactionHash, receipt.chain)}" target="_blank" style="color: #0066cc;">
                                 Click to verify transaction
                             </a>
                             ` : 'Transaction data not available'}
@@ -306,9 +334,9 @@ VERIFICATION: This NFT serves as permanent proof on the blockchain that you rece
                     <ol>
                         ${receipt.transactionHash ? `
                         <li>
-                            <strong>Verify on TronScan:</strong><br>
-                            <a href="${this.getTronScanUrl(receipt.transactionHash)}" target="_blank" style="color: #0066cc;">
-                                ${this.getTronScanUrl(receipt.transactionHash)}
+                            <strong>Verify on Block Explorer:</strong><br>
+                            <a href="${receipt.explorerUrl || this.getExplorerUrl(receipt.transactionHash, receipt.chain)}" target="_blank" style="color: #0066cc;">
+                                ${receipt.explorerUrl || this.getExplorerUrl(receipt.transactionHash, receipt.chain)}
                             </a>
                         </li>
                         <li>
@@ -343,16 +371,16 @@ VERIFICATION: This NFT serves as permanent proof on the blockchain that you rece
                 <div class="seal">
                     *** OFFICIAL BLOCKCHAIN SERVICE ***<br>
                     This document certifies that legal notice was properly served<br>
-                    via blockchain technology on the ${window.AppConfig?.network?.current === 'nile' ? 'TRON Nile Testnet' : 'TRON Mainnet'}
+                    via blockchain technology on ${receipt.chainName || 'the blockchain'}
                 </div>
-                
+
                 <div class="signature-section">
                     <h2>Server Affirmation</h2>
                     <p>
                         I hereby affirm under penalty of perjury that on <strong>${receipt.servedAt ? new Date(receipt.servedAt).toLocaleDateString() : 'the date recorded'}</strong>,
                         I served the legal documents described above to the listed recipient addresses via blockchain technology
                         using the wallet address <strong>${receipt.serverAddress || 'on record'}</strong>${receipt.transactionHash ? ` as recorded in transaction
-                        <strong>${receipt.transactionHash.substring(0, 20)}...</strong>` : ''} on the TRON blockchain network.
+                        <strong>${receipt.transactionHash.substring(0, 20)}...</strong>` : ''} on ${receipt.chainName || 'the blockchain'}.
                     </p>
                     
                     <div style="margin-top: 40px;">

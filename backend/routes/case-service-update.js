@@ -37,6 +37,8 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
             pageCount,
             servedAt,
             serverAddress,
+            chain,            // Chain identifier (e.g., 'tron-nile', 'eth-mainnet')
+            explorerUrl,      // Full explorer URL for the transaction
             metadata = {}
         } = req.body;
 
@@ -52,6 +54,7 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
         console.log('Document Token ID:', documentTokenId);
         console.log('Transaction Hash:', transactionHash);
         console.log('IPFS Hash:', ipfsHash);
+        console.log('Chain:', chain || 'not specified');
         console.log('Has Alert Image:', !!alertImage);
 
         await client.query('BEGIN');
@@ -72,15 +75,17 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
                     case_number,
                     server_address,
                     status,
+                    chain,
                     created_at,
                     updated_at,
                     metadata
-                ) VALUES ($1, $2, $3, NOW(), NOW(), $4)
+                ) VALUES ($1, $2, $3, $4, NOW(), NOW(), $5)
                 RETURNING id
             `, [
                 caseNumber,
                 serverAddress || req.headers['x-server-address'],
                 'served',
+                chain || 'tron-mainnet',
                 JSON.stringify({
                     agency,
                     noticeType,
@@ -159,8 +164,10 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
                 page_count,
                 served_at,
                 server_address,
+                chain,
+                explorer_url,
                 created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
             ON CONFLICT (case_number)
             DO UPDATE SET
                 transaction_hash = EXCLUDED.transaction_hash,
@@ -171,6 +178,8 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
                 recipients = EXCLUDED.recipients,
                 page_count = EXCLUDED.page_count,
                 served_at = EXCLUDED.served_at,
+                chain = COALESCE(EXCLUDED.chain, case_service_records.chain),
+                explorer_url = COALESCE(EXCLUDED.explorer_url, case_service_records.explorer_url),
                 updated_at = NOW()
             RETURNING id, case_number
         `, [
@@ -183,7 +192,9 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
             JSON.stringify(recipients || []),
             pageCount || 1,
             servedAt || new Date().toISOString(),
-            serverAddress || req.headers['x-server-address']
+            serverAddress || req.headers['x-server-address'],
+            chain || 'tron-mainnet',
+            explorerUrl || null
         ]);
         console.log('INSERT result:', insertResult.rows);
 
@@ -275,7 +286,7 @@ router.get('/cases/:caseNumber/service-data', async (req, res) => {
 
         // Get case data with all service information
         const result = await pool.query(`
-            SELECT 
+            SELECT
                 c.id,
                 c.case_number,
                 c.status,
@@ -291,6 +302,8 @@ router.get('/cases/:caseNumber/service-data', async (req, res) => {
                 csr.recipients,
                 csr.page_count,
                 csr.served_at,
+                csr.chain,
+                csr.explorer_url,
                 ni.alert_image,
                 ni.document_preview
             FROM cases c
@@ -335,6 +348,8 @@ router.get('/cases/:caseNumber/service-data', async (req, res) => {
                 pageCount: caseData.page_count,
                 page_count: caseData.page_count, // Alias
                 servedAt: caseData.served_at,
+                chain: caseData.chain || 'tron-mainnet',
+                explorerUrl: caseData.explorer_url,
                 alertImage: caseData.alert_image,
                 alertPreview: caseData.alert_image, // Alias
                 alert_preview: caseData.alert_image, // Alias
