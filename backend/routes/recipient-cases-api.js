@@ -93,11 +93,12 @@ ensureColumns();
 
 /**
  * GET /api/recipient-cases/debug
- * Debug endpoint to see all case_service_records
+ * Debug endpoint to see all case_service_records and cases
  */
 router.get('/debug', async (req, res) => {
     try {
-        const result = await pool.query(`
+        // Get case_service_records
+        const csrResult = await pool.query(`
             SELECT
                 case_number,
                 recipients,
@@ -110,18 +111,47 @@ router.get('/debug', async (req, res) => {
             LIMIT 20
         `);
 
+        // Also get recent cases from cases table
+        const casesResult = await pool.query(`
+            SELECT
+                id,
+                case_number,
+                status,
+                server_address,
+                metadata,
+                created_at
+            FROM cases
+            ORDER BY created_at DESC
+            LIMIT 20
+        `);
+
         res.json({
             success: true,
-            count: result.rows.length,
-            records: result.rows.map(row => ({
-                case_number: row.case_number,
-                recipients: row.recipients,
-                recipients_type: typeof row.recipients,
-                transaction_hash: row.transaction_hash,
-                alert_token_id: row.alert_token_id,
-                served_at: row.served_at,
-                server_address: row.server_address
-            }))
+            case_service_records: {
+                count: csrResult.rows.length,
+                records: csrResult.rows.map(row => ({
+                    case_number: row.case_number,
+                    recipients: row.recipients,
+                    recipients_type: typeof row.recipients,
+                    transaction_hash: row.transaction_hash,
+                    alert_token_id: row.alert_token_id,
+                    served_at: row.served_at,
+                    server_address: row.server_address
+                }))
+            },
+            cases_table: {
+                count: casesResult.rows.length,
+                records: casesResult.rows.map(row => ({
+                    id: row.id,
+                    case_number: row.case_number,
+                    status: row.status,
+                    server_address: row.server_address,
+                    has_metadata: !!row.metadata,
+                    recipients_in_metadata: row.metadata?.recipients || null,
+                    tx_in_metadata: row.metadata?.transactionHash || null,
+                    created_at: row.created_at
+                }))
+            }
         });
     } catch (error) {
         console.error('Debug query error:', error);

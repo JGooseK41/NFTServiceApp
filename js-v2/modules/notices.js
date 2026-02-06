@@ -223,15 +223,19 @@ window.notices = {
             alertTokenId = toBigIntSafe(alertTokenId);
             documentTokenId = toBigIntSafe(documentTokenId);
 
-            // Mark case as served if we have a case ID
-            if (window.app && window.app.currentCaseId) {
+            // Always save service data to backend using the case number from form
+            const caseIdentifier = data.caseNumber || window.app?.currentCaseId;
+            if (caseIdentifier) {
                 try {
                     // Store alert image for receipt
                     const alertImage = thumbnail;
-                    
+
                     // Send complete service data to backend
                     const backendUrl = window.config?.backendUrl || 'https://nftserviceapp.onrender.com';
-                    const serviceUpdateResponse = await fetch(`${backendUrl}/api/cases/${window.app.currentCaseId}/service-complete`, {
+                    console.log(`Saving service data to backend for case: ${caseIdentifier}`);
+                    console.log('Recipients:', data.recipients || [data.recipient]);
+
+                    const serviceUpdateResponse = await fetch(`${backendUrl}/api/cases/${caseIdentifier}/service-complete`, {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json',
@@ -259,21 +263,22 @@ window.notices = {
                             }
                         })
                     });
-                    
+
                     if (serviceUpdateResponse.ok) {
                         const result = await serviceUpdateResponse.json();
                         console.log('✅ Case service data stored in backend:', result);
                     } else {
-                        console.error('Failed to update backend:', await serviceUpdateResponse.text());
+                        const errorText = await serviceUpdateResponse.text();
+                        console.error('Failed to update backend:', serviceUpdateResponse.status, errorText);
                     }
-                    
+
                     // Also update local storage as a cache (but backend is source of truth)
                     const cases = JSON.parse(localStorage.getItem('legalnotice_cases') || '[]');
-                    const caseIndex = cases.findIndex(c => 
-                        c.caseNumber === window.app.currentCaseId || 
-                        c.id === window.app.currentCaseId
+                    const caseIndex = cases.findIndex(c =>
+                        c.caseNumber === caseIdentifier ||
+                        c.id === caseIdentifier
                     );
-                    
+
                     if (caseIndex >= 0) {
                         cases[caseIndex].status = 'served';
                         cases[caseIndex].servedAt = new Date().toISOString();
@@ -288,11 +293,13 @@ window.notices = {
                         cases[caseIndex].encryptionKey = documentData.encryptionKey;
                         localStorage.setItem('legalnotice_cases', JSON.stringify(cases));
                     }
-                    
+
                 } catch (error) {
                     console.error('Failed to update case service data:', error);
                     // Don't fail the whole transaction, just log the error
                 }
+            } else {
+                console.warn('No case identifier available - service data not saved to backend');
             }
             
             // Step 9: Generate receipt (with error handling for BigInt issues)
