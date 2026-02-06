@@ -17,16 +17,22 @@ window.contract = {
     async loadABI() {
         try {
             // Determine base path based on current location
-            const basePath = window.location.pathname.includes('/v2/') ? '' : 'v2/';
-            
-            // Try loading v5 Enumerable contract ABI
-            const response = await fetch(basePath + 'js/v5-contract-abi.json');
+            const basePath = window.location.pathname.includes('/v2/') ? '' : 'js-v2/';
+
+            // Check contract type from config
+            const network = getCurrentNetwork();
+            const isLiteContract = network?.contractType === 'lite';
+
+            // Load appropriate ABI based on contract type
+            const abiFile = isLiteContract ? 'js/lite-contract-abi.json' : 'js/v5-contract-abi.json';
+            const response = await fetch(basePath + abiFile);
+
             if (response.ok) {
                 this.abi = await response.json();
-                console.log('V5 Enumerable Contract ABI loaded');
+                console.log(isLiteContract ? 'Lite Contract ABI loaded' : 'V5 Enumerable Contract ABI loaded');
                 console.log('Contract methods available:', this.abi.filter(item => item.type === 'function').map(f => f.name));
             } else {
-                throw new Error('Failed to fetch ABI');
+                throw new Error('Failed to fetch ABI: ' + abiFile);
             }
         } catch (error) {
             console.error('Failed to load ABI:', error);
