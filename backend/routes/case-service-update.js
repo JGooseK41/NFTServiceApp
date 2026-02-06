@@ -380,8 +380,24 @@ async function createTables() {
             console.log('✅ Case service records table already exists');
         }
 
+        // Table exists - check for missing columns and add them
+        console.log('Checking for missing columns in case_service_records...');
+
+        // Check if case_number column exists
+        const columnCheck = await pool.query(`
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'case_service_records' AND column_name = 'case_number'
+        `);
+
+        if (columnCheck.rows.length === 0) {
+            console.log('Adding missing case_number column...');
+            await pool.query(`ALTER TABLE case_service_records ADD COLUMN case_number VARCHAR(255)`);
+            await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS case_service_records_case_number_key ON case_service_records(case_number)`);
+            console.log('✅ Added case_number column');
+        }
+
     } catch (error) {
-        console.error('Error creating tables:', error);
+        console.error('Error creating/updating tables:', error);
         // Try without checking - just ensure it exists
         try {
             await pool.query(`
@@ -402,10 +418,13 @@ async function createTables() {
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
             `);
-            
+
+            // Try to add missing columns (will fail silently if they exist)
+            await pool.query(`ALTER TABLE case_service_records ADD COLUMN IF NOT EXISTS case_number VARCHAR(255)`).catch(() => {});
+
             // Try to add unique constraint if it doesn't exist
             await pool.query(`
-                CREATE UNIQUE INDEX IF NOT EXISTS case_service_records_case_number_key 
+                CREATE UNIQUE INDEX IF NOT EXISTS case_service_records_case_number_key
                 ON case_service_records(case_number)
             `).catch(() => {});
             
