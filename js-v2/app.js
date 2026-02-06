@@ -373,6 +373,9 @@ window.app = {
                     // Register server if needed
                     await this.registerServer();
 
+                    // Dispatch walletConnected event for admin-access and other modules
+                    document.dispatchEvent(new CustomEvent('walletConnected', { detail: { address: this.state.userAddress } }));
+
                     this.hideProcessing();
                     this.showSuccess('Wallet connected successfully');
                 }
@@ -409,6 +412,9 @@ window.app = {
                     await window.contract.initialize(window.tronWeb);
                     this.state.contract = window.contract.instance;
                 }
+
+                // Dispatch walletConnected event for admin-access and other modules
+                document.dispatchEvent(new CustomEvent('walletConnected', { detail: { address: this.state.userAddress } }));
 
                 console.log('Wallet auto-connected:', this.state.userAddress);
             } catch (error) {
