@@ -113,7 +113,7 @@ window.notices = {
             } else {
                 // Single recipient - use regular method
                 console.log('Creating notices for single recipient...');
-                
+
                 const nftData = {
                     noticeId,
                     recipient: data.recipients[0],
@@ -131,16 +131,28 @@ window.notices = {
                     legalRights: 'View full document at www.BlockServed.com for info on your rights and next steps',  // Hardcoded
                     sponsorFees: false
                 };
-                
-                // Create Alert NFT
+
+                // Check if using Lite contract (single NFT per serve)
+                const isLiteContract = window.contract?.isLiteContract?.() ||
+                    window.getCurrentNetwork?.()?.contractType === 'lite';
+
+                // Create Alert NFT (works for both V5 and Lite)
                 const alertResult = await window.contract.createAlertNFT(nftData);
-                
-                // Create Document NFT
-                const documentResult = await window.contract.createDocumentNFT({
-                    ...nftData,
-                    legalRights: 'View full document at www.BlockServed.com for info on your rights and next steps'  // Hardcoded
-                });
-                
+
+                let documentResult = { txId: null, success: true };
+
+                if (!isLiteContract) {
+                    // V5 contract: Also create Document NFT (second NFT for signature)
+                    documentResult = await window.contract.createDocumentNFT({
+                        ...nftData,
+                        legalRights: 'View full document at www.BlockServed.com for info on your rights and next steps'
+                    });
+                } else {
+                    // Lite contract: Single NFT per serve (no separate Document NFT)
+                    console.log('Lite contract: Single NFT created (no separate Document NFT)');
+                    documentResult = { txId: alertResult.txId, success: true };
+                }
+
                 txResults.push({
                     alertTx: alertResult.txId,
                     documentTx: documentResult.txId,

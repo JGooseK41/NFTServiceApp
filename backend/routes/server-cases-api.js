@@ -510,11 +510,136 @@ router.post('/:walletAddress/link-orphaned', async (req, res) => {
             linked_cases: casesToLink,
             updated_count: updated
         });
-        
+
     } catch (error) {
         console.error('Error linking cases:', error);
         res.status(500).json({
             error: 'Failed to link cases',
+            message: error.message
+        });
+    }
+});
+
+/**
+ * GET /api/server/:walletAddress/case/:caseNumber/recipient-status
+ * Get status of all recipients for a specific case (viewed, signed, etc.)
+ * Server can only check status for their own cases
+ */
+router.get('/:walletAddress/case/:caseNumber/recipient-status', async (req, res) => {
+    const { walletAddress, caseNumber } = req.params;
+
+    console.log(`Fetching recipient status for case ${caseNumber} by server ${walletAddress}`);
+
+    try {
+        // First verify this case belongs to the server
+        const ownershipCheck = await pool.query(`
+            SELECT case_number, recipients, server_address
+            FROM case_service_records
+            WHERE case_number = $1 AND server_address = $2
+        `, [caseNumber, walletAddress]);
+
+        if (ownershipCheck.rows.length === 0) {
+            return res.status(403).json({
+                error: 'Case not found or does not belong to this server',
+                case_number: caseNumber
+            });
+        }
+
+        const caseData = ownershipCheck.rows[0];
+        let recipients = [];
+
+        try {
+            recipients = typeof caseData.recipients === 'string'
+                ? JSON.parse(caseData.recipients)
+                : caseData.recipients || [];
+        } catch (e) {
+            console.log('Could not parse recipients:', e.message);
+        }
+
+        // Get status for each recipient
+        const recipientStatuses = await Promise.all(recipients.map(async (recipientAddress) => {
+            // Check document views
+            const viewResult = await pool.query(`
+                SELECT
+                    view_type,
+                    viewed_at,
+                    metadata
+                FROM document_views
+                WHERE case_number = $1
+                AND recipient_address = $2
+                ORDER BY viewed_at DESC
+            `, [caseNumber, recipientAddress]).catch(() => ({ rows: [] }));
+
+            // Check for signatures/acknowledgments
+            const signatureResult = await pool.query(`
+                SELECT
+                    accepted,
+                    accepted_at
+                FROM case_service_records
+                WHERE case_number = $1
+                AND (
+                    recipients LIKE $2
+                    OR recipients::jsonb ? $3
+                )
+                AND accepted = true
+            `, [caseNumber, `%${recipientAddress}%`, recipientAddress]).catch(() => ({ rows: [] }));
+
+            // Also check notice_acceptances table
+            const acceptanceResult = await pool.query(`
+                SELECT
+                    acceptor_address,
+                    accepted_at,
+                    transaction_hash
+                FROM notice_acceptances
+                WHERE notice_id LIKE $1
+                AND acceptor_address = $2
+            `, [`%${caseNumber}%`, recipientAddress]).catch(() => ({ rows: [] }));
+
+            const hasViewed = viewResult.rows.length > 0;
+            const lastView = viewResult.rows[0];
+            const hasSigned = signatureResult.rows.length > 0 || acceptanceResult.rows.length > 0;
+            const signatureData = acceptanceResult.rows[0] || signatureResult.rows[0];
+
+            // Determine status
+            let status = 'Delivered';
+            if (hasSigned) {
+                status = 'Signed For';
+            } else if (hasViewed) {
+                status = 'Viewed';
+            }
+
+            return {
+                recipient: recipientAddress,
+                status: status,
+                viewed: hasViewed,
+                viewed_at: lastView?.viewed_at || null,
+                view_count: viewResult.rows.length,
+                signed: hasSigned,
+                signed_at: signatureData?.accepted_at || null,
+                signature_tx: signatureData?.transaction_hash || null
+            };
+        }));
+
+        // Calculate summary
+        const summary = {
+            total_recipients: recipients.length,
+            delivered: recipientStatuses.filter(r => r.status === 'Delivered').length,
+            viewed: recipientStatuses.filter(r => r.status === 'Viewed').length,
+            signed: recipientStatuses.filter(r => r.status === 'Signed For').length
+        };
+
+        res.json({
+            success: true,
+            case_number: caseNumber,
+            server: walletAddress,
+            recipients: recipientStatuses,
+            summary: summary
+        });
+
+    } catch (error) {
+        console.error('Error fetching recipient status:', error);
+        res.status(500).json({
+            error: 'Failed to fetch recipient status',
             message: error.message
         });
     }
