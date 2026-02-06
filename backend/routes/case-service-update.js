@@ -572,6 +572,21 @@ router.post('/cases/run-migration', async (req, res) => {
             results.push('Added case_number to cases table');
         }
 
+        // Ensure id column has a default sequence for auto-increment
+        try {
+            // Create sequence if it doesn't exist
+            await pool.query(`CREATE SEQUENCE IF NOT EXISTS cases_id_seq`);
+            // Get current max id to set sequence start
+            const maxId = await pool.query(`SELECT COALESCE(MAX(id), 0) as max_id FROM cases`);
+            const startVal = (maxId.rows[0].max_id || 0) + 1;
+            await pool.query(`ALTER SEQUENCE cases_id_seq RESTART WITH ${startVal}`);
+            // Set default on id column
+            await pool.query(`ALTER TABLE cases ALTER COLUMN id SET DEFAULT nextval('cases_id_seq')`);
+            results.push(`Set up auto-increment on cases.id starting at ${startVal}`);
+        } catch (e) {
+            results.push(`Note: Could not set up auto-increment on cases.id: ${e.message}`);
+        }
+
         res.json({
             success: true,
             message: 'Migration completed',
