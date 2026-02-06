@@ -211,109 +211,137 @@ window.documents = {
         return new Blob([mergedPdfBytes], { type: 'application/pdf' });
     },
     
-    // Generate Alert NFT image from ONLY first page with overlay
+    // Generate Alert NFT image from ONLY first page with BlockServed header ABOVE document
     async generateAlertNFTImage(pdfBlob, options = {}) {
         console.log('Generating Alert NFT image...');
-        
+
+        // Header height for BlockServed message
+        const HEADER_HEIGHT = 350;
+
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
-        
+
         // If no PDF provided, create a simple notice image
         if (!pdfBlob) {
             // Standard size for NFT image
             canvas.width = 1200;
             canvas.height = 1200;
-            
+
             // White background
             context.fillStyle = '#ffffff';
             context.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // Create the notice overlay
-            this.drawNoticeOverlay(context, canvas.width, canvas.height, options);
-            
+
+            // Draw the BlockServed header (full height since no document)
+            this.drawBlockServedHeader(context, canvas.width, canvas.height, options);
+
             const dataUri = canvas.toDataURL('image/png', 0.9);
             console.log('Alert NFT image generated (simple notice), size:', Math.round(dataUri.length / 1024), 'KB');
             return dataUri;
         }
-        
-        // If PDF provided, use first page as background
+
+        // If PDF provided, render first page BELOW the header
         const arrayBuffer = await pdfBlob.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         const page = await pdf.getPage(1); // ONLY first page
-        
-        // Set up canvas
+
+        // Get the page dimensions
         const viewport = page.getViewport({ scale: 1.5 });
+
+        // Create canvas tall enough for header + document (showing top portion)
         canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        
-        // Render ONLY the first page
+        // Show header + top ~60% of document (so titles/court/case info visible)
+        const documentPortionToShow = viewport.height * 0.6;
+        canvas.height = HEADER_HEIGHT + documentPortionToShow;
+
+        // Fill with white background
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw the BlockServed header at the TOP
+        this.drawBlockServedHeader(context, canvas.width, HEADER_HEIGHT, options);
+
+        // Create a temporary canvas to render the full PDF page
+        const tempCanvas = document.createElement('canvas');
+        const tempContext = tempCanvas.getContext('2d');
+        tempCanvas.width = viewport.width;
+        tempCanvas.height = viewport.height;
+
+        // Render the PDF page to temp canvas
         await page.render({
-            canvasContext: context,
+            canvasContext: tempContext,
             viewport: viewport
         }).promise;
-        
-        // Draw the notice overlay
-        this.drawNoticeOverlay(context, canvas.width, canvas.height, options);
-        
-        // Convert to Base64 data URI (ONLY the first page with overlay)
+
+        // Copy the top portion of the document BELOW the header
+        context.drawImage(
+            tempCanvas,
+            0, 0, viewport.width, documentPortionToShow,  // Source: top portion of PDF
+            0, HEADER_HEIGHT, viewport.width, documentPortionToShow  // Dest: below header
+        );
+
+        // Add a subtle separator line between header and document
+        context.strokeStyle = '#cc0000';
+        context.lineWidth = 3;
+        context.beginPath();
+        context.moveTo(20, HEADER_HEIGHT);
+        context.lineTo(canvas.width - 20, HEADER_HEIGHT);
+        context.stroke();
+
+        // Convert to Base64 data URI
         const dataUri = canvas.toDataURL('image/png', 0.9);
-        console.log('Alert NFT image generated (first page only), size:', Math.round(dataUri.length / 1024), 'KB');
-        
+        console.log('Alert NFT image generated (header + document top), size:', Math.round(dataUri.length / 1024), 'KB');
+
         return dataUri;
     },
-    
-    // Helper function to draw the notice overlay
-    drawNoticeOverlay(context, canvasWidth, canvasHeight, options = {}) {
-        const overlayHeight = canvasHeight * 0.45; // Take up 45% of image height to fit more info
-        
-        // Semi-transparent white background for better readability
-        context.fillStyle = 'rgba(255, 255, 255, 0.95)';
-        context.fillRect(0, 0, canvasWidth, overlayHeight);
-        
-        // Red border around overlay
+
+    // Draw the BlockServed header section (NOT overlaying document)
+    drawBlockServedHeader(context, canvasWidth, headerHeight, options = {}) {
+        // Solid white background for header
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, canvasWidth, headerHeight);
+
+        // Red border around header
         context.strokeStyle = '#cc0000';
-        context.lineWidth = 8;
-        context.strokeRect(4, 4, canvasWidth - 8, overlayHeight - 8);
-        
-        // Add text to overlay - MUCH LARGER
+        context.lineWidth = 6;
+        context.strokeRect(4, 4, canvasWidth - 8, headerHeight - 8);
+
+        // Add text to header
         context.textAlign = 'center';
         context.textBaseline = 'middle';
-        
-        // LEGAL NOTICE title - HUGE
+
+        // LEGAL NOTICE title
         context.fillStyle = '#cc0000';
-        context.font = 'bold 70px Arial';
-        context.fillText('LEGAL NOTICE', canvasWidth / 2, overlayHeight * 0.20);
-        
-        // Main message - VERY LARGE AND CLEAR
+        context.font = 'bold 56px Arial';
+        context.fillText('LEGAL NOTICE', canvasWidth / 2, headerHeight * 0.18);
+
+        // Main message
         context.fillStyle = '#000000';
-        context.font = 'bold 52px Arial';
-        context.fillText('Visit', canvasWidth / 2, overlayHeight * 0.40);
-        
-        // Website - HUGE AND PROMINENT
+        context.font = 'bold 40px Arial';
+        context.fillText('Visit', canvasWidth / 2, headerHeight * 0.38);
+
+        // Website - prominent
         context.fillStyle = '#0066cc';
-        context.font = 'bold 60px Arial';
-        context.fillText('www.BlockServed.com', canvasWidth / 2, overlayHeight * 0.55);
-        
+        context.font = 'bold 48px Arial';
+        context.fillText('www.BlockServed.com', canvasWidth / 2, headerHeight * 0.54);
+
         // Bottom message
         context.fillStyle = '#000000';
-        context.font = 'bold 44px Arial';
-        context.fillText('to View Document', canvasWidth / 2, overlayHeight * 0.70);
-        
-        // Add issuing agency in LARGE readable font
+        context.font = 'bold 36px Arial';
+        context.fillText('to View Full Document', canvasWidth / 2, headerHeight * 0.70);
+
+        // Add issuing agency if provided
         if (options.agency || options.issuingAgency) {
             const agency = options.agency || options.issuingAgency;
-            // Agency name in prominent text
             context.fillStyle = '#333333';
-            context.font = 'bold 36px Arial';
-            context.fillText(`From: ${agency}`, canvasWidth / 2, overlayHeight * 0.85);
-        }
-        
-        // Add case number at very bottom if provided
-        if (options.caseNumber) {
-            // Case number in readable text
-            context.fillStyle = '#666666';
             context.font = 'bold 28px Arial';
-            context.fillText(`Case: ${options.caseNumber}`, canvasWidth / 2, overlayHeight * 0.95);
+            context.fillText(`From: ${agency}`, canvasWidth / 2, headerHeight * 0.85);
+        }
+
+        // Add case number if provided
+        if (options.caseNumber) {
+            context.fillStyle = '#666666';
+            context.font = 'bold 24px Arial';
+            context.fillText(`Case: ${options.caseNumber}`, canvasWidth / 2, headerHeight * 0.95);
         }
     },
     
