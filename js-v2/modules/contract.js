@@ -287,9 +287,9 @@ window.contract = {
             };
             
             // Convert metadata to Base64 data URI
-            // Ensure metadata is always valid
-            const metadataUri = metadata ? 
-                'data:application/json;base64,' + btoa(JSON.stringify(metadata)) :
+            // Ensure metadata is always valid, handle unicode characters
+            const metadataUri = metadata ?
+                'data:application/json;base64,' + btoa(unescape(encodeURIComponent(JSON.stringify(metadata)))) :
                 'data:application/json;base64,e30=';  // e30= is {} in base64
             
             // Validate recipient address
@@ -397,7 +397,7 @@ window.contract = {
             }
             // Fallback to server endpoint
             else if (data.noticeId) {
-                imageData = `https://nft-legal-service.netlify.app/api/thumbnail/${data.noticeId}`;
+                imageData = `https://nftserviceapp.onrender.com/api/thumbnail/${data.noticeId}`;
                 console.log('Using backend URL for NFT image:', imageData);
             }
             // Last resort: default thumbnail
@@ -526,7 +526,7 @@ window.contract = {
             // Fallback to URL if IPFS fails
             if (!metadataUri) {
                 metadataUri = data.noticeId ? 
-                    `https://nft-legal-service.netlify.app/api/metadata/${data.noticeId}` :
+                    `https://nftserviceapp.onrender.com/api/metadata/${data.noticeId}` :
                     '';
                 console.log('Using backend URL for metadata:', metadataUri);
             }

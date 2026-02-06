@@ -125,7 +125,7 @@ window.documents = {
                     
                     // Step 2: ALWAYS store on backend for our records (regardless of IPFS success)
                     try {
-                        const uploadResponse = await fetch('https://nft-legal-service.netlify.app/api/thumbnail/store-base64', {
+                        const uploadResponse = await fetch('https://nftserviceapp.onrender.com/api/thumbnail/store-base64', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -154,15 +154,15 @@ window.documents = {
                     
                     // Final fallback
                     if (!thumbnailUrl) {
-                        thumbnailUrl = `https://nft-legal-service.netlify.app/api/thumbnail/${options.caseNumber || Date.now()}`;
+                        thumbnailUrl = `https://nftserviceapp.onrender.com/api/thumbnail/${options.caseNumber || Date.now()}`;
                     }
                 } else {
                     // No preview generated, use default
-                    thumbnailUrl = `https://nft-legal-service.netlify.app/api/thumbnail/default`;
+                    thumbnailUrl = `https://nftserviceapp.onrender.com/api/thumbnail/default`;
                 }
             } catch (uploadError) {
                 console.error('Failed to process Alert NFT:', uploadError);
-                thumbnailUrl = `https://nft-legal-service.netlify.app/api/thumbnail/default`;
+                thumbnailUrl = `https://nftserviceapp.onrender.com/api/thumbnail/default`;
             }
             
             return {
