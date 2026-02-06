@@ -159,16 +159,14 @@ router.get('/wallet/:address', async (req, res) => {
             // Log the address being searched
             console.log(`Searching for recipient: ${address}`);
 
-            // Try the full query with join
-            // Note: For JSONB arrays, use @> to check if array contains the value
-            // or use jsonb_array_elements_text for exact match
+            // Use simple text search to avoid JSON parsing errors on malformed data
+            // This searches for the wallet address anywhere in the recipients field
             query = `
                 SELECT
                     csr.case_number,
                     csr.recipients,
                     csr.transaction_hash,
                     csr.alert_token_id,
-                    -- If document_token_id is missing, calculate it as alert_token_id + 1
                     COALESCE(
                         csr.document_token_id,
                         CASE
@@ -188,26 +186,10 @@ router.get('/wallet/:address', async (req, res) => {
                     COALESCE(csr.status, c.status, 'served') as status
                 FROM case_service_records csr
                 LEFT JOIN cases c ON csr.case_number = c.case_number::text
-                WHERE
-                    -- Check if JSONB array contains the address
-                    csr.recipients::jsonb @> $1::jsonb
-                    -- Or check with text search as fallback
-                    OR LOWER(csr.recipients::text) LIKE LOWER($2)
-                    -- Or check using jsonb_array_elements for exact match
-                    OR EXISTS (
-                        SELECT 1 FROM jsonb_array_elements_text(
-                            CASE
-                                WHEN csr.recipients IS NOT NULL AND csr.recipients != ''
-                                THEN csr.recipients::jsonb
-                                ELSE '[]'::jsonb
-                            END
-                        ) AS elem
-                        WHERE LOWER(elem) = LOWER($3)
-                    )
+                WHERE LOWER(COALESCE(csr.recipients::text, '')) LIKE LOWER($1)
                 ORDER BY csr.served_at DESC
             `;
-            // For @> operator, we need to pass the address as a JSON array
-            result = await pool.query(query, [JSON.stringify([address]), `%${address}%`, address]);
+            result = await pool.query(query, [`%${address}%`]);
             console.log(`Query returned ${result.rows.length} rows`);
         } catch (joinError) {
             console.log('Join query failed, trying simple query:', joinError.message);
@@ -219,7 +201,6 @@ router.get('/wallet/:address', async (req, res) => {
                     recipients,
                     transaction_hash,
                     alert_token_id,
-                    -- If document_token_id is missing, calculate it as alert_token_id + 1
                     COALESCE(
                         document_token_id,
                         CASE
@@ -238,22 +219,10 @@ router.get('/wallet/:address', async (req, res) => {
                     page_count,
                     status
                 FROM case_service_records
-                WHERE
-                    recipients::jsonb @> $1::jsonb
-                    OR LOWER(recipients::text) LIKE LOWER($2)
-                    OR EXISTS (
-                        SELECT 1 FROM jsonb_array_elements_text(
-                            CASE
-                                WHEN recipients IS NOT NULL AND recipients != ''
-                                THEN recipients::jsonb
-                                ELSE '[]'::jsonb
-                            END
-                        ) AS elem
-                        WHERE LOWER(elem) = LOWER($3)
-                    )
+                WHERE LOWER(COALESCE(recipients::text, '')) LIKE LOWER($1)
                 ORDER BY served_at DESC
             `;
-            result = await pool.query(query, [JSON.stringify([address]), `%${address}%`, address]);
+            result = await pool.query(query, [`%${address}%`]);
             console.log(`Fallback query returned ${result.rows.length} rows`);
         }
         
