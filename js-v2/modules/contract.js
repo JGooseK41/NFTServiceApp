@@ -603,18 +603,30 @@ window.contract = {
             
             // Calculate total fees - check for exemptions
             const walletAddress = this.tronWeb.defaultAddress.base58;
-            
+            const isLite = this.isLiteContract();
+
             // Check if wallet is fee exempt using contract's calculateFee function
             let feePerRecipient;
-            if (this.instance.calculateFee) {
-                // Use contract's calculateFee which handles exemptions
+
+            if (isLite) {
+                // LITE CONTRACT: Simple serviceFee for all, check feeExempt
+                const isExempt = await this.instance.feeExempt(walletAddress).call();
+                if (isExempt) {
+                    feePerRecipient = 0;
+                    console.log('Wallet is fee exempt on Lite contract - no charges!');
+                } else {
+                    feePerRecipient = parseInt(await this.instance.serviceFee().call());
+                    console.log('Lite contract service fee per recipient:', feePerRecipient / 1000000, 'TRX');
+                }
+            } else if (this.instance.calculateFee) {
+                // V5 CONTRACT: Use contract's calculateFee which handles exemptions
                 feePerRecipient = parseInt(await this.instance.calculateFee(walletAddress).call());
                 console.log('Fee per recipient from contract (handles exemptions):', feePerRecipient / 1000000, 'TRX');
             } else {
-                // Fallback: manually check exemptions
+                // V5 Fallback: manually check exemptions
                 const isFullExempt = await this.instance.fullFeeExemptions(walletAddress).call();
                 const isServiceExempt = await this.instance.serviceFeeExemptions(walletAddress).call();
-                
+
                 if (isFullExempt) {
                     feePerRecipient = 0;
                     console.log('Wallet is FULLY FEE EXEMPT - no charges!');
@@ -650,7 +662,45 @@ window.contract = {
                 console.error('serveNoticeBatch not found. Available methods:', Object.keys(this.instance));
                 throw new Error('Batch minting not available in contract');
             }
-            
+
+            console.log('Contract address:', this.address);
+            console.log('Batch size:', batchNotices.length);
+            console.log('Contract type for batch:', isLite ? 'Lite' : 'V5');
+
+            if (isLite) {
+                // LITE CONTRACT: Simple serveNoticeBatch(address[] recipients, string[] metadataURIs)
+                const recipients = batchNotices.map(n => n.recipient);
+                const metadataURIs = batchNotices.map(n => n.metadataURI || '');
+
+                console.log('Lite batch recipients:', recipients);
+                console.log('Lite batch metadataURIs count:', metadataURIs.length);
+
+                try {
+                    const tx = await this.instance.serveNoticeBatch(
+                        recipients,
+                        metadataURIs
+                    ).send({
+                        feeLimit: 500000000,      // 500 TRX limit for batch
+                        callValue: totalFee,
+                        shouldPollResponse: true
+                    });
+
+                    console.log('Lite batch transaction successful!');
+                    console.log('\n📊 ON-CHAIN DATA STORED (Lite):');
+                    console.log('=' + '='.repeat(50));
+                    batchNotices.forEach((notice, i) => {
+                        console.log(`\nRecipient ${i + 1}: ${notice.recipient}`);
+                        console.log(`  Metadata URI: ${notice.metadataURI}`);
+                    });
+                    console.log('=' + '='.repeat(50));
+                    return { success: true, txId: tx, alertTx: tx, documentTx: tx };
+                } catch (liteError) {
+                    console.error('Lite batch failed:', liteError);
+                    throw liteError;
+                }
+            }
+
+            // V5 CONTRACT: Complex struct array approach
             // Prepare notice arrays (moved outside try block for scope)
             const noticeArrays = batchNotices.map(notice => [
                 notice.recipient,
@@ -664,25 +714,23 @@ window.contract = {
                 notice.sponsorFees || false,
                 notice.metadataURI || ''
             ]);
-            
+
             // Try using triggerSmartContract directly to bypass encoding issues
-            console.log('Attempting batch transaction with direct triggerSmartContract...');
-            console.log('Contract address:', this.address);
-            console.log('Batch size:', batchNotices.length);
-            
+            console.log('Attempting V5 batch transaction...');
+
             try {
                 console.log('Sending batch of', noticeArrays.length, 'notices as pure value arrays');
                 console.log('First notice array format:', noticeArrays[0]);
-                
+
                 // Pass the array directly, not wrapped in another array or object
                 const tx = await this.instance.serveNoticeBatch(noticeArrays).send({
                     feeLimit: 2000000000,
                     callValue: totalFee,
                     shouldPollResponse: true
                 });
-                
-                console.log('Batch transaction successful!');
-                
+
+                console.log('V5 batch transaction successful!');
+
                 // Log the data that was sent on-chain for visibility
                 console.log('\n📊 ON-CHAIN DATA STORED:');
                 console.log('=' + '='.repeat(50));
@@ -698,7 +746,7 @@ window.contract = {
                 });
                 console.log('=' + '='.repeat(50));
                 return { success: true, txId: tx, alertTx: tx, documentTx: tx };
-                
+
             } catch (normalError) {
                 console.error('Normal method failed, trying proper batch fix:', normalError.message);
                 
