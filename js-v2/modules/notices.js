@@ -34,7 +34,7 @@ window.notices = {
         }
     },
     
-    // Main notice creation workflow - Creates both Alert and Document NFTs for all recipients
+    // Main notice creation workflow - Creates legal service NFT for all recipients
     async createNotice(data) {
         try {
             console.log('Creating legal service package for recipients:', data.recipients);
@@ -347,7 +347,7 @@ window.notices = {
                 documentTxId: txResult.documentTx,
                 receipt,
                 viewUrl: `https://blockserved.com/notice/${noticeId}`,
-                message: 'Legal service package created successfully (Alert + Document NFTs)'
+                message: 'Legal service NFT created successfully'
             };
             
         } catch (error) {
@@ -443,41 +443,71 @@ window.notices = {
         return `${timestamp}-${random}`;
     },
     
-    // Get or create server ID
+    // Get or create server ID (wallet address + optional agency ID)
     async getServerId() {
-        // Check localStorage first
-        let serverId = localStorage.getItem(getConfig('storage.keys.serverId'));
-        
-        if (!serverId) {
+        // Server ID is now based on wallet address
+        const walletAddress = window.wallet?.address;
+        if (!walletAddress) {
+            console.error('Wallet not connected, cannot generate server ID');
+            return 'UNKNOWN';
+        }
+
+        // Check if we have a registered agency ID
+        let agencyId = localStorage.getItem('legalnotice_agency_id');
+
+        // If no agency ID, try to register with backend to get one
+        if (!agencyId) {
             try {
-                // Try to register new server
                 const response = await fetch(getApiUrl('registerServer'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        address: window.wallet.address,
+                        address: walletAddress,
                         name: 'Process Server',
                         agency: 'Legal Services',
                         timestamp: Date.now()
                     })
                 });
-                
+
                 if (response.ok) {
                     const data = await response.json();
-                    serverId = data.serverId;
-                    localStorage.setItem(getConfig('storage.keys.serverId'), serverId);
-                } else {
-                    throw new Error('Server registration endpoint not available');
+                    // Backend may return an agency ID
+                    if (data.agencyId) {
+                        agencyId = data.agencyId;
+                        localStorage.setItem('legalnotice_agency_id', agencyId);
+                    }
                 }
             } catch (error) {
-                // Generate fallback ID - this is fine, server registration is optional
-                console.log('Server registration not available, using fallback ID');
-                serverId = `PS-${window.wallet.address.substring(0, 8)}-${Date.now()}`;
-                localStorage.setItem(getConfig('storage.keys.serverId'), serverId);
+                // Registration not available - that's fine, we'll use wallet address only
+                console.log('Server registration not available, using wallet address as server ID');
             }
         }
-        
+
+        // Build server ID: wallet address + optional agency ID
+        let serverId = walletAddress;
+        if (agencyId) {
+            serverId = `${walletAddress}-${agencyId}`;
+        }
+
+        // Store in localStorage for consistency
+        localStorage.setItem(getConfig('storage.keys.serverId'), serverId);
+
         return serverId;
+    },
+
+    // Set agency ID manually (called from settings or admin)
+    setAgencyId(agencyId) {
+        if (agencyId && agencyId.trim()) {
+            localStorage.setItem('legalnotice_agency_id', agencyId.trim());
+            // Clear cached server ID so it gets regenerated
+            localStorage.removeItem(getConfig('storage.keys.serverId'));
+            console.log('Agency ID set:', agencyId);
+        }
+    },
+
+    // Get current agency ID
+    getAgencyId() {
+        return localStorage.getItem('legalnotice_agency_id') || null;
     },
     
     // Create alert thumbnail for notices without documents
@@ -814,6 +844,11 @@ window.notices = {
 
     // Show success confirmation modal with receipt options
     showSuccessConfirmation(data) {
+        // Check if using Lite contract (single NFT) or V5 (dual NFT)
+        const isLiteContract = window.contract?.isLiteContract?.() ||
+            window.getCurrentNetwork?.()?.contractType === 'lite' ||
+            data.alertTxId === data.documentTxId; // Same TX means single NFT
+
         // Store the mint result so print/export functions can access it
         this.lastMintResult = {
             caseNumber: data.caseNumber,
@@ -823,8 +858,41 @@ window.notices = {
             timestamp: data.timestamp,
             thumbnail: data.thumbnail,
             receipt: data.receipt,
-            ipfsHash: data.receipt?.ipfsHash || null
+            ipfsHash: data.receipt?.ipfsHash || null,
+            isLiteContract: isLiteContract
         };
+
+        // Build blockchain confirmation section based on contract type
+        const blockchainSection = isLiteContract ? `
+            <li><strong>NFT Transaction:</strong><br>
+                <small class="text-break">
+                    <a href="${window.getTronScanUrl ? window.getTronScanUrl(data.alertTxId) : 'https://tronscan.org/#/transaction/' + data.alertTxId}"
+                       target="_blank" class="text-decoration-none">
+                        ${String(data.alertTxId).substring(0, 20)}...
+                        <i class="bi bi-box-arrow-up-right"></i>
+                    </a>
+                </small>
+            </li>
+        ` : `
+            <li><strong>Alert NFT TX:</strong><br>
+                <small class="text-break">
+                    <a href="${window.getTronScanUrl ? window.getTronScanUrl(data.alertTxId) : 'https://tronscan.org/#/transaction/' + data.alertTxId}"
+                       target="_blank" class="text-decoration-none">
+                        ${String(data.alertTxId).substring(0, 20)}...
+                        <i class="bi bi-box-arrow-up-right"></i>
+                    </a>
+                </small>
+            </li>
+            <li><strong>Document NFT TX:</strong><br>
+                <small class="text-break">
+                    <a href="${window.getTronScanUrl ? window.getTronScanUrl(data.documentTxId) : 'https://tronscan.org/#/transaction/' + data.documentTxId}"
+                       target="_blank" class="text-decoration-none">
+                        ${String(data.documentTxId).substring(0, 20)}...
+                        <i class="bi bi-box-arrow-up-right"></i>
+                    </a>
+                </small>
+            </li>
+        `;
 
         const modalHtml = `
             <div class="modal fade" id="mintSuccessModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
@@ -833,63 +901,46 @@ window.notices = {
                         <div class="modal-header bg-success text-white">
                             <h5 class="modal-title">
                                 <i class="bi bi-check-circle-fill me-2"></i>
-                                NFT Minting Successful!
+                                Legal Service NFT Minted Successfully!
                             </h5>
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body">
                             <div class="alert alert-success mb-3">
-                                <strong>✅ Success!</strong> Your legal notice NFTs have been minted on the blockchain.
+                                <strong>✅ Success!</strong> Your legal notice has been minted as an NFT on the blockchain.
                             </div>
-                            
+
                             <div class="row mb-3">
                                 <div class="col-md-6">
-                                    <h6>Transaction Details:</h6>
+                                    <h6>Service Details:</h6>
                                     <ul class="list-unstyled">
                                         <li><strong>Case Number:</strong> ${data.caseNumber}</li>
                                         <li><strong>Recipient:</strong> <small>${data.recipient}</small></li>
-                                        <li><strong>Timestamp:</strong> ${new Date(data.timestamp).toLocaleString()}</li>
+                                        <li><strong>Served At:</strong> ${new Date(data.timestamp).toLocaleString()}</li>
                                     </ul>
                                 </div>
                                 <div class="col-md-6">
                                     <h6>Blockchain Confirmation:</h6>
                                     <ul class="list-unstyled">
-                                        <li><strong>Alert NFT TX:</strong><br>
-                                            <small class="text-break">
-                                                <a href="${window.getTronScanUrl ? window.getTronScanUrl(data.alertTxId) : 'https://tronscan.org/#/transaction/' + data.alertTxId}"
-                                                   target="_blank" class="text-decoration-none">
-                                                    ${String(data.alertTxId).substring(0, 20)}...
-                                                    <i class="bi bi-box-arrow-up-right"></i>
-                                                </a>
-                                            </small>
-                                        </li>
-                                        <li><strong>Document NFT TX:</strong><br>
-                                            <small class="text-break">
-                                                <a href="${window.getTronScanUrl ? window.getTronScanUrl(data.documentTxId) : 'https://tronscan.org/#/transaction/' + data.documentTxId}"
-                                                   target="_blank" class="text-decoration-none">
-                                                    ${String(data.documentTxId).substring(0, 20)}...
-                                                    <i class="bi bi-box-arrow-up-right"></i>
-                                                </a>
-                                            </small>
-                                        </li>
+                                        ${blockchainSection}
                                     </ul>
                                 </div>
                             </div>
-                            
+
                             <div class="form-check mb-3">
                                 <input class="form-check-input" type="checkbox" id="includeNFTImage" checked>
                                 <label class="form-check-label" for="includeNFTImage">
-                                    Include Alert NFT image in receipt
+                                    Include NFT image in receipt
                                 </label>
                             </div>
-                            
+
                             ${data.thumbnail ? `
                             <div class="text-center mb-3" id="nftImagePreview">
-                                <h6>Alert NFT Preview:</h6>
+                                <h6>NFT Preview:</h6>
                                 <img src="${data.thumbnail}" class="img-fluid" style="max-height: 200px; border: 1px solid #dee2e6;">
                             </div>
                             ` : ''}
-                            
+
                             <div class="alert alert-info">
                                 <strong>Recipient Access:</strong> The recipient can view and download their documents at:<br>
                                 <a href="${data.viewUrl}" target="_blank">${data.viewUrl}</a>
@@ -911,18 +962,18 @@ window.notices = {
                 </div>
             </div>
         `;
-        
+
         // Remove any existing modal
         const existing = document.getElementById('mintSuccessModal');
         if (existing) existing.remove();
-        
+
         // Add modal to page
         document.body.insertAdjacentHTML('beforeend', modalHtml);
-        
+
         // Show modal
         const modal = new bootstrap.Modal(document.getElementById('mintSuccessModal'));
         modal.show();
-        
+
         // Clean up on close
         document.getElementById('mintSuccessModal').addEventListener('hidden.bs.modal', function() {
             this.remove();
@@ -959,6 +1010,9 @@ window.notices = {
 
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
+
+        // Check if single NFT (Lite contract)
+        const isLiteContract = data.isLiteContract || data.alertTxId === data.documentTxId;
 
         // Title
         doc.setFontSize(20);
@@ -1013,17 +1067,10 @@ window.notices = {
         y += 10;
 
         doc.setFontSize(10);
-        doc.text('Alert NFT Transaction:', 20, y);
+        doc.text('NFT Transaction:', 20, y);
         y += 7;
         doc.setFontSize(8);
         doc.text(String(data.alertTxId || 'N/A'), 20, y);
-        y += 10;
-
-        doc.setFontSize(10);
-        doc.text('Document NFT Transaction:', 20, y);
-        y += 7;
-        doc.setFontSize(8);
-        doc.text(String(data.documentTxId || 'N/A'), 20, y);
         y += 10;
 
         doc.setFontSize(10);
@@ -1037,7 +1084,7 @@ window.notices = {
             try {
                 doc.setFontSize(14);
                 doc.setFont(undefined, 'bold');
-                doc.text('Alert NFT Preview', 20, y);
+                doc.text('NFT Preview', 20, y);
                 y += 5;
                 doc.addImage(data.thumbnail, 'PNG', 20, y, 60, 80);
                 y += 85;
@@ -1050,7 +1097,7 @@ window.notices = {
         doc.setFontSize(9);
         doc.setTextColor(100, 100, 100);
         doc.text('This document certifies that legal notice was successfully delivered via blockchain technology.', 105, 280, { align: 'center' });
-        doc.text(`Generated: ${new Date().toLocaleString()} | TheBlockService.com`, 105, 285, { align: 'center' });
+        doc.text(`Generated: ${new Date().toLocaleString()} | BlockServed.com`, 105, 285, { align: 'center' });
 
         // Save PDF
         doc.save(`proof_of_service_${data.caseNumber}.pdf`);
@@ -1079,103 +1126,166 @@ window.notices = {
         }
     },
 
-    // Generate stamped document PDF directly
+    // Generate stamped document PDF - fetches actual document and adds stamp overlay
     async generateStampedDocumentPDF(data) {
-        // Load jsPDF if needed
-        await this.loadJSPDF();
-
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-
-        // Title
-        doc.setFontSize(18);
-        doc.text('STAMPED LEGAL DOCUMENT', 105, 20, { align: 'center' });
-
-        doc.setFontSize(11);
-        doc.text('Blockchain Delivery Confirmation', 105, 28, { align: 'center' });
-
-        // Delivery stamp box
-        doc.setDrawColor(40, 167, 69);
-        doc.setLineWidth(2);
-        doc.rect(130, 35, 65, 35);
-        doc.setFontSize(10);
-        doc.setTextColor(40, 167, 69);
-        doc.text('DELIVERED', 162.5, 45, { align: 'center' });
-        doc.setFontSize(8);
-        doc.text(new Date(data.timestamp).toLocaleDateString(), 162.5, 52, { align: 'center' });
-        doc.text(new Date(data.timestamp).toLocaleTimeString(), 162.5, 58, { align: 'center' });
-        doc.text('via Blockchain', 162.5, 65, { align: 'center' });
-        doc.setTextColor(0, 0, 0);
-
-        let y = 80;
-
-        // Case Information
-        doc.setFontSize(12);
-        doc.setFont(undefined, 'bold');
-        doc.text('Case Information', 20, y);
-        doc.setFont(undefined, 'normal');
-        y += 8;
-
-        doc.setFontSize(10);
-        doc.text(`Case Number: ${data.caseNumber}`, 20, y);
-        y += 7;
-        doc.text(`Served At: ${new Date(data.timestamp).toLocaleString()}`, 20, y);
-        y += 7;
-        doc.text(`Recipient: ${data.recipient || 'N/A'}`, 20, y);
-        y += 12;
-
-        // Blockchain Record
-        doc.setFontSize(12);
-        doc.setFont(undefined, 'bold');
-        doc.text('Blockchain Record', 20, y);
-        doc.setFont(undefined, 'normal');
-        y += 8;
-
-        doc.setFontSize(10);
-        doc.text('Transaction Hash:', 20, y);
-        y += 6;
-        doc.setFontSize(8);
-        doc.text(String(data.alertTxId || 'N/A'), 20, y);
-        y += 10;
-
-        // IPFS Document Storage
-        if (data.ipfsHash) {
-            doc.setFontSize(10);
-            doc.text('IPFS Document Hash:', 20, y);
-            y += 6;
-            doc.setFontSize(8);
-            doc.text(String(data.ipfsHash), 20, y);
-            y += 10;
-        }
-
-        // Verification URL
-        doc.setFontSize(10);
-        const tronScanUrl = window.getTronScanUrl ? window.getTronScanUrl(data.alertTxId) : `https://tronscan.org/#/transaction/${data.alertTxId}`;
-        doc.text(`Verify at: ${tronScanUrl}`, 20, y);
-        y += 15;
-
-        // Add document preview if available
-        const includeImage = document.getElementById('includeNFTImage')?.checked ?? true;
-        if (includeImage && data.thumbnail) {
-            try {
-                doc.setFontSize(12);
-                doc.setFont(undefined, 'bold');
-                doc.text('Document Preview', 20, y);
-                y += 5;
-                doc.addImage(data.thumbnail, 'PNG', 20, y, 80, 100);
-            } catch (e) {
-                console.log('Could not add thumbnail to PDF:', e);
+        try {
+            // Show loading
+            if (window.app && window.app.showProcessing) {
+                window.app.showProcessing('Fetching and stamping document...');
             }
+
+            // Load PDF-lib
+            await this.loadPDFLib();
+
+            // Fetch the original document
+            let pdfBytes = null;
+
+            // Try IPFS first
+            if (data.ipfsHash) {
+                console.log('Fetching document from IPFS:', data.ipfsHash);
+                const ipfsGateway = 'https://gateway.pinata.cloud/ipfs/';
+                try {
+                    const response = await fetch(`${ipfsGateway}${data.ipfsHash}`);
+                    if (response.ok) {
+                        pdfBytes = await response.arrayBuffer();
+                        console.log('Document fetched from IPFS, size:', pdfBytes.byteLength);
+                    }
+                } catch (e) {
+                    console.log('IPFS fetch failed, trying backend...');
+                }
+            }
+
+            // Try backend if IPFS failed
+            if (!pdfBytes) {
+                const backendUrl = window.config?.backendUrl || 'https://nftserviceapp.onrender.com';
+                try {
+                    const response = await fetch(`${backendUrl}/api/recipient/document/${data.caseNumber}/view`);
+                    if (response.ok) {
+                        pdfBytes = await response.arrayBuffer();
+                        console.log('Document fetched from backend, size:', pdfBytes.byteLength);
+                    }
+                } catch (e) {
+                    console.log('Backend fetch failed');
+                }
+            }
+
+            if (!pdfBytes) {
+                throw new Error('Could not fetch original document');
+            }
+
+            // Load the PDF
+            const pdfDoc = await PDFLib.PDFDocument.load(pdfBytes, { ignoreEncryption: true });
+            const pages = pdfDoc.getPages();
+
+            // Embed font
+            const helveticaBold = await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
+            const helvetica = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+
+            // Prepare stamp text
+            const txHash = String(data.alertTxId || '').substring(0, 32) + '...';
+            const servedDate = new Date(data.timestamp).toLocaleDateString();
+            const servedTime = new Date(data.timestamp).toLocaleTimeString();
+
+            // Add stamp to each page
+            for (let i = 0; i < pages.length; i++) {
+                const page = pages[i];
+                const { width, height } = page.getSize();
+
+                // Stamp position (bottom right corner)
+                const stampWidth = 200;
+                const stampHeight = 60;
+                const stampX = width - stampWidth - 20;
+                const stampY = 20;
+
+                // Draw stamp background (semi-transparent)
+                page.drawRectangle({
+                    x: stampX,
+                    y: stampY,
+                    width: stampWidth,
+                    height: stampHeight,
+                    color: PDFLib.rgb(0.95, 0.95, 0.95),
+                    borderColor: PDFLib.rgb(0.2, 0.6, 0.2),
+                    borderWidth: 2,
+                    opacity: 0.9
+                });
+
+                // "SERVED BY BLOCKSERVED" text
+                page.drawText('SERVED BY BLOCKSERVED', {
+                    x: stampX + 10,
+                    y: stampY + 45,
+                    size: 10,
+                    font: helveticaBold,
+                    color: PDFLib.rgb(0.2, 0.5, 0.2)
+                });
+
+                // Date/time
+                page.drawText(`${servedDate} ${servedTime}`, {
+                    x: stampX + 10,
+                    y: stampY + 32,
+                    size: 8,
+                    font: helvetica,
+                    color: PDFLib.rgb(0.3, 0.3, 0.3)
+                });
+
+                // Transaction hash
+                page.drawText(`TX: ${txHash}`, {
+                    x: stampX + 10,
+                    y: stampY + 20,
+                    size: 6,
+                    font: helvetica,
+                    color: PDFLib.rgb(0.4, 0.4, 0.4)
+                });
+
+                // Verification URL
+                page.drawText('Verify: blockserved.com', {
+                    x: stampX + 10,
+                    y: stampY + 8,
+                    size: 6,
+                    font: helvetica,
+                    color: PDFLib.rgb(0.3, 0.5, 0.8)
+                });
+            }
+
+            // Save the stamped PDF
+            const stampedPdfBytes = await pdfDoc.save();
+
+            // Download
+            const blob = new Blob([stampedPdfBytes], { type: 'application/pdf' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `stamped_${data.caseNumber}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            if (window.app && window.app.hideProcessing) {
+                window.app.hideProcessing();
+            }
+
+            console.log('Stamped document generated successfully');
+
+        } catch (error) {
+            console.error('Failed to generate stamped document:', error);
+            if (window.app && window.app.hideProcessing) {
+                window.app.hideProcessing();
+            }
+            window.app?.showError?.('Failed to generate stamped document: ' + error.message);
         }
+    },
 
-        // Footer
-        doc.setFontSize(9);
-        doc.setTextColor(100, 100, 100);
-        doc.text('This stamped document confirms blockchain delivery of legal notice.', 105, 280, { align: 'center' });
-        doc.text(`Generated: ${new Date().toLocaleString()} | TheBlockService.com`, 105, 285, { align: 'center' });
+    // Load PDF-lib library
+    async loadPDFLib() {
+        return new Promise((resolve) => {
+            if (window.PDFLib) {
+                resolve();
+                return;
+            }
 
-        // Save PDF
-        doc.save(`stamped_document_${data.caseNumber}.pdf`);
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js';
+            script.onload = resolve;
+            document.head.appendChild(script);
+        });
     },
 
     // Load jsPDF library

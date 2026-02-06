@@ -1705,8 +1705,12 @@ window.app = {
             }
             
             const recipientCount = formData.recipients.length;
-            const totalNFTs = recipientCount * 2; // Each recipient gets Alert + Document
-            this.showProcessing(`Creating ${totalNFTs} NFTs for ${recipientCount} recipient(s)...`);
+            // Check if using Lite contract (1 NFT per serve) or V5 (2 NFTs per serve)
+            const isLiteContract = window.contract?.isLiteContract?.() ||
+                window.getCurrentNetwork?.()?.contractType === 'lite';
+            const nftsPerRecipient = isLiteContract ? 1 : 2;
+            const totalNFTs = recipientCount * nftsPerRecipient;
+            this.showProcessing(`Minting ${totalNFTs} NFT${totalNFTs > 1 ? 's' : ''} for ${recipientCount} recipient${recipientCount > 1 ? 's' : ''}...`);
             
             // Create notice through notices module
             if (window.notices) {
