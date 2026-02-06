@@ -578,10 +578,37 @@ router.post('/cases/run-migration', async (req, res) => {
         }
 
         // Try to create unique index
-        await pool.query(`
-            CREATE UNIQUE INDEX IF NOT EXISTS case_service_records_case_number_key
-            ON case_service_records(case_number)
-        `).catch(e => results.push(`Index note: ${e.message}`));
+        try {
+            await pool.query(`
+                CREATE UNIQUE INDEX IF NOT EXISTS case_service_records_case_number_key
+                ON case_service_records(case_number)
+            `);
+            results.push('Unique index on case_number ensured');
+        } catch (e) {
+            results.push(`Index error: ${e.message}`);
+        }
+
+        // Check if index exists
+        const indexCheck = await pool.query(`
+            SELECT indexname FROM pg_indexes
+            WHERE tablename = 'case_service_records' AND indexname LIKE '%case_number%'
+        `);
+        results.push(`Indexes found: ${indexCheck.rows.map(r => r.indexname).join(', ') || 'none'}`);
+
+        // Also verify ON CONFLICT will work by testing
+        try {
+            await pool.query(`
+                INSERT INTO case_service_records (case_number, transaction_hash, recipients, served_at)
+                VALUES ('__test_migration__', 'test_tx', '[]', NOW())
+                ON CONFLICT (case_number)
+                DO UPDATE SET transaction_hash = EXCLUDED.transaction_hash
+            `);
+            // Clean up test
+            await pool.query(`DELETE FROM case_service_records WHERE case_number = '__test_migration__'`);
+            results.push('ON CONFLICT test: PASSED');
+        } catch (e) {
+            results.push(`ON CONFLICT test FAILED: ${e.message}`);
+        }
 
         // ALSO check and update the 'cases' table
         const casesColumns = await pool.query(`
