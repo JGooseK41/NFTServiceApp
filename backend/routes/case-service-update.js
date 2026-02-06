@@ -208,6 +208,16 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
 
         await client.query('COMMIT');
 
+        // Verify the insert worked
+        const verifyResult = await pool.query(
+            'SELECT case_number, transaction_hash FROM case_service_records WHERE case_number = $1',
+            [caseNumber]
+        );
+        console.log(`Verification query found ${verifyResult.rows.length} rows for case ${caseNumber}`);
+        if (verifyResult.rows.length === 0) {
+            console.error('WARNING: INSERT succeeded but record not found!');
+        }
+
         console.log(`✅ Case ${caseNumber} updated with complete service data`);
 
         res.json({
