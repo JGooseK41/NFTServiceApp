@@ -92,6 +92,44 @@ async function ensureColumns() {
 ensureColumns();
 
 /**
+ * GET /api/recipient-cases/debug
+ * Debug endpoint to see all case_service_records
+ */
+router.get('/debug', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT
+                case_number,
+                recipients,
+                transaction_hash,
+                alert_token_id,
+                served_at,
+                server_address
+            FROM case_service_records
+            ORDER BY served_at DESC
+            LIMIT 20
+        `);
+
+        res.json({
+            success: true,
+            count: result.rows.length,
+            records: result.rows.map(row => ({
+                case_number: row.case_number,
+                recipients: row.recipients,
+                recipients_type: typeof row.recipients,
+                transaction_hash: row.transaction_hash,
+                alert_token_id: row.alert_token_id,
+                served_at: row.served_at,
+                server_address: row.server_address
+            }))
+        });
+    } catch (error) {
+        console.error('Debug query error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
  * GET /api/recipient-cases/wallet/:address
  * Get all cases served to a specific wallet address
  * Returns both Alert NFTs (owned by wallet) and paired Document NFTs (owned by contract)
@@ -118,20 +156,25 @@ router.get('/wallet/:address', async (req, res) => {
         let result;
         
         try {
+            // Log the address being searched
+            console.log(`Searching for recipient: ${address}`);
+
             // Try the full query with join
+            // Note: For JSONB arrays, use @> to check if array contains the value
+            // or use jsonb_array_elements_text for exact match
             query = `
-                SELECT 
+                SELECT
                     csr.case_number,
                     csr.recipients,
                     csr.transaction_hash,
                     csr.alert_token_id,
                     -- If document_token_id is missing, calculate it as alert_token_id + 1
                     COALESCE(
-                        csr.document_token_id, 
-                        CASE 
-                            WHEN csr.alert_token_id IS NOT NULL 
-                            THEN (csr.alert_token_id::int + 1)::text 
-                            ELSE NULL 
+                        csr.document_token_id,
+                        CASE
+                            WHEN csr.alert_token_id IS NOT NULL
+                            THEN (csr.alert_token_id::int + 1)::text
+                            ELSE NULL
                         END
                     ) as document_token_id,
                     csr.ipfs_hash,
@@ -145,28 +188,44 @@ router.get('/wallet/:address', async (req, res) => {
                     COALESCE(csr.status, c.status, 'served') as status
                 FROM case_service_records csr
                 LEFT JOIN cases c ON csr.case_number = c.case_number::text
-                WHERE csr.recipients::jsonb ? $1
-                   OR LOWER(csr.recipients::text) LIKE LOWER($2)
+                WHERE
+                    -- Check if JSONB array contains the address
+                    csr.recipients::jsonb @> $1::jsonb
+                    -- Or check with text search as fallback
+                    OR LOWER(csr.recipients::text) LIKE LOWER($2)
+                    -- Or check using jsonb_array_elements for exact match
+                    OR EXISTS (
+                        SELECT 1 FROM jsonb_array_elements_text(
+                            CASE
+                                WHEN csr.recipients IS NOT NULL AND csr.recipients != ''
+                                THEN csr.recipients::jsonb
+                                ELSE '[]'::jsonb
+                            END
+                        ) AS elem
+                        WHERE LOWER(elem) = LOWER($3)
+                    )
                 ORDER BY csr.served_at DESC
             `;
-            result = await pool.query(query, [address, `%${address}%`]);
+            // For @> operator, we need to pass the address as a JSON array
+            result = await pool.query(query, [JSON.stringify([address]), `%${address}%`, address]);
+            console.log(`Query returned ${result.rows.length} rows`);
         } catch (joinError) {
             console.log('Join query failed, trying simple query:', joinError.message);
-            
+
             // Fall back to simple query without join
             query = `
-                SELECT 
+                SELECT
                     case_number,
                     recipients,
                     transaction_hash,
                     alert_token_id,
                     -- If document_token_id is missing, calculate it as alert_token_id + 1
                     COALESCE(
-                        document_token_id, 
-                        CASE 
-                            WHEN alert_token_id IS NOT NULL 
-                            THEN (alert_token_id::int + 1)::text 
-                            ELSE NULL 
+                        document_token_id,
+                        CASE
+                            WHEN alert_token_id IS NOT NULL
+                            THEN (alert_token_id::int + 1)::text
+                            ELSE NULL
                         END
                     ) as document_token_id,
                     ipfs_hash,
@@ -179,11 +238,23 @@ router.get('/wallet/:address', async (req, res) => {
                     page_count,
                     status
                 FROM case_service_records
-                WHERE recipients::jsonb ? $1
-                   OR LOWER(recipients::text) LIKE LOWER($2)
+                WHERE
+                    recipients::jsonb @> $1::jsonb
+                    OR LOWER(recipients::text) LIKE LOWER($2)
+                    OR EXISTS (
+                        SELECT 1 FROM jsonb_array_elements_text(
+                            CASE
+                                WHEN recipients IS NOT NULL AND recipients != ''
+                                THEN recipients::jsonb
+                                ELSE '[]'::jsonb
+                            END
+                        ) AS elem
+                        WHERE LOWER(elem) = LOWER($3)
+                    )
                 ORDER BY served_at DESC
             `;
-            result = await pool.query(query, [address, `%${address}%`]);
+            result = await pool.query(query, [JSON.stringify([address]), `%${address}%`, address]);
+            console.log(`Fallback query returned ${result.rows.length} rows`);
         }
         
         // Transform data for frontend and include images
