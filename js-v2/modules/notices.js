@@ -477,10 +477,10 @@ window.notices = {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        address: walletAddress,
-                        name: 'Process Server',
-                        agency: 'Legal Services',
-                        timestamp: Date.now()
+                        wallet_address: walletAddress,
+                        server_id: walletAddress,  // Use wallet as server ID
+                        server_name: 'Process Server',
+                        agency_name: 'Legal Services'
                     })
                 });
 
