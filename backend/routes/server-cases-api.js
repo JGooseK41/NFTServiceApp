@@ -583,7 +583,13 @@ router.get('/:walletAddress/case/:caseNumber/recipient-status', async (req, res)
         }
 
         // Also try extracting recipients from metadata if available
-        if (ownershipCheck.rows.length === 0 || !ownershipCheck.rows[0].recipients || JSON.stringify(ownershipCheck.rows[0].recipients) === '[]') {
+        const currentRecipients = ownershipCheck.rows[0]?.recipients;
+        const hasEmptyRecipients = !currentRecipients ||
+            currentRecipients === '[]' ||
+            currentRecipients === 'null' ||
+            (Array.isArray(currentRecipients) && currentRecipients.length === 0);
+
+        if (ownershipCheck.rows.length === 0 || hasEmptyRecipients) {
             const metadataQuery = await pool.query(`
                 SELECT
                     COALESCE(case_number, id::text) as case_number,
