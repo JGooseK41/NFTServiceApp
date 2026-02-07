@@ -1306,58 +1306,58 @@ window.notices = {
                 const page = pages[i];
                 const { width, height } = page.getSize();
 
-                // Stamp position (bottom right corner)
-                const stampWidth = 200;
-                const stampHeight = 60;
-                const stampX = width - stampWidth - 20;
-                const stampY = 20;
+                // Stamp position (bottom right corner) - wider to fit text
+                const stampWidth = 250;
+                const stampHeight = 65;
+                const stampX = width - stampWidth - 15;
+                const stampY = 15;
 
-                // Draw stamp background (semi-transparent)
+                // Draw stamp background with red border
                 page.drawRectangle({
                     x: stampX,
                     y: stampY,
                     width: stampWidth,
                     height: stampHeight,
-                    color: PDFLib.rgb(0.95, 0.95, 0.95),
-                    borderColor: PDFLib.rgb(0.2, 0.6, 0.2),
+                    color: PDFLib.rgb(1, 0.95, 0.95),
+                    borderColor: PDFLib.rgb(0.8, 0, 0),
                     borderWidth: 2,
-                    opacity: 0.9
+                    opacity: 0.95
                 });
 
-                // "SERVED VIA WWW.BLOCKSERVED.COM" text
+                // "SERVED VIA WWW.BLOCKSERVED.COM" text - RED
                 page.drawText('SERVED VIA WWW.BLOCKSERVED.COM', {
-                    x: stampX + 10,
-                    y: stampY + 45,
-                    size: 10,
+                    x: stampX + 8,
+                    y: stampY + 48,
+                    size: 9,
                     font: helveticaBold,
-                    color: PDFLib.rgb(0.2, 0.5, 0.2)
+                    color: PDFLib.rgb(0.8, 0, 0)
                 });
 
-                // Date/time
+                // Date/time - dark red
                 page.drawText(`${servedDate} ${servedTime}`, {
-                    x: stampX + 10,
-                    y: stampY + 32,
+                    x: stampX + 8,
+                    y: stampY + 35,
                     size: 8,
                     font: helvetica,
-                    color: PDFLib.rgb(0.3, 0.3, 0.3)
+                    color: PDFLib.rgb(0.5, 0, 0)
                 });
 
-                // Transaction hash
+                // Transaction hash - dark red
                 page.drawText(`TX: ${txHash}`, {
-                    x: stampX + 10,
-                    y: stampY + 20,
+                    x: stampX + 8,
+                    y: stampY + 22,
                     size: 6,
                     font: helvetica,
-                    color: PDFLib.rgb(0.4, 0.4, 0.4)
+                    color: PDFLib.rgb(0.5, 0, 0)
                 });
 
-                // Verification URL
-                page.drawText('www.blockserved.com', {
-                    x: stampX + 10,
-                    y: stampY + 8,
+                // Verification URL - red
+                page.drawText('Verify: www.blockserved.com', {
+                    x: stampX + 8,
+                    y: stampY + 10,
                     size: 6,
                     font: helvetica,
-                    color: PDFLib.rgb(0.3, 0.5, 0.8)
+                    color: PDFLib.rgb(0.6, 0, 0)
                 });
             }
 

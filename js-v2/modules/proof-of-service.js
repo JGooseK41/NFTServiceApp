@@ -94,8 +94,10 @@ window.proofOfService = {
         return receipt;
     },
     
-    // Generate printable HTML receipt
+    // Generate printable HTML receipt - optimized for 3-page court filing
     generatePrintableReceipt(receipt) {
+        const explorerUrl = receipt.explorerUrl || this.getExplorerUrl(receipt.transactionHash, receipt.chain);
+
         const html = `
             <!DOCTYPE html>
             <html>
@@ -103,310 +105,385 @@ window.proofOfService = {
                 <title>Proof of Service - Case ${receipt.caseNumber}</title>
                 <style>
                     @media print {
-                        body { margin: 0; }
+                        body { margin: 0; padding: 0.5in; }
                         .no-print { display: none; }
-                        .page-break { page-break-after: always; }
+                        .page { page-break-after: always; }
+                        .page:last-child { page-break-after: avoid; }
                     }
+                    @page {
+                        size: letter;
+                        margin: 0.5in;
+                    }
+                    * { box-sizing: border-box; }
                     body {
-                        font-family: 'Times New Roman', serif;
+                        font-family: 'Times New Roman', Times, serif;
+                        font-size: 11pt;
+                        line-height: 1.4;
                         max-width: 8.5in;
                         margin: 0 auto;
                         padding: 0.5in;
-                        line-height: 1.6;
+                        color: #000;
+                    }
+                    .page {
+                        min-height: 9.5in;
+                        position: relative;
                     }
                     .header {
                         text-align: center;
-                        border-bottom: 3px double #000;
-                        padding-bottom: 20px;
-                        margin-bottom: 30px;
+                        border-bottom: 2px solid #000;
+                        padding-bottom: 15px;
+                        margin-bottom: 20px;
                     }
-                    h1 {
-                        font-size: 24px;
-                        margin: 10px 0;
+                    .header h1 {
+                        font-size: 16pt;
+                        margin: 0 0 5px 0;
                         text-transform: uppercase;
+                        letter-spacing: 1px;
                     }
-                    h2 {
-                        font-size: 18px;
-                        margin: 20px 0 10px 0;
-                        border-bottom: 1px solid #000;
+                    .header h2 {
+                        font-size: 12pt;
+                        margin: 0;
+                        font-weight: normal;
                     }
-                    .case-info {
-                        background: #f5f5f5;
-                        padding: 15px;
-                        border: 1px solid #ddd;
-                        margin: 20px 0;
+                    .header .case-ref {
+                        margin-top: 10px;
+                        font-size: 11pt;
                     }
-                    .field {
-                        margin: 10px 0;
-                        display: flex;
-                        justify-content: space-between;
+                    .section {
+                        margin-bottom: 15px;
                     }
-                    .label {
+                    .section-title {
+                        font-size: 11pt;
                         font-weight: bold;
-                        min-width: 150px;
+                        text-transform: uppercase;
+                        border-bottom: 1px solid #000;
+                        padding-bottom: 3px;
+                        margin-bottom: 10px;
                     }
-                    .value {
+                    .field-row {
+                        display: flex;
+                        margin: 5px 0;
+                        font-size: 10pt;
+                    }
+                    .field-label {
+                        font-weight: bold;
+                        width: 160px;
+                        flex-shrink: 0;
+                    }
+                    .field-value {
                         flex: 1;
+                    }
+                    .mono {
                         font-family: 'Courier New', monospace;
+                        font-size: 9pt;
                     }
-                    .tx-hash {
-                        word-break: break-all;
-                        font-size: 12px;
-                        background: #fffee0;
-                        padding: 5px;
-                        border: 1px solid #ddd;
-                    }
-                    .recipients-table {
-                        width: 100%;
-                        border-collapse: collapse;
-                        margin: 20px 0;
-                    }
-                    .recipients-table th,
-                    .recipients-table td {
+                    .tx-box {
                         border: 1px solid #000;
                         padding: 8px;
+                        margin: 8px 0;
+                        font-family: 'Courier New', monospace;
+                        font-size: 8pt;
+                        word-break: break-all;
+                    }
+                    table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin: 10px 0;
+                        font-size: 10pt;
+                    }
+                    th, td {
+                        border: 1px solid #000;
+                        padding: 6px 8px;
                         text-align: left;
                     }
-                    .recipients-table th {
+                    th {
                         background: #f0f0f0;
+                        font-weight: bold;
                     }
-                    .verification-section {
-                        background: #e8f4f8;
-                        padding: 20px;
-                        border: 2px solid #0066cc;
-                        margin: 30px 0;
+                    .nft-image {
+                        text-align: center;
+                        margin: 15px 0;
                     }
-                    .signature-section {
-                        margin-top: 50px;
+                    .nft-image img {
+                        max-width: 350px;
+                        max-height: 350px;
                         border: 1px solid #000;
-                        padding: 20px;
-                        min-height: 150px;
                     }
-                    .signature-line {
+                    .verification-list {
+                        margin: 10px 0;
+                        padding-left: 20px;
+                    }
+                    .verification-list li {
+                        margin: 8px 0;
+                    }
+                    .affirmation {
+                        border: 1px solid #000;
+                        padding: 15px;
+                        margin: 15px 0;
+                    }
+                    .affirmation p {
+                        margin: 0 0 15px 0;
+                        text-align: justify;
+                    }
+                    .sig-row {
+                        display: flex;
+                        justify-content: space-between;
+                        margin-top: 40px;
+                    }
+                    .sig-block {
+                        width: 45%;
+                    }
+                    .sig-line {
                         border-bottom: 1px solid #000;
-                        margin: 30px 0;
-                        position: relative;
+                        height: 30px;
+                        margin-bottom: 5px;
+                    }
+                    .sig-label {
+                        font-size: 9pt;
+                        text-align: center;
                     }
                     .footer {
-                        margin-top: 50px;
+                        position: absolute;
+                        bottom: 0;
+                        left: 0;
+                        right: 0;
                         text-align: center;
-                        font-size: 12px;
+                        font-size: 9pt;
+                        color: #666;
+                        border-top: 1px solid #ccc;
+                        padding-top: 10px;
+                    }
+                    .page-num {
+                        font-size: 9pt;
+                        text-align: center;
                         color: #666;
                     }
                     .seal {
                         text-align: center;
-                        margin: 30px 0;
                         font-weight: bold;
-                        font-size: 14px;
-                        color: #cc0000;
+                        margin: 20px 0;
+                        padding: 10px;
+                        border: 2px solid #000;
                     }
                 </style>
             </head>
             <body>
-                <div class="header">
-                    <h1>Proof of Blockchain Service</h1>
-                    <h2>Legal Notice Delivery Confirmation</h2>
-                    <div><strong>Case #${receipt.receiptId}</strong></div>
-                    <div>Generated: ${new Date(receipt.generatedAt).toLocaleString()}</div>
-                </div>
-                
-                <div class="case-info">
-                    <h2>Case Information</h2>
-                    <div class="field">
-                        <span class="label">Case Number:</span>
-                        <span class="value">${receipt.caseNumber}</span>
-                    </div>
-                    <div class="field">
-                        <span class="label">Issuing Agency:</span>
-                        <span class="value">${receipt.agency || 'Legal Services'}</span>
-                    </div>
-                    <div class="field">
-                        <span class="label">Notice Type:</span>
-                        <span class="value">${receipt.noticeType || 'Legal Notice'}</span>
-                    </div>
-                    <div class="field">
-                        <span class="label">Service Date:</span>
-                        <span class="value">${new Date(receipt.servedAt).toLocaleString()}</span>
-                    </div>
-                </div>
-                
-                <div class="blockchain-info">
-                    <h2>Blockchain Verification</h2>
-                    <div class="field">
-                        <span class="label">Network:</span>
-                        <span class="value">${receipt.chainName || 'Blockchain'}</span>
-                    </div>
-                    <div class="field">
-                        <span class="label">Transaction Hash:</span>
-                    </div>
-                    <div class="tx-hash">
-                        ${receipt.transactionHash ? `
-                        <a href="${receipt.explorerUrl || this.getExplorerUrl(receipt.transactionHash, receipt.chain)}" target="_blank" style="color: #0066cc; text-decoration: none;">
-                            ${receipt.transactionHash}
-                        </a>
-                        ` : 'Not available - service data may not be synced'}
+                <!-- PAGE 1: Case Info, Blockchain Verification, Recipients -->
+                <div class="page">
+                    <div class="header">
+                        <h1>Proof of Blockchain Service</h1>
+                        <h2>Legal Notice Delivery Confirmation</h2>
+                        <div class="case-ref">
+                            <strong>Case No. ${receipt.caseNumber}</strong><br>
+                            Receipt Generated: ${new Date(receipt.generatedAt).toLocaleString()}
+                        </div>
                     </div>
 
-                    <div class="field">
-                        <span class="label">NFT Token ID:</span>
-                        <span class="value">${receipt.alertTokenId ? '#' + receipt.alertTokenId : 'N/A'}</span>
+                    <div class="section">
+                        <div class="section-title">I. Case Information</div>
+                        <div class="field-row">
+                            <span class="field-label">Case Number:</span>
+                            <span class="field-value">${receipt.caseNumber}</span>
+                        </div>
+                        <div class="field-row">
+                            <span class="field-label">Issuing Agency:</span>
+                            <span class="field-value">${receipt.agency || 'Legal Services'}</span>
+                        </div>
+                        <div class="field-row">
+                            <span class="field-label">Notice Type:</span>
+                            <span class="field-value">${receipt.noticeType || 'Legal Notice'}</span>
+                        </div>
+                        <div class="field-row">
+                            <span class="field-label">Date/Time of Service:</span>
+                            <span class="field-value">${receipt.servedAt ? new Date(receipt.servedAt).toLocaleString() : 'N/A'}</span>
+                        </div>
                     </div>
-                    <div class="field">
-                        <span class="label">Server Wallet Address:</span>
-                        <span class="value" style="font-size: 12px;">${receipt.serverAddress || 'N/A'}</span>
+
+                    <div class="section">
+                        <div class="section-title">II. Blockchain Verification</div>
+                        <div class="field-row">
+                            <span class="field-label">Blockchain Network:</span>
+                            <span class="field-value">${receipt.chainName || 'TRON'}</span>
+                        </div>
+                        <div class="field-row">
+                            <span class="field-label">NFT Token ID:</span>
+                            <span class="field-value">${receipt.alertTokenId ? '#' + receipt.alertTokenId : 'N/A'}</span>
+                        </div>
+                        <div class="field-row">
+                            <span class="field-label">Server Wallet:</span>
+                            <span class="field-value mono">${receipt.serverAddress || 'N/A'}</span>
+                        </div>
+                        <div class="field-row">
+                            <span class="field-label">Transaction Hash:</span>
+                        </div>
+                        <div class="tx-box">
+                            ${receipt.transactionHash || 'Transaction data not available'}
+                        </div>
+                        <div class="field-row">
+                            <span class="field-label">Block Explorer URL:</span>
+                            <span class="field-value" style="font-size: 9pt; word-break: break-all;">
+                                ${receipt.transactionHash ? explorerUrl : 'N/A'}
+                            </span>
+                        </div>
                     </div>
-                    <div class="field">
-                        <span class="label">Verify on Explorer:</span>
-                        <span class="value">
-                            ${receipt.transactionHash ? `
-                            <a href="${receipt.explorerUrl || this.getExplorerUrl(receipt.transactionHash, receipt.chain)}" target="_blank" style="color: #0066cc;">
-                                Click to verify transaction
-                            </a>
-                            ` : 'Transaction data not available'}
-                        </span>
-                    </div>
-                </div>
-                
-                ${receipt.alertImage ? `
-                <div class="alert-image-section" style="margin: 30px 0; page-break-inside: avoid;">
-                    <h2>Legal Notice NFT</h2>
-                    <div style="text-align: center; margin: 20px 0;">
-                        <img src="${receipt.alertImage}"
-                             style="max-width: 500px; width: 100%; border: 2px solid #ddd; border-radius: 8px;"
-                             alt="Legal Notice NFT">
-                    </div>
-                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 20px;">
-                        <p style="font-weight: bold; margin-bottom: 10px;">NFT Description (as shown in wallet):</p>
-                        <p style="white-space: pre-line;">OFFICIAL LEGAL NOTICE
 
-You have been served with an official legal document that requires your attention.
-
-WHAT THIS MEANS:
-This NFT represents legal service of process. You have been officially notified of a legal matter that requires your attention or response.
-
-NEXT STEPS:
-1. Visit www.BlockServed.com
-2. Connect your wallet
-3. View your complete legal documents
-4. Follow the instructions provided
-5. Respond within the specified timeframe
-
-IMPORTANT: This is a time-sensitive legal matter. Ignoring this notice may result in legal consequences.
-
-VERIFICATION: This NFT serves as permanent proof on the blockchain that you received legal notice on ${new Date(receipt.servedAt).toLocaleDateString()}</p>
-                    </div>
-                </div>
-                ` : ''}
-                
-                <div class="recipients-section">
-                    <h2>Recipients</h2>
-                    <table class="recipients-table">
-                        <thead>
-                            <tr>
-                                <th>Recipient Address</th>
-                                <th>Token ID</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${(receipt.recipients || []).map((r, i) => `
+                    <div class="section">
+                        <div class="section-title">III. Service Recipients</div>
+                        <table>
+                            <thead>
                                 <tr>
-                                    <td style="font-family: monospace; font-size: 11px;">
-                                        ${typeof r === 'string' ? r : (r.address || 'N/A')}
-                                    </td>
+                                    <th style="width: 60%;">Recipient Wallet Address</th>
+                                    <th style="width: 20%;">Token ID</th>
+                                    <th style="width: 20%;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${(receipt.recipients || []).map((r, i) => `
+                                <tr>
+                                    <td class="mono">${typeof r === 'string' ? r : (r.address || 'N/A')}</td>
                                     <td>${receipt.alertTokenId ? '#' + (parseInt(receipt.alertTokenId) + (i * 2)) : 'N/A'}</td>
                                     <td>Delivered</td>
                                 </tr>
-                            `).join('')}
-                            ${(!receipt.recipients || receipt.recipients.length === 0) ? `
+                                `).join('') || `
                                 <tr>
-                                    <td colspan="3" style="text-align: center; color: #666;">
-                                        No recipient data available
-                                    </td>
+                                    <td colspan="3" style="text-align: center;">No recipient data available</td>
                                 </tr>
-                            ` : ''}
-                        </tbody>
-                    </table>
-                </div>
-                
-                <div class="verification-section">
-                    <h2>How to Verify This Service</h2>
-                    <ol>
-                        ${receipt.transactionHash ? `
-                        <li>
-                            <strong>Verify on Block Explorer:</strong><br>
-                            <a href="${receipt.explorerUrl || this.getExplorerUrl(receipt.transactionHash, receipt.chain)}" target="_blank" style="color: #0066cc;">
-                                ${receipt.explorerUrl || this.getExplorerUrl(receipt.transactionHash, receipt.chain)}
-                            </a>
-                        </li>
-                        <li>
-                            <strong>Transaction ID:</strong><br>
-                            <div style="background: #fff; padding: 8px; margin: 10px 0; border: 1px solid #ccc; word-break: break-all; font-family: monospace; font-size: 11px;">
-                                ${receipt.transactionHash}
-                            </div>
-                        </li>
-                        ` : `
-                        <li>
-                            <strong>Transaction Details:</strong><br>
-                            <div style="background: #fff; padding: 8px; margin: 10px 0; border: 1px solid #ccc;">
-                                Transaction data not yet synced. Please try again later.
-                            </div>
-                        </li>
-                        `}
-                        <li>
-                            <strong>Verify Recipients:</strong><br>
-                            Check that the recipient addresses match those listed above
-                        </li>
-                        <li>
-                            <strong>Confirm NFT Ownership:</strong><br>
-                            Search each recipient address to confirm they received the NFT token
-                        </li>
-                        <li>
-                            <strong>Access Documents:</strong><br>
-                            Recipients can view their notices at: <a href="https://www.BlockServed.com" target="_blank">www.BlockServed.com</a>
-                        </li>
-                    </ol>
-                </div>
-                
-                <div class="seal">
-                    *** OFFICIAL BLOCKCHAIN SERVICE ***<br>
-                    This document certifies that legal notice was properly served<br>
-                    via blockchain technology on ${receipt.chainName || 'the blockchain'}
+                                `}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="footer">
+                        BlockServed™ Proof of Service | Case ${receipt.caseNumber} | Page 1 of 3
+                    </div>
                 </div>
 
-                <div class="signature-section">
-                    <h2>Server Affirmation</h2>
-                    <p>
-                        I hereby affirm under penalty of perjury that on <strong>${receipt.servedAt ? new Date(receipt.servedAt).toLocaleDateString() : 'the date recorded'}</strong>,
-                        I served the legal documents described above to the listed recipient addresses via blockchain technology
-                        using the wallet address <strong>${receipt.serverAddress || 'on record'}</strong>${receipt.transactionHash ? ` as recorded in transaction
-                        <strong>${receipt.transactionHash.substring(0, 20)}...</strong>` : ''} on ${receipt.chainName || 'the blockchain'}.
-                    </p>
-                    
-                    <div style="margin-top: 40px;">
-                        <div class="signature-line" style="width: 300px; display: inline-block;">
-                            <div style="position: absolute; bottom: -20px; font-size: 12px;">Signature</div>
-                        </div>
-                        <div class="signature-line" style="width: 200px; display: inline-block; margin-left: 50px;">
-                            <div style="position: absolute; bottom: -20px; font-size: 12px;">Date</div>
-                        </div>
+                <!-- PAGE 2: NFT Evidence & Verification Instructions -->
+                <div class="page">
+                    <div class="header">
+                        <h1>Proof of Blockchain Service</h1>
+                        <div class="case-ref"><strong>Case No. ${receipt.caseNumber}</strong> (continued)</div>
                     </div>
-                    
-                    <div style="margin-top: 60px;">
-                        <div class="signature-line" style="width: 400px;">
-                            <div style="position: absolute; bottom: -20px; font-size: 12px;">Print Name and Title</div>
+
+                    ${receipt.alertImage ? `
+                    <div class="section">
+                        <div class="section-title">IV. NFT Evidence</div>
+                        <p style="font-size: 10pt; margin-bottom: 10px;">
+                            The following NFT was minted and transferred to the recipient's wallet as immutable proof of service:
+                        </p>
+                        <div class="nft-image">
+                            <img src="${receipt.alertImage}" alt="Legal Notice NFT">
                         </div>
+                        <p style="font-size: 9pt; text-align: center; margin-top: 5px;">
+                            <em>NFT as displayed in recipient's cryptocurrency wallet</em>
+                        </p>
+                    </div>
+                    ` : ''}
+
+                    <div class="section">
+                        <div class="section-title">${receipt.alertImage ? 'V' : 'IV'}. Verification Instructions</div>
+                        <p style="font-size: 10pt;">To independently verify this service, follow these steps:</p>
+                        <ol class="verification-list">
+                            <li><strong>Access Block Explorer:</strong> Navigate to the blockchain explorer at:<br>
+                                <span class="mono" style="font-size: 9pt;">${receipt.transactionHash ? explorerUrl : 'N/A'}</span>
+                            </li>
+                            <li><strong>Verify Transaction:</strong> Confirm the transaction hash matches:<br>
+                                <span class="mono" style="font-size: 9pt;">${receipt.transactionHash || 'N/A'}</span>
+                            </li>
+                            <li><strong>Confirm Recipient:</strong> Verify the NFT was transferred to the recipient address(es) listed in Section III.</li>
+                            <li><strong>Check Timestamp:</strong> Confirm the blockchain timestamp corresponds to the service date/time.</li>
+                            <li><strong>View Documents:</strong> Recipients may access full documents at <strong>www.BlockServed.com</strong> by connecting their wallet.</li>
+                        </ol>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">${receipt.alertImage ? 'VI' : 'V'}. About Blockchain Service</div>
+                        <p style="font-size: 10pt; text-align: justify;">
+                            This proof of service utilizes blockchain technology to create an immutable, timestamped record of legal document delivery.
+                            The Non-Fungible Token (NFT) transferred to the recipient's wallet serves as cryptographic proof that the notice was delivered
+                            to the specified blockchain address. This record cannot be altered, deleted, or disputed, and can be independently verified
+                            by any party using the transaction hash and block explorer.
+                        </p>
+                    </div>
+
+                    <div class="footer">
+                        BlockServed™ Proof of Service | Case ${receipt.caseNumber} | Page 2 of 3
                     </div>
                 </div>
-                
-                <div class="footer">
-                    <p>This receipt was generated electronically via BlockServed™ Legal Notice System</p>
-                    <p>For verification assistance, visit www.BlockServed.com</p>
+
+                <!-- PAGE 3: Affirmation & Signature -->
+                <div class="page">
+                    <div class="header">
+                        <h1>Proof of Blockchain Service</h1>
+                        <div class="case-ref"><strong>Case No. ${receipt.caseNumber}</strong> (continued)</div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">${receipt.alertImage ? 'VII' : 'VI'}. Server Affirmation</div>
+                        <div class="affirmation">
+                            <p>
+                                I, the undersigned, hereby declare under penalty of perjury under the laws of the applicable jurisdiction that:
+                            </p>
+                            <p>
+                                On <strong>${receipt.servedAt ? new Date(receipt.servedAt).toLocaleDateString() : '_______________'}</strong>
+                                at <strong>${receipt.servedAt ? new Date(receipt.servedAt).toLocaleTimeString() : '_______________'}</strong>,
+                                I caused the legal documents referenced in Case No. <strong>${receipt.caseNumber}</strong> to be served upon the
+                                recipient(s) listed herein via blockchain technology.
+                            </p>
+                            <p>
+                                Service was effectuated by transferring a Non-Fungible Token (NFT) containing notice of the legal documents to the
+                                recipient's blockchain wallet address using my server wallet address
+                                <strong class="mono" style="font-size: 9pt;">${receipt.serverAddress || '________________________________'}</strong>.
+                            </p>
+                            <p>
+                                This transaction was permanently recorded on the <strong>${receipt.chainName || 'blockchain'}</strong>
+                                ${receipt.transactionHash ? `with transaction hash <strong class="mono" style="font-size: 9pt;">${receipt.transactionHash.substring(0, 30)}...</strong>` : ''}.
+                            </p>
+                            <p>
+                                I declare that the foregoing is true and correct.
+                            </p>
+
+                            <div class="sig-row">
+                                <div class="sig-block">
+                                    <div class="sig-line"></div>
+                                    <div class="sig-label">Signature of Process Server</div>
+                                </div>
+                                <div class="sig-block">
+                                    <div class="sig-line"></div>
+                                    <div class="sig-label">Date</div>
+                                </div>
+                            </div>
+
+                            <div class="sig-row">
+                                <div class="sig-block">
+                                    <div class="sig-line"></div>
+                                    <div class="sig-label">Printed Name</div>
+                                </div>
+                                <div class="sig-block">
+                                    <div class="sig-line"></div>
+                                    <div class="sig-label">License/Registration Number (if applicable)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="seal">
+                        OFFICIAL BLOCKCHAIN SERVICE RECORD<br>
+                        <span style="font-size: 10pt; font-weight: normal;">
+                            This document certifies that legal notice was served via ${receipt.chainName || 'blockchain'} technology<br>
+                            and recorded as an immutable transaction on ${receipt.servedAt ? new Date(receipt.servedAt).toLocaleDateString() : 'the date indicated'}
+                        </span>
+                    </div>
+
+                    <div class="footer">
+                        BlockServed™ Proof of Service | Case ${receipt.caseNumber} | Page 3 of 3<br>
+                        <span style="font-size: 8pt;">Generated: ${new Date(receipt.generatedAt).toLocaleString()} | www.BlockServed.com</span>
+                    </div>
                 </div>
             </body>
             </html>
         `;
-        
+
         return html;
     },
     
