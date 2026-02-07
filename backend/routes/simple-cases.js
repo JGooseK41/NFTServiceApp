@@ -186,13 +186,12 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
         
     } catch (error) {
         console.error('Error fetching simple cases:', error);
-        
-        // Don't expose internal error details to client
-        const message = process.env.NODE_ENV === 'development' ? error.message : 'An error occurred while fetching cases';
-        
-        res.status(500).json({ 
-            error: 'Database error', 
-            message: message,
+
+        // Temporarily expose error for debugging
+        res.status(500).json({
+            error: 'Database error',
+            message: error.message,
+            stack: error.stack,
             success: false
         });
     } finally {
