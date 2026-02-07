@@ -140,7 +140,9 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
         // Store alert image if provided
         if (alertImage) {
             // Try to store in notice_images table (may not exist in all deployments)
+            // Use SAVEPOINT to allow recovery if the table doesn't exist
             try {
+                await client.query('SAVEPOINT notice_images_insert');
                 await client.query(`
                     INSERT INTO notice_images (
                         case_number,
@@ -152,7 +154,10 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
                         alert_image = EXCLUDED.alert_image,
                         created_at = NOW()
                 `, [caseNumber, alertImage]);
+                await client.query('RELEASE SAVEPOINT notice_images_insert');
             } catch (imageError) {
+                // Rollback to savepoint to keep transaction valid
+                await client.query('ROLLBACK TO SAVEPOINT notice_images_insert');
                 // Table might not exist - store in cases metadata instead
                 console.log('notice_images table not available, storing in metadata');
                 await client.query(`
@@ -477,8 +482,28 @@ async function createTables() {
     }
 }
 
+// Create notice_images table if it doesn't exist
+async function createNoticeImagesTable() {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS notice_images (
+                id SERIAL PRIMARY KEY,
+                case_number VARCHAR(255) UNIQUE,
+                notice_id VARCHAR(255),
+                alert_image TEXT,
+                document_preview TEXT,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        `);
+        console.log('✅ notice_images table ready');
+    } catch (error) {
+        console.log('Note: Could not create notice_images table:', error.message);
+    }
+}
+
 // Initialize tables on startup
 createTables();
+createNoticeImagesTable();
 
 /**
  * GET /api/cases/query-record/:caseNumber

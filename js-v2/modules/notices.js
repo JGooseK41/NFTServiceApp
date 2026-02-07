@@ -1206,19 +1206,21 @@ window.notices = {
                 }
             }
 
-            // Try backend if IPFS failed
+            // Try backend if IPFS failed - use server endpoint (not recipient endpoint)
             if (!pdfBytes) {
-                const backendUrl = window.config?.backendUrl || 'https://nftserviceapp.onrender.com';
+                const backendUrl = window.AppConfig?.backend?.baseUrl || 'https://nftserviceapp.onrender.com';
+                const serverAddress = window.app?.state?.userAddress || '';
                 try {
-                    const response = await fetch(`${backendUrl}/api/recipient/document/${data.caseNumber}/view`);
+                    // Use the server PDF endpoint which doesn't require recipient auth
+                    const response = await fetch(`${backendUrl}/api/cases/${encodeURIComponent(data.caseNumber)}/pdf?serverAddress=${serverAddress}`);
                     if (response.ok) {
                         pdfBytes = await response.arrayBuffer();
-                        // Backend may serve decrypted documents
+                        // Backend serves unencrypted documents
                         isEncrypted = false;
                         console.log('Document fetched from backend, size:', pdfBytes.byteLength);
                     }
                 } catch (e) {
-                    console.log('Backend fetch failed');
+                    console.log('Backend fetch failed:', e.message);
                 }
             }
 
