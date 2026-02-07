@@ -1630,6 +1630,47 @@ async function initializeBlockchainSync() {
   }
 }
 
+// Ensure master admin is registered
+async function ensureMasterAdminRegistered() {
+  const walletAddress = 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY';
+  const agencyName = 'The Block Audit LLC';
+
+  try {
+    // Check if already registered
+    const check = await pool.query(
+      'SELECT wallet_address, agency_name FROM process_servers WHERE LOWER(wallet_address) = LOWER($1)',
+      [walletAddress]
+    );
+
+    if (check.rows.length === 0) {
+      // Register master admin
+      await pool.query(`
+        INSERT INTO process_servers
+        (wallet_address, agency_name, contact_email, phone_number, status, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, 'active', NOW(), NOW())
+      `, [walletAddress, agencyName, 'admin@theblockaudit.com', '000-000-0000']);
+      console.log(`✅ Master admin registered: ${agencyName}`);
+    } else if (check.rows[0].agency_name !== agencyName) {
+      // Update agency name if different
+      await pool.query(
+        'UPDATE process_servers SET agency_name = $1, updated_at = NOW() WHERE LOWER(wallet_address) = LOWER($2)',
+        [agencyName, walletAddress]
+      );
+      console.log(`✅ Master admin agency updated to: ${agencyName}`);
+    } else {
+      console.log(`✅ Master admin already registered as: ${agencyName}`);
+    }
+
+    // Also update agency column if it exists
+    try {
+      await pool.query('UPDATE process_servers SET agency = $1 WHERE LOWER(wallet_address) = LOWER($2)', [agencyName, walletAddress]);
+    } catch (e) { /* agency column might not exist */ }
+
+  } catch (error) {
+    console.error('Failed to ensure master admin registration:', error.message);
+  }
+}
+
 // Initialize disk storage if mounted
 async function initializeDiskStorage() {
   try {
@@ -1661,7 +1702,10 @@ app.listen(PORT, async () => {
   
   // Initialize database tables
   await initializeDatabase();
-  
+
+  // Ensure master admin is registered
+  await ensureMasterAdminRegistered();
+
   // Initialize blockchain sync
   await initializeBlockchainSync();
 });
