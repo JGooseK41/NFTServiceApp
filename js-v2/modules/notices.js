@@ -1344,29 +1344,48 @@ window.notices = {
             }
         }
 
-        // Certification Box
-        doc.setDrawColor(40, 167, 69);
+        // Server Affirmation / Attestation Box
+        doc.setDrawColor(0, 0, 0);
         doc.setLineWidth(1);
-        doc.rect(15, y, 180, 50);
+        doc.rect(15, y, 180, 85);
 
-        y += 12;
+        y += 10;
         doc.setFontSize(14);
         doc.setFont(undefined, 'bold');
-        doc.text('CERTIFICATION', 105, y, { align: 'center' });
+        doc.text('SERVER AFFIRMATION', 105, y, { align: 'center' });
         y += 12;
 
-        doc.setFontSize(10);
+        doc.setFontSize(9);
         doc.setFont(undefined, 'normal');
-        const certText = [
-            'This document certifies that legal notice was successfully',
-            'delivered via blockchain technology. The transaction is',
-            'permanently recorded on the TRON blockchain and can be',
-            'independently verified using the transaction hash above.'
+        const affirmText = [
+            'I, the undersigned, hereby declare under penalty of perjury under the laws of the',
+            'applicable jurisdiction that:',
+            '',
+            `On ${formatUTCDate(data.timestamp)} at ${formatUTCTime(data.timestamp)}, I caused the legal`,
+            `documents referenced in Case No. ${data.caseNumber || 'N/A'} to be served upon the recipient(s)`,
+            'listed herein via blockchain technology.',
+            '',
+            'Service was effectuated by transferring a Non-Fungible Token (NFT) containing',
+            'notice of the legal documents to the recipient\'s blockchain wallet address.'
         ];
-        certText.forEach(line => {
-            doc.text(line, 105, y, { align: 'center' });
-            y += 7;
+        affirmText.forEach(line => {
+            doc.text(line, 20, y);
+            y += 6;
         });
+
+        // Signature line
+        y += 8;
+        doc.setLineWidth(0.5);
+        doc.line(20, y, 120, y);
+        doc.setFontSize(9);
+        doc.text('Process Server Signature', 20, y + 5);
+
+        doc.line(130, y, 190, y);
+        doc.text('Date', 130, y + 5);
+
+        y += 15;
+        doc.setFontSize(8);
+        doc.text(`Server Wallet: ${data.serverAddress || window.wallet?.address || 'N/A'}`, 20, y);
 
         // Final footer
         doc.setFontSize(9);
