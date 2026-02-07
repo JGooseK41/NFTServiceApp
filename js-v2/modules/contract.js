@@ -184,21 +184,58 @@ window.contract = {
     // Grant role to address
     async grantRole(role, address) {
         try {
-            const tx = await this.instance.grantRole(role, address).send();
-            console.log('Role granted:', tx);
-            return { success: true, txId: tx };
+            const isLite = this.isLiteContract();
+
+            if (isLite) {
+                // Lite contract uses setServer(address, true) for process server role
+                // and setAdmin(address, true) for admin role
+                if (role === getConfig('contract.roles.PROCESS_SERVER_ROLE') || role === 'PROCESS_SERVER') {
+                    const tx = await this.instance.setServer(address, true).send();
+                    console.log('Server authorized (Lite):', tx);
+                    return { success: true, txId: tx };
+                } else if (role === getConfig('contract.roles.ADMIN_ROLE') || role === 'ADMIN') {
+                    const tx = await this.instance.setAdmin(address, true).send();
+                    console.log('Admin added (Lite):', tx);
+                    return { success: true, txId: tx };
+                } else {
+                    throw new Error('Lite contract only supports PROCESS_SERVER and ADMIN roles');
+                }
+            } else {
+                // V5 contract uses grantRole
+                const tx = await this.instance.grantRole(role, address).send();
+                console.log('Role granted:', tx);
+                return { success: true, txId: tx };
+            }
         } catch (error) {
             console.error('Failed to grant role:', error);
             throw error;
         }
     },
-    
+
     // Revoke role from address
     async revokeRole(role, address) {
         try {
-            const tx = await this.instance.revokeRole(role, address).send();
-            console.log('Role revoked:', tx);
-            return { success: true, txId: tx };
+            const isLite = this.isLiteContract();
+
+            if (isLite) {
+                // Lite contract uses setServer(address, false) to revoke
+                if (role === getConfig('contract.roles.PROCESS_SERVER_ROLE') || role === 'PROCESS_SERVER') {
+                    const tx = await this.instance.setServer(address, false).send();
+                    console.log('Server revoked (Lite):', tx);
+                    return { success: true, txId: tx };
+                } else if (role === getConfig('contract.roles.ADMIN_ROLE') || role === 'ADMIN') {
+                    const tx = await this.instance.setAdmin(address, false).send();
+                    console.log('Admin removed (Lite):', tx);
+                    return { success: true, txId: tx };
+                } else {
+                    throw new Error('Lite contract only supports PROCESS_SERVER and ADMIN roles');
+                }
+            } else {
+                // V5 contract uses revokeRole
+                const tx = await this.instance.revokeRole(role, address).send();
+                console.log('Role revoked:', tx);
+                return { success: true, txId: tx };
+            }
         } catch (error) {
             console.error('Failed to revoke role:', error);
             throw error;
