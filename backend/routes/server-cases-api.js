@@ -559,12 +559,46 @@ router.get('/:walletAddress/case/:caseNumber/recipient-status', async (req, res)
     console.log(`Fetching recipient status for case ${caseNumber} by server ${walletAddress}`);
 
     try {
-        // First verify this case belongs to the server
-        const ownershipCheck = await pool.query(`
+        // First verify this case belongs to the server - check both tables
+        let ownershipCheck = await pool.query(`
             SELECT case_number, recipients, server_address
             FROM case_service_records
             WHERE case_number = $1 AND server_address = $2
         `, [caseNumber, walletAddress]);
+
+        // If not found in case_service_records, check cases table
+        if (ownershipCheck.rows.length === 0) {
+            ownershipCheck = await pool.query(`
+                SELECT
+                    COALESCE(case_number, id::text) as case_number,
+                    CASE
+                        WHEN recipient_address IS NOT NULL
+                        THEN jsonb_build_array(recipient_address)::text
+                        ELSE '[]'
+                    END as recipients,
+                    server_address
+                FROM cases
+                WHERE (case_number = $1 OR id::text = $1) AND server_address = $2
+            `, [caseNumber, walletAddress]);
+        }
+
+        // Also try with metadata.recipients if available
+        if (ownershipCheck.rows.length === 0) {
+            ownershipCheck = await pool.query(`
+                SELECT
+                    COALESCE(case_number, id::text) as case_number,
+                    COALESCE(
+                        metadata->'recipients',
+                        CASE WHEN recipient_address IS NOT NULL
+                             THEN jsonb_build_array(recipient_address)
+                             ELSE '[]'::jsonb
+                        END
+                    )::text as recipients,
+                    server_address
+                FROM cases
+                WHERE (case_number = $1 OR id::text = $1) AND server_address = $2
+            `, [caseNumber, walletAddress]);
+        }
 
         if (ownershipCheck.rows.length === 0) {
             return res.status(403).json({
