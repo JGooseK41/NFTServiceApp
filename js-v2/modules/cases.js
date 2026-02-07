@@ -1333,6 +1333,86 @@ window.cases = {
         }
     },
     
+    // Action type explanations for audit log
+    actionExplainers: {
+        'recipient_notice_query': {
+            label: 'Checked Notices',
+            badge: 'bg-info',
+            description: 'The recipient connected their wallet to BlockServed.com and checked if they have any legal notices pending. This confirms they are aware of the service.'
+        },
+        'recipient_document_view': {
+            label: 'Viewed Document',
+            badge: 'bg-success',
+            description: 'The recipient opened and viewed the legal document attached to this notice. This is strong evidence of actual notice and awareness of the document contents.'
+        },
+        'recipient_document_download': {
+            label: 'Downloaded PDF',
+            badge: 'bg-primary',
+            description: 'The recipient downloaded a PDF copy of the legal document to their device. This indicates they wanted to keep a copy for their records.'
+        },
+        'wallet_connect': {
+            label: 'Wallet Connected',
+            badge: 'bg-secondary',
+            description: 'The recipient connected their cryptocurrency wallet to the BlockServed platform. This is the first step in accessing served documents.'
+        },
+        'document_signed': {
+            label: 'Document Signed',
+            badge: 'bg-success',
+            description: 'The recipient cryptographically signed the document using their wallet, providing irrefutable proof of receipt and acknowledgment.'
+        },
+        'notice_served': {
+            label: 'Notice Served',
+            badge: 'bg-warning',
+            description: 'The legal notice was minted as an NFT and delivered to the recipient\'s blockchain address. This creates an immutable record of service.'
+        },
+        'view': {
+            label: 'Viewed',
+            badge: 'bg-info',
+            description: 'The recipient viewed content related to this case.'
+        },
+        'view_alert': {
+            label: 'Viewed Alert',
+            badge: 'bg-info',
+            description: 'The recipient viewed the alert notification for this legal notice.'
+        },
+        'view_document': {
+            label: 'Viewed Document',
+            badge: 'bg-success',
+            description: 'The recipient opened and viewed the legal document.'
+        },
+        'decrypt': {
+            label: 'Decrypted',
+            badge: 'bg-primary',
+            description: 'The recipient decrypted the encrypted document content, which requires wallet authentication.'
+        },
+        'accept': {
+            label: 'Accepted',
+            badge: 'bg-success',
+            description: 'The recipient formally accepted or acknowledged the legal document.'
+        },
+        'download': {
+            label: 'Downloaded',
+            badge: 'bg-primary',
+            description: 'The recipient downloaded a copy of the document.'
+        }
+    },
+
+    // Get formatted action badge with tooltip
+    getActionBadge(action) {
+        const explainer = this.actionExplainers[action] || {
+            label: action.replace(/_/g, ' '),
+            badge: 'bg-secondary',
+            description: 'User activity recorded for this case.'
+        };
+        return `<span class="badge ${explainer.badge} action-badge"
+                      style="cursor: pointer;"
+                      data-bs-toggle="popover"
+                      data-bs-trigger="click"
+                      data-bs-placement="top"
+                      data-bs-title="${explainer.label}"
+                      data-bs-content="${explainer.description}">${explainer.label}</span>`;
+    },
+
     // Show audit log modal
     showAuditLogModal(caseNumber, auditData) {
         const { recipients, events } = auditData;
@@ -1363,7 +1443,8 @@ window.cases = {
                         </div>
                         <div class="modal-body">
                             <div class="alert alert-info">
-                                <i class="bi bi-info-circle"></i> This log shows all recipient activity for viewing served documents
+                                <i class="bi bi-info-circle"></i> This log shows all recipient activity for viewing served documents.
+                                <strong>Click on any action badge</strong> to see a detailed explanation of what it means.
                             </div>
                             
                             ${recipients.length === 0 ? `
@@ -1400,14 +1481,7 @@ window.cases = {
                                                         ${eventsByRecipient[addr].map(event => `
                                                             <tr>
                                                                 <td>${new Date(event.timestamp).toLocaleString()}</td>
-                                                                <td>
-                                                                    ${event.action === 'recipient_notice_query' ?
-                                                                        '<span class="badge bg-info">Checked Notices</span>' :
-                                                                        event.action === 'recipient_document_view' ?
-                                                                        '<span class="badge bg-success">Viewed Document</span>' :
-                                                                        event.action
-                                                                    }
-                                                                </td>
+                                                                <td>${cases.getActionBadge(event.action)}</td>
                                                                 <td><small>${event.ipAddress || 'N/A'}</small></td>
                                                                 <td><small>${event.userAgent ? event.userAgent.substring(0, 50) + '...' : 'N/A'}</small></td>
                                                             </tr>
@@ -1440,16 +1514,27 @@ window.cases = {
         // Remove any existing modal
         const existingModal = document.getElementById('auditLogModal');
         if (existingModal) existingModal.remove();
-        
+
         // Add modal to page
         document.body.insertAdjacentHTML('beforeend', modalHtml);
-        
+
+        // Initialize popovers for action badges
+        const modalElement = document.getElementById('auditLogModal');
+        const popoverTriggerList = modalElement.querySelectorAll('[data-bs-toggle="popover"]');
+        popoverTriggerList.forEach(el => {
+            new bootstrap.Popover(el, { html: true });
+        });
+
         // Show modal
-        const modal = new bootstrap.Modal(document.getElementById('auditLogModal'));
+        const modal = new bootstrap.Modal(modalElement);
         modal.show();
-        
-        // Clean up on close
-        document.getElementById('auditLogModal').addEventListener('hidden.bs.modal', function() {
+
+        // Clean up on close (dispose popovers first)
+        modalElement.addEventListener('hidden.bs.modal', function() {
+            popoverTriggerList.forEach(el => {
+                const popover = bootstrap.Popover.getInstance(el);
+                if (popover) popover.dispose();
+            });
             this.remove();
         });
     },
