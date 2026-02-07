@@ -59,11 +59,19 @@ const handleServerRegistration = async (req, res) => {
             console.log('Note: Could not create process_servers table:', tableErr.message);
         }
 
-        // Add missing columns if table already exists with different schema
+        // Add all potentially missing columns if table already exists with different schema
         const alterStatements = [
             'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS server_id VARCHAR(255)',
             'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS server_name VARCHAR(255)',
-            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS physical_address TEXT'
+            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS physical_address TEXT',
+            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS phone_number VARCHAR(50)',
+            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255)',
+            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS website VARCHAR(255)',
+            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS license_number VARCHAR(100)',
+            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS agency_name VARCHAR(255)',
+            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT \'pending\'',
+            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()',
+            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()'
         ];
 
         for (const stmt of alterStatements) {
