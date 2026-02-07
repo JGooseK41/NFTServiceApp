@@ -101,30 +101,34 @@ const handleServerRegistration = async (req, res) => {
         ];
         
         const result = await client.query(query, values);
-        
-        // Log the registration in audit_logs
-        await client.query(`
-            INSERT INTO audit_logs (
-                action_type,
-                actor_address,
-                target_id,
-                details
-            ) VALUES (
-                'SERVER_REGISTRATION',
-                $1,
-                $2,
-                $3
-            )
-        `, [
-            wallet_address,
-            server_id.toString(),
-            JSON.stringify({
-                server_name,
-                agency_name,
-                timestamp: new Date().toISOString()
-            })
-        ]);
-        
+
+        // Log the registration in audit_logs (non-fatal if it fails)
+        try {
+            await client.query(`
+                INSERT INTO audit_logs (
+                    action_type,
+                    actor_address,
+                    target_id,
+                    details
+                ) VALUES (
+                    'SERVER_REGISTRATION',
+                    $1,
+                    $2,
+                    $3
+                )
+            `, [
+                wallet_address,
+                server_id.toString(),
+                JSON.stringify({
+                    server_name,
+                    agency_name,
+                    timestamp: new Date().toISOString()
+                })
+            ]);
+        } catch (auditError) {
+            console.log('Note: Could not log to audit_logs:', auditError.message);
+        }
+
         res.json({
             success: true,
             server: result.rows[0],
