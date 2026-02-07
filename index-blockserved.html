@@ -988,15 +988,17 @@
                 const signature = await tronWeb.trx.sign(tronWeb.toHex(message));
                 
                 // Send to backend
+                const timezone = getUserTimezone();
                 const response = await fetch(`${BACKEND_URL}/api/recipient-cases/${notice.case_number}/acknowledge`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'X-Timezone': timezone || ''
                     },
                     body: JSON.stringify({
+                        wallet: currentWallet,
                         signature: signature,
-                        ipAddress: 'client',
-                        userAgent: navigator.userAgent
+                        timestamp: new Date().toISOString()
                     })
                 });
                 
