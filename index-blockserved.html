@@ -468,6 +468,17 @@
             border-left: 4px solid var(--secondary-color);
         }
 
+        .notice-card.highlighted {
+            border: 3px solid var(--secondary-color);
+            box-shadow: 0 4px 20px rgba(52, 152, 219, 0.3);
+            animation: highlightPulse 2s ease-in-out;
+        }
+
+        @keyframes highlightPulse {
+            0%, 100% { box-shadow: 0 4px 20px rgba(52, 152, 219, 0.3); }
+            50% { box-shadow: 0 4px 30px rgba(52, 152, 219, 0.5); }
+        }
+
         .notice-header {
             display: flex;
             justify-content: space-between;
@@ -1005,12 +1016,20 @@
         let currentWallet = null;
         let currentNotice = null;
         let viewStartTime = null;
-        
+        let requestedCaseNumber = null; // Case number from URL query param
+
         // Generate session ID for tracking
         const sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
         // Initialize on load
         document.addEventListener('DOMContentLoaded', function() {
+            // Check for case query parameter (e.g., ?case=Test%2011)
+            const urlParams = new URLSearchParams(window.location.search);
+            requestedCaseNumber = urlParams.get('case');
+            if (requestedCaseNumber) {
+                console.log('BlockServed: Requested case from URL:', requestedCaseNumber);
+            }
+
             checkTronLink();
             setupEventListeners();
             
@@ -1397,6 +1416,26 @@
                     
                     displayNotices(data.notices);
                     document.getElementById('noticeCount').textContent = data.notices.length;
+
+                    // If a specific case was requested via URL, scroll to it and show an alert
+                    if (requestedCaseNumber) {
+                        const requestedNotice = data.notices.find(n =>
+                            n.case_number === requestedCaseNumber ||
+                            n.case_number?.toString() === requestedCaseNumber
+                        );
+                        if (requestedNotice) {
+                            showAlert(`Case #${requestedCaseNumber} found and highlighted`, 'success');
+                            // Scroll to the highlighted notice after a short delay
+                            setTimeout(() => {
+                                const highlightedCard = document.querySelector('.notice-card.highlighted');
+                                if (highlightedCard) {
+                                    highlightedCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }
+                            }, 500);
+                        } else {
+                            showAlert(`Case #${requestedCaseNumber} not found for this wallet`, 'warning');
+                        }
+                    }
                 } else {
                     document.getElementById('emptyState').style.display = 'block';
                     document.getElementById('noticeCount').textContent = '0';
@@ -1413,13 +1452,31 @@
         function displayNotices(notices) {
             const container = document.getElementById('noticesContainer');
             container.innerHTML = '';
-            
+
+            // If a case was requested via URL, move it to the front
+            if (requestedCaseNumber) {
+                notices.sort((a, b) => {
+                    const aMatches = a.case_number === requestedCaseNumber ||
+                                   a.case_number?.toString() === requestedCaseNumber;
+                    const bMatches = b.case_number === requestedCaseNumber ||
+                                   b.case_number?.toString() === requestedCaseNumber;
+                    if (aMatches && !bMatches) return -1;
+                    if (bMatches && !aMatches) return 1;
+                    return 0;
+                });
+            }
+
             notices.forEach(notice => {
-                const urgencyClass = notice.notice_type?.includes('Urgent') ? 'urgent' : 
+                const urgencyClass = notice.notice_type?.includes('Urgent') ? 'urgent' :
                                    notice.notice_type?.includes('Important') ? 'important' : 'standard';
-                
+
+                // Check if this is the requested case
+                const isRequestedCase = requestedCaseNumber &&
+                    (notice.case_number === requestedCaseNumber ||
+                     notice.case_number?.toString() === requestedCaseNumber);
+
                 const noticeCard = document.createElement('div');
-                noticeCard.className = `notice-card ${urgencyClass}`;
+                noticeCard.className = `notice-card ${urgencyClass}${isRequestedCase ? ' highlighted' : ''}`;
                 noticeCard.innerHTML = `
                     <div class="notice-header">
                         <div class="notice-title">

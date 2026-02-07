@@ -164,7 +164,7 @@ window.notices = {
                 alertTxId: txResult.alertTx,
                 documentTxId: txResult.documentTx,
                 receipt,
-                viewUrl: `https://blockserved.com/notice/${noticeId}`,
+                viewUrl: `https://blockserved.com?case=${encodeURIComponent(data.caseNumber || noticeId)}`,
                 message: 'Legal service package created successfully (Alert + Document NFTs)'
             };
             
@@ -412,9 +412,9 @@ window.notices = {
             receiptId: `RCPT-${data.noticeId}`,
             generatedAt: new Date().toISOString(),
             verificationUrl: `https://tronscan.org/#/transaction/${data.txId}`,
-            accessUrl: `https://blockserved.com/notice/${data.noticeId}`
+            accessUrl: `https://blockserved.com?case=${encodeURIComponent(data.caseNumber || data.noticeId)}`
         };
-        
+
         // Store receipt locally
         const receipts = JSON.parse(localStorage.getItem(getConfig('storage.keys.receipts')) || '[]');
         receipts.push(receipt);

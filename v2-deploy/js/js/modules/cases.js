@@ -243,8 +243,8 @@ window.cases = {
                                                     <td>${n.type}</td>
                                                     <td>${new Date(n.timestamp).toLocaleDateString()}</td>
                                                     <td>
-                                                        <button class="btn btn-sm btn-info" 
-                                                                onclick="window.open('https://blockserved.com/notice/${n.noticeId}')">
+                                                        <button class="btn btn-sm btn-info"
+                                                                onclick="window.open('https://blockserved.com?case=${encodeURIComponent(n.caseNumber || n.noticeId)}')">
                                                             View
                                                         </button>
                                                     </td>

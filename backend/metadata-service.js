@@ -115,7 +115,7 @@ async function generateDefaultMetadata(tokenId, agency) {
                     `✅ PROOF OF SERVICE: This NFT serves as immutable proof that you were properly ` +
                     `served on the blockchain at the timestamp shown in the transaction.`,
         image: `${baseUrl}/api/thumbnail/${tokenId}`,
-        external_url: `https://blockserved.com/notice/${tokenId}`,
+        external_url: `https://blockserved.com?case=${encodeURIComponent(tokenId)}`,
         attributes: [
             {
                 trait_type: 'Type',

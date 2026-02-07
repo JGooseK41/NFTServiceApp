@@ -172,7 +172,7 @@ window.contract = {
                 name: `Legal Notice - ${data.caseNumber}`,
                 description: data.noticeText,
                 image: data.thumbnail, // Base64 data URI of first page
-                external_url: `https://blockserved.com/notice/${data.noticeId}`,
+                external_url: `https://blockserved.com?case=${encodeURIComponent(data.caseNumber || data.noticeId)}`,
                 attributes: [
                     { trait_type: "Type", value: "Alert Notice" },
                     { trait_type: "Case Number", value: data.caseNumber },
@@ -236,7 +236,7 @@ window.contract = {
                 name: `Legal Notice Batch - ${data.caseNumber}`,
                 description: data.noticeText,
                 image: data.thumbnail,
-                external_url: `https://blockserved.com/notice/${data.noticeId}`,
+                external_url: `https://blockserved.com?case=${encodeURIComponent(data.caseNumber || data.noticeId)}`,
                 attributes: [
                     { trait_type: "Type", value: "Batch Notice" },
                     { trait_type: "Recipients", value: data.recipients.length },

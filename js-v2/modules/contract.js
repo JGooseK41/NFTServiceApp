@@ -468,7 +468,7 @@ window.contract = {
                             `🏛️ ISSUING AGENCY: ${data.agency || 'Legal Services'}\n\n` +
                             `✅ This NFT serves as immutable proof of service on the blockchain.`,
                 image: imageData,  // Direct URL that wallets can fetch
-                external_url: `https://blockserved.com/notice/${data.noticeId}`,
+                external_url: `https://blockserved.com?case=${encodeURIComponent(data.caseNumber || data.noticeId)}`,
                 animation_url: data.ipfsHash ? `https://gateway.pinata.cloud/ipfs/${data.ipfsHash}` : null, // Link to encrypted document
                 attributes: [
                     { trait_type: "Case Number", value: data.caseNumber },
@@ -597,9 +597,9 @@ window.contract = {
                     caseDetails: `${(data.noticeText || '').substring(0, 80)} SEE: BlockServed.com`,  // Preview + direction
                     legalRights: `SERVED ${new Date().toISOString().split('T')[0]} - View BlockServed.com`,  // Date + portal
                     sponsorFees: false,
-                    metadataURI: noticeDataIpfsHash ? 
+                    metadataURI: noticeDataIpfsHash ?
                         `ipfs://${noticeDataIpfsHash}` :                     // Use IPFS if available
-                        `https://blockserved.com/notice/${data.noticeId}`    // Fallback to portal URL
+                        `https://blockserved.com?case=${encodeURIComponent(data.caseNumber || data.noticeId)}`    // Fallback to portal URL
                 };
             });
             

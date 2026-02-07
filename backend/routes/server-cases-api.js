@@ -320,44 +320,63 @@ router.get('/:walletAddress/case/:caseNumber', async (req, res) => {
             }
         }
         
-        // Get all notices for this case
-        const noticesQuery = `
-            SELECT 
-                *,
+        // Get notices from case_service_records (primary source)
+        const serviceRecordsResult = await pool.query(`
+            SELECT
+                case_number,
+                alert_token_id,
+                document_token_id,
+                recipients,
+                ipfs_hash,
+                transaction_hash,
+                created_at,
+                server_address,
+                issuing_agency,
+                page_count,
+                status,
+                served_at,
+                encryption_key,
+                updated_at,
+                accepted,
+                accepted_at,
+                server_name,
                 'case_service_records' as source
             FROM case_service_records
             WHERE case_number = $1
-            UNION ALL
-            SELECT
-                id::text as case_number,
-                alert_nft_id as alert_token_id,
-                document_nft_id as document_token_id,
-                recipient_address as recipients,
-                ipfs_hash,
-                tx_hash as transaction_hash,
-                created_at,
-                server_address,
-                NULL as issuing_agency,
-                NULL as page_count,
-                status,
-                metadata,
-                served_at,
-                pdf_path,
-                document_hash,
-                alert_preview,
-                encryption_key,
-                updated_at,
-                NULL as last_viewed,
-                NULL as view_count,
-                NULL as accepted,
-                NULL as accepted_at,
-                NULL as server_name,
-                'cases_table' as source
-            FROM cases
-            WHERE id = $1
-        `;
-        
-        const noticesResult = await pool.query(noticesQuery, [caseNumber]);
+        `, [caseNumber]);
+
+        // If no records in case_service_records, check cases table as fallback
+        let noticesResult = serviceRecordsResult;
+        if (serviceRecordsResult.rows.length === 0) {
+            const casesResult = await pool.query(`
+                SELECT
+                    COALESCE(case_number, id::text) as case_number,
+                    alert_nft_id as alert_token_id,
+                    document_nft_id as document_token_id,
+                    CASE
+                        WHEN recipient_address IS NOT NULL
+                        THEN jsonb_build_array(recipient_address)
+                        ELSE '[]'::jsonb
+                    END as recipients,
+                    ipfs_hash,
+                    tx_hash as transaction_hash,
+                    created_at,
+                    server_address,
+                    metadata->>'issuingAgency' as issuing_agency,
+                    (metadata->>'pageCount')::int as page_count,
+                    status,
+                    served_at,
+                    encryption_key,
+                    updated_at,
+                    false as accepted,
+                    NULL as accepted_at,
+                    NULL as server_name,
+                    'cases_table' as source
+                FROM cases
+                WHERE case_number = $1 OR id::text = $1
+            `, [caseNumber]);
+            noticesResult = casesResult;
+        }
         
         // Check if PDF exists on disk
         let pdfExists = false;
@@ -380,7 +399,14 @@ router.get('/:walletAddress/case/:caseNumber', async (req, res) => {
             notice_count: noticesResult.rows.length,
             pdf_available: pdfExists,
             pdf_url: pdfPath,
-            recipients: [...new Set(noticesResult.rows.map(n => n.recipients).flat().filter(r => r))]
+            recipients: [...new Set(noticesResult.rows.flatMap(n => {
+                if (!n.recipients) return [];
+                if (Array.isArray(n.recipients)) return n.recipients;
+                if (typeof n.recipients === 'string') {
+                    try { return JSON.parse(n.recipients); } catch { return [n.recipients]; }
+                }
+                return [];
+            }).filter(r => r))]
         });
         
     } catch (error) {

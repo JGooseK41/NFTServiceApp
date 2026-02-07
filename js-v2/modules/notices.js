@@ -333,7 +333,7 @@ window.notices = {
                     caseNumber: data.caseNumber,
                     generatedAt: new Date().toISOString(),
                     verificationUrl: window.getTronScanUrl ? window.getTronScanUrl(txResult.alertTx) : `https://tronscan.org/#/transaction/${txResult.alertTx}`,
-                    accessUrl: `https://blockserved.com/notice/${noticeId}`,
+                    accessUrl: `https://blockserved.com?case=${encodeURIComponent(data.caseNumber || noticeId)}`,
                     ipfsHash: documentData.ipfsHash,
                     encryptionKey: documentData.encryptionKey
                 };
@@ -346,7 +346,7 @@ window.notices = {
                 alertTxId: txResult.alertTx,
                 documentTxId: txResult.documentTx,
                 receipt,
-                viewUrl: `https://blockserved.com/notice/${noticeId}`,
+                viewUrl: `https://blockserved.com?case=${encodeURIComponent(data.caseNumber || noticeId)}`,
                 caseNumber: data.caseNumber,
                 recipient: data.recipient,
                 thumbnail,
@@ -361,7 +361,7 @@ window.notices = {
                 alertTxId: txResult.alertTx,
                 documentTxId: txResult.documentTx,
                 receipt,
-                viewUrl: `https://blockserved.com/notice/${noticeId}`,
+                viewUrl: `https://blockserved.com?case=${encodeURIComponent(data.caseNumber || noticeId)}`,
                 message: 'Legal service NFT created successfully'
             };
             
@@ -717,9 +717,9 @@ window.notices = {
             receiptId: `RCPT-${data.noticeId}`,
             generatedAt: new Date().toISOString(),
             verificationUrl: window.getTronScanUrl ? window.getTronScanUrl(data.txId) : `https://tronscan.org/#/transaction/${data.txId}`,
-            accessUrl: `https://blockserved.com/notice/${data.noticeId}`
+            accessUrl: `https://blockserved.com?case=${encodeURIComponent(data.caseNumber || data.noticeId)}`
         });
-        
+
         // Store receipt locally
         const receipts = JSON.parse(localStorage.getItem(getConfig('storage.keys.receipts')) || '[]');
         receipts.push(receipt);
@@ -742,7 +742,7 @@ window.notices = {
             } else {
                 // Redirect to recipient portal
                 console.log('Redirecting to recipient portal for notice viewing');
-                window.open(`https://blockserved.com/notice/${noticeId}`, '_blank');
+                window.open(`https://blockserved.com?case=${encodeURIComponent(noticeId)}`, '_blank');
             }
             
         } catch (error) {
@@ -1100,7 +1100,7 @@ window.notices = {
         doc.setFontSize(10);
         doc.text(`Wallet Address: ${data.recipient || 'N/A'}`, 20, y);
         y += 7;
-        doc.text(`Access URL: https://blockserved.com/notice/${data.caseNumber}`, 20, y);
+        doc.text(`Access URL: https://blockserved.com?case=${encodeURIComponent(data.caseNumber || '')}`, 20, y);
         y += 12;
 
         // Blockchain Verification section
