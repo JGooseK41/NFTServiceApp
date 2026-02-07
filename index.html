@@ -678,22 +678,22 @@
                 </div>
                 <div class="modal-body">
                     <div class="row">
-                        <!-- Alert NFT Preview -->
+                        <!-- NFT Preview -->
                         <div class="col-md-6">
                             <div class="card">
-                                <div class="card-header bg-warning text-dark">
-                                    <h6 class="mb-0"><i class="bi bi-bell-fill"></i> Alert NFT Preview</h6>
+                                <div class="card-header bg-primary text-white">
+                                    <h6 class="mb-0"><i class="bi bi-shield-check"></i> Legal Notice NFT Preview</h6>
                                 </div>
                                 <div class="card-body">
                                     <div class="alert alert-info">
-                                        <small><strong>Type:</strong> Legal Notice Alert (Proof of Delivery)</small>
+                                        <small><strong>Type:</strong> Legal Notice (Proof of Delivery)</small>
                                     </div>
-                                    
-                                    <!-- Alert NFT Image Preview -->
+
+                                    <!-- NFT Image Preview -->
                                     <div class="text-center mb-3">
                                         <canvas id="alertPreviewCanvas" style="max-width: 100%; border: 1px solid #ddd; border-radius: 8px;"></canvas>
                                     </div>
-                                    
+
                                     <div class="small">
                                         <p><strong>Issuing Agency:</strong> <span id="previewIssuingAgency"></span></p>
                                         <p><strong>Notice Type:</strong> <span id="previewNoticeType"></span></p>
@@ -701,41 +701,41 @@
                                         <p><strong>Response Deadline:</strong> <span id="previewResponseDeadline"></span> days</p>
                                         <p><strong>Notice Summary:</strong> <span id="previewNoticeText"></span></p>
                                     </div>
-                                    
+
                                     <hr>
                                     <p><strong>Recipients:</strong></p>
                                     <ul id="previewRecipients" class="list-unstyled">
                                         <!-- Recipients will be added here -->
                                     </ul>
                                     <div class="alert alert-warning mt-3">
-                                        <small><i class="bi bi-info-circle"></i> This Alert NFT image will be sent immediately to all recipients as proof of delivery. Recipients can view the full document at www.blockserved.com</small>
+                                        <small><i class="bi bi-info-circle"></i> This NFT will be sent to all recipients as proof of delivery. Recipients can view and download the full documents at www.blockserved.com</small>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        
-                        <!-- Document NFT Preview -->
+
+                        <!-- Document Preview -->
                         <div class="col-md-6">
                             <div class="card">
-                                <div class="card-header bg-primary text-white">
-                                    <h6 class="mb-0"><i class="bi bi-file-earmark-pdf-fill"></i> Document NFT Preview</h6>
+                                <div class="card-header bg-secondary text-white">
+                                    <h6 class="mb-0"><i class="bi bi-file-earmark-pdf-fill"></i> Document Preview</h6>
                                 </div>
                                 <div class="card-body">
                                     <div class="alert alert-info">
-                                        <small><strong>Type:</strong> Legal Document for Signature</small>
+                                        <small><strong>Attached Documents:</strong> These will be accessible to recipients</small>
                                     </div>
                                     <p><strong>Documents in Package:</strong></p>
                                     <ol id="previewDocumentList" class="mb-3">
                                         <!-- Document list will be added here -->
                                     </ol>
-                                    
+
                                     <!-- PDF Preview Frame -->
                                     <div class="border rounded p-2 mb-3" style="height: 400px; overflow: auto;">
                                         <iframe id="pdfPreviewFrame" style="width: 100%; height: 100%; border: none;"></iframe>
                                     </div>
-                                    
-                                    <div class="alert alert-primary">
-                                        <small><i class="bi bi-info-circle"></i> Recipients will need to sign this document package. Status will show "Awaiting Signature" until signed.</small>
+
+                                    <div class="alert alert-secondary">
+                                        <small><i class="bi bi-info-circle"></i> Recipients will access these documents by connecting their wallet at blockserved.com</small>
                                     </div>
                                 </div>
                             </div>
@@ -762,8 +762,8 @@
                     <button type="button" class="btn btn-warning" onclick="app.checkWalletResources()">
                         <i class="bi bi-lightning-charge"></i> Check Wallet Resources
                     </button>
-                    <button type="button" class="btn btn-primary" onclick="app.confirmAndMint()">
-                        <i class="bi bi-check-circle"></i> Confirm & Mint NFTs
+                    <button type="button" class="btn btn-success" onclick="app.confirmAndMint()">
+                        <i class="bi bi-send"></i> Serve Legal Notice
                     </button>
                 </div>
             </div>
