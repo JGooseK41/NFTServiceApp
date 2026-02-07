@@ -1035,8 +1035,7 @@ window.cases = {
                                         <div class="col-md-6">
                                             <p><strong>Transaction Hash:</strong><br>
                                                <code style="font-size: 10px;">${txHash || 'Pending Sync'}</code></p>
-                                            <p><strong>Alert NFT:</strong> #${alertTokenId || 'Pending'}</p>
-                                            <p><strong>Document NFT:</strong> #${documentTokenId || 'Pending'}</p>
+                                            <p><strong>NFT Token ID:</strong> #${alertTokenId || 'Pending'}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -1106,11 +1105,11 @@ window.cases = {
                                 </div>
                             </div>
                             
-                            <!-- Alert NFT Preview -->
+                            <!-- NFT Preview -->
                             ${caseData.alertImage || caseData.alert_preview ? `
                             <div class="card">
                                 <div class="card-header">
-                                    <h6 class="mb-0"><i class="bi bi-image"></i> Alert NFT Preview</h6>
+                                    <h6 class="mb-0"><i class="bi bi-image"></i> NFT Preview</h6>
                                 </div>
                                 <div class="card-body text-center">
                                     <img src="${caseData.alertImage || caseData.alert_preview}" 
@@ -1154,12 +1153,8 @@ window.cases = {
                                             <code class="hash">${txHash || 'Pending Synchronization'}</code>
                                         </div>
                                         <div class="receipt-field">
-                                            <span class="receipt-label">Alert NFT Token:</span>
+                                            <span class="receipt-label">NFT Token ID:</span>
                                             #${alertTokenId || 'Pending'}
-                                        </div>
-                                        <div class="receipt-field">
-                                            <span class="receipt-label">Document NFT Token:</span>
-                                            #${documentTokenId || 'Pending'}
                                         </div>
                                         <div class="receipt-field">
                                             <span class="receipt-label">Blockchain:</span>
@@ -1223,14 +1218,14 @@ window.cases = {
                                     </div>
                                     
                                     <div class="receipt-header text-center">
-                                        <h2 style="font-size: 24px; margin: 0;">ALERT NFT DELIVERY CONFIRMATION</h2>
+                                        <h2 style="font-size: 24px; margin: 0;">NFT DELIVERY CONFIRMATION</h2>
                                         <p style="font-size: 14px; margin: 10px 0 0 0;">Visual Record of Notice Delivered to Recipients</p>
                                     </div>
-                                    
+
                                     <div class="receipt-section">
                                         <h4 style="margin-top: 0; border-bottom: 1px solid #ccc; padding-bottom: 5px;">DELIVERED NOTICE IMAGE</h4>
                                         <p style="font-size: 14px; margin: 10px 0;">
-                                            The following Alert NFT was delivered to all recipients' wallets as proof of service:
+                                            The following Legal Notice NFT was delivered to all recipients' wallets as proof of service:
                                         </p>
                                     </div>
                                     

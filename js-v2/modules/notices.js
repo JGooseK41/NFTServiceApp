@@ -1622,23 +1622,19 @@ window.notices = {
                 <div class="section">
                     <div class="section-title">Blockchain Confirmation</div>
                     <div class="detail-row">
-                        <span class="label">Alert NFT TX:</span>
+                        <span class="label">NFT Transaction:</span>
                         <span class="value tx-hash">${data.alertTxId}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="label">Document NFT TX:</span>
-                        <span class="value tx-hash">${data.documentTxId}</span>
                     </div>
                     <div class="detail-row">
                         <span class="label">Verification:</span>
                         <span class="value">View on TronScan: ${window.getTronScanUrl ? window.getTronScanUrl(data.alertTxId) : 'https://tronscan.org/#/transaction/' + data.alertTxId}</span>
                     </div>
                 </div>
-                
+
                 ${includeImage && data.thumbnail ? `
                 <div class="section">
-                    <div class="section-title">Alert NFT Image</div>
-                    <img src="${data.thumbnail}" class="nft-image" alt="Alert NFT">
+                    <div class="section-title">NFT Image</div>
+                    <img src="${data.thumbnail}" class="nft-image" alt="Legal Notice NFT">
                 </div>
                 ` : ''}
                 

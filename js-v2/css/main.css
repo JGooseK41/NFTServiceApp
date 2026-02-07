@@ -21,6 +21,15 @@ body {
 .navbar-brand {
     font-weight: bold;
     font-size: 1.5rem;
+    padding: 0;
+}
+
+.navbar-brand .logo-img {
+    height: 40px;
+    width: auto;
+    background-color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
 }
 
 #walletAddress {

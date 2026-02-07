@@ -607,7 +607,7 @@ window.proofOfService = {
             // Add NFT details
             const detailsY = alertImage ? pageHeight - 450 : pageHeight - 150;
             const details = [
-                'ALERT NFT INFORMATION',
+                'NFT INFORMATION',
                 '---------------------------------------------------',
                 '',
                 `Token ID: #${caseData.alertTokenId || 'N/A'}`,
@@ -625,22 +625,22 @@ window.proofOfService = {
                 'INSTRUCTIONS FOR RECIPIENTS',
                 '---------------------------------------------------',
                 '',
-                '1. This Alert NFT serves as proof of delivery for the attached legal documents.',
+                '1. This NFT serves as proof of delivery for the attached legal documents.',
                 '2. The NFT has been permanently recorded on the TRON blockchain.',
                 '3. You can verify this transaction on TronScan using the transaction hash above.',
                 '4. The following pages contain the served legal documents.',
                 '5. If action is required, please refer to the document contents.',
                 '',
-                'IMPORTANT: This is an official legal notice. The Alert NFT in your wallet',
+                'IMPORTANT: This is an official legal notice. The NFT in your wallet',
                 'confirms delivery. Please review the attached documents carefully.'
             ];
             
             let yPosition = detailsY;
             for (const line of details) {
-                const fontSize = line.includes('---') ? 10 : 
-                               line.includes('INSTRUCTIONS') || line.includes('BLOCKCHAIN') || line.includes('ALERT NFT') ? 12 : 10;
+                const fontSize = line.includes('---') ? 10 :
+                               line.includes('INSTRUCTIONS') || line.includes('BLOCKCHAIN') || line.includes('NFT INFORMATION') ? 12 : 10;
                 const fontColor = line.includes('---') ? PDFLib.rgb(0.5, 0.5, 0.5) :
-                                 line.includes('INSTRUCTIONS') || line.includes('BLOCKCHAIN') || line.includes('ALERT NFT') ? PDFLib.rgb(0, 0, 0.8) :
+                                 line.includes('INSTRUCTIONS') || line.includes('BLOCKCHAIN') || line.includes('NFT INFORMATION') ? PDFLib.rgb(0, 0, 0.8) :
                                  PDFLib.rgb(0, 0, 0);
                 
                 alertPage.drawText(line, {

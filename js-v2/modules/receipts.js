@@ -328,10 +328,7 @@ window.receipts = {
         doc.text(`Date Served: ${servedAt ? new Date(servedAt).toLocaleString() : 'N/A'}`, 20, y);
         y += 10;
         
-        doc.text(`Alert NFT Token ID: #${alertTokenId || 'N/A'}`, 20, y);
-        y += 10;
-        
-        doc.text(`Document NFT Token ID: #${documentTokenId || 'N/A'}`, 20, y);
+        doc.text(`NFT Token ID: #${alertTokenId || 'N/A'}`, 20, y);
         y += 15;
         
         doc.setFontSize(12);
