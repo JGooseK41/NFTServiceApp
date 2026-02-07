@@ -215,13 +215,12 @@ window.notices = {
                 console.log('Could not extract token IDs from transaction:', error);
             }
             
-            // Use sequential IDs as fallback (common pattern)
-            if (!alertTokenId || !documentTokenId) {
-                // Estimate based on common sequential minting
-                const baseId = Date.now() % 10000;
-                alertTokenId = alertTokenId || baseId;
-                documentTokenId = documentTokenId || (baseId + 1);
+            // For Lite contract, document_token_id = alert_token_id + 1
+            // Do NOT guess token IDs - let the backend be the source of truth
+            if (alertTokenId && !documentTokenId) {
+                documentTokenId = alertTokenId + 1;
             }
+            // If we still don't have token IDs, leave them null - backend will handle it
 
             // Convert BigInt values to numbers for JSON serialization
             alertTokenId = toBigIntSafe(alertTokenId);
