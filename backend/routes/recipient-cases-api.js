@@ -954,22 +954,34 @@ router.post('/:caseNumber/acknowledge', async (req, res) => {
     try {
         const { caseNumber } = req.params;
         const { signature, wallet, timestamp } = req.body;
-        
+
         console.log(`Recording acknowledgment for case ${caseNumber} by wallet ${wallet}`);
-        
+        console.log(`Request body:`, JSON.stringify(req.body));
+
+        if (!wallet) {
+            return res.status(400).json({
+                success: false,
+                error: 'Wallet address is required'
+            });
+        }
+
         // Create acknowledgments table if it doesn't exist
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS case_acknowledgments (
-                id SERIAL PRIMARY KEY,
-                case_number VARCHAR(255) NOT NULL,
-                wallet_address VARCHAR(255) NOT NULL,
-                signature TEXT,
-                acknowledged_at TIMESTAMP DEFAULT NOW(),
-                ip_address VARCHAR(45),
-                user_agent TEXT
-            )
-        `).catch(e => console.log('Table already exists'));
-        
+        try {
+            await pool.query(`
+                CREATE TABLE IF NOT EXISTS case_acknowledgments (
+                    id SERIAL PRIMARY KEY,
+                    case_number VARCHAR(255) NOT NULL,
+                    wallet_address VARCHAR(255) NOT NULL,
+                    signature TEXT,
+                    acknowledged_at TIMESTAMP DEFAULT NOW(),
+                    ip_address VARCHAR(45),
+                    user_agent TEXT
+                )
+            `);
+        } catch (tableError) {
+            console.log('Table creation note:', tableError.message);
+        }
+
         // Record acknowledgment
         await pool.query(`
             INSERT INTO case_acknowledgments (
@@ -983,12 +995,12 @@ router.post('/:caseNumber/acknowledge', async (req, res) => {
         `, [
             caseNumber,
             wallet,
-            signature,
+            signature || '',
             timestamp || new Date(),
-            req.ip || req.connection.remoteAddress,
+            req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress,
             req.headers['user-agent']
         ]);
-        
+
         // Update case_service_records status and acceptance
         await pool.query(`
             UPDATE case_service_records
@@ -997,6 +1009,30 @@ router.post('/:caseNumber/acknowledge', async (req, res) => {
                 accepted_at = NOW()
             WHERE case_number = $1
         `, [caseNumber]);
+
+        // Log to audit trail
+        try {
+            const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress;
+            const userAgent = req.headers['user-agent'];
+            const acceptLanguage = req.headers['accept-language'];
+            const timezone = req.headers['x-timezone'] || req.query.timezone;
+            await pool.query(`
+                INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, accept_language, timezone)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            `, [
+                'document_signed',
+                wallet,
+                caseNumber,
+                JSON.stringify({ signature: signature ? 'present' : 'none' }),
+                ipAddress,
+                userAgent,
+                acceptLanguage,
+                timezone
+            ]);
+            console.log(`✅ Logged signature for case ${caseNumber} by ${wallet}`);
+        } catch (auditError) {
+            console.log('Could not log audit event:', auditError.message);
+        }
         
         res.json({
             success: true,
