@@ -953,10 +953,10 @@ router.post('/:caseNumber/fix-missing-data', async (req, res) => {
 router.post('/:caseNumber/acknowledge', async (req, res) => {
     try {
         const { caseNumber } = req.params;
-        const { signature, wallet, timestamp } = req.body;
+        const { signature, wallet, timestamp, transactionHash, onChain } = req.body;
 
         console.log(`Recording acknowledgment for case ${caseNumber} by wallet ${wallet}`);
-        console.log(`Request body:`, JSON.stringify(req.body));
+        console.log(`On-chain: ${onChain}, TX: ${transactionHash}`);
 
         if (!wallet) {
             return res.status(400).json({
@@ -965,7 +965,7 @@ router.post('/:caseNumber/acknowledge', async (req, res) => {
             });
         }
 
-        // Create acknowledgments table if it doesn't exist
+        // Create acknowledgments table if it doesn't exist (with transaction_hash column)
         try {
             await pool.query(`
                 CREATE TABLE IF NOT EXISTS case_acknowledgments (
@@ -973,35 +973,44 @@ router.post('/:caseNumber/acknowledge', async (req, res) => {
                     case_number VARCHAR(255) NOT NULL,
                     wallet_address VARCHAR(255) NOT NULL,
                     signature TEXT,
+                    transaction_hash VARCHAR(255),
+                    on_chain BOOLEAN DEFAULT FALSE,
                     acknowledged_at TIMESTAMP DEFAULT NOW(),
                     ip_address VARCHAR(45),
                     user_agent TEXT
                 )
             `);
+            // Add columns if they don't exist (for existing tables)
+            await pool.query(`ALTER TABLE case_acknowledgments ADD COLUMN IF NOT EXISTS transaction_hash VARCHAR(255)`).catch(() => {});
+            await pool.query(`ALTER TABLE case_acknowledgments ADD COLUMN IF NOT EXISTS on_chain BOOLEAN DEFAULT FALSE`).catch(() => {});
         } catch (tableError) {
             console.log('Table creation note:', tableError.message);
         }
 
-        // Record acknowledgment
+        // Record acknowledgment with transaction hash
         await pool.query(`
             INSERT INTO case_acknowledgments (
                 case_number,
                 wallet_address,
                 signature,
+                transaction_hash,
+                on_chain,
                 acknowledged_at,
                 ip_address,
                 user_agent
-            ) VALUES ($1, $2, $3, $4, $5, $6)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         `, [
             caseNumber,
             wallet,
             signature || '',
+            transactionHash || null,
+            onChain || false,
             timestamp || new Date(),
             req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress,
             req.headers['user-agent']
         ]);
 
-        // Update case_service_records status and acceptance
+        // Update case_service_records status and acceptance with transaction hash
         await pool.query(`
             UPDATE case_service_records
             SET status = 'acknowledged',
@@ -1010,7 +1019,7 @@ router.post('/:caseNumber/acknowledge', async (req, res) => {
             WHERE case_number = $1
         `, [caseNumber]);
 
-        // Log to audit trail
+        // Log to audit trail with transaction hash
         try {
             const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress;
             const userAgent = req.headers['user-agent'];
@@ -1023,13 +1032,17 @@ router.post('/:caseNumber/acknowledge', async (req, res) => {
                 'document_signed',
                 wallet,
                 caseNumber,
-                JSON.stringify({ signature: signature ? 'present' : 'none' }),
+                JSON.stringify({
+                    transactionHash: transactionHash || null,
+                    onChain: onChain || false,
+                    signature: signature ? 'present' : 'none'
+                }),
                 ipAddress,
                 userAgent,
                 acceptLanguage,
                 timezone
             ]);
-            console.log(`✅ Logged signature for case ${caseNumber} by ${wallet}`);
+            console.log(`✅ Logged signature for case ${caseNumber} by ${wallet} (TX: ${transactionHash || 'off-chain'})`);
         } catch (auditError) {
             console.log('Could not log audit event:', auditError.message);
         }
