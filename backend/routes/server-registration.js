@@ -36,8 +36,31 @@ const handleServerRegistration = async (req, res) => {
             });
         }
         
+        // Ensure process_servers table exists
+        try {
+            await pool.query(`
+                CREATE TABLE IF NOT EXISTS process_servers (
+                    id SERIAL PRIMARY KEY,
+                    server_id VARCHAR(255),
+                    wallet_address VARCHAR(255) UNIQUE NOT NULL,
+                    server_name VARCHAR(255),
+                    agency_name VARCHAR(255),
+                    physical_address TEXT,
+                    phone_number VARCHAR(50),
+                    contact_email VARCHAR(255),
+                    website VARCHAR(255),
+                    license_number VARCHAR(100),
+                    status VARCHAR(50) DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            `);
+        } catch (tableErr) {
+            console.log('Note: Could not create process_servers table:', tableErr.message);
+        }
+
         client = await pool.connect();
-        
+
         // Upsert the process server record
         const query = `
             INSERT INTO process_servers (
