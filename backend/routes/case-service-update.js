@@ -49,6 +49,17 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
             });
         }
 
+        // Normalize recipients - extract addresses if they're objects with {address, label}
+        let normalizedRecipients = recipients || [];
+        if (Array.isArray(normalizedRecipients)) {
+            normalizedRecipients = normalizedRecipients.map(r => {
+                if (typeof r === 'string') return r;
+                if (r && typeof r === 'object' && r.address) return r.address;
+                return r;
+            }).filter(Boolean);
+        }
+        console.log('Normalized recipients:', normalizedRecipients);
+
         console.log(`Updating case ${caseNumber} with service data`);
         console.log('Alert Token ID:', alertTokenId);
         console.log('Document Token ID:', documentTokenId);
@@ -103,7 +114,7 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
                     agency,
                     noticeType,
                     pageCount,
-                    recipients,
+                    recipients: normalizedRecipients,
                     ...metadata
                 })
             ]);
@@ -124,7 +135,7 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
                     agency,
                     noticeType,
                     pageCount,
-                    recipients,
+                    recipients: normalizedRecipients,
                     transactionHash,
                     alertTokenId,
                     documentTokenId,
@@ -207,7 +218,7 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
             documentTokenId,
             ipfsHash,
             encryptionKey,
-            JSON.stringify(recipients || []),
+            JSON.stringify(normalizedRecipients),
             pageCount || 1,
             servedAt || new Date().toISOString(),
             serverAddress || req.headers['x-server-address'],
