@@ -27,7 +27,7 @@ function configureCORS(app) {
     if (origin === 'null' || allowedOrigins.includes(origin) || !origin) {
       res.header('Access-Control-Allow-Origin', origin || '*');
       res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Server-Address, X-Admin-Address, X-Wallet-Address, X-Recipient-Address');
+      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Server-Address, X-Admin-Address, X-Wallet-Address, X-Recipient-Address, X-Timezone');
       res.header('Access-Control-Allow-Credentials', 'true');
       res.header('Access-Control-Max-Age', '86400'); // Cache preflight for 24 hours
     }
@@ -42,7 +42,7 @@ function configureCORS(app) {
     if (origin === 'null' || allowedOrigins.includes(origin) || !origin) {
       res.header('Access-Control-Allow-Origin', origin || '*');
       res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Server-Address, X-Admin-Address, X-Wallet-Address, X-Recipient-Address');
+      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Server-Address, X-Admin-Address, X-Wallet-Address, X-Recipient-Address, X-Timezone');
       res.header('Access-Control-Allow-Credentials', 'true');
     }
     
