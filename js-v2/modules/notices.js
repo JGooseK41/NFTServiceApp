@@ -263,8 +263,8 @@ window.notices = {
                         },
                         body: JSON.stringify({
                             transactionHash: txResult.alertTx,
-                            alertTokenId: alertTokenId,
-                            documentTokenId: documentTokenId,
+                            alertTokenId: typeof alertTokenId === 'bigint' ? alertTokenId.toString() : alertTokenId,
+                            documentTokenId: typeof documentTokenId === 'bigint' ? documentTokenId.toString() : documentTokenId,
                             alertImage: alertImage, // Base64 image
                             ipfsHash: documentData.ipfsHash,
                             encryptionKey: documentData.encryptionKey || '',
@@ -741,11 +741,28 @@ window.notices = {
             accessUrl: `https://blockserved.com?case=${encodeURIComponent(data.caseNumber || data.noticeId)}`
         });
 
-        // Store receipt locally
-        const receipts = JSON.parse(localStorage.getItem(getConfig('storage.keys.receipts')) || '[]');
-        receipts.push(receipt);
-        localStorage.setItem(getConfig('storage.keys.receipts'), JSON.stringify(receipts));
-        
+        // Store receipt locally (with quota handling)
+        try {
+            let receipts = JSON.parse(localStorage.getItem(getConfig('storage.keys.receipts')) || '[]');
+            receipts.push(receipt);
+
+            // Try to save, trim old receipts if quota exceeded
+            try {
+                localStorage.setItem(getConfig('storage.keys.receipts'), JSON.stringify(receipts));
+            } catch (quotaError) {
+                if (quotaError.name === 'QuotaExceededError') {
+                    console.log('LocalStorage full, trimming old receipts...');
+                    // Keep only the last 50 receipts
+                    receipts = receipts.slice(-50);
+                    localStorage.setItem(getConfig('storage.keys.receipts'), JSON.stringify(receipts));
+                } else {
+                    throw quotaError;
+                }
+            }
+        } catch (e) {
+            console.warn('Could not save receipt to localStorage:', e.message);
+        }
+
         return receipt;
     },
     
