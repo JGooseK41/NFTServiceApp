@@ -1310,19 +1310,19 @@ window.cases = {
             // Get case data to find recipients
             let caseData = this.getCaseData(caseId);
             const caseNumber = caseData?.caseNumber || caseData?.case_number || caseId;
-            
+
             window.app.showProcessing('Fetching audit logs...');
-            
-            // Fetch audit logs from backend
+
+            // Fetch audit logs from backend (URL encode case number for spaces/special chars)
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-            const response = await fetch(`${backendUrl}/api/audit/case/${caseNumber}`);
-            
+            const response = await fetch(`${backendUrl}/api/audit/case/${encodeURIComponent(caseNumber)}`);
+
             window.app.hideProcessing();
-            
+
             if (!response.ok) {
                 throw new Error('Failed to fetch audit logs');
             }
-            
+
             const auditData = await response.json();
             this.showAuditLogModal(caseNumber, auditData);
             
@@ -1332,6 +1332,9 @@ window.cases = {
             window.app.showError('Failed to fetch audit log: ' + error.message);
         }
     },
+
+    // Limit events shown in audit log to prevent browser hang
+    MAX_AUDIT_EVENTS: 100,
     
     // Action type explanations for audit log
     actionExplainers: {
@@ -1416,20 +1419,27 @@ window.cases = {
     // Show audit log modal
     showAuditLogModal(caseNumber, auditData) {
         const { recipients, events } = auditData;
+        const maxEventsPerRecipient = 50; // Limit to prevent browser hang
 
         // Group events by recipient address (handle both string and object formats)
         const eventsByRecipient = {};
         const recipientLabels = {}; // Map address -> label
+        const eventCountByRecipient = {}; // Track total counts
         recipients.forEach(r => {
             const addr = this.getRecipientAddress(r);
             eventsByRecipient[addr] = [];
+            eventCountByRecipient[addr] = 0;
             const label = this.getRecipientLabel(r);
             if (label) recipientLabels[addr] = label;
         });
 
         events.forEach(event => {
-            if (eventsByRecipient[event.recipientWallet]) {
-                eventsByRecipient[event.recipientWallet].push(event);
+            if (eventsByRecipient[event.recipientWallet] !== undefined) {
+                eventCountByRecipient[event.recipientWallet]++;
+                // Only add up to max events per recipient
+                if (eventsByRecipient[event.recipientWallet].length < maxEventsPerRecipient) {
+                    eventsByRecipient[event.recipientWallet].push(event);
+                }
             }
         });
         
@@ -1488,6 +1498,12 @@ window.cases = {
                                                         `).join('')}
                                                     </tbody>
                                                 </table>
+                                                ${eventCountByRecipient[addr] > eventsByRecipient[addr].length ?
+                                                    `<p class="text-muted small mt-2 mb-0">
+                                                        <i class="bi bi-info-circle"></i> Showing ${eventsByRecipient[addr].length} of ${eventCountByRecipient[addr]} events.
+                                                        Export the log for complete data.
+                                                    </p>` : ''
+                                                }
                                             </div>
                                         `}
                                     </div>
