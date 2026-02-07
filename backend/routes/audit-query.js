@@ -22,14 +22,13 @@ router.get('/recipient/:address', async (req, res) => {
         const { startDate, endDate, actionType } = req.query;
         
         let query = `
-            SELECT 
-                audit_id,
+            SELECT
+                id,
                 action_type,
                 actor_address,
                 target_id,
                 details,
                 ip_address,
-                user_agent,
                 created_at
             FROM audit_logs
             WHERE actor_address = $1
@@ -62,17 +61,16 @@ router.get('/recipient/:address', async (req, res) => {
         
         // Parse and enhance the audit entries
         const auditEntries = result.rows.map(row => {
-            const details = typeof row.details === 'string' ? 
+            const details = typeof row.details === 'string' ?
                 JSON.parse(row.details) : row.details;
-            
+
             return {
-                id: row.audit_id,
+                id: row.id,
                 timestamp: row.created_at,
                 action: row.action_type,
                 wallet: row.actor_address,
                 targetId: row.target_id,
                 ipAddress: row.ip_address,
-                userAgent: row.user_agent,
                 details: details,
                 // Human-readable action description
                 description: getActionDescription(row.action_type, row.target_id)
@@ -102,49 +100,65 @@ router.get('/recipient/:address', async (req, res) => {
 router.get('/case/:caseNumber', async (req, res) => {
     try {
         const { caseNumber } = req.params;
-        
-        // First get all recipients for this case
+
+        // First get case data including recipients and token IDs
         const caseResult = await pool.query(`
-            SELECT recipients FROM case_service_records WHERE case_number = $1
+            SELECT recipients, alert_token_id, document_token_id
+            FROM case_service_records WHERE case_number = $1
         `, [caseNumber]);
-        
+
         if (caseResult.rows.length === 0) {
             return res.status(404).json({
                 success: false,
                 error: 'Case not found'
             });
         }
-        
-        const recipients = JSON.parse(caseResult.rows[0].recipients || '[]');
-        
-        // Get all audit logs for these recipients
+
+        // Handle JSONB recipients field (already parsed by PostgreSQL)
+        let recipients = caseResult.rows[0].recipients || [];
+        if (typeof recipients === 'string') {
+            try {
+                recipients = JSON.parse(recipients);
+            } catch (e) {
+                recipients = [recipients]; // Single recipient as string
+            }
+        }
+        if (!Array.isArray(recipients)) {
+            recipients = [];
+        }
+
+        const alertTokenId = caseResult.rows[0].alert_token_id;
+        const documentTokenId = caseResult.rows[0].document_token_id;
+
+        // Get all audit logs for this case (by recipients AND by target_id)
         const auditResult = await pool.query(`
-            SELECT 
-                audit_id,
+            SELECT
+                id,
                 action_type,
                 actor_address,
                 target_id,
                 details,
                 ip_address,
-                user_agent,
                 created_at
             FROM audit_logs
             WHERE actor_address = ANY($1::text[])
+               OR target_id = $2
+               OR target_id = $3
+               OR target_id = $4
             ORDER BY created_at DESC
-        `, [recipients]);
-        
+        `, [recipients, caseNumber, alertTokenId, documentTokenId]);
+
         const auditEntries = auditResult.rows.map(row => {
-            const details = typeof row.details === 'string' ? 
+            const details = typeof row.details === 'string' ?
                 JSON.parse(row.details) : row.details;
-            
+
             return {
-                id: row.audit_id,
+                id: row.id,
                 timestamp: row.created_at,
                 action: row.action_type,
                 recipientWallet: row.actor_address,
                 targetId: row.target_id,
                 ipAddress: row.ip_address,
-                userAgent: row.user_agent,
                 details: details,
                 description: getActionDescription(row.action_type, row.target_id)
             };
@@ -202,8 +216,8 @@ router.get('/summary', async (req, res) => {
         
         // Get recent activity
         const recentQuery = `
-            SELECT 
-                audit_id,
+            SELECT
+                id,
                 action_type,
                 actor_address,
                 target_id,
@@ -242,7 +256,9 @@ function getActionDescription(actionType, targetId) {
         case 'recipient_notice_query':
             return 'Recipient checked their notices on BlockServed';
         case 'recipient_document_view':
-            return `Recipient viewed document for notice ${targetId}`;
+            return `Recipient viewed document for case ${targetId}`;
+        case 'recipient_document_download':
+            return `Recipient downloaded PDF for case ${targetId}`;
         case 'wallet_connect':
             return 'Recipient connected wallet to BlockServed';
         case 'document_signed':

@@ -324,18 +324,38 @@ router.get('/wallet/:address', async (req, res) => {
         }));
         
         console.log(`Found ${notices.length} notices for wallet ${address}`);
-        
+
+        // Log audit event for recipient query
+        if (notices.length > 0) {
+            try {
+                const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress;
+                await pool.query(`
+                    INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address)
+                    VALUES ($1, $2, $3, $4, $5)
+                `, [
+                    'recipient_notice_query',
+                    address,
+                    notices.map(n => n.case_number).join(','),
+                    JSON.stringify({ notices_found: notices.length, case_numbers: notices.map(n => n.case_number) }),
+                    ipAddress
+                ]);
+                console.log(`✅ Logged audit event for ${address} querying ${notices.length} notices`);
+            } catch (auditError) {
+                console.log('Could not log audit event:', auditError.message);
+            }
+        }
+
         res.json({
             success: true,
             notices: notices,
             total: notices.length,
             wallet: address
         });
-        
+
     } catch (error) {
         console.error('Error fetching recipient cases:', error);
         console.error('Stack trace:', error.stack);
-        res.status(500).json({ 
+        res.status(500).json({
             error: 'Failed to fetch notices',
             success: false,
             details: error.message,
@@ -474,6 +494,24 @@ router.get('/:caseNumber/document', async (req, res) => {
             }
         }
 
+        // Log document view to audit_logs
+        try {
+            const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress;
+            await pool.query(`
+                INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address)
+                VALUES ($1, $2, $3, $4, $5)
+            `, [
+                'recipient_document_view',
+                recipientAddress || 'anonymous',
+                caseNumber,
+                JSON.stringify({ alert_token_id: caseData.alert_token_id, document_token_id: caseData.document_token_id }),
+                ipAddress
+            ]);
+            console.log(`✅ Logged document view for case ${caseNumber} by ${recipientAddress || 'anonymous'}`);
+        } catch (auditError) {
+            console.log('Could not log document view audit event:', auditError.message);
+        }
+
         res.json({
             success: true,
             notice: {
@@ -564,26 +602,22 @@ router.get('/:caseNumber/download-pdf', async (req, res) => {
             });
         }
 
-        // Log the download activity
+        // Log the download activity to audit_logs
+        const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress || 'unknown';
         try {
             await pool.query(`
-                INSERT INTO recipient_document_actions (
-                    case_number,
-                    wallet_address,
-                    action_type,
-                    ip_address,
-                    user_agent,
-                    metadata
-                ) VALUES ($1, $2, 'download_pdf', $3, $4, $5)
+                INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address)
+                VALUES ($1, $2, $3, $4, $5)
             `, [
-                caseNumber,
+                'recipient_document_download',
                 recipientAddress,
-                req.headers['x-forwarded-for'] || req.connection?.remoteAddress || 'unknown',
-                req.headers['user-agent'] || 'unknown',
-                JSON.stringify({ timestamp: new Date().toISOString() })
+                caseNumber,
+                JSON.stringify({ alert_token_id: caseData.alert_token_id, document_token_id: caseData.document_token_id }),
+                ipAddress
             ]);
+            console.log(`✅ Logged PDF download for case ${caseNumber} by ${recipientAddress}`);
         } catch (logError) {
-            console.log('Could not log download activity:', logError.message);
+            console.log('Could not log download activity to audit_logs:', logError.message);
         }
 
         // Try to get PDF from document_storage table first
