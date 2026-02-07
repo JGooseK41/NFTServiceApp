@@ -38,7 +38,7 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
         // Get a client from the pool
         client = await pool.connect();
         
-        // Query to get cases from cases table with case_service_records for recipient details
+        // Query to get cases from cases table with case_service_records for service data
         // Primary source: cases table + case_service_records
         // Fallback: served_notices for backwards compatibility
         const query = `
@@ -47,15 +47,14 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
                 c.id::text as case_number,
                 c.server_address,
                 c.status as case_status,
-                csr.recipient_address,
-                csr.recipient_name,
-                COALESCE(csr.notice_type, c.metadata->>'noticeType', 'Legal Notice') as notice_type,
+                COALESCE(c.metadata->>'noticeType', 'Legal Notice') as notice_type,
                 COALESCE(c.metadata->>'issuingAgency', 'The Block Audit') as issuing_agency,
                 c.created_at,
-                csr.token_id as alert_id,
-                NULL as document_id,
+                c.metadata as case_metadata,
                 csr.transaction_hash,
-                false as accepted,
+                csr.alert_token_id,
+                csr.recipients as csr_recipients,
+                csr.served_at,
                 CASE WHEN c.status = 'served' THEN 'served' ELSE 'draft' END as source
             FROM cases c
             LEFT JOIN case_service_records csr ON c.id::text = csr.case_number
@@ -68,15 +67,14 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
                 sn.case_number,
                 sn.server_address,
                 'served' as case_status,
-                sn.recipient_address,
-                sn.recipient_name,
                 sn.notice_type,
                 sn.issuing_agency,
                 sn.created_at,
-                sn.alert_id,
-                sn.document_id,
+                NULL as case_metadata,
                 NULL as transaction_hash,
-                sn.accepted,
+                sn.alert_id as alert_token_id,
+                NULL as csr_recipients,
+                sn.created_at as served_at,
                 'served' as source
             FROM served_notices sn
             WHERE LOWER(sn.server_address) = LOWER($1)
@@ -91,95 +89,92 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
         `;
         
         const result = await client.query(query, [serverAddress]);
-        
-        // Group by case number and aggregate recipient data
+
+        // Helper to extract recipients from various sources
+        const extractRecipients = (row) => {
+            let recipients = [];
+
+            // Try case_service_records recipients first
+            if (row.csr_recipients) {
+                try {
+                    const parsed = typeof row.csr_recipients === 'string'
+                        ? JSON.parse(row.csr_recipients)
+                        : row.csr_recipients;
+                    if (Array.isArray(parsed)) {
+                        recipients = parsed.map(r => typeof r === 'string' ? r : r.address || r);
+                    }
+                } catch (e) { /* ignore */ }
+            }
+
+            // Fall back to case metadata recipients
+            if (recipients.length === 0 && row.case_metadata) {
+                try {
+                    const metadata = typeof row.case_metadata === 'string'
+                        ? JSON.parse(row.case_metadata)
+                        : row.case_metadata;
+                    if (metadata.recipients && Array.isArray(metadata.recipients)) {
+                        recipients = metadata.recipients.map(r => typeof r === 'string' ? r : r.address || r);
+                    }
+                } catch (e) { /* ignore */ }
+            }
+
+            return recipients;
+        };
+
+        // Group by case number
         const caseMap = new Map();
 
         for (const row of result.rows) {
             const caseNumber = row.case_number;
 
             if (!caseMap.has(caseNumber)) {
+                const recipients = extractRecipients(row);
+
                 caseMap.set(caseNumber, {
                     caseNumber: caseNumber,
                     serverAddress: row.server_address,
-                    status: row.case_status || row.source, // Use case_status from cases table
+                    status: row.case_status || row.source,
                     noticeType: row.notice_type,
                     issuingAgency: row.issuing_agency || 'The Block Audit',
                     createdAt: row.created_at,
+                    servedAt: row.served_at,
                     transactionHash: row.transaction_hash,
-                    recipients: new Map() // Use Map to group by recipient
+                    alertTokenId: row.alert_token_id,
+                    recipients: recipients
                 });
-            }
-
-            const caseData = caseMap.get(caseNumber);
-
-            // Update transaction hash if not set but row has one
-            if (!caseData.transactionHash && row.transaction_hash) {
-                caseData.transactionHash = row.transaction_hash;
-            }
-
-            // Only add recipient if we have recipient data
-            if (row.recipient_address) {
-                if (!caseData.recipients.has(row.recipient_address)) {
-                    // Create a new service event for this recipient
-                    caseData.recipients.set(row.recipient_address, {
-                        recipientAddress: row.recipient_address,
-                        recipientName: row.recipient_name,
-                        alertId: row.alert_id,
-                        documentId: row.document_id,
-                        pageCount: 1, // Default to 1 since page_count is in notice_components
-                        documentStatus: row.accepted ? 'SIGNED' : 'AWAITING_SIGNATURE',
-                        isPaired: !!(row.alert_id && row.document_id) // Set isPaired if both IDs exist
-                    });
-                } else {
-                    // This recipient already has a notice, merge Alert and Document IDs
-                    const existing = caseData.recipients.get(row.recipient_address);
-                    if (row.alert_id && !existing.alertId) {
-                        existing.alertId = row.alert_id;
-                    }
-                    if (row.document_id && !existing.documentId) {
-                        existing.documentId = row.document_id;
-                        existing.pageCount = row.page_count || existing.pageCount;
-                    }
-                    // Mark as paired if we have both Alert and Document
-                    if (existing.alertId && existing.documentId) {
-                        existing.isPaired = true;
-                    }
-                    // Update status if newer notice is accepted
-                    if (row.accepted) {
-                        existing.documentStatus = 'SIGNED';
-                    }
+            } else {
+                // Update with service data if available
+                const caseData = caseMap.get(caseNumber);
+                if (!caseData.transactionHash && row.transaction_hash) {
+                    caseData.transactionHash = row.transaction_hash;
+                }
+                if (!caseData.alertTokenId && row.alert_token_id) {
+                    caseData.alertTokenId = row.alert_token_id;
+                }
+                if (!caseData.servedAt && row.served_at) {
+                    caseData.servedAt = row.served_at;
                 }
             }
         }
-        
-        // Convert to array and add computed fields
+
+        // Convert to array
         const cases = Array.from(caseMap.values()).map(caseData => {
-            // Convert recipients Map to array
-            const recipientsArray = Array.from(caseData.recipients.values());
-            const totalAccepted = recipientsArray.filter(r => r.documentStatus === 'SIGNED').length;
             const isServed = caseData.status === 'served';
+            const recipientCount = caseData.recipients ? caseData.recipients.length : 0;
 
             return {
                 caseNumber: caseData.caseNumber,
                 serverAddress: caseData.serverAddress,
-                status: caseData.status, // Include case status (draft/served)
+                status: caseData.status,
                 noticeType: caseData.noticeType,
                 issuingAgency: caseData.issuingAgency,
                 createdAt: caseData.createdAt,
-                transactionHash: caseData.transactionHash, // Include transaction hash
-                recipients: recipientsArray, // Convert Map back to array
-                recipientCount: recipientsArray.length, // Count unique recipients (service events)
-                totalAccepted: totalAccepted,
-                allSigned: totalAccepted === recipientsArray.length && recipientsArray.length > 0,
-                partialSigned: totalAccepted > 0 && totalAccepted < recipientsArray.length,
-                isServed: isServed, // Explicit served flag
-                totalViews: 0,
-                // Include a count of actual individual notices for debugging
-                totalNotices: recipientsArray.reduce((count, r) => {
-                    // Count 1 for single notice, 2 for paired Alert+Document
-                    return count + (r.isPaired ? 2 : 1);
-                }, 0)
+                servedAt: caseData.servedAt,
+                transactionHash: caseData.transactionHash,
+                alertTokenId: caseData.alertTokenId,
+                recipients: caseData.recipients,
+                recipientCount: recipientCount,
+                isServed: isServed
             };
         });
         
