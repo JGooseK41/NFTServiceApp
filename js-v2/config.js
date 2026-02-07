@@ -68,23 +68,24 @@ window.AppConfig = {
         }
     },
 
-    // Network Configuration (current active network)
+    // Network Configuration - Optimized for Lite Contract
+    // Single NFT per serve, simplified fee structure
     network: {
-        mainnet: {
-            fullHost: 'https://api.trongrid.io',
-            contractAddress: 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN', // v5 Enumerable contract
-            chainId: '0x2b6653dc',
-            contractType: 'v5',
-            chain: 'tron-mainnet' // Links to chain registry
-        },
         nile: {
             fullHost: 'https://nile.trongrid.io',
-            contractAddress: 'TUM1cojG7vdtph81H2Dy2VyRqoa1v9FywW', // Lite contract on Nile
+            contractAddress: 'TUM1cojG7vdtph81H2Dy2VyRqoa1v9FywW',
             chainId: '0x8dd8f8',
             contractType: 'lite',
-            chain: 'tron-nile' // Links to chain registry
+            chain: 'tron-nile'
         },
-        current: 'nile' // Using Nile testnet for Lite contract testing
+        mainnet: {
+            fullHost: 'https://api.trongrid.io',
+            contractAddress: 'TUM1cojG7vdtph81H2Dy2VyRqoa1v9FywW', // Deploy Lite to mainnet when ready
+            chainId: '0x2b6653dc',
+            contractType: 'lite',
+            chain: 'tron-mainnet'
+        },
+        current: 'nile' // Current active network
     },
     
     // Backend Configuration

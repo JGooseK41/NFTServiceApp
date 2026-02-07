@@ -27,18 +27,19 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
         const {
             transactionHash,
             alertTokenId,
-            documentTokenId,
-            alertImage,        // Base64 image data
-            ipfsHash,         // IPFS hash for encrypted document
-            encryptionKey,    // Key to decrypt IPFS document
-            recipients,       // Array of recipient addresses
+            documentTokenId,  // null for Lite contract (single NFT per serve)
+            alertImage,
+            ipfsHash,
+            encryptionKey,
+            recipients,
             agency,
             noticeType,
             pageCount,
             servedAt,
             serverAddress,
-            chain,            // Chain identifier (e.g., 'tron-nile', 'eth-mainnet')
-            explorerUrl,      // Full explorer URL for the transaction
+            chain,
+            explorerUrl,
+            contractType = 'lite', // Default to Lite contract
             metadata = {}
         } = req.body;
 
@@ -61,11 +62,11 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
         console.log('Normalized recipients:', normalizedRecipients);
 
         console.log(`Updating case ${caseNumber} with service data`);
-        console.log('Alert Token ID:', alertTokenId);
-        console.log('Document Token ID:', documentTokenId);
+        console.log('Contract Type:', contractType);
+        console.log('Token ID:', alertTokenId); // Single token for Lite contract
         console.log('Transaction Hash:', transactionHash);
         console.log('IPFS Hash:', ipfsHash);
-        console.log('Chain:', chain || 'not specified');
+        console.log('Chain:', chain || 'tron-nile');
         console.log('Has Alert Image:', !!alertImage);
 
         // Ensure required columns exist before we try to use them (use pool, not client, to avoid transaction issues)

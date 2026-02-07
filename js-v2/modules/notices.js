@@ -141,8 +141,8 @@ window.notices = {
                 txResults.push(batchResult);
                 
             } else {
-                // Single recipient - use regular method
-                console.log('Creating notices for single recipient...');
+                // Single recipient - Lite contract creates one NFT
+                console.log('Creating NFT for single recipient...');
 
                 const nftData = {
                     noticeId,
@@ -151,54 +151,35 @@ window.notices = {
                     noticeText: data.noticeText,
                     serverId,
                     serverTimestamp: Math.floor(Date.now() / 1000),
-                    thumbnail: null, // Don't send base64
-                    thumbnailUrl: documentData.thumbnailUrl, // Send URL instead
+                    thumbnail: null,
+                    thumbnailUrl: documentData.thumbnailUrl,
                     encrypted: data.encrypt !== false,
                     ipfsHash: documentData.ipfsHash,
                     pageCount: documentData.pageCount || 1,
                     deadline: data.deadline || '',
-                    agency: data.issuingAgency || data.agency || 'Legal Services',  // From form
-                    noticeEmail: data.noticeEmail || '',  // Case-specific contact email
-                    noticePhone: data.noticePhone || '',  // Case-specific contact phone
-                    legalRights: 'View full document at www.BlockServed.com for info on your rights and next steps',  // Hardcoded
+                    agency: data.issuingAgency || data.agency || 'Legal Services',
+                    noticeEmail: data.noticeEmail || '',
+                    noticePhone: data.noticePhone || '',
+                    legalRights: 'View full document at www.BlockServed.com for info on your rights and next steps',
                     sponsorFees: false
                 };
 
-                // Check if using Lite contract (single NFT per serve)
-                const isLiteContract = window.contract?.isLiteContract?.() ||
-                    window.getCurrentNetwork?.()?.contractType === 'lite';
-
-                // Create Alert NFT (works for both V5 and Lite)
+                // Lite contract: Single NFT per serve
                 const alertResult = await window.contract.createAlertNFT(nftData);
-
-                let documentResult = { txId: null, success: true };
-
-                if (!isLiteContract) {
-                    // V5 contract: Also create Document NFT (second NFT for signature)
-                    documentResult = await window.contract.createDocumentNFT({
-                        ...nftData,
-                        legalRights: 'View full document at www.BlockServed.com for info on your rights and next steps'
-                    });
-                } else {
-                    // Lite contract: Single NFT per serve (no separate Document NFT)
-                    console.log('Lite contract: Single NFT created (no separate Document NFT)');
-                    documentResult = { txId: alertResult.txId, success: true };
-                }
+                console.log('NFT created successfully');
 
                 txResults.push({
                     alertTx: alertResult.txId,
-                    documentTx: documentResult.txId,
-                    tokenId: alertResult.tokenId,  // Token ID extracted from transaction
-                    success: alertResult.success && documentResult.success
+                    tokenId: alertResult.tokenId,
+                    success: alertResult.success
                 });
             }
 
             const txResult = txResults[0]; // For now, use first result
 
-            // Step 8: Update backend with transaction info
+            // Step 8: Update backend with transaction info (Lite: single transaction)
             await this.updateNoticeWithTransaction(noticeId, {
-                alertTx: txResult.alertTx,
-                documentTx: txResult.documentTx
+                alertTx: txResult.alertTx
             });
 
             // Step 8.5: Extract token IDs and mark case as served
@@ -234,12 +215,10 @@ window.notices = {
                 }
             }
             
-            // For Lite contract, document_token_id = alert_token_id + 1
-            // Do NOT guess token IDs - let the backend be the source of truth
-            if (alertTokenId && !documentTokenId) {
-                documentTokenId = alertTokenId + 1;
-            }
-            // If we still don't have token IDs, leave them null - backend will handle it
+            // Lite contract: Single NFT per serve - no document token ID
+            // The alert token IS the only token - it represents both delivery proof AND document access
+            // Do NOT fabricate a documentTokenId - it doesn't exist on the blockchain
+            documentTokenId = null;
 
             // Convert BigInt values to numbers for JSON serialization
             alertTokenId = toBigIntSafe(alertTokenId);
@@ -258,11 +237,12 @@ window.notices = {
                     console.log(`Saving service data to backend for case: ${caseIdentifier}`);
                     console.log('Recipients:', data.recipients || [data.recipient]);
 
+                    // Lite contract: Only alert token ID (no document token)
                     const servicePayload = {
                         transactionHash: txResult.alertTx,
                         alertTokenId: typeof alertTokenId === 'bigint' ? alertTokenId.toString() : alertTokenId,
-                        documentTokenId: typeof documentTokenId === 'bigint' ? documentTokenId.toString() : documentTokenId,
-                        alertImage: alertImage, // Base64 image
+                        documentTokenId: null, // Lite contract: single NFT, no separate document token
+                        alertImage: alertImage,
                         ipfsHash: documentData.ipfsHash,
                         encryptionKey: documentData.encryptionKey || '',
                         recipients: data.recipients || [data.recipient],
@@ -271,8 +251,9 @@ window.notices = {
                         pageCount: documentData.pageCount || 1,
                         servedAt: new Date().toISOString(),
                         serverAddress: window.wallet?.address || window.serverAddress,
-                        chain: window.getCurrentChainId ? window.getCurrentChainId() : 'tron-mainnet',
+                        chain: window.getCurrentChainId ? window.getCurrentChainId() : 'tron-nile',
                         explorerUrl: window.getExplorerTxUrl ? window.getExplorerTxUrl(txResult.alertTx) : null,
+                        contractType: 'lite', // Indicate Lite contract
                         metadata: {
                             noticeText: data.noticeText,
                             caseDetails: data.caseDetails,
@@ -352,14 +333,12 @@ window.notices = {
                         cases[caseIndex].status = 'served';
                         cases[caseIndex].servedAt = new Date().toISOString();
                         cases[caseIndex].transactionHash = txResult.alertTx;
-                        cases[caseIndex].alertTokenId = alertTokenId;
-                        cases[caseIndex].documentTokenId = documentTokenId;
+                        cases[caseIndex].tokenId = alertTokenId; // Lite: single token
                         cases[caseIndex].alertImage = alertImage;
                         cases[caseIndex].recipients = data.recipients || [data.recipient];
-                        // Store IPFS hash for document retrieval
-                        cases[caseIndex].ipfsDocument = documentData.ipfsHash;
                         cases[caseIndex].ipfsHash = documentData.ipfsHash;
                         cases[caseIndex].encryptionKey = documentData.encryptionKey;
+                        cases[caseIndex].contractType = 'lite';
                         localStorage.setItem('legalnotice_cases', JSON.stringify(cases));
                     }
 
@@ -371,64 +350,62 @@ window.notices = {
                 console.warn('No case identifier available - service data not saved to backend');
             }
             
-            // Step 9: Generate receipt (with error handling for BigInt issues)
+            // Step 9: Generate receipt
             let receipt = null;
             try {
                 receipt = await this.generateReceipt({
                     noticeId,
-                    alertTxId: txResult.alertTx,
-                    documentTxId: txResult.documentTx,
-                    type: 'Legal Service Package',
+                    transactionHash: txResult.alertTx,
+                    tokenId: alertTokenId,
+                    type: 'Legal Notice',
                     recipients: data.recipients,
                     caseNumber: data.caseNumber,
                     timestamp: new Date().toISOString(),
                     serverId,
                     thumbnail,
-                    encrypted: data.encrypt !== false,
                     ipfsHash: documentData.ipfsHash,
-                    encryptionKey: documentData.encryptionKey
+                    contractType: 'lite'
                 });
             } catch (receiptError) {
                 console.error('Failed to generate receipt:', receiptError);
-                // Create a basic receipt without problematic fields
+                // Create a basic receipt
                 receipt = {
                     receiptId: `RCPT-${noticeId}`,
                     noticeId,
-                    alertTxId: String(txResult.alertTx || ''),
-                    documentTxId: String(txResult.documentTx || ''),
+                    transactionHash: String(txResult.alertTx || ''),
+                    tokenId: alertTokenId,
                     caseNumber: data.caseNumber,
                     generatedAt: new Date().toISOString(),
-                    verificationUrl: window.getTronScanUrl ? window.getTronScanUrl(txResult.alertTx) : `https://tronscan.org/#/transaction/${txResult.alertTx}`,
+                    verificationUrl: window.getExplorerTxUrl ? window.getExplorerTxUrl(txResult.alertTx) : `https://nile.tronscan.org/#/transaction/${txResult.alertTx}`,
                     accessUrl: `https://blockserved.com?case=${encodeURIComponent(data.caseNumber || noticeId)}`,
                     ipfsHash: documentData.ipfsHash,
-                    encryptionKey: documentData.encryptionKey
+                    contractType: 'lite'
                 };
             }
 
-            // Show success confirmation with receipt
+            // Show success confirmation
             this.showSuccessConfirmation({
                 success: true,
                 noticeId,
-                alertTxId: txResult.alertTx,
-                documentTxId: txResult.documentTx,
+                transactionHash: txResult.alertTx,
+                tokenId: alertTokenId,
                 receipt,
                 viewUrl: `https://blockserved.com?case=${encodeURIComponent(data.caseNumber || noticeId)}`,
                 caseNumber: data.caseNumber,
                 recipients: data.recipients,
                 thumbnail,
                 timestamp: new Date().toISOString(),
-                ipfsHash: documentData.ipfsHash,
-                encryptionKey: documentData.encryptionKey
+                ipfsHash: documentData.ipfsHash
             });
-            
+
             return {
                 success: true,
                 noticeId,
-                alertTxId: txResult.alertTx,
-                documentTxId: txResult.documentTx,
+                transactionHash: txResult.alertTx,
+                tokenId: alertTokenId,
                 receipt,
                 viewUrl: `https://blockserved.com?case=${encodeURIComponent(data.caseNumber || noticeId)}`,
-                message: 'Legal service NFT created successfully'
+                message: 'Legal notice NFT created successfully'
             };
             
         } catch (error) {

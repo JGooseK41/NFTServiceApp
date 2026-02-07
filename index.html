@@ -145,11 +145,11 @@
                                 <form id="serveForm">
                                     <!-- Service Info -->
                                     <div class="alert alert-info mb-3">
-                                        <strong>Complete Legal Service Package</strong><br>
-                                        <small>This will create both:
+                                        <strong>Legal Notice NFT</strong><br>
+                                        <small>Creates a blockchain-verified NFT for each recipient with:
                                         <ul class="mb-0">
-                                            <li>Alert NFT - Notification with thumbnail preview</li>
-                                            <li>Document NFT - Full encrypted document on IPFS</li>
+                                            <li>Proof of delivery on the blockchain</li>
+                                            <li>Access to full encrypted document via blockserved.com</li>
                                         </ul>
                                         </small>
                                     </div>
@@ -330,9 +330,9 @@
                                         <small>
                                             <strong>Cost Calculation:</strong><br>
                                             Recipients: <span id="recipientCount">1</span><br>
-                                            Per Recipient: <span id="perRecipientFee">10</span> TRX (Alert + Document)<br>
+                                            Per Recipient: <span id="perRecipientFee">10</span> TRX<br>
                                             <strong>Total Cost: <span id="totalFee">10</span> TRX</strong><br>
-                                            Energy Required: ~<span id="energyEstimate">140,000</span>
+                                            Energy Required: ~<span id="energyEstimate">65,000</span>
                                         </small>
                                     </div>
 
@@ -364,7 +364,7 @@
                                         
                                         <!-- Main Submit Button -->
                                         <button type="submit" class="btn btn-primary">
-                                            Create Legal Service Package (Alert + Document)
+                                            Preview & Continue
                                         </button>
                                     </div>
                                 </form>
@@ -565,15 +565,14 @@
                                                     <tr>
                                                         <th>Case</th>
                                                         <th>Transaction</th>
-                                                        <th>Alert NFT</th>
-                                                        <th>Doc NFT</th>
+                                                        <th>Token ID</th>
                                                         <th>IPFS</th>
                                                         <th>Recipients</th>
                                                         <th>Served</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody id="dashServiceTableBody">
-                                                    <tr><td colspan="7" class="text-center">Click refresh to load data</td></tr>
+                                                    <tr><td colspan="6" class="text-center">Click refresh to load data</td></tr>
                                                 </tbody>
                                             </table>
                                         </div>

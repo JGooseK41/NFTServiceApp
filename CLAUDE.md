@@ -40,17 +40,16 @@ The root directory is deployed to Netlify (`publish = "."`). These are the ONLY 
 ## Design Optimizations
 - Remember the logic for design optimization of the tool
 
-## NFT Type Specifications
-### Alert NFT
-- Proof of delivery
-- Always shows "Delivered" once sent
-- Displays delivery timestamp
-- No tracking of acknowledgment needed
-- Purpose: Legal notice delivery confirmation
+## Contract Type: Lite Contract
+The application uses the **Lite Contract** which creates a single NFT per serve:
+- One NFT per recipient containing proof of delivery
+- Document access via blockserved.com portal
+- Simplified fee structure (single serviceFee)
+- Contract address: `TUM1cojG7vdtph81H2Dy2VyRqoa1v9FywW` (Nile testnet)
 
-### Document NFT
-- Legal document for signature
-- Shows "Document Signed For" only when recipient actually signs the document
-- Shows "Awaiting Signature" until signed
-- This is the critical status for legal acceptance
-- Purpose: Legal document requiring signature
+### NFT Specifications
+- **Single Token Per Serve**: Each recipient receives one NFT
+- **Proof of Delivery**: NFT serves as blockchain-verified proof of service
+- **Document Access**: Recipients access full documents at blockserved.com
+- **Status**: Always shows "Delivered" once minted
+- **Metadata**: Contains case number, agency, service date, and portal link
