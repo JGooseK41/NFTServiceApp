@@ -926,10 +926,19 @@
                     ` : ''}
                 `;
             } else {
+                // No IPFS data, but PDF may be available on backend
                 modalBody.innerHTML = `
-                    <div class="alert-message alert-info">
-                        <i class="bi bi-info-circle"></i>
-                        Document details are being prepared. Please check back later.
+                    <div class="document-info" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <h4>Legal Notice - Case #${notice.case_number}</h4>
+                        <p><strong>Alert NFT:</strong> #${notice.alert_token_id || 'N/A'}</p>
+                        <p><strong>Document NFT:</strong> #${notice.document_token_id || 'Pending'}</p>
+                        <p><strong>Served:</strong> ${new Date(notice.served_at).toLocaleString()}</p>
+                        <p><strong>Status:</strong> ${notice.status || 'Served'}</p>
+                    </div>
+                    <div style="text-align: center; margin: 20px 0;">
+                        <button onclick="downloadCasePDF('${notice.case_number}')" class="btn btn-primary" style="padding: 12px 24px;">
+                            <i class="bi bi-file-earmark-pdf"></i> View/Download Legal Document
+                        </button>
                     </div>
                 `;
             }
@@ -1024,6 +1033,43 @@ Transaction Hash: ${currentNotice.transaction_hash}
         }
 
         // Show alert message
+        // Download PDF by case number from backend
+        async function downloadCasePDF(caseNumber) {
+            try {
+                showAlert('Downloading document...', 'info');
+
+                const response = await fetch(
+                    `${BACKEND_URL}/api/recipient-cases/${encodeURIComponent(caseNumber)}/download-pdf?recipientAddress=${currentWallet}`
+                );
+
+                if (response.ok) {
+                    const contentType = response.headers.get('content-type');
+
+                    if (contentType && contentType.includes('application/pdf')) {
+                        const blob = await response.blob();
+                        const downloadUrl = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = downloadUrl;
+                        a.download = `legal_document_case_${caseNumber}.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(downloadUrl);
+                        showAlert('Document downloaded successfully', 'success');
+                        return;
+                    }
+                }
+
+                // If download failed, try opening in new tab
+                const pdfUrl = `${BACKEND_URL}/api/recipient-cases/${encodeURIComponent(caseNumber)}/download-pdf?recipientAddress=${currentWallet}`;
+                window.open(pdfUrl, '_blank');
+
+            } catch (error) {
+                console.error('Error downloading PDF:', error);
+                showAlert('Failed to download document. Please try again.', 'error');
+            }
+        }
+
         function showAlert(message, type = 'info') {
             const alertDiv = document.createElement('div');
             alertDiv.className = `alert-message alert-${type}`;
