@@ -582,13 +582,17 @@ router.get('/:walletAddress/case/:caseNumber/recipient-status', async (req, res)
             `, [caseNumber, walletAddress]);
         }
 
-        // Also try with metadata.recipients if available
-        if (ownershipCheck.rows.length === 0) {
-            ownershipCheck = await pool.query(`
+        // Also try extracting recipients from metadata if available
+        if (ownershipCheck.rows.length === 0 || !ownershipCheck.rows[0].recipients || JSON.stringify(ownershipCheck.rows[0].recipients) === '[]') {
+            const metadataQuery = await pool.query(`
                 SELECT
                     COALESCE(case_number, id::text) as case_number,
                     COALESCE(
-                        metadata->'recipients',
+                        CASE
+                            WHEN metadata IS NOT NULL AND metadata::text != ''
+                            THEN (metadata::jsonb)->'recipients'
+                            ELSE NULL
+                        END,
                         CASE WHEN recipient_address IS NOT NULL
                              THEN jsonb_build_array(recipient_address)
                              ELSE '[]'::jsonb
@@ -598,6 +602,10 @@ router.get('/:walletAddress/case/:caseNumber/recipient-status', async (req, res)
                 FROM cases
                 WHERE (case_number = $1 OR id::text = $1) AND server_address = $2
             `, [caseNumber, walletAddress]);
+
+            if (metadataQuery.rows.length > 0) {
+                ownershipCheck = metadataQuery;
+            }
         }
 
         if (ownershipCheck.rows.length === 0) {
