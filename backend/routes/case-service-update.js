@@ -84,19 +84,42 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
         await client.query('BEGIN');
 
         // First, check if we have a cases table entry
-        // Use case_number (text) or id::text for comparison since caseNumber is a string
-        const caseCheck = await client.query(
-            'SELECT id FROM cases WHERE case_number = $1 OR id::text = $1',
-            [caseNumber]
-        );
+        // Handle both schema variants: id=caseNumber (case-manager) or case_number column (other routes)
+        let caseCheck = { rows: [] };
+        try {
+            // Try to find by id first (case-manager uses id as the case number)
+            caseCheck = await client.query(
+                'SELECT id FROM cases WHERE id = $1',
+                [caseNumber]
+            );
+        } catch (e) {
+            console.log('Could not query by id, trying case_number:', e.message);
+        }
+
+        // If not found, try case_number column (if it exists)
+        if (caseCheck.rows.length === 0) {
+            try {
+                const altCheck = await client.query(
+                    'SELECT id FROM cases WHERE case_number = $1',
+                    [caseNumber]
+                );
+                if (altCheck.rows.length > 0) {
+                    caseCheck = altCheck;
+                }
+            } catch (e) {
+                // case_number column might not exist in some schemas
+                console.log('case_number column not available:', e.message);
+            }
+        }
 
         let caseId;
         
         if (caseCheck.rows.length === 0) {
             // Create case entry if it doesn't exist
+            // Use id column as case number (matches case-manager.js schema)
             const insertResult = await client.query(`
                 INSERT INTO cases (
-                    case_number,
+                    id,
                     server_address,
                     status,
                     chain,
@@ -104,6 +127,10 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
                     updated_at,
                     metadata
                 ) VALUES ($1, $2, $3, $4, NOW(), NOW(), $5)
+                ON CONFLICT (id) DO UPDATE SET
+                    status = 'served',
+                    updated_at = NOW(),
+                    metadata = COALESCE(cases.metadata, '{}'::jsonb) || EXCLUDED.metadata
                 RETURNING id
             `, [
                 caseNumber,
@@ -115,6 +142,8 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
                     noticeType,
                     pageCount,
                     recipients: normalizedRecipients,
+                    transactionHash,
+                    alertTokenId,
                     ...metadata
                 })
             ]);
