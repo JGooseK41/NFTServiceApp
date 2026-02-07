@@ -180,8 +180,13 @@ window.cases = {
         
         // Process backend cases first (they have the most complete data)
         backend.forEach(bCase => {
-            const caseNumber = bCase.case_number || bCase.caseNumber;
+            // Use id as fallback since service-data merge can set caseNumber to null
+            const caseNumber = bCase.case_number || bCase.caseNumber || bCase.id;
             if (caseNumber) {
+                // Ensure caseNumber is set on the object for later use
+                if (!bCase.caseNumber && !bCase.case_number) {
+                    bCase.caseNumber = caseNumber;
+                }
                 processedIds.add(caseNumber);
                 merged.push(bCase);
             }
@@ -189,12 +194,13 @@ window.cases = {
         
         // Then add local cases that aren't already in backend
         local.forEach(lCase => {
-            const caseNumber = lCase.case_number || lCase.caseNumber;
+            const caseNumber = lCase.case_number || lCase.caseNumber || lCase.id;
             if (caseNumber && !processedIds.has(caseNumber)) {
                 // Check if this local case might have data the backend doesn't
-                const backendCase = merged.find(c => 
-                    (c.case_number === caseNumber) || 
-                    (c.caseNumber === caseNumber)
+                const backendCase = merged.find(c =>
+                    (c.case_number === caseNumber) ||
+                    (c.caseNumber === caseNumber) ||
+                    (c.id === caseNumber)
                 );
                 
                 if (backendCase) {
