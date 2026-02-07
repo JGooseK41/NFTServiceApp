@@ -1154,4 +1154,123 @@ router.get('/cases/recipient/:address/activity', async (req, res) => {
     }
 });
 
+/**
+ * GET /api/diagnose-service-complete
+ * Diagnostic endpoint to test what would fail in service-complete
+ */
+router.get('/diagnose-service-complete', async (req, res) => {
+    const results = [];
+    const client = await pool.connect();
+
+    try {
+        // Step 1: Check cases table columns
+        const casesColumns = await pool.query(`
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_name = 'cases'
+            ORDER BY ordinal_position
+        `);
+        results.push({
+            step: 'cases_table_columns',
+            status: 'ok',
+            columns: casesColumns.rows
+        });
+
+        // Step 2: Check case_service_records columns
+        const csrColumns = await pool.query(`
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_name = 'case_service_records'
+            ORDER BY ordinal_position
+        `);
+        results.push({
+            step: 'case_service_records_columns',
+            status: 'ok',
+            columns: csrColumns.rows
+        });
+
+        // Step 3: Test ALTER TABLE on case_service_records
+        try {
+            await pool.query(`ALTER TABLE case_service_records ADD COLUMN IF NOT EXISTS chain VARCHAR(50) DEFAULT 'tron-mainnet'`);
+            results.push({ step: 'alter_case_service_records_chain', status: 'ok' });
+        } catch (e) {
+            results.push({ step: 'alter_case_service_records_chain', status: 'error', error: e.message });
+        }
+
+        // Step 4: Test ALTER TABLE on cases
+        try {
+            await pool.query(`ALTER TABLE cases ADD COLUMN IF NOT EXISTS chain VARCHAR(50) DEFAULT 'tron-mainnet'`);
+            results.push({ step: 'alter_cases_chain', status: 'ok' });
+        } catch (e) {
+            results.push({ step: 'alter_cases_chain', status: 'error', error: e.message });
+        }
+
+        // Step 5: Test BEGIN transaction
+        try {
+            await client.query('BEGIN');
+            results.push({ step: 'begin_transaction', status: 'ok' });
+        } catch (e) {
+            results.push({ step: 'begin_transaction', status: 'error', error: e.message });
+        }
+
+        // Step 6: Test SELECT from cases
+        try {
+            const testSelect = await client.query(
+                'SELECT id FROM cases WHERE case_number = $1 OR id::text = $1 LIMIT 1',
+                ['__test_diagnostic__']
+            );
+            results.push({ step: 'select_from_cases', status: 'ok', found: testSelect.rows.length });
+        } catch (e) {
+            results.push({ step: 'select_from_cases', status: 'error', error: e.message });
+        }
+
+        // Step 7: Test INSERT into cases with chain column
+        try {
+            const testInsert = await client.query(`
+                INSERT INTO cases (
+                    case_number,
+                    server_address,
+                    status,
+                    chain,
+                    created_at,
+                    updated_at,
+                    metadata
+                ) VALUES ($1, $2, $3, $4, NOW(), NOW(), $5)
+                ON CONFLICT (case_number) DO NOTHING
+                RETURNING id
+            `, [
+                '__test_diagnostic__',
+                'TTestAddress',
+                'test',
+                'tron-nile',
+                '{}'
+            ]);
+            results.push({ step: 'insert_into_cases', status: 'ok', inserted: testInsert.rows.length > 0 });
+        } catch (e) {
+            results.push({ step: 'insert_into_cases', status: 'error', error: e.message });
+        }
+
+        // Rollback test transaction
+        await client.query('ROLLBACK');
+        results.push({ step: 'rollback', status: 'ok' });
+
+        res.json({
+            success: true,
+            message: 'Diagnostic complete',
+            results
+        });
+
+    } catch (error) {
+        try { await client.query('ROLLBACK'); } catch (e) {}
+        console.error('Diagnostic error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            results
+        });
+    } finally {
+        client.release();
+    }
+});
+
 module.exports = router;
