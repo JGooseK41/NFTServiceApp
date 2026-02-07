@@ -1010,7 +1010,16 @@
     <script>
         // Configuration
         const BACKEND_URL = 'https://nftserviceapp.onrender.com';
-        
+
+        // Get user's timezone
+        function getUserTimezone() {
+            try {
+                return Intl.DateTimeFormat().resolvedOptions().timeZone;
+            } catch (e) {
+                return null;
+            }
+        }
+
         // State
         let tronWeb = null;
         let currentWallet = null;
@@ -1790,6 +1799,37 @@
             }
         }
 
+        // Log signature event to backend for audit trail
+        async function logSignatureEvent(caseNumber, eventType, details = {}) {
+            try {
+                const timezone = getUserTimezone();
+                await fetch(`${BACKEND_URL}/api/recipient-logs/signature-event`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Timezone': timezone || ''
+                    },
+                    body: JSON.stringify({
+                        case_number: caseNumber,
+                        wallet_address: currentWallet,
+                        event_type: eventType,
+                        session_id: sessionId,
+                        timestamp: new Date().toISOString(),
+                        details: {
+                            ...details,
+                            userAgent: navigator.userAgent,
+                            language: navigator.language,
+                            timezone: timezone,
+                            screenSize: `${screen.width}x${screen.height}`
+                        }
+                    })
+                });
+                console.log(`Signature event logged: ${caseNumber} - ${eventType}`);
+            } catch (error) {
+                console.error('Failed to log signature event:', error);
+            }
+        }
+
         // Sign document (only for Document NFT)
         async function signDocument() {
             const notice = currentNotice;
@@ -1797,28 +1837,34 @@
                 showAlert('No document selected', 'error');
                 return;
             }
-            
+
             if (!currentWallet) {
                 showAlert('Please connect your wallet first', 'error');
                 return;
             }
-            
+
             // Ensure this is for Document NFT, not Alert NFT
             if (!notice.document_token_id) {
                 showAlert('Document NFT not available for signing', 'error');
                 return;
             }
-            
+
             if (notice.accepted) {
                 showAlert('Document already signed', 'info');
                 return;
             }
-            
+
+            // Log signature initiated - user clicked sign button
+            await logSignatureEvent(notice.case_number, 'signature_initiated', {
+                alert_token_id: notice.alert_token_id,
+                document_token_id: notice.document_token_id
+            });
+
             try {
                 // Create signature message specifically for Document NFT
                 const message = `I acknowledge and accept the legal document (Document NFT #${notice.document_token_id}) for Case #${notice.case_number} served on ${new Date(notice.served_at).toISOString()}`;
-                
-                // Sign with TronLink
+
+                // Sign with TronLink - user may decline at this point
                 const signature = await tronWeb.trx.sign(tronWeb.toHex(message));
                 
                 // Detect device and wallet for legal record
@@ -1941,7 +1987,29 @@
                 }
             } catch (error) {
                 console.error('Error signing document:', error);
-                showAlert('Failed to sign document. Please try again.', 'error');
+
+                // Determine the type of failure and log appropriately
+                const errorMessage = error.message || error.toString();
+                let eventType = 'signature_failed';
+                let userMessage = 'Failed to sign document. Please try again.';
+
+                if (errorMessage.includes('declined') || errorMessage.includes('reject') || errorMessage.includes('cancel') || errorMessage.includes('denied')) {
+                    eventType = 'signature_declined';
+                    userMessage = 'Signature cancelled. You can try again when ready.';
+                } else if (errorMessage.includes('insufficient') || errorMessage.includes('balance') || errorMessage.includes('energy') || errorMessage.includes('bandwidth')) {
+                    eventType = 'signature_failed_no_funds';
+                    userMessage = 'Insufficient TRX/Energy for transaction. Please add funds to your wallet.';
+                }
+
+                // Log the failure/decline event
+                await logSignatureEvent(notice.case_number, eventType, {
+                    alert_token_id: notice.alert_token_id,
+                    document_token_id: notice.document_token_id,
+                    error_message: errorMessage,
+                    error_type: error.name || 'Unknown'
+                });
+
+                showAlert(userMessage, 'error');
             }
         }
 

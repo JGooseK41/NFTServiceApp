@@ -22,7 +22,7 @@ const corsOptions = {
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Timezone']
 };
 
 router.use(cors(corsOptions));
@@ -94,7 +94,23 @@ async function initializeLoggingTables() {
                 UNIQUE(case_number, wallet_address)
             )
         `);
-        
+
+        // Signature events table - tracks all signature-related actions
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS recipient_signature_events (
+                id SERIAL PRIMARY KEY,
+                case_number VARCHAR(255) NOT NULL,
+                wallet_address VARCHAR(255) NOT NULL,
+                event_type VARCHAR(50) NOT NULL,
+                event_at TIMESTAMP DEFAULT NOW(),
+                ip_address VARCHAR(45),
+                user_agent TEXT,
+                timezone VARCHAR(100),
+                session_id VARCHAR(255),
+                details JSONB
+            )
+        `);
+
         console.log('✅ Logging tables initialized');
     } catch (error) {
         console.error('Error initializing logging tables:', error);
@@ -319,14 +335,108 @@ router.post('/acknowledgment', async (req, res) => {
         `, [case_number]);
         
         console.log(`Legal acknowledgment: ${case_number} by ${wallet_address} at ${result.rows[0].acknowledged_at}`);
-        
-        res.json({ 
+
+        res.json({
             success: true,
             acknowledged_at: result.rows[0].acknowledged_at,
             legally_binding: true
         });
     } catch (error) {
         console.error('Error logging acknowledgment:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
+ * POST /api/recipient-logs/signature-event
+ * Log signature-related events (initiated, declined, failed)
+ * This provides forensic evidence of user intent and interaction
+ */
+router.post('/signature-event', async (req, res) => {
+    try {
+        const {
+            case_number,
+            wallet_address,
+            event_type,
+            session_id,
+            timestamp,
+            details
+        } = req.body;
+
+        // Get IP address (handle proxies)
+        const ipAddress = req.headers['x-forwarded-for'] ||
+                         req.headers['x-real-ip'] ||
+                         req.connection.remoteAddress ||
+                         req.ip;
+
+        // Get timezone from header
+        const timezone = req.headers['x-timezone'] || details?.timezone || null;
+
+        const result = await pool.query(`
+            INSERT INTO recipient_signature_events (
+                case_number,
+                wallet_address,
+                event_type,
+                ip_address,
+                user_agent,
+                timezone,
+                session_id,
+                details
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING id, event_at
+        `, [
+            case_number,
+            wallet_address,
+            event_type,
+            ipAddress,
+            req.headers['user-agent'],
+            timezone,
+            session_id,
+            details
+        ]);
+
+        // Log with appropriate icon based on event type
+        const icons = {
+            'signature_initiated': '🖊️',
+            'signature_declined': '❌',
+            'signature_failed': '⚠️',
+            'signature_failed_no_funds': '💰',
+            'signature_completed': '✅'
+        };
+        const icon = icons[event_type] || '📝';
+
+        console.log(`${icon} Signature event: ${event_type} for case ${case_number} by ${wallet_address}`);
+
+        // Also log to audit_logs for comprehensive audit trail
+        try {
+            await pool.query(`
+                INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, timezone)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `, [
+                `signature_${event_type}`,
+                wallet_address,
+                case_number,
+                JSON.stringify({
+                    ...details,
+                    session_id,
+                    event_type,
+                    original_timestamp: timestamp
+                }),
+                ipAddress,
+                req.headers['user-agent'],
+                timezone
+            ]);
+        } catch (auditError) {
+            console.log('Could not log to audit_logs:', auditError.message);
+        }
+
+        res.json({
+            success: true,
+            event_id: result.rows[0].id,
+            event_at: result.rows[0].event_at
+        });
+    } catch (error) {
+        console.error('Error logging signature event:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 });
@@ -363,11 +473,18 @@ router.get('/activity/:wallet', async (req, res) => {
         
         // Get acknowledgments
         const acknowledgments = await pool.query(`
-            SELECT * FROM recipient_acknowledgments 
-            WHERE wallet_address = $1 
+            SELECT * FROM recipient_acknowledgments
+            WHERE wallet_address = $1
             ORDER BY acknowledged_at DESC
         `, [wallet]);
-        
+
+        // Get signature events
+        const signatureEvents = await pool.query(`
+            SELECT * FROM recipient_signature_events
+            WHERE wallet_address = $1
+            ORDER BY event_at DESC
+        `, [wallet]);
+
         res.json({
             success: true,
             wallet_address: wallet,
@@ -376,11 +493,14 @@ router.get('/activity/:wallet', async (req, res) => {
                 notice_views: views.rows,
                 document_actions: actions.rows,
                 acknowledgments: acknowledgments.rows,
+                signature_events: signatureEvents.rows,
                 summary: {
                     total_connections: connections.rows.length,
                     total_views: views.rows.length,
                     total_actions: actions.rows.length,
                     total_acknowledgments: acknowledgments.rows.length,
+                    signature_attempts: signatureEvents.rows.filter(e => e.event_type === 'signature_initiated').length,
+                    signature_declines: signatureEvents.rows.filter(e => e.event_type === 'signature_declined').length,
                     last_seen: connections.rows[0]?.connected_at || null
                 }
             }
@@ -415,11 +535,18 @@ router.get('/case-activity/:caseNumber', async (req, res) => {
         
         // Get all acknowledgments for this case
         const acknowledgments = await pool.query(`
-            SELECT * FROM recipient_acknowledgments 
-            WHERE case_number = $1 
+            SELECT * FROM recipient_acknowledgments
+            WHERE case_number = $1
             ORDER BY acknowledged_at DESC
         `, [caseNumber]);
-        
+
+        // Get all signature events for this case
+        const signatureEvents = await pool.query(`
+            SELECT * FROM recipient_signature_events
+            WHERE case_number = $1
+            ORDER BY event_at DESC
+        `, [caseNumber]);
+
         res.json({
             success: true,
             case_number: caseNumber,
@@ -427,10 +554,14 @@ router.get('/case-activity/:caseNumber', async (req, res) => {
                 views: views.rows,
                 document_actions: actions.rows,
                 acknowledgments: acknowledgments.rows,
+                signature_events: signatureEvents.rows,
                 summary: {
                     total_views: views.rows.length,
                     unique_viewers: [...new Set(views.rows.map(v => v.wallet_address))].length,
                     total_acknowledgments: acknowledgments.rows.length,
+                    signature_attempts: signatureEvents.rows.filter(e => e.event_type === 'signature_initiated').length,
+                    signature_declines: signatureEvents.rows.filter(e => e.event_type === 'signature_declined').length,
+                    signature_failures: signatureEvents.rows.filter(e => e.event_type.includes('failed')).length,
                     first_viewed: views.rows[views.rows.length - 1]?.viewed_at || null,
                     last_viewed: views.rows[0]?.viewed_at || null,
                     acknowledged: acknowledgments.rows.length > 0
