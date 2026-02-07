@@ -253,48 +253,92 @@ window.notices = {
                     // Store alert image for receipt
                     const alertImage = thumbnail;
 
-                    // Send complete service data to backend
+                    // Send complete service data to backend with retry logic
                     const backendUrl = window.config?.backendUrl || 'https://nftserviceapp.onrender.com';
                     console.log(`Saving service data to backend for case: ${caseIdentifier}`);
                     console.log('Recipients:', data.recipients || [data.recipient]);
 
-                    const serviceUpdateResponse = await fetch(`${backendUrl}/api/cases/${encodeURIComponent(caseIdentifier)}/service-complete`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Server-Address': window.wallet?.address || window.serverAddress
-                        },
-                        body: JSON.stringify({
-                            transactionHash: txResult.alertTx,
-                            alertTokenId: typeof alertTokenId === 'bigint' ? alertTokenId.toString() : alertTokenId,
-                            documentTokenId: typeof documentTokenId === 'bigint' ? documentTokenId.toString() : documentTokenId,
-                            alertImage: alertImage, // Base64 image
-                            ipfsHash: documentData.ipfsHash,
-                            encryptionKey: documentData.encryptionKey || '',
-                            recipients: data.recipients || [data.recipient],
-                            agency: data.issuingAgency || data.agency,
-                            noticeType: data.noticeType || 'Legal Notice',
-                            pageCount: documentData.pageCount || 1,
-                            servedAt: new Date().toISOString(),
-                            serverAddress: window.wallet?.address || window.serverAddress,
-                            chain: window.getCurrentChainId ? window.getCurrentChainId() : 'tron-mainnet',
-                            explorerUrl: window.getExplorerTxUrl ? window.getExplorerTxUrl(txResult.alertTx) : null,
-                            metadata: {
-                                noticeText: data.noticeText,
-                                caseDetails: data.caseDetails,
-                                deadline: data.deadline || '',
-                                thumbnailUrl: documentData.thumbnailUrl,
-                                diskUrl: documentData.diskUrl
-                            }
-                        })
-                    });
+                    const servicePayload = {
+                        transactionHash: txResult.alertTx,
+                        alertTokenId: typeof alertTokenId === 'bigint' ? alertTokenId.toString() : alertTokenId,
+                        documentTokenId: typeof documentTokenId === 'bigint' ? documentTokenId.toString() : documentTokenId,
+                        alertImage: alertImage, // Base64 image
+                        ipfsHash: documentData.ipfsHash,
+                        encryptionKey: documentData.encryptionKey || '',
+                        recipients: data.recipients || [data.recipient],
+                        agency: data.issuingAgency || data.agency,
+                        noticeType: data.noticeType || 'Legal Notice',
+                        pageCount: documentData.pageCount || 1,
+                        servedAt: new Date().toISOString(),
+                        serverAddress: window.wallet?.address || window.serverAddress,
+                        chain: window.getCurrentChainId ? window.getCurrentChainId() : 'tron-mainnet',
+                        explorerUrl: window.getExplorerTxUrl ? window.getExplorerTxUrl(txResult.alertTx) : null,
+                        metadata: {
+                            noticeText: data.noticeText,
+                            caseDetails: data.caseDetails,
+                            deadline: data.deadline || '',
+                            thumbnailUrl: documentData.thumbnailUrl,
+                            diskUrl: documentData.diskUrl
+                        }
+                    };
 
-                    if (serviceUpdateResponse.ok) {
-                        const result = await serviceUpdateResponse.json();
-                        console.log('✅ Case service data stored in backend:', result);
-                    } else {
-                        const errorText = await serviceUpdateResponse.text();
-                        console.error('Failed to update backend:', serviceUpdateResponse.status, errorText);
+                    // Retry logic for backend update - try up to 3 times
+                    let backendUpdateSuccess = false;
+                    let lastError = null;
+                    const maxRetries = 3;
+
+                    for (let attempt = 1; attempt <= maxRetries && !backendUpdateSuccess; attempt++) {
+                        try {
+                            console.log(`Backend update attempt ${attempt}/${maxRetries}...`);
+
+                            const serviceUpdateResponse = await fetch(
+                                `${backendUrl}/api/cases/${encodeURIComponent(caseIdentifier)}/service-complete`,
+                                {
+                                    method: 'PUT',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-Server-Address': window.wallet?.address || window.serverAddress
+                                    },
+                                    body: JSON.stringify(servicePayload)
+                                }
+                            );
+
+                            if (serviceUpdateResponse.ok) {
+                                const result = await serviceUpdateResponse.json();
+                                console.log('✅ Case service data stored in backend:', result);
+                                backendUpdateSuccess = true;
+                            } else {
+                                const errorText = await serviceUpdateResponse.text();
+                                lastError = `HTTP ${serviceUpdateResponse.status}: ${errorText}`;
+                                console.error(`Backend update attempt ${attempt} failed:`, lastError);
+
+                                // Wait before retry (exponential backoff)
+                                if (attempt < maxRetries) {
+                                    await new Promise(r => setTimeout(r, 1000 * attempt));
+                                }
+                            }
+                        } catch (fetchError) {
+                            lastError = fetchError.message;
+                            console.error(`Backend update attempt ${attempt} error:`, fetchError);
+
+                            // Wait before retry
+                            if (attempt < maxRetries) {
+                                await new Promise(r => setTimeout(r, 1000 * attempt));
+                            }
+                        }
+                    }
+
+                    // If backend update failed after all retries, warn the user
+                    if (!backendUpdateSuccess) {
+                        console.error('❌ Backend update failed after all retries:', lastError);
+                        // Show a non-blocking warning - the NFT was minted successfully
+                        if (window.app && window.app.showWarning) {
+                            window.app.showWarning(
+                                'NFT minted successfully, but case status sync had issues. ' +
+                                'Your case may appear as "draft" temporarily. ' +
+                                'Refresh the Cases tab to see the updated status.'
+                            );
+                        }
                     }
 
                     // Also update local storage as a cache (but backend is source of truth)

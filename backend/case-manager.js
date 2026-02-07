@@ -382,36 +382,106 @@ class CaseManager {
             
             const params = [serverAddress, `${serverAddress}%`];
             const result = await this.db.query(query, params);
-            
+
             console.log(`Found ${result.rows.length} total cases for wallet ${serverAddress}`);
-            
-            // Group by status if needed
+
+            // AUTO-SYNC: Fix any cases that have service records but still show as draft
+            // This runs in the background and won't block the response
+            this.syncOrphanedCases(serverAddress).catch(err =>
+                console.error('Background sync error:', err.message)
+            );
+
+            // Process results - prefer served status from case_service_records
+            const processedCases = result.rows.map(row => {
+                // If source is case_service_records, always mark as served
+                if (row.source === 'case_service_records') {
+                    return { ...row, status: 'served' };
+                }
+                return row;
+            });
+
+            // Group by status
             const casesByStatus = {};
-            result.rows.forEach(row => {
+            processedCases.forEach(row => {
                 const caseStatus = row.status || 'unknown';
                 if (!casesByStatus[caseStatus]) {
                     casesByStatus[caseStatus] = [];
                 }
                 casesByStatus[caseStatus].push(row);
             });
-            
+
             console.log('Cases by status:', Object.keys(casesByStatus).map(s => `${s}: ${casesByStatus[s].length}`).join(', '));
-            
+
             // Filter by status if requested
-            const filteredCases = status 
-                ? result.rows.filter(c => c.status === status)
-                : result.rows;
-            
+            const filteredCases = status
+                ? processedCases.filter(c => c.status === status)
+                : processedCases;
+
             return {
                 success: true,
                 cases: filteredCases,
-                total_cases: result.rows.length,
+                total_cases: processedCases.length,
                 by_status: casesByStatus,
                 wallet: serverAddress
             };
             
         } catch (error) {
             console.error('Failed to list cases:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Sync orphaned cases - finds cases in case_service_records that have
+     * corresponding cases table entries still showing as 'draft' and fixes them.
+     * This is a permanent fix that ensures data consistency.
+     */
+    async syncOrphanedCases(serverAddress) {
+        try {
+            console.log(`🔄 Syncing orphaned cases for wallet: ${serverAddress}`);
+
+            // Find cases that:
+            // 1. Exist in case_service_records (meaning they were served)
+            // 2. Have a matching entry in cases table with status != 'served'
+            const orphanedQuery = `
+                UPDATE cases c
+                SET
+                    status = 'served',
+                    served_at = COALESCE(c.served_at, csr.served_at, NOW()),
+                    updated_at = NOW(),
+                    metadata = COALESCE(c.metadata, '{}'::jsonb) || jsonb_build_object(
+                        'syncedFromServiceRecords', true,
+                        'syncedAt', NOW()::text,
+                        'transactionHash', csr.transaction_hash,
+                        'alertTokenId', csr.alert_token_id
+                    )
+                FROM case_service_records csr
+                WHERE c.id = csr.case_number
+                  AND c.status != 'served'
+                  AND (c.server_address = $1 OR c.server_address LIKE $2)
+                RETURNING c.id, c.status
+            `;
+
+            const result = await this.db.query(orphanedQuery, [
+                serverAddress,
+                `${serverAddress}%`
+            ]);
+
+            if (result.rows.length > 0) {
+                console.log(`✅ Fixed ${result.rows.length} orphaned cases:`,
+                    result.rows.map(r => r.id).join(', '));
+            } else {
+                console.log('✓ No orphaned cases found - all synced');
+            }
+
+            return {
+                success: true,
+                fixedCount: result.rows.length,
+                fixedCases: result.rows.map(r => r.id)
+            };
+
+        } catch (error) {
+            console.error('Error syncing orphaned cases:', error);
             return { success: false, error: error.message };
         }
     }

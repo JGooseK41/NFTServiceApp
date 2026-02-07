@@ -83,98 +83,62 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
 
         await client.query('BEGIN');
 
-        // First, check if we have a cases table entry
-        // Handle both schema variants: id=caseNumber (case-manager) or case_number column (other routes)
-        let caseCheck = { rows: [] };
-        try {
-            // Try to find by id first (case-manager uses id as the case number)
-            caseCheck = await client.query(
-                'SELECT id FROM cases WHERE id = $1',
-                [caseNumber]
-            );
-        } catch (e) {
-            console.log('Could not query by id, trying case_number:', e.message);
-        }
+        console.log(`\n========== SERVICE-COMPLETE: ${caseNumber} ==========`);
+        console.log(`Server Address: ${serverAddress}`);
+        console.log(`Transaction Hash: ${transactionHash}`);
+        console.log(`Alert Token ID: ${alertTokenId}`);
 
-        // If not found, try case_number column (if it exists)
-        if (caseCheck.rows.length === 0) {
-            try {
-                const altCheck = await client.query(
-                    'SELECT id FROM cases WHERE case_number = $1',
-                    [caseNumber]
-                );
-                if (altCheck.rows.length > 0) {
-                    caseCheck = altCheck;
-                }
-            } catch (e) {
-                // case_number column might not exist in some schemas
-                console.log('case_number column not available:', e.message);
-            }
-        }
+        // STEP 1: Always use UPSERT to handle both existing and new cases
+        // This ensures the case is ALWAYS marked as served, regardless of prior state
+        const upsertResult = await client.query(`
+            INSERT INTO cases (
+                id,
+                server_address,
+                status,
+                chain,
+                created_at,
+                updated_at,
+                served_at,
+                metadata
+            ) VALUES ($1, $2, 'served', $3, NOW(), NOW(), NOW(), $4)
+            ON CONFLICT (id) DO UPDATE SET
+                status = 'served',
+                served_at = COALESCE(cases.served_at, NOW()),
+                updated_at = NOW(),
+                metadata = COALESCE(cases.metadata, '{}'::jsonb) || $4::jsonb
+            RETURNING id, status
+        `, [
+            caseNumber,
+            serverAddress || req.headers['x-server-address'],
+            chain || 'tron-mainnet',
+            JSON.stringify({
+                agency,
+                noticeType,
+                pageCount,
+                recipients: normalizedRecipients,
+                transactionHash,
+                alertTokenId,
+                documentTokenId,
+                ipfsHash,
+                encryptionKey,
+                servedAt: servedAt || new Date().toISOString(),
+                ...metadata
+            })
+        ]);
 
-        let caseId;
-        
-        if (caseCheck.rows.length === 0) {
-            // Create case entry if it doesn't exist
-            // Use id column as case number (matches case-manager.js schema)
-            const insertResult = await client.query(`
-                INSERT INTO cases (
-                    id,
-                    server_address,
-                    status,
-                    chain,
-                    created_at,
-                    updated_at,
-                    metadata
-                ) VALUES ($1, $2, $3, $4, NOW(), NOW(), $5)
-                ON CONFLICT (id) DO UPDATE SET
-                    status = 'served',
-                    updated_at = NOW(),
-                    metadata = COALESCE(cases.metadata, '{}'::jsonb) || EXCLUDED.metadata
-                RETURNING id
-            `, [
-                caseNumber,
-                serverAddress || req.headers['x-server-address'],
-                'served',
-                chain || 'tron-mainnet',
-                JSON.stringify({
-                    agency,
-                    noticeType,
-                    pageCount,
-                    recipients: normalizedRecipients,
-                    transactionHash,
-                    alertTokenId,
-                    ...metadata
-                })
-            ]);
-            caseId = insertResult.rows[0].id;
+        const caseId = upsertResult.rows[0].id;
+        const caseStatus = upsertResult.rows[0].status;
+        console.log(`✅ Cases table updated: id=${caseId}, status=${caseStatus}`);
+
+        // Verify the update actually worked
+        const verifyResult = await client.query(
+            'SELECT id, status FROM cases WHERE id = $1',
+            [caseNumber]
+        );
+        if (verifyResult.rows.length > 0) {
+            console.log(`✅ Verified: Case ${caseNumber} status is now: ${verifyResult.rows[0].status}`);
         } else {
-            caseId = caseCheck.rows[0].id;
-            
-            // Update existing case - merge new metadata with existing
-            await client.query(`
-                UPDATE cases
-                SET
-                    status = 'served',
-                    updated_at = NOW(),
-                    metadata = COALESCE(metadata, '{}'::jsonb) || $1::jsonb
-                WHERE id = $2
-            `, [
-                JSON.stringify({
-                    agency,
-                    noticeType,
-                    pageCount,
-                    recipients: normalizedRecipients,
-                    transactionHash,
-                    alertTokenId,
-                    documentTokenId,
-                    ipfsHash,
-                    encryptionKey,
-                    servedAt: servedAt || new Date().toISOString(),
-                    ...metadata
-                }),
-                caseId
-            ]);
+            console.error(`❌ ERROR: Case ${caseNumber} not found after upsert!`);
         }
 
         // Store alert image if provided
@@ -278,12 +242,12 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
         await client.query('COMMIT');
 
         // Verify the insert worked
-        const verifyResult = await pool.query(
+        const verifyServiceRecord = await pool.query(
             'SELECT case_number, transaction_hash FROM case_service_records WHERE case_number = $1',
             [caseNumber]
         );
-        console.log(`Verification query found ${verifyResult.rows.length} rows for case ${caseNumber}`);
-        if (verifyResult.rows.length === 0) {
+        console.log(`Verification query found ${verifyServiceRecord.rows.length} rows for case ${caseNumber}`);
+        if (verifyServiceRecord.rows.length === 0) {
             console.error('WARNING: INSERT succeeded but record not found!');
         }
 
@@ -1334,6 +1298,153 @@ router.get('/diagnose-service-complete', async (req, res) => {
         });
     } finally {
         client.release();
+    }
+});
+
+/**
+ * POST /api/cases/fix-orphaned-cases
+ * Migration endpoint to fix ALL orphaned cases across all servers.
+ * This finds cases in case_service_records that have corresponding entries
+ * in the cases table still showing as 'draft' and updates them to 'served'.
+ */
+router.post('/cases/fix-orphaned-cases', async (req, res) => {
+    const results = [];
+
+    try {
+        console.log('🔄 Starting orphaned cases migration...');
+
+        // Step 1: Find all orphaned cases (in case_service_records but cases.status != 'served')
+        const orphanedQuery = await pool.query(`
+            SELECT
+                csr.case_number,
+                csr.server_address,
+                csr.transaction_hash,
+                csr.alert_token_id,
+                csr.served_at,
+                c.status as current_status
+            FROM case_service_records csr
+            JOIN cases c ON c.id = csr.case_number
+            WHERE c.status != 'served'
+        `);
+
+        results.push({
+            step: 'find_orphaned',
+            found: orphanedQuery.rows.length,
+            cases: orphanedQuery.rows.map(r => ({
+                caseNumber: r.case_number,
+                currentStatus: r.current_status
+            }))
+        });
+
+        if (orphanedQuery.rows.length === 0) {
+            return res.json({
+                success: true,
+                message: 'No orphaned cases found - all synced!',
+                fixedCount: 0,
+                results
+            });
+        }
+
+        // Step 2: Update all orphaned cases to 'served'
+        const updateResult = await pool.query(`
+            UPDATE cases c
+            SET
+                status = 'served',
+                served_at = COALESCE(c.served_at, csr.served_at, NOW()),
+                updated_at = NOW(),
+                metadata = COALESCE(c.metadata, '{}'::jsonb) || jsonb_build_object(
+                    'fixedByMigration', true,
+                    'fixedAt', NOW()::text,
+                    'transactionHash', csr.transaction_hash,
+                    'alertTokenId', csr.alert_token_id
+                )
+            FROM case_service_records csr
+            WHERE c.id = csr.case_number
+              AND c.status != 'served'
+            RETURNING c.id, c.status, c.served_at
+        `);
+
+        results.push({
+            step: 'update_cases',
+            updated: updateResult.rows.length,
+            cases: updateResult.rows.map(r => ({
+                caseNumber: r.id,
+                newStatus: r.status,
+                servedAt: r.served_at
+            }))
+        });
+
+        console.log(`✅ Fixed ${updateResult.rows.length} orphaned cases`);
+
+        // Step 3: Verify the fix
+        const verifyQuery = await pool.query(`
+            SELECT COUNT(*) as remaining
+            FROM case_service_records csr
+            JOIN cases c ON c.id = csr.case_number
+            WHERE c.status != 'served'
+        `);
+
+        results.push({
+            step: 'verify',
+            remainingOrphaned: parseInt(verifyQuery.rows[0].remaining)
+        });
+
+        res.json({
+            success: true,
+            message: `Fixed ${updateResult.rows.length} orphaned cases`,
+            fixedCount: updateResult.rows.length,
+            remainingOrphaned: parseInt(verifyQuery.rows[0].remaining),
+            results
+        });
+
+    } catch (error) {
+        console.error('Orphaned cases migration error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            results
+        });
+    }
+});
+
+/**
+ * GET /api/cases/orphaned-status
+ * Check how many orphaned cases exist (for diagnostics)
+ */
+router.get('/cases/orphaned-status', async (req, res) => {
+    try {
+        // Count orphaned cases
+        const orphanedCount = await pool.query(`
+            SELECT COUNT(*) as count
+            FROM case_service_records csr
+            JOIN cases c ON c.id = csr.case_number
+            WHERE c.status != 'served'
+        `);
+
+        // Get total counts
+        const totalCases = await pool.query(`SELECT COUNT(*) as count FROM cases`);
+        const totalServiceRecords = await pool.query(`SELECT COUNT(*) as count FROM case_service_records`);
+        const servedCases = await pool.query(`SELECT COUNT(*) as count FROM cases WHERE status = 'served'`);
+        const draftCases = await pool.query(`SELECT COUNT(*) as count FROM cases WHERE status = 'draft'`);
+
+        res.json({
+            success: true,
+            orphanedCount: parseInt(orphanedCount.rows[0].count),
+            totals: {
+                cases: parseInt(totalCases.rows[0].count),
+                serviceRecords: parseInt(totalServiceRecords.rows[0].count),
+                served: parseInt(servedCases.rows[0].count),
+                draft: parseInt(draftCases.rows[0].count)
+            },
+            healthy: parseInt(orphanedCount.rows[0].count) === 0
+        });
+
+    } catch (error) {
+        console.error('Orphaned status check error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
     }
 });
 
