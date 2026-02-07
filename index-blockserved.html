@@ -747,6 +747,15 @@
             loadNotices();
         }
 
+        // Get user's timezone for forensic tracking
+        function getUserTimezone() {
+            try {
+                return Intl.DateTimeFormat().resolvedOptions().timeZone;
+            } catch (e) {
+                return null;
+            }
+        }
+
         // Load notices for the connected wallet
         async function loadNotices() {
             console.log('BlockServed: loadNotices called, wallet:', currentWallet);
@@ -754,16 +763,21 @@
                 console.log('BlockServed: No wallet connected, skipping load');
                 return;
             }
-            
+
             // Show loading state
             document.getElementById('loadingState').style.display = 'block';
             document.getElementById('emptyState').style.display = 'none';
             document.getElementById('noticesContainer').innerHTML = '';
-            
+
             try {
+                const timezone = getUserTimezone();
                 const url = `${BACKEND_URL}/api/recipient-cases/wallet/${currentWallet}`;
                 console.log('BlockServed: Fetching from:', url);
-                const response = await fetch(url);
+                const response = await fetch(url, {
+                    headers: {
+                        'X-Timezone': timezone || ''
+                    }
+                });
                 console.log('BlockServed: Response status:', response.status);
                 
                 if (!response.ok) {
@@ -878,10 +892,18 @@
             `;
             
             try {
-                // Fetch document details
-                const response = await fetch(`${BACKEND_URL}/api/recipient-cases/${notice.case_number}/document`);
+                // Fetch document details with timezone for forensic tracking
+                const timezone = getUserTimezone();
+                const response = await fetch(
+                    `${BACKEND_URL}/api/recipient-cases/${notice.case_number}/document?recipientAddress=${currentWallet}`,
+                    {
+                        headers: {
+                            'X-Timezone': timezone || ''
+                        }
+                    }
+                );
                 const data = await response.json();
-                
+
                 if (data.success && data.notice) {
                     displayDocumentContent(data.notice);
                 }
@@ -1038,8 +1060,14 @@ Transaction Hash: ${currentNotice.transaction_hash}
             try {
                 showAlert('Downloading document...', 'info');
 
+                const timezone = getUserTimezone();
                 const response = await fetch(
-                    `${BACKEND_URL}/api/recipient-cases/${encodeURIComponent(caseNumber)}/download-pdf?recipientAddress=${currentWallet}`
+                    `${BACKEND_URL}/api/recipient-cases/${encodeURIComponent(caseNumber)}/download-pdf?recipientAddress=${currentWallet}`,
+                    {
+                        headers: {
+                            'X-Timezone': timezone || ''
+                        }
+                    }
                 );
 
                 if (response.ok) {
