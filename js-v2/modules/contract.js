@@ -24,7 +24,8 @@ window.contract = {
             const isLiteContract = network?.contractType === 'lite';
 
             // Load appropriate ABI based on contract type
-            const abiFile = isLiteContract ? 'js/lite-contract-abi.json' : 'js/v5-contract-abi.json';
+            // ABI files are in js-v2/ directory (not js-v2/js/)
+            const abiFile = isLiteContract ? 'lite-contract-abi.json' : 'v5-contract-abi.json';
             const response = await fetch(basePath + abiFile);
 
             if (response.ok) {
