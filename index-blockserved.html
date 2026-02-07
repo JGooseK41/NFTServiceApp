@@ -772,6 +772,9 @@
                 <button id="connectWallet" class="connect-btn">
                     Connect Wallet
                 </button>
+                <button id="disconnectWallet" class="connect-btn" style="display: none; background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
+                    <i class="bi bi-box-arrow-right"></i> Switch Wallet
+                </button>
             </div>
         </div>
     </header>
@@ -1035,12 +1038,42 @@
         // Setup event listeners
         function setupEventListeners() {
             document.getElementById('connectWallet').addEventListener('click', connectWallet);
-            
+            document.getElementById('disconnectWallet').addEventListener('click', disconnectWallet);
+
             // Add listener for main connect button if it exists
             const mainConnectBtn = document.getElementById('connectWalletMain');
             if (mainConnectBtn) {
                 mainConnectBtn.addEventListener('click', connectWallet);
             }
+        }
+
+        // Disconnect wallet and allow switching
+        function disconnectWallet() {
+            currentWallet = null;
+
+            // Reset UI
+            const walletStatus = document.getElementById('walletStatus');
+            walletStatus.classList.remove('connected');
+            walletStatus.innerHTML = `
+                <i class="bi bi-wallet2"></i>
+                <span>Not Connected</span>
+            `;
+
+            document.getElementById('connectWallet').style.display = 'inline-block';
+            document.getElementById('disconnectWallet').style.display = 'none';
+
+            // Show main banner again
+            const mainBanner = document.getElementById('mainBanner');
+            if (mainBanner) {
+                mainBanner.style.display = 'block';
+            }
+
+            // Clear notices
+            document.getElementById('noticesContainer').innerHTML = '';
+            document.getElementById('noticeCount').textContent = '0';
+            document.getElementById('emptyState').style.display = 'none';
+
+            showAlert('Wallet disconnected. Connect a different wallet to continue.', 'info');
         }
 
         // Check if TronLink is available
@@ -1182,8 +1215,9 @@
                 <i class="bi bi-check-circle-fill"></i>
                 <span>${currentWallet.substring(0, 6)}...${currentWallet.substring(currentWallet.length - 4)}</span>
             `;
-            
+
             document.getElementById('connectWallet').style.display = 'none';
+            document.getElementById('disconnectWallet').style.display = 'inline-block';
             
             // Hide main info banner and main connect button
             const mainBanner = document.getElementById('mainBanner');
