@@ -1757,21 +1757,28 @@
                     ` : ''}
                 `;
             } else {
+                // No preview images, but PDF may still be available on backend
                 modalBody.innerHTML = `
                     ${headerInfo}
-                    <div class="alert-message alert-warning">
-                        <i class="bi bi-exclamation-triangle"></i>
-                        <div>
-                            <strong>Document Loading</strong><br>
-                            The document content is being prepared. You have received both the Alert NFT (in your wallet) and Document NFT (permanent record) for this legal notice.
-                        </div>
-                    </div>
-                    <div class="document-info">
+                    <div class="document-info" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
                         <p><strong>Case Number:</strong> ${notice.case_number}</p>
                         <p><strong>Alert NFT:</strong> #${notice.alert_token_id}</p>
                         <p><strong>Document NFT:</strong> #${notice.document_token_id || 'Pending'}</p>
                         <p><strong>Served:</strong> ${new Date(notice.served_at).toLocaleString()}</p>
+                        <p><strong>Status:</strong> ${notice.status || 'Served'}</p>
                     </div>
+                    <div style="text-align: center; margin: 20px 0;">
+                        <button onclick="downloadCasePDF('${notice.case_number}')" class="btn btn-primary" style="margin: 5px;">
+                            <i class="bi bi-file-earmark-pdf"></i> View/Download Legal Document
+                        </button>
+                    </div>
+                    ${signMode && !notice.accepted ? `
+                        <div class="action-buttons" style="margin-top: 20px; text-align: center;">
+                            <button onclick="signDocument()" class="btn btn-success">
+                                <i class="bi bi-pen"></i> Sign Document
+                            </button>
+                        </div>
+                    ` : ''}
                 `;
             }
             
@@ -2310,6 +2317,46 @@ Transaction Hash: ${currentNotice.transaction_hash}
                 console.log(`Document action logged: ${caseNumber} - ${actionType}`);
             } catch (error) {
                 console.error('Failed to log document action:', error);
+            }
+        }
+
+        // Download PDF by case number (wrapper for when images aren't available)
+        async function downloadCasePDF(caseNumber) {
+            try {
+                showAlert('Downloading document...', 'info');
+
+                // Log the download attempt
+                await logDocumentAction(caseNumber, 'download');
+
+                const response = await fetch(
+                    `${BACKEND_URL}/api/recipient-cases/${encodeURIComponent(caseNumber)}/download-pdf?recipientAddress=${currentWallet}`
+                );
+
+                if (response.ok) {
+                    const contentType = response.headers.get('content-type');
+
+                    if (contentType && contentType.includes('application/pdf')) {
+                        const blob = await response.blob();
+                        const downloadUrl = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = downloadUrl;
+                        a.download = `legal_document_case_${caseNumber}.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(downloadUrl);
+                        showAlert('Document downloaded successfully', 'success');
+                        return;
+                    }
+                }
+
+                // If download failed, try opening in new tab
+                const pdfUrl = `${BACKEND_URL}/api/recipient-cases/${encodeURIComponent(caseNumber)}/download-pdf?recipientAddress=${currentWallet}`;
+                window.open(pdfUrl, '_blank');
+
+            } catch (error) {
+                console.error('Error downloading PDF:', error);
+                showAlert('Failed to download document. Please try again.', 'error');
             }
         }
 
