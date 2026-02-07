@@ -644,6 +644,37 @@ router.get('/:caseNumber/download-pdf', async (req, res) => {
             console.log('Could not fetch from document_storage:', storageError.message);
         }
 
+        // Try to find PDF on disk in cases directory
+        try {
+            const fs = require('fs').promises;
+            const path = require('path');
+            const DISK_MOUNT_PATH = process.env.DISK_MOUNT_PATH || '/var/data';
+            const CASES_DIR = path.join(DISK_MOUNT_PATH, 'cases');
+
+            // Try multiple possible paths
+            const possiblePaths = [
+                path.join(CASES_DIR, caseNumber, 'document.pdf'),
+                path.join(CASES_DIR, `CASE-${caseNumber}`, 'document.pdf'),
+                path.join(DISK_MOUNT_PATH, 'uploads', 'pdfs', `${caseNumber}.pdf`)
+            ];
+
+            for (const filePath of possiblePaths) {
+                try {
+                    await fs.access(filePath);
+                    const pdfBuffer = await fs.readFile(filePath);
+                    console.log(`PDF found at: ${filePath}, size: ${pdfBuffer.length}`);
+
+                    res.setHeader('Content-Type', 'application/pdf');
+                    res.setHeader('Content-Disposition', `attachment; filename="legal_document_${caseNumber}.pdf"`);
+                    return res.send(pdfBuffer);
+                } catch (e) {
+                    // Try next path
+                }
+            }
+        } catch (diskError) {
+            console.log('Could not check disk storage:', diskError.message);
+        }
+
         // If IPFS hash available, return download info for client-side decryption
         if (caseData.ipfs_hash && caseData.encryption_key) {
             return res.json({
