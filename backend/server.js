@@ -121,7 +121,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Server-Address', 'X-Admin-Address', 'X-Wallet-Address', 'X-Recipient-Address'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Server-Address', 'X-Admin-Address', 'X-Wallet-Address', 'X-Recipient-Address', 'X-Timezone'],
   preflightContinue: false,
   optionsSuccessStatus: 204
 }));
