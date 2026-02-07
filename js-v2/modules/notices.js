@@ -332,7 +332,7 @@ window.notices = {
                     alertTxId: txResult.alertTx,
                     documentTxId: txResult.documentTx,
                     type: 'Legal Service Package',
-                    recipient: data.recipient,
+                    recipients: data.recipients,
                     caseNumber: data.caseNumber,
                     timestamp: new Date().toISOString(),
                     serverId,
@@ -367,7 +367,7 @@ window.notices = {
                 receipt,
                 viewUrl: `https://blockserved.com?case=${encodeURIComponent(data.caseNumber || noticeId)}`,
                 caseNumber: data.caseNumber,
-                recipient: data.recipient,
+                recipients: data.recipients,
                 thumbnail,
                 timestamp: new Date().toISOString(),
                 ipfsHash: documentData.ipfsHash,
@@ -432,7 +432,7 @@ window.notices = {
             this.showFailureConfirmation({
                 error: error.message,
                 caseNumber: data.caseNumber,
-                recipient: data.recipient,
+                recipients: data.recipients,
                 timestamp: new Date().toISOString()
             });
             
@@ -895,6 +895,19 @@ window.notices = {
     // Store last mint result for print/export functions
     lastMintResult: null,
 
+    // Format recipients array for modal display
+    formatRecipientsForModal(recipients) {
+        if (!recipients || recipients.length === 0) {
+            return '<small>No recipients</small>';
+        }
+
+        return recipients.map((r, idx) => {
+            const addr = typeof r === 'string' ? r : r.address;
+            const label = typeof r === 'object' && r.label ? `[${r.label}] ` : '';
+            return `<small>${idx + 1}. ${label}${addr}</small>`;
+        }).join('<br>');
+    },
+
     // Show success confirmation modal with receipt options
     showSuccessConfirmation(data) {
         // Check if using Lite contract (single NFT) or V5 (dual NFT)
@@ -910,7 +923,7 @@ window.notices = {
             caseNumber: data.caseNumber,
             alertTxId: data.alertTxId,
             documentTxId: data.documentTxId,
-            recipient: data.recipient,
+            recipients: data.recipients,
             timestamp: data.timestamp,
             thumbnail: data.thumbnail,
             receipt: data.receipt,
@@ -975,7 +988,9 @@ window.notices = {
                                     <h6>Service Details:</h6>
                                     <ul class="list-unstyled">
                                         <li><strong>Case Number:</strong> ${data.caseNumber}</li>
-                                        <li><strong>Recipient:</strong> <small>${data.recipient}</small></li>
+                                        <li><strong>Recipient${data.recipients && data.recipients.length > 1 ? 's' : ''}:</strong><br>
+                                            ${this.formatRecipientsForModal(data.recipients)}
+                                        </li>
                                         <li><strong>Served At:</strong> ${new Date(data.timestamp).toLocaleString()}</li>
                                     </ul>
                                 </div>
@@ -1057,7 +1072,7 @@ window.notices = {
                         transactionHash: this.lastMintResult.alertTxId,
                         alertTokenId: this.lastMintResult.receipt?.alertTokenId,
                         documentTokenId: this.lastMintResult.receipt?.documentTokenId,
-                        recipients: [this.lastMintResult.recipient].filter(Boolean),
+                        recipients: this.lastMintResult.recipients || [],
                         alertImage: this.lastMintResult.thumbnail,
                         ipfsHash: this.lastMintResult.ipfsHash,
                         chain: this.lastMintResult.chain,
@@ -1487,7 +1502,9 @@ window.notices = {
                             <h6>Details:</h6>
                             <ul>
                                 <li><strong>Case Number:</strong> ${data.caseNumber}</li>
-                                <li><strong>Recipient:</strong> ${data.recipient}</li>
+                                <li><strong>Recipient${data.recipients && data.recipients.length > 1 ? 's' : ''}:</strong><br>
+                                    ${this.formatRecipientsForModal(data.recipients)}
+                                </li>
                                 <li><strong>Time:</strong> ${new Date(data.timestamp).toLocaleString()}</li>
                             </ul>
                             
@@ -1588,10 +1605,14 @@ window.notices = {
                 
                 <div class="section">
                     <div class="section-title">Recipient Information</div>
-                    <div class="detail-row">
-                        <span class="label">Wallet Address:</span>
-                        <span class="value">${data.recipient}</span>
-                    </div>
+                    ${(data.recipients || [data.recipient]).filter(Boolean).map((r, idx) => {
+                        const addr = typeof r === 'string' ? r : r.address;
+                        const label = typeof r === 'object' && r.label ? ` (${r.label})` : '';
+                        return `<div class="detail-row">
+                            <span class="label">${(data.recipients || []).length > 1 ? `Recipient ${idx + 1}:` : 'Wallet Address:'}</span>
+                            <span class="value">${addr}${label}</span>
+                        </div>`;
+                    }).join('')}
                     <div class="detail-row">
                         <span class="label">Access URL:</span>
                         <span class="value">${data.viewUrl}</span>

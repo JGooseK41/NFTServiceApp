@@ -726,16 +726,42 @@ window.contract = {
                 console.log('Lite batch metadataURIs count:', metadataURIs.length);
 
                 try {
-                    const tx = await this.instance.serveNoticeBatch(
+                    // Don't use shouldPollResponse to get the actual tx hash
+                    const txResult = await this.instance.serveNoticeBatch(
                         recipients,
                         metadataURIs
                     ).send({
                         feeLimit: 500000000,      // 500 TRX limit for batch
-                        callValue: totalFee,
-                        shouldPollResponse: true
+                        callValue: totalFee
                     });
 
+                    // Extract transaction hash - txResult is usually the tx hash string
+                    let txHash = txResult;
+                    let tokenIds = null;
+
+                    // If we got an array (token IDs from contract return), extract and handle
+                    if (Array.isArray(txResult)) {
+                        console.log('Got array result (likely token IDs):', txResult);
+                        tokenIds = txResult.map(id => typeof id === 'bigint' ? id.toString() : String(id));
+                        // Try to get tx hash from the tronWeb instance's last transaction
+                        txHash = window.tronWeb?.trx?.getTransaction ? null : ('batch-' + Date.now());
+                    } else if (typeof txResult === 'object' && txResult !== null) {
+                        // If it's an object, try to get the transaction hash
+                        txHash = txResult.txid || txResult.txID || txResult.transaction?.txID || txResult;
+                        // Check if there are token IDs in the result
+                        if (txResult.tokenIds) {
+                            tokenIds = txResult.tokenIds;
+                        }
+                    }
+
+                    // Ensure txHash is a string
+                    if (typeof txHash !== 'string') {
+                        txHash = String(txHash);
+                    }
+
                     console.log('Lite batch transaction successful!');
+                    console.log('Transaction hash:', txHash);
+                    console.log('Token IDs:', tokenIds);
                     console.log('\n📊 ON-CHAIN DATA STORED (Lite):');
                     console.log('=' + '='.repeat(50));
                     batchNotices.forEach((notice, i) => {
@@ -743,7 +769,15 @@ window.contract = {
                         console.log(`  Metadata URI: ${notice.metadataURI}`);
                     });
                     console.log('=' + '='.repeat(50));
-                    return { success: true, txId: tx, alertTx: tx, documentTx: tx };
+
+                    return {
+                        success: true,
+                        txId: txHash,
+                        alertTx: txHash,
+                        documentTx: txHash,
+                        tokenIds: tokenIds,
+                        recipientCount: recipients.length
+                    };
                 } catch (liteError) {
                     console.error('Lite batch failed:', liteError);
                     throw liteError;
