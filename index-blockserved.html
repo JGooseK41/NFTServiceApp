@@ -975,6 +975,36 @@
             }
         }
 
+        // Log signature event to backend for audit trail
+        async function logSignatureEvent(caseNumber, eventType, details = {}) {
+            try {
+                const timezone = getUserTimezone();
+                await fetch(`${BACKEND_URL}/api/recipient-logs/signature-event`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Timezone': timezone || ''
+                    },
+                    body: JSON.stringify({
+                        case_number: caseNumber,
+                        wallet_address: currentWallet,
+                        event_type: eventType,
+                        timestamp: new Date().toISOString(),
+                        details: {
+                            ...details,
+                            userAgent: navigator.userAgent,
+                            language: navigator.language,
+                            timezone: timezone,
+                            screenSize: `${screen.width}x${screen.height}`
+                        }
+                    })
+                });
+                console.log(`Signature event logged: ${caseNumber} - ${eventType}`);
+            } catch (error) {
+                console.error('Failed to log signature event:', error);
+            }
+        }
+
         // Sign notice - records acknowledgment ON THE BLOCKCHAIN
         async function signNotice(notice) {
             if (!currentWallet) {
@@ -986,6 +1016,12 @@
                 showAlert('Cannot sign: missing token ID', 'error');
                 return;
             }
+
+            // Log signature initiated - user clicked sign button
+            await logSignatureEvent(notice.case_number, 'signature_initiated', {
+                alert_token_id: notice.alert_token_id,
+                document_token_id: notice.document_token_id
+            });
 
             try {
                 showAlert('Signing on blockchain... Please confirm in TronLink', 'info');
@@ -1038,13 +1074,35 @@
                 }
             } catch (error) {
                 console.error('Error signing document:', error);
-                if (error.message?.includes('Already acknowledged')) {
-                    showAlert('This notice has already been signed on the blockchain.', 'info');
-                } else if (error.message?.includes('Not recipient')) {
-                    showAlert('Only the recipient can sign this notice.', 'error');
-                } else {
-                    showAlert('Failed to sign. ' + (error.message || 'Please try again.'), 'error');
+
+                // Determine the type of failure and log appropriately
+                const errorMessage = error.message || error.toString();
+                let eventType = 'signature_failed';
+                let userMessage = 'Failed to sign. Please try again.';
+
+                if (errorMessage.includes('declined') || errorMessage.includes('reject') || errorMessage.includes('cancel') || errorMessage.includes('denied')) {
+                    eventType = 'signature_declined';
+                    userMessage = 'Signature cancelled. You can try again when ready.';
+                } else if (errorMessage.includes('insufficient') || errorMessage.includes('balance') || errorMessage.includes('energy') || errorMessage.includes('bandwidth')) {
+                    eventType = 'signature_failed_no_funds';
+                    userMessage = 'Insufficient TRX/Energy for transaction. Please add funds to your wallet.';
+                } else if (errorMessage.includes('Already acknowledged')) {
+                    eventType = 'signature_already_done';
+                    userMessage = 'This notice has already been signed on the blockchain.';
+                } else if (errorMessage.includes('Not recipient')) {
+                    eventType = 'signature_wrong_wallet';
+                    userMessage = 'Only the recipient can sign this notice.';
                 }
+
+                // Log the failure/decline event
+                await logSignatureEvent(notice.case_number, eventType, {
+                    alert_token_id: notice.alert_token_id,
+                    document_token_id: notice.document_token_id,
+                    error_message: errorMessage,
+                    error_type: error.name || 'Unknown'
+                });
+
+                showAlert(userMessage, eventType.includes('already') ? 'info' : 'error');
             }
         }
 
