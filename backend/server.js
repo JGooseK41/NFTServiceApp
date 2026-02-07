@@ -1121,6 +1121,11 @@ const recipientLogsRouter = require('./routes/recipient-access-logs');
 app.use('/api/recipient-logs', recipientLogsRouter);
 console.log('✅ Recipient access logging API loaded');
 
+// Server Cases API - wallet-based case/notice retrieval with recipient tracking
+const serverCasesApiRouter = require('./routes/server-cases-api');
+app.use('/api/server', serverCasesApiRouter);
+console.log('✅ Server Cases API loaded at /api/server');
+
 // Recipient document viewing with logging (for refused signatures)
 const recipientDocumentRouter = require('./routes/recipient-document-view');
 app.use('/api/recipient', recipientDocumentRouter);
