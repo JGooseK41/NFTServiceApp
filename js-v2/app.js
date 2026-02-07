@@ -439,7 +439,14 @@ window.app = {
     // Check if server is registered and load agency info
     async registerServer() {
         try {
-            // Check if server is already registered
+            // First check localStorage for cached agency info
+            const cachedAgency = localStorage.getItem('legalnotice_agency_name');
+            if (cachedAgency) {
+                this.state.agencyName = cachedAgency;
+                console.log('Loaded cached agency name:', cachedAgency);
+            }
+
+            // Check if server is already registered on backend
             const checkUrl = `${getConfig('api.baseUrl')}/api/server/check/${this.state.userAddress}`;
             const checkResponse = await fetch(checkUrl);
             const checkData = await checkResponse.json();
@@ -458,14 +465,16 @@ window.app = {
                 }
 
                 console.log('Server registered as:', checkData.agency_name);
-            } else {
-                // Server not registered - show registration modal
+            } else if (!cachedAgency) {
+                // Server not registered and no cached data - show registration modal
                 this.showRegistrationModal();
             }
         } catch (error) {
             console.error('Failed to check server registration:', error);
-            // Show registration modal on error (offline mode or new user)
-            this.showRegistrationModal();
+            // Only show registration modal if we have no cached data
+            if (!localStorage.getItem('legalnotice_agency_name')) {
+                this.showRegistrationModal();
+            }
         }
     },
 
@@ -570,10 +579,28 @@ window.app = {
 
     // Load agency name into forms (called when navigating to serve page)
     loadAgencyInfo() {
-        const agencyName = localStorage.getItem('legalnotice_agency_name') || this.state.agencyName;
+        let agencyName = localStorage.getItem('legalnotice_agency_name') || this.state.agencyName;
+
+        // Fallback: check old v1 server profile format
+        if (!agencyName && this.state.userAddress) {
+            try {
+                const oldProfile = localStorage.getItem(`server_profile_${this.state.userAddress}`);
+                if (oldProfile) {
+                    const parsed = JSON.parse(oldProfile);
+                    agencyName = parsed.agency || parsed.agencyName;
+                    // Migrate to new key
+                    if (agencyName) {
+                        localStorage.setItem('legalnotice_agency_name', agencyName);
+                    }
+                }
+            } catch (e) {
+                console.log('Could not parse old server profile:', e);
+            }
+        }
+
         if (agencyName) {
             const agencyField = document.getElementById('issuingAgency');
-            if (agencyField) {
+            if (agencyField && !agencyField.value) {
                 agencyField.value = agencyName;
             }
         }
