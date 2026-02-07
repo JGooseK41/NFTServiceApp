@@ -821,113 +821,123 @@ window.app = {
         }
     },
     
-    // Create Alert NFT preview image with overlay
+    // Create Alert NFT preview image - matches actual NFT design from documents.js
     async createAlertNFTPreview() {
         try {
             // Check if PDF.js is loaded for rendering
             if (!window.pdfjsLib) {
-                // Load PDF.js if not available
                 await this.loadPDFJS();
             }
-            
-            // Get first PDF file
-            const firstFile = this.state.fileQueue[0];
-            if (!firstFile) {
-                throw new Error('No PDF file available');
-            }
-            
-            // Use PDF.js to render the first page to canvas
-            const arrayBuffer = await firstFile.file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-            const page = await pdf.getPage(1); // Get first page
-            
-            // Set up canvas
-            const viewport = page.getViewport({ scale: 1.5 });
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            
-            // Render the first page
-            await page.render({
-                canvasContext: context,
-                viewport: viewport
-            }).promise;
-            
-            // Add smaller, more transparent overlay at the top
-            const overlayHeight = 150; // Overlay height
-            
-            // Semi-transparent gradient overlay
-            const gradient = context.createLinearGradient(0, 0, 0, overlayHeight);
-            gradient.addColorStop(0, 'rgba(255, 215, 0, 0.9)'); // Golden yellow
-            gradient.addColorStop(1, 'rgba(255, 215, 0, 0.7)');
-            context.fillStyle = gradient;
-            context.fillRect(0, 0, canvas.width, overlayHeight);
-            
-            // Add border around the overlay
-            context.strokeStyle = 'rgb(204, 0, 0)'; // Dark red border
-            context.lineWidth = 3;
-            context.strokeRect(0, 0, canvas.width, overlayHeight);
-            
-            // Add "LEGAL NOTICE" text using canvas context
-            context.fillStyle = 'rgb(204, 0, 0)'; // Dark red
-            context.font = 'bold 48px Arial';
-            context.textAlign = 'center';
-            context.fillText('LEGAL NOTICE', canvas.width / 2, 50);
-            
-            // Subtitle
-            context.fillStyle = 'rgb(0, 0, 0)'; // Black
-            context.font = '24px Arial';
-            context.fillText('DELIVERED VIA BLOCKCHAIN', canvas.width / 2, 90);
-            
-            // Date and time
-            context.font = '18px Arial';
-            context.fillText(new Date().toLocaleString(), canvas.width / 2, 120);
-            
-            // Case number (if available)
-            if (this.pendingFormData && this.pendingFormData.caseNumber) {
-                context.fillStyle = 'rgb(0, 0, 0)';
-                context.font = '16px Arial';
-                context.fillText(`Case: ${this.pendingFormData.caseNumber}`, canvas.width / 2, 140);
-            }
-            
+
+            // Header height matching documents.js
+            const HEADER_HEIGHT = 140; // Scaled down for preview (350px at full size)
+
             // Get the alert preview canvas
             const alertCanvas = document.getElementById('alertPreviewCanvas');
             const ctx = alertCanvas.getContext('2d');
-            
-            // Set canvas size (standard letter size ratio)
+
+            // Set canvas size
             alertCanvas.width = 400;
             alertCanvas.height = 520;
-            
-            // Draw white background
-            ctx.fillStyle = 'white';
+
+            // White background
+            ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, alertCanvas.width, alertCanvas.height);
-            
-            // Draw document preview (simplified representation)
-            ctx.fillStyle = '#f8f9fa';
-            ctx.fillRect(20, 160, alertCanvas.width - 40, alertCanvas.height - 180);
-            
-            // Draw some fake document lines
-            ctx.fillStyle = '#dee2e6';
-            for (let i = 0; i < 10; i++) {
-                ctx.fillRect(40, 180 + i * 25, alertCanvas.width - 80, 2);
+
+            // Draw the BlockServed header (matches documents.js drawBlockServedHeader)
+            // Red border around header
+            ctx.strokeStyle = '#cc0000';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(2, 2, alertCanvas.width - 4, HEADER_HEIGHT - 4);
+
+            // Header text
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // LEGAL NOTICE title
+            ctx.fillStyle = '#cc0000';
+            ctx.font = 'bold 24px Arial';
+            ctx.fillText('LEGAL NOTICE', alertCanvas.width / 2, HEADER_HEIGHT * 0.18);
+
+            // Main message
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold 16px Arial';
+            ctx.fillText('Visit', alertCanvas.width / 2, HEADER_HEIGHT * 0.38);
+
+            // Website - prominent
+            ctx.fillStyle = '#0066cc';
+            ctx.font = 'bold 20px Arial';
+            ctx.fillText('www.BlockServed.com', alertCanvas.width / 2, HEADER_HEIGHT * 0.54);
+
+            // Bottom message
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold 14px Arial';
+            ctx.fillText('to View Full Document', alertCanvas.width / 2, HEADER_HEIGHT * 0.70);
+
+            // Add issuing agency if available
+            if (this.pendingFormData && this.pendingFormData.issuingAgency) {
+                ctx.fillStyle = '#333333';
+                ctx.font = 'bold 12px Arial';
+                ctx.fillText(`From: ${this.pendingFormData.issuingAgency}`, alertCanvas.width / 2, HEADER_HEIGHT * 0.85);
             }
-            
-            // Copy the rendered PDF page with overlay to the alert canvas
-            // Scale down to fit
-            const scale = Math.min(alertCanvas.width / canvas.width, (alertCanvas.height - 100) / canvas.height);
-            const scaledWidth = canvas.width * scale;
-            const scaledHeight = canvas.height * scale;
-            const xOffset = (alertCanvas.width - scaledWidth) / 2;
-            const yOffset = 100; // Leave space for header
-            
-            // Draw the PDF preview with overlay
-            ctx.drawImage(canvas, xOffset, yOffset, scaledWidth, scaledHeight);
-            
+
+            // Add case number if available
+            if (this.pendingFormData && this.pendingFormData.caseNumber) {
+                ctx.fillStyle = '#666666';
+                ctx.font = 'bold 10px Arial';
+                ctx.fillText(`Case: ${this.pendingFormData.caseNumber}`, alertCanvas.width / 2, HEADER_HEIGHT * 0.95);
+            }
+
+            // Red separator line between header and document
+            ctx.strokeStyle = '#cc0000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(10, HEADER_HEIGHT);
+            ctx.lineTo(alertCanvas.width - 10, HEADER_HEIGHT);
+            ctx.stroke();
+
+            // Render PDF first page BELOW the header
+            const firstFile = this.state.fileQueue[0];
+            if (firstFile) {
+                const arrayBuffer = await firstFile.file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const page = await pdf.getPage(1);
+
+                // Create temp canvas for PDF rendering
+                const viewport = page.getViewport({ scale: 1.0 });
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCanvas.width = viewport.width;
+                tempCanvas.height = viewport.height;
+
+                await page.render({
+                    canvasContext: tempCtx,
+                    viewport: viewport
+                }).promise;
+
+                // Scale and draw PDF below header (show top portion)
+                const availableHeight = alertCanvas.height - HEADER_HEIGHT;
+                const scale = alertCanvas.width / viewport.width;
+                const scaledHeight = viewport.height * scale;
+                const portionToShow = Math.min(scaledHeight, availableHeight);
+
+                ctx.drawImage(
+                    tempCanvas,
+                    0, 0, viewport.width, portionToShow / scale,
+                    0, HEADER_HEIGHT, alertCanvas.width, portionToShow
+                );
+            } else {
+                // No PDF - show placeholder
+                ctx.fillStyle = '#f0f0f0';
+                ctx.fillRect(10, HEADER_HEIGHT + 10, alertCanvas.width - 20, alertCanvas.height - HEADER_HEIGHT - 20);
+                ctx.fillStyle = '#999';
+                ctx.font = '14px Arial';
+                ctx.fillText('Document preview will appear here', alertCanvas.width / 2, HEADER_HEIGHT + 100);
+            }
+
             // Store the base64 image
             this.alertNFTImage = alertCanvas.toDataURL('image/png', 0.9);
-            console.log('Alert NFT image generated successfully');
+            console.log('Alert NFT preview generated (matches actual NFT design)');
             
         } catch (error) {
             console.error('Alert NFT preview error:', error);

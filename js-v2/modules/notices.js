@@ -26,6 +26,22 @@ function getRecipientLabel(recipients, address) {
     return recipient && typeof recipient === 'object' ? recipient.label : null;
 }
 
+// Helper to format date/time in UTC for consistency
+function formatUTC(date) {
+    const d = date instanceof Date ? date : new Date(date);
+    return d.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC');
+}
+
+function formatUTCDate(date) {
+    const d = date instanceof Date ? date : new Date(date);
+    return d.toISOString().split('T')[0];
+}
+
+function formatUTCTime(date) {
+    const d = date instanceof Date ? date : new Date(date);
+    return d.toISOString().split('T')[1].replace(/\.\d{3}Z$/, '') + ' UTC';
+}
+
 window.notices = {
 
     // Initialize module
@@ -613,14 +629,14 @@ window.notices = {
         ctx.font = 'bold 20px Arial';
         ctx.fillText('Date Served:', 50, y);
         ctx.font = '20px Arial';
-        ctx.fillText(new Date().toLocaleDateString(), 200, y);
+        ctx.fillText(formatUTCDate(new Date()), 200, y);
         y += lineHeight;
         
         // Time
         ctx.font = 'bold 20px Arial';
         ctx.fillText('Time:', 50, y);
         ctx.font = '20px Arial';
-        ctx.fillText(new Date().toLocaleTimeString(), 200, y);
+        ctx.fillText(formatUTCTime(new Date()), 200, y);
         y += lineHeight * 2;
         
         // Notice text (wrapped)
@@ -832,7 +848,7 @@ window.notices = {
                                     <h6>Notice Details</h6>
                                     <p><strong>Type:</strong> ${notice.type}</p>
                                     <p><strong>Case:</strong> ${notice.caseNumber}</p>
-                                    <p><strong>Served:</strong> ${new Date(notice.timestamp).toLocaleString()}</p>
+                                    <p><strong>Served:</strong> ${formatUTC(notice.timestamp)}</p>
                                     <p><strong>Description:</strong> ${notice.noticeText}</p>
                                 </div>
                                 <div class="col-md-6">
@@ -1015,7 +1031,7 @@ window.notices = {
                                         <li><strong>Recipient${data.recipients && data.recipients.length > 1 ? 's' : ''}:</strong><br>
                                             ${this.formatRecipientsForModal(data.recipients)}
                                         </li>
-                                        <li><strong>Served At:</strong> ${new Date(data.timestamp).toLocaleString()}</li>
+                                        <li><strong>Served At:</strong> ${formatUTC(data.timestamp)}</li>
                                     </ul>
                                 </div>
                                 <div class="col-md-6">
@@ -1124,108 +1140,245 @@ window.notices = {
         }
     },
 
-    // Generate receipt PDF directly
+    // Generate receipt PDF - optimized for 3 clean pages with up to 10 recipients
     async generateReceiptPDF(data) {
-        // Load jsPDF if needed
         await this.loadJSPDF();
-
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
 
-        // Check if single NFT (Lite contract)
-        const isLiteContract = data.isLiteContract || data.alertTxId === data.documentTxId;
+        // Get all recipients
+        const recipients = data.recipients || [data.recipient].filter(Boolean);
+        const recipientCount = recipients.length;
 
-        // Title
-        doc.setFontSize(20);
-        doc.text('PROOF OF SERVICE', 105, 20, { align: 'center' });
+        // ==================== PAGE 1: Header & Case Details ====================
+        // Title header
+        doc.setFontSize(22);
+        doc.setFont(undefined, 'bold');
+        doc.text('PROOF OF SERVICE', 105, 25, { align: 'center' });
 
         doc.setFontSize(12);
-        doc.text('Blockchain-Verified Legal Notice Delivery', 105, 30, { align: 'center' });
+        doc.setFont(undefined, 'normal');
+        doc.text('Blockchain-Verified Legal Notice Delivery', 105, 35, { align: 'center' });
 
         // Success badge
         doc.setFillColor(40, 167, 69);
-        doc.rect(65, 35, 80, 8, 'F');
+        doc.roundedRect(55, 42, 100, 12, 2, 2, 'F');
         doc.setTextColor(255, 255, 255);
-        doc.setFontSize(10);
-        doc.text('SUCCESSFULLY DELIVERED', 105, 41, { align: 'center' });
+        doc.setFontSize(11);
+        doc.setFont(undefined, 'bold');
+        doc.text('SUCCESSFULLY DELIVERED', 105, 50, { align: 'center' });
         doc.setTextColor(0, 0, 0);
 
-        let y = 55;
+        let y = 70;
 
-        // Service Details section
+        // Case Information Box
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.5);
+        doc.rect(15, y - 5, 180, 45);
+
         doc.setFontSize(14);
         doc.setFont(undefined, 'bold');
-        doc.text('Service Details', 20, y);
+        doc.text('Case Information', 20, y + 3);
         doc.setFont(undefined, 'normal');
-        y += 10;
-
-        doc.setFontSize(10);
-        doc.text(`Case Number: ${data.caseNumber}`, 20, y);
-        y += 7;
-        doc.text(`Date Served: ${new Date(data.timestamp).toLocaleDateString()}`, 20, y);
-        y += 7;
-        doc.text(`Time Served: ${new Date(data.timestamp).toLocaleTimeString()}`, 20, y);
-        y += 12;
-
-        // Recipient section
-        doc.setFontSize(14);
-        doc.setFont(undefined, 'bold');
-        doc.text('Recipient Information', 20, y);
-        doc.setFont(undefined, 'normal');
-        y += 10;
-
-        doc.setFontSize(10);
-        // Handle recipient as string or {address, label} object
-        const recipientAddr = data.recipient && typeof data.recipient === 'object' ? data.recipient.address : data.recipient;
-        const recipientLabel = data.recipient && typeof data.recipient === 'object' ? data.recipient.label : null;
-        if (recipientLabel) {
-            doc.text(`Recipient Label: ${recipientLabel}`, 20, y);
-            y += 7;
-        }
-        doc.text(`Wallet Address: ${recipientAddr || 'N/A'}`, 20, y);
-        y += 7;
-        doc.text(`Access URL: https://blockserved.com?case=${encodeURIComponent(data.caseNumber || '')}`, 20, y);
-        y += 12;
-
-        // Blockchain Verification section
-        doc.setFontSize(14);
-        doc.setFont(undefined, 'bold');
-        doc.text('Blockchain Verification', 20, y);
-        doc.setFont(undefined, 'normal');
-        y += 10;
-
-        doc.setFontSize(10);
-        doc.text('NFT Transaction:', 20, y);
-        y += 7;
-        doc.setFontSize(8);
-        doc.text(String(data.alertTxId || 'N/A'), 20, y);
-        y += 10;
-
-        doc.setFontSize(10);
-        const tronScanUrl = window.getTronScanUrl ? window.getTronScanUrl(data.alertTxId) : `https://tronscan.org/#/transaction/${data.alertTxId}`;
-        doc.text(`Verification URL: ${tronScanUrl}`, 20, y);
         y += 15;
 
-        // Add thumbnail if available and checkbox is checked
+        doc.setFontSize(11);
+        doc.text(`Case Number:`, 20, y);
+        doc.setFont(undefined, 'bold');
+        doc.text(`${data.caseNumber || 'N/A'}`, 70, y);
+        doc.setFont(undefined, 'normal');
+        y += 10;
+
+        doc.text(`Date Served:`, 20, y);
+        doc.text(`${formatUTCDate(data.timestamp)}`, 70, y);
+        y += 10;
+
+        doc.text(`Time Served:`, 20, y);
+        doc.text(`${formatUTCTime(data.timestamp)}`, 70, y);
+        y += 20;
+
+        // Recipient Summary
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text(`Recipients (${recipientCount})`, 20, y);
+        doc.setFont(undefined, 'normal');
+        y += 12;
+
+        // Show recipients on page 1 (up to 5)
+        const recipientsPage1 = Math.min(5, recipientCount);
+        doc.setFontSize(10);
+        for (let i = 0; i < recipientsPage1; i++) {
+            const r = recipients[i];
+            const addr = typeof r === 'object' ? r.address : r;
+            const label = typeof r === 'object' && r.label ? ` (${r.label})` : '';
+
+            doc.setFont(undefined, 'bold');
+            doc.text(`${i + 1}.`, 20, y);
+            doc.setFont(undefined, 'normal');
+            doc.text(`${addr}${label}`, 28, y);
+            y += 8;
+        }
+
+        if (recipientCount > 5) {
+            doc.setFontSize(9);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`... and ${recipientCount - 5} more (see page 2)`, 28, y);
+            doc.setTextColor(0, 0, 0);
+        }
+
+        // Page 1 footer
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text('Page 1 of 3', 105, 285, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+
+        // ==================== PAGE 2: Blockchain Verification ====================
+        doc.addPage();
+        y = 25;
+
+        // Continue recipients if more than 5
+        if (recipientCount > 5) {
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.text(`Recipients (continued)`, 20, y);
+            doc.setFont(undefined, 'normal');
+            y += 12;
+
+            doc.setFontSize(10);
+            for (let i = 5; i < recipientCount; i++) {
+                const r = recipients[i];
+                const addr = typeof r === 'object' ? r.address : r;
+                const label = typeof r === 'object' && r.label ? ` (${r.label})` : '';
+
+                doc.setFont(undefined, 'bold');
+                doc.text(`${i + 1}.`, 20, y);
+                doc.setFont(undefined, 'normal');
+                doc.text(`${addr}${label}`, 28, y);
+                y += 8;
+            }
+            y += 10;
+        }
+
+        // Blockchain Verification Box
+        doc.setDrawColor(200, 200, 200);
+        doc.setFillColor(248, 249, 250);
+        doc.rect(15, y - 5, 180, 55, 'FD');
+
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('Blockchain Verification', 20, y + 3);
+        doc.setFont(undefined, 'normal');
+        y += 15;
+
+        doc.setFontSize(10);
+        doc.text('Transaction Hash:', 20, y);
+        y += 8;
+        doc.setFontSize(8);
+        doc.setFont(undefined, 'bold');
+        doc.text(String(data.alertTxId || data.transactionHash || 'N/A'), 20, y);
+        doc.setFont(undefined, 'normal');
+        y += 12;
+
+        doc.setFontSize(10);
+        doc.text('Token ID:', 20, y);
+        doc.setFont(undefined, 'bold');
+        doc.text(String(data.tokenId || data.alertTokenId || 'Pending'), 70, y);
+        doc.setFont(undefined, 'normal');
+        y += 12;
+
+        const explorerUrl = window.getExplorerTxUrl ?
+            window.getExplorerTxUrl(data.alertTxId || data.transactionHash) :
+            `https://nile.tronscan.org/#/transaction/${data.alertTxId || data.transactionHash}`;
+        doc.text('Verify at:', 20, y);
+        doc.setTextColor(0, 102, 204);
+        doc.text(explorerUrl, 50, y);
+        doc.setTextColor(0, 0, 0);
+        y += 20;
+
+        // Document Access
+        doc.setDrawColor(200, 200, 200);
+        doc.rect(15, y - 5, 180, 35);
+
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('Document Access', 20, y + 3);
+        doc.setFont(undefined, 'normal');
+        y += 15;
+
+        doc.setFontSize(10);
+        doc.text('Recipients can view and download documents at:', 20, y);
+        y += 10;
+        doc.setTextColor(0, 102, 204);
+        doc.setFont(undefined, 'bold');
+        doc.text(`https://blockserved.com?case=${encodeURIComponent(data.caseNumber || '')}`, 20, y);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'normal');
+
+        // Page 2 footer
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text('Page 2 of 3', 105, 285, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+
+        // ==================== PAGE 3: NFT Preview & Certification ====================
+        doc.addPage();
+        y = 25;
+
+        // NFT Preview
         const includeImage = document.getElementById('includeNFTImage')?.checked ?? true;
         if (includeImage && data.thumbnail) {
             try {
                 doc.setFontSize(14);
                 doc.setFont(undefined, 'bold');
-                doc.text('NFT Preview', 20, y);
-                y += 5;
-                doc.addImage(data.thumbnail, 'PNG', 20, y, 60, 80);
-                y += 85;
+                doc.text('NFT Preview', 105, y, { align: 'center' });
+                y += 10;
+
+                // Center the image
+                const imgWidth = 100;
+                const imgHeight = 130;
+                doc.addImage(data.thumbnail, 'PNG', (210 - imgWidth) / 2, y, imgWidth, imgHeight);
+                y += imgHeight + 15;
             } catch (e) {
                 console.log('Could not add thumbnail to PDF:', e);
+                y += 10;
             }
         }
 
-        // Footer
+        // Certification Box
+        doc.setDrawColor(40, 167, 69);
+        doc.setLineWidth(1);
+        doc.rect(15, y, 180, 50);
+
+        y += 12;
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text('CERTIFICATION', 105, y, { align: 'center' });
+        y += 12;
+
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        const certText = [
+            'This document certifies that legal notice was successfully',
+            'delivered via blockchain technology. The transaction is',
+            'permanently recorded on the TRON blockchain and can be',
+            'independently verified using the transaction hash above.'
+        ];
+        certText.forEach(line => {
+            doc.text(line, 105, y, { align: 'center' });
+            y += 7;
+        });
+
+        // Final footer
         doc.setFontSize(9);
         doc.setTextColor(100, 100, 100);
-        doc.text('This document certifies that legal notice was successfully delivered via blockchain technology.', 105, 280, { align: 'center' });
-        doc.text(`Generated: ${new Date().toLocaleString()} | BlockServed.com`, 105, 285, { align: 'center' });
+        doc.text('This is an official Proof of Service document from TheBlockService', 105, 270, { align: 'center' });
+        doc.text(`Generated: ${formatUTC(new Date())}`, 105, 277, { align: 'center' });
+        doc.text('www.BlockServed.com | Blockchain-Powered Legal Service', 105, 284, { align: 'center' });
+
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text('Page 3 of 3', 105, 292, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
 
         // Save PDF
         doc.save(`proof_of_service_${data.caseNumber}.pdf`);
@@ -1382,67 +1535,71 @@ window.notices = {
             const helveticaBold = await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
             const helvetica = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
 
-            // Prepare stamp text
-            const txHash = String(data.alertTxId || '').substring(0, 32) + '...';
-            const servedDate = new Date(data.timestamp).toLocaleDateString();
-            const servedTime = new Date(data.timestamp).toLocaleTimeString();
+            // Prepare stamp text - check multiple possible field names for transaction hash
+            const txHashFull = data.alertTxId || data.transactionHash || data.txId || '';
+            const txHash = txHashFull ? String(txHashFull).substring(0, 40) + '...' : 'N/A';
+            const servedDate = formatUTCDate(data.timestamp);
+            const servedTime = formatUTCTime(data.timestamp);
+
+            console.log('Stamp data - txHash:', txHash, 'date:', servedDate, 'time:', servedTime);
 
             // Add stamp to each page
             for (let i = 0; i < pages.length; i++) {
                 const page = pages[i];
                 const { width, height } = page.getSize();
 
-                // Stamp position (bottom right corner) - wider to fit text
-                const stampWidth = 250;
-                const stampHeight = 65;
-                const stampX = width - stampWidth - 15;
-                const stampY = 15;
+                // Stamp position (bottom right corner) - wider to fit full hash
+                const stampWidth = 280;
+                const stampHeight = 70;
+                const stampX = width - stampWidth - 10;
+                const stampY = 10;
 
-                // Draw stamp background with red border
+                // Draw semi-transparent stamp background with red border
+                // More transparent (0.6) so underlying document is visible
                 page.drawRectangle({
                     x: stampX,
                     y: stampY,
                     width: stampWidth,
                     height: stampHeight,
-                    color: PDFLib.rgb(1, 0.95, 0.95),
+                    color: PDFLib.rgb(1, 0.98, 0.98),
                     borderColor: PDFLib.rgb(0.8, 0, 0),
                     borderWidth: 2,
-                    opacity: 0.95
+                    opacity: 0.65
                 });
 
-                // "SERVED VIA WWW.BLOCKSERVED.COM" text - RED
+                // "SERVED VIA WWW.BLOCKSERVED.COM" text - RED, bold
                 page.drawText('SERVED VIA WWW.BLOCKSERVED.COM', {
-                    x: stampX + 8,
-                    y: stampY + 48,
-                    size: 9,
+                    x: stampX + 10,
+                    y: stampY + 55,
+                    size: 10,
                     font: helveticaBold,
-                    color: PDFLib.rgb(0.8, 0, 0)
+                    color: PDFLib.rgb(0.7, 0, 0)
                 });
 
-                // Date/time - dark red
+                // Date/time - dark text for readability
                 page.drawText(`${servedDate} ${servedTime}`, {
-                    x: stampX + 8,
-                    y: stampY + 35,
+                    x: stampX + 10,
+                    y: stampY + 42,
                     size: 8,
-                    font: helvetica,
-                    color: PDFLib.rgb(0.5, 0, 0)
+                    font: helveticaBold,
+                    color: PDFLib.rgb(0.3, 0, 0)
                 });
 
-                // Transaction hash - dark red
+                // Transaction hash - IMPORTANT: Show full hash for verification
                 page.drawText(`TX: ${txHash}`, {
-                    x: stampX + 8,
-                    y: stampY + 22,
-                    size: 6,
+                    x: stampX + 10,
+                    y: stampY + 28,
+                    size: 7,
                     font: helvetica,
-                    color: PDFLib.rgb(0.5, 0, 0)
+                    color: PDFLib.rgb(0.2, 0.2, 0.2)
                 });
 
-                // Verification URL - red
-                page.drawText('Verify: www.blockserved.com', {
-                    x: stampX + 8,
-                    y: stampY + 10,
-                    size: 6,
-                    font: helvetica,
+                // Verification URL
+                page.drawText('Verify at: www.blockserved.com', {
+                    x: stampX + 10,
+                    y: stampY + 14,
+                    size: 7,
+                    font: helveticaBold,
                     color: PDFLib.rgb(0.6, 0, 0)
                 });
             }
@@ -1529,7 +1686,7 @@ window.notices = {
                                 <li><strong>Recipient${data.recipients && data.recipients.length > 1 ? 's' : ''}:</strong><br>
                                     ${this.formatRecipientsForModal(data.recipients)}
                                 </li>
-                                <li><strong>Time:</strong> ${new Date(data.timestamp).toLocaleString()}</li>
+                                <li><strong>Time:</strong> ${formatUTC(data.timestamp)}</li>
                             </ul>
                             
                             <div class="alert alert-info">
@@ -1615,11 +1772,11 @@ window.notices = {
                     </div>
                     <div class="detail-row">
                         <span class="label">Service Date:</span>
-                        <span class="value">${new Date(data.timestamp).toLocaleDateString()}</span>
+                        <span class="value">${formatUTCDate(data.timestamp)}</span>
                     </div>
                     <div class="detail-row">
                         <span class="label">Service Time:</span>
-                        <span class="value">${new Date(data.timestamp).toLocaleTimeString()}</span>
+                        <span class="value">${formatUTCTime(data.timestamp)}</span>
                     </div>
                     <div class="detail-row">
                         <span class="label">Notice ID:</span>
@@ -1664,7 +1821,7 @@ window.notices = {
                 
                 <div class="footer">
                     <p>This document certifies that legal notice was successfully delivered via blockchain technology.</p>
-                    <p>Generated: ${new Date().toLocaleString()} | TheBlockService.com</p>
+                    <p>Generated: ${formatUTC(new Date())} | TheBlockService.com</p>
                 </div>
             </body>
             </html>
