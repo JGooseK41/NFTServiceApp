@@ -7,6 +7,8 @@ The root directory is deployed to Netlify (`publish = "."`). These are the ONLY 
 - **`/js-v2/config.js`** - Configuration (network, backend URLs, contract addresses)
 - **`/js-v2/app.js`** - Main application JavaScript
 - **`/js-v2/modules/`** - All frontend modules (wallet.js, contract.js, cases.js, etc.)
+- **`/js-v2/lite-contract-abi.json`** - Lite contract ABI (for Nile testnet)
+- **`/js-v2/v5-contract-abi.json`** - V5 contract ABI (for mainnet)
 - **`/js/`** - Additional JS files (case-management-client.js, energy integration)
 
 ### Recipient Portal (BlockServed.com)
