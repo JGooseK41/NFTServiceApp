@@ -2419,8 +2419,8 @@ window.cases = {
                     <td>${noticeType}</td>
                     <td>${servedAt ? new Date(servedAt).toLocaleDateString() : 'Pending'}</td>
                     <td>
-                        <button class="btn btn-sm btn-info" 
-                                onclick="window.open('https://blockserved.com', '_blank')">
+                        <button class="btn btn-sm btn-info"
+                                onclick="window.open('https://blockserved.com?case=${encodeURIComponent(caseData.case_number || caseData.caseNumber)}', '_blank')">
                             <i class="bi bi-eye"></i> View
                         </button>
                     </td>
@@ -2437,8 +2437,8 @@ window.cases = {
                     <td>${n.type || noticeType}</td>
                     <td>${n.timestamp ? new Date(n.timestamp).toLocaleDateString() : 'N/A'}</td>
                     <td>
-                        <button class="btn btn-sm btn-info" 
-                                onclick="window.open('https://blockserved.com', '_blank')">
+                        <button class="btn btn-sm btn-info"
+                                onclick="window.open('https://blockserved.com?case=${encodeURIComponent(n.caseNumber || caseData.case_number || caseData.caseNumber)}', '_blank')">
                             View
                         </button>
                     </td>
