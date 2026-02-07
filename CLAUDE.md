@@ -32,6 +32,11 @@ The root directory is deployed to Netlify (`publish = "."`). These are the ONLY 
 
 ---
 
+## Planned Features / TODOs
+- **Network badge in header**: Add a visual badge near the connected wallet showing current network (e.g., "Nile Testnet" or "Mainnet") to help users identify which network they're connected to
+
+---
+
 ## Design Optimizations
 - Remember the logic for design optimization of the tool
 
