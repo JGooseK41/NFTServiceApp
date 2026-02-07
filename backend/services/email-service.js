@@ -254,10 +254,176 @@ async function notifyServerApproved(serverData) {
     return sendEmail(serverData.contact_email, subject, htmlContent);
 }
 
+/**
+ * Notify server when a recipient accesses their notice
+ */
+async function notifyNoticeAccessed(serverEmail, accessData) {
+    const { caseNumber, recipientAddress, actionType, timestamp, serverName } = accessData;
+
+    // Determine action description
+    const actionDescriptions = {
+        'recipient_notice_query': 'checked their notices',
+        'recipient_document_view': 'viewed the legal document',
+        'recipient_document_download': 'downloaded the PDF',
+        'wallet_connect': 'connected their wallet',
+        'document_signed': 'signed the document',
+        'view': 'viewed the notice',
+        'view_document': 'viewed the document',
+        'decrypt': 'decrypted the document'
+    };
+
+    const actionDesc = actionDescriptions[actionType] || actionType.replace(/_/g, ' ');
+    const subject = `📋 Notice Accessed: ${caseNumber} - Recipient ${actionDesc}`;
+
+    const htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
+                <h1 style="color: white; margin: 0;">TheBlockService</h1>
+                <p style="color: rgba(255,255,255,0.9); margin: 5px 0 0 0;">Notice Access Alert</p>
+            </div>
+
+            <div style="padding: 30px; background: #f9f9f9;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="display: inline-block; width: 60px; height: 60px; background: #4caf50; border-radius: 50%;
+                                line-height: 60px; font-size: 30px; color: white;">
+                        👁️
+                    </div>
+                </div>
+
+                <h2 style="color: #333; margin-top: 0; text-align: center;">A recipient has accessed your notice!</h2>
+
+                <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #4caf50;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 10px 0; color: #666; width: 140px;"><strong>Case Number:</strong></td>
+                            <td style="padding: 10px 0; color: #333; font-weight: bold;">${caseNumber}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px 0; color: #666;"><strong>Recipient:</strong></td>
+                            <td style="padding: 10px 0; color: #333; font-family: monospace; font-size: 12px;">${recipientAddress}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px 0; color: #666;"><strong>Action:</strong></td>
+                            <td style="padding: 10px 0; color: #333;">
+                                <span style="background: #e8f5e9; padding: 4px 12px; border-radius: 4px; color: #2e7d32;">
+                                    ${actionDesc.charAt(0).toUpperCase() + actionDesc.slice(1)}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px 0; color: #666;"><strong>Time:</strong></td>
+                            <td style="padding: 10px 0; color: #333;">${new Date(timestamp).toLocaleString('en-US', { timeZone: 'America/New_York' })} ET</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div style="margin-top: 25px; padding: 15px; background: #e3f2fd; border-radius: 8px;">
+                    <p style="margin: 0; color: #1976d2;">
+                        <strong>What this means:</strong> The recipient has interacted with the legal notice you served.
+                        This activity is permanently logged on the blockchain for legal compliance.
+                    </p>
+                </div>
+
+                <div style="margin-top: 25px; text-align: center;">
+                    <a href="https://theblockservice.com"
+                       style="display: inline-block; padding: 12px 30px; background: #667eea; color: white;
+                              text-decoration: none; border-radius: 6px; font-weight: bold;">
+                        View Full Audit Log
+                    </a>
+                </div>
+            </div>
+
+            <div style="padding: 20px; text-align: center; color: #999; font-size: 12px;">
+                <p>TheBlockService - A Product of The Block Audit LLC</p>
+                <p style="margin-top: 10px;">
+                    <a href="https://theblockservice.com/settings" style="color: #999;">Manage notification preferences</a>
+                </p>
+            </div>
+        </div>
+    `;
+
+    return sendEmail(serverEmail, subject, htmlContent);
+}
+
+/**
+ * Notify server of first-time document view (more important than subsequent views)
+ */
+async function notifyFirstDocumentView(serverEmail, accessData) {
+    const { caseNumber, recipientAddress, timestamp } = accessData;
+
+    const subject = `✅ DOCUMENT VIEWED: Case ${caseNumber} - Legal Notice Confirmed Received`;
+
+    const htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%); padding: 20px; text-align: center;">
+                <h1 style="color: white; margin: 0;">TheBlockService</h1>
+                <p style="color: rgba(255,255,255,0.9); margin: 5px 0 0 0;">Document View Confirmation</p>
+            </div>
+
+            <div style="padding: 30px; background: #f9f9f9;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="display: inline-block; width: 80px; height: 80px; background: #4caf50; border-radius: 50%;
+                                line-height: 80px; font-size: 40px; color: white;">
+                        ✓
+                    </div>
+                </div>
+
+                <h2 style="color: #2e7d32; margin-top: 0; text-align: center;">Document Successfully Viewed!</h2>
+
+                <p style="color: #555; line-height: 1.6; text-align: center; font-size: 16px;">
+                    The recipient has <strong>opened and viewed</strong> the legal document for case <strong>${caseNumber}</strong>.
+                    This provides strong evidence of actual notice.
+                </p>
+
+                <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #4caf50; margin: 25px 0;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 10px 0; color: #666; width: 140px;"><strong>Case Number:</strong></td>
+                            <td style="padding: 10px 0; color: #333; font-weight: bold; font-size: 18px;">${caseNumber}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px 0; color: #666;"><strong>Recipient:</strong></td>
+                            <td style="padding: 10px 0; color: #333; font-family: monospace; font-size: 12px;">${recipientAddress}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px 0; color: #666;"><strong>First Viewed:</strong></td>
+                            <td style="padding: 10px 0; color: #333;">${new Date(timestamp).toLocaleString('en-US', { timeZone: 'America/New_York' })} ET</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div style="background: #e8f5e9; padding: 20px; border-radius: 8px;">
+                    <h4 style="color: #2e7d32; margin-top: 0;">📋 Legal Significance</h4>
+                    <p style="color: #555; margin: 0; line-height: 1.6;">
+                        This document view is permanently recorded on the blockchain and in our audit logs.
+                        This evidence can be used to demonstrate that the recipient received and reviewed the legal notice.
+                    </p>
+                </div>
+
+                <div style="margin-top: 25px; text-align: center;">
+                    <a href="https://theblockservice.com"
+                       style="display: inline-block; padding: 15px 40px; background: #4caf50; color: white;
+                              text-decoration: none; border-radius: 6px; font-weight: bold;">
+                        View Complete Audit Trail
+                    </a>
+                </div>
+            </div>
+
+            <div style="padding: 20px; text-align: center; color: #999; font-size: 12px;">
+                <p>TheBlockService - A Product of The Block Audit LLC</p>
+            </div>
+        </div>
+    `;
+
+    return sendEmail(serverEmail, subject, htmlContent);
+}
+
 module.exports = {
     sendEmail,
     notifyNewServerRegistration,
     sendServerWelcomeEmail,
     notifyServerApproved,
+    notifyNoticeAccessed,
+    notifyFirstDocumentView,
     ADMIN_EMAIL
 };

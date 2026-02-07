@@ -9,6 +9,7 @@ const router = express.Router();
 const { Pool } = require('pg');
 const cors = require('cors');
 const TronWeb = require('tronweb');
+const emailService = require('../services/email-service');
 
 // CORS configuration for BlockServed
 const corsOptions = {
@@ -520,6 +521,52 @@ router.get('/:caseNumber/document', async (req, res) => {
                 timezone
             ]);
             console.log(`✅ Logged document view for case ${caseNumber} by ${recipientAddress || 'anonymous'}`);
+
+            // Check if this is the FIRST document view by this recipient for this case
+            // Only send email notification on first view to avoid spamming
+            try {
+                const viewCountResult = await pool.query(`
+                    SELECT COUNT(*) as view_count
+                    FROM audit_logs
+                    WHERE action_type = 'recipient_document_view'
+                      AND actor_address = $1
+                      AND target_id = $2
+                `, [recipientAddress || 'anonymous', caseNumber]);
+
+                const viewCount = parseInt(viewCountResult.rows[0]?.view_count || '0');
+
+                // Only notify on first view (we just inserted one, so count should be 1)
+                if (viewCount === 1 && recipientAddress) {
+                    // Get server's email from process_servers table
+                    const serverResult = await pool.query(`
+                        SELECT ps.contact_email, ps.agency_name
+                        FROM case_service_records csr
+                        JOIN process_servers ps ON LOWER(ps.wallet_address) = LOWER(csr.server_address)
+                        WHERE csr.case_number = $1
+                    `, [caseNumber]);
+
+                    if (serverResult.rows.length > 0 && serverResult.rows[0].contact_email) {
+                        const serverEmail = serverResult.rows[0].contact_email;
+                        const serverName = serverResult.rows[0].agency_name;
+
+                        // Send first document view notification (high priority)
+                        emailService.notifyFirstDocumentView(serverEmail, {
+                            caseNumber,
+                            recipientAddress,
+                            timestamp: new Date().toISOString(),
+                            serverName
+                        }).then(result => {
+                            if (result.success) {
+                                console.log(`📧 First view email sent to ${serverEmail} for case ${caseNumber}`);
+                            }
+                        }).catch(err => {
+                            console.log('Email notification failed:', err.message);
+                        });
+                    }
+                }
+            } catch (emailError) {
+                console.log('Could not send email notification:', emailError.message);
+            }
         } catch (auditError) {
             console.log('Could not log document view audit event:', auditError.message);
         }
