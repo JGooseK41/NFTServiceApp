@@ -155,7 +155,9 @@ const handleServerRegistration = async (req, res) => {
         console.error('Error registering process server:', error);
         res.status(500).json({
             success: false,
-            error: 'Failed to register process server'
+            error: 'Failed to register process server',
+            details: error.message,
+            code: error.code
         });
     } finally {
         if (client) {
