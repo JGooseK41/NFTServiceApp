@@ -351,20 +351,21 @@ router.get('/wallet/:address', async (req, res) => {
 router.get('/:caseNumber/document', async (req, res) => {
     try {
         const { caseNumber } = req.params;
-        console.log(`Fetching document for case: ${caseNumber}`);
-        
+        const { recipientAddress } = req.query;
+        console.log(`Fetching document for case: ${caseNumber}, recipient: ${recipientAddress || 'not provided'}`);
+
         const query = `
-            SELECT 
+            SELECT
                 case_number,
                 ipfs_hash,
                 encryption_key,
                 -- If document_token_id is missing, calculate it as alert_token_id + 1
                 COALESCE(
                     document_token_id,
-                    CASE 
-                        WHEN alert_token_id IS NOT NULL 
-                        THEN (alert_token_id::int + 1)::text 
-                        ELSE NULL 
+                    CASE
+                        WHEN alert_token_id IS NOT NULL
+                        THEN (alert_token_id::int + 1)::text
+                        ELSE NULL
                     END
                 ) as document_token_id,
                 alert_token_id,
@@ -372,13 +373,14 @@ router.get('/:caseNumber/document', async (req, res) => {
                 served_at,
                 accepted,
                 accepted_at,
+                viewed_at,
                 server_name,
                 issuing_agency,
                 status
             FROM case_service_records
             WHERE case_number = $1
         `;
-        
+
         const result = await pool.query(query, [caseNumber]);
         
         if (result.rows.length === 0) {
@@ -435,6 +437,43 @@ router.get('/:caseNumber/document', async (req, res) => {
             }
         }
         
+        // Update status to 'viewed' if recipient is viewing and status is 'served'
+        let currentStatus = caseData.status || 'served';
+        let viewedAt = caseData.viewed_at;
+
+        if (recipientAddress && currentStatus === 'served') {
+            try {
+                const updateResult = await pool.query(`
+                    UPDATE case_service_records
+                    SET status = 'viewed',
+                        viewed_at = COALESCE(viewed_at, NOW()),
+                        updated_at = NOW()
+                    WHERE case_number = $1 AND (status = 'served' OR status IS NULL)
+                    RETURNING status, viewed_at
+                `, [caseNumber]);
+
+                if (updateResult.rows.length > 0) {
+                    currentStatus = 'viewed';
+                    viewedAt = updateResult.rows[0].viewed_at;
+                    console.log(`Status updated to 'viewed' for case ${caseNumber}`);
+                }
+
+                // Log the view activity
+                await pool.query(`
+                    INSERT INTO recipient_notice_views (
+                        case_number, wallet_address, action_type, ip_address, user_agent
+                    ) VALUES ($1, $2, 'document_view', $3, $4)
+                `, [
+                    caseNumber,
+                    recipientAddress,
+                    req.headers['x-forwarded-for'] || req.connection?.remoteAddress || 'unknown',
+                    req.headers['user-agent'] || 'unknown'
+                ]);
+            } catch (updateError) {
+                console.log('Could not update status to viewed:', updateError.message);
+            }
+        }
+
         res.json({
             success: true,
             notice: {
@@ -447,13 +486,14 @@ router.get('/:caseNumber/document', async (req, res) => {
                 served_at: caseData.served_at,
                 accepted: caseData.accepted || false,
                 accepted_at: caseData.accepted_at,
+                viewed_at: viewedAt,
                 server_name: caseData.server_name,
                 issuing_agency: caseData.issuing_agency,
-                status: caseData.status,
+                status: currentStatus,
                 images: images
             }
         });
-        
+
     } catch (error) {
         console.error('Error fetching document:', error);
         res.status(500).json({

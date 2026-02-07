@@ -506,7 +506,7 @@
             text-transform: uppercase;
         }
 
-        .status-delivered {
+        .status-served {
             background: #fff8e1;
             color: #f57c00;
         }
@@ -1427,8 +1427,9 @@
                             <p>${notice.notice_type || 'Legal Notice'} - ${notice.issuing_agency || 'Legal Services'}</p>
                         </div>
                         <div class="notice-status">
-                            <span class="status-badge status-delivered">Delivered</span>
-                            ${notice.accepted ? '<span class="status-badge status-signed">Signed</span>' : ''}
+                            <span class="status-badge status-served">Served</span>
+                            ${notice.status === 'viewed' || notice.status === 'signed' ? '<span class="status-badge status-viewed">Viewed</span>' : ''}
+                            ${notice.status === 'signed' ? '<span class="status-badge status-signed">Signed</span>' : ''}
                         </div>
                     </div>
                     
@@ -1507,14 +1508,16 @@
             `;
             
             try {
-                // Fetch document details
-                const response = await fetch(`${BACKEND_URL}/api/recipient-cases/${notice.case_number}/document`);
+                // Fetch document details - pass recipientAddress to trigger 'viewed' status update
+                const response = await fetch(`${BACKEND_URL}/api/recipient-cases/${notice.case_number}/document?recipientAddress=${currentWallet}`);
                 const data = await response.json();
-                
+
                 if (data.success && data.notice) {
                     displayDocumentContent(data.notice, signMode);
                     // Log document open
                     await logNoticeView(notice.case_number, 'document_open');
+                    // Reload notices to update status badges
+                    loadNotices();
                 }
             } catch (error) {
                 console.error('Error loading document:', error);

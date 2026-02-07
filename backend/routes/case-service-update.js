@@ -600,9 +600,11 @@ router.post('/cases/run-migration', async (req, res) => {
                 { name: 'recipients', type: 'JSONB' },
                 { name: 'page_count', type: 'INTEGER DEFAULT 1' },
                 { name: 'served_at', type: 'TIMESTAMP' },
+                { name: 'viewed_at', type: 'TIMESTAMP' },
                 { name: 'server_address', type: 'VARCHAR(255)' },
                 { name: 'chain', type: "VARCHAR(50) DEFAULT 'tron-mainnet'" },
-                { name: 'explorer_url', type: 'TEXT' }
+                { name: 'explorer_url', type: 'TEXT' },
+                { name: 'status', type: "VARCHAR(50) DEFAULT 'served'" }
             ];
 
             for (const col of requiredColumns) {

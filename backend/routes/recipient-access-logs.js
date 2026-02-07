@@ -308,10 +308,13 @@ router.post('/acknowledgment', async (req, res) => {
             device_info
         ]);
         
-        // Also update case_service_records
+        // Also update case_service_records to 'signed' status
         await pool.query(`
             UPDATE case_service_records
-            SET status = 'acknowledged'
+            SET status = 'signed',
+                accepted = true,
+                accepted_at = NOW(),
+                updated_at = NOW()
             WHERE case_number = $1
         `, [case_number]);
         
