@@ -368,7 +368,7 @@ class CaseManager {
                         recipient_address,
                         ipfs_hash,
                         alert_nft_id,
-                        tx_hash as transaction_hash,
+                        COALESCE(metadata->>'transactionHash', NULL) as transaction_hash,
                         'cases' as source,
                         CASE WHEN status = 'served' THEN 1 ELSE 2 END as priority
                     FROM cases
