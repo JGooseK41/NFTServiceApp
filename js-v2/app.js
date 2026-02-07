@@ -447,7 +447,7 @@ window.app = {
             }
 
             // Check if server is already registered on backend
-            const checkUrl = `${getConfig('api.baseUrl')}/api/server/check/${this.state.userAddress}`;
+            const checkUrl = `${getConfig('backend.baseUrl')}/api/server/check/${this.state.userAddress}`;
             const checkResponse = await fetch(checkUrl);
             const checkData = await checkResponse.json();
 
