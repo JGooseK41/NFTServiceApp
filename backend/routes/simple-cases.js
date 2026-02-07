@@ -58,7 +58,7 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
                 false as accepted,
                 CASE WHEN c.status = 'served' THEN 'served' ELSE 'draft' END as source
             FROM cases c
-            LEFT JOIN case_service_records csr ON c.id = csr.case_id
+            LEFT JOIN case_service_records csr ON c.id::text = csr.case_number
             WHERE LOWER(c.server_address) = LOWER($1)
 
             UNION ALL
