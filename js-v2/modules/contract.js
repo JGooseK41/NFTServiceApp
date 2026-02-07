@@ -394,6 +394,34 @@ window.contract = {
                 // txResult is the transaction hash string when shouldPollResponse is not used
                 tx = txResult;
                 console.log('Alert NFT created with Lite contract, txHash:', tx);
+
+                // Try to extract token ID from transaction after a short delay
+                let tokenId = null;
+                try {
+                    // Wait for transaction to be confirmed
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+
+                    const txInfo = await window.tronWeb.trx.getTransactionInfo(tx);
+                    console.log('Transaction info:', txInfo);
+
+                    if (txInfo && txInfo.log) {
+                        for (const log of txInfo.log) {
+                            // Transfer event: topics[0]=signature, topics[1]=from, topics[2]=to, topics[3]=tokenId
+                            if (log.topics && log.topics.length >= 4) {
+                                const tokenIdHex = log.topics[3];
+                                if (tokenIdHex) {
+                                    tokenId = parseInt(tokenIdHex, 16);
+                                    console.log('Extracted token ID from Transfer event:', tokenId);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                } catch (tokenError) {
+                    console.log('Could not extract token ID immediately:', tokenError.message);
+                }
+
+                return { success: true, txId: tx, tokenId: tokenId };
             } else {
                 // V5 CONTRACT: Uses creationFee/sponsorshipFee and full serveNotice signature
                 const creationFee = await this.instance.creationFee().call();

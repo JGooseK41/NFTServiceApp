@@ -188,47 +188,50 @@ window.notices = {
                 txResults.push({
                     alertTx: alertResult.txId,
                     documentTx: documentResult.txId,
+                    tokenId: alertResult.tokenId,  // Token ID extracted from transaction
                     success: alertResult.success && documentResult.success
                 });
             }
-            
+
             const txResult = txResults[0]; // For now, use first result
-            
+
             // Step 8: Update backend with transaction info
             await this.updateNoticeWithTransaction(noticeId, {
                 alertTx: txResult.alertTx,
                 documentTx: txResult.documentTx
             });
-            
+
             // Step 8.5: Extract token IDs and mark case as served
-            let alertTokenId = null;
+            let alertTokenId = txResult.tokenId || null;  // Use token ID from contract result
             let documentTokenId = null;
-            
-            // Try to get token IDs from transaction
-            try {
-                if (window.tronWeb) {
-                    // Get transaction info to extract token IDs from logs
-                    const txInfo = await window.tronWeb.trx.getTransactionInfo(txResult.alertTx);
-                    if (txInfo && txInfo.log) {
-                        // Look for Transfer events in logs
-                        for (const log of txInfo.log) {
-                            if (log.topics && log.topics.length >= 4) {
-                                // Transfer event has signature, from, to, tokenId
-                                const tokenIdHex = log.topics[3];
-                                if (tokenIdHex) {
-                                    const tokenId = parseInt(tokenIdHex, 16);
-                                    if (!alertTokenId) {
-                                        alertTokenId = tokenId;
-                                    } else if (!documentTokenId) {
-                                        documentTokenId = tokenId;
+
+            // If we didn't get token ID from contract, try to get from transaction logs
+            if (!alertTokenId) {
+                try {
+                    if (window.tronWeb) {
+                        // Get transaction info to extract token IDs from logs
+                        const txInfo = await window.tronWeb.trx.getTransactionInfo(txResult.alertTx);
+                        if (txInfo && txInfo.log) {
+                            // Look for Transfer events in logs
+                            for (const log of txInfo.log) {
+                                if (log.topics && log.topics.length >= 4) {
+                                    // Transfer event has signature, from, to, tokenId
+                                    const tokenIdHex = log.topics[3];
+                                    if (tokenIdHex) {
+                                        const tokenId = parseInt(tokenIdHex, 16);
+                                        if (!alertTokenId) {
+                                            alertTokenId = tokenId;
+                                        } else if (!documentTokenId) {
+                                            documentTokenId = tokenId;
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+                } catch (error) {
+                    console.log('Could not extract token IDs from transaction:', error);
                 }
-            } catch (error) {
-                console.log('Could not extract token IDs from transaction:', error);
             }
             
             // For Lite contract, document_token_id = alert_token_id + 1
