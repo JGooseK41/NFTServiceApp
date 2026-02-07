@@ -121,9 +121,10 @@ const handleServerRegistration = async (req, res) => {
     }
 };
 
-// Register both singular and plural routes
+// Register all route variations (different frontends use different paths)
 router.post('/api/server/register', handleServerRegistration);
 router.post('/api/servers/register', handleServerRegistration);
+router.post('/api/registerServer', handleServerRegistration);  // camelCase version used by some frontends
 
 /**
  * Get process server details by wallet address or server ID

@@ -59,10 +59,13 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
 
         // Ensure required columns exist before we try to use them (use pool, not client, to avoid transaction issues)
         try {
+            // Add columns to case_service_records
             await pool.query(`ALTER TABLE case_service_records ADD COLUMN IF NOT EXISTS chain VARCHAR(50) DEFAULT 'tron-mainnet'`);
             await pool.query(`ALTER TABLE case_service_records ADD COLUMN IF NOT EXISTS explorer_url TEXT`);
             await pool.query(`ALTER TABLE case_service_records ADD COLUMN IF NOT EXISTS viewed_at TIMESTAMP`);
             await pool.query(`ALTER TABLE case_service_records ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'served'`);
+            // Add chain column to cases table as well (used in INSERT below)
+            await pool.query(`ALTER TABLE cases ADD COLUMN IF NOT EXISTS chain VARCHAR(50) DEFAULT 'tron-mainnet'`);
         } catch (e) {
             console.log('Note: Could not add columns:', e.message);
         }
