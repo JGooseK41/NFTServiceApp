@@ -1991,21 +1991,32 @@ window.app = {
         const modal = document.getElementById('processingModal');
         const messageEl = document.getElementById('processingMessage');
         const detailsEl = document.getElementById('processingDetails');
-        
+
         if (messageEl) messageEl.textContent = message;
         if (detailsEl) detailsEl.textContent = details;
-        
+
         if (modal) {
-            const bsModal = new bootstrap.Modal(modal);
+            // Reuse existing instance or create new one
+            let bsModal = bootstrap.Modal.getInstance(modal);
+            if (!bsModal) {
+                bsModal = new bootstrap.Modal(modal);
+            }
             bsModal.show();
         }
     },
-    
+
     hideProcessing() {
         const modal = document.getElementById('processingModal');
         if (modal) {
             const bsModal = bootstrap.Modal.getInstance(modal);
-            if (bsModal) bsModal.hide();
+            if (bsModal) {
+                bsModal.hide();
+            }
+            // Also remove backdrop manually if it persists
+            const backdrop = document.querySelector('.modal-backdrop');
+            if (backdrop) backdrop.remove();
+            document.body.classList.remove('modal-open');
+            document.body.style.removeProperty('padding-right');
         }
     },
     
@@ -2562,26 +2573,9 @@ window.app = {
         }, 5000);
     },
     
-    // Show processing modal
-    showProcessing(message, details = '') {
-        const modal = document.getElementById('processingModal');
-        if (modal) {
-            document.getElementById('processingMessage').textContent = message;
-            document.getElementById('processingDetails').textContent = details;
-            const bsModal = new bootstrap.Modal(modal);
-            bsModal.show();
-        }
-    },
-    
-    // Hide processing modal
-    hideProcessing() {
-        const modal = document.getElementById('processingModal');
-        if (modal) {
-            const bsModal = bootstrap.Modal.getInstance(modal);
-            if (bsModal) bsModal.hide();
-        }
-    },
-    
+    // Show processing modal (delegate to main implementation)
+    // Note: Primary implementation is above - this is kept for compatibility
+
     // Show existing case documents when resuming
     async showExistingCaseDocuments(caseData) {
         try {
