@@ -158,15 +158,19 @@
                                     <div class="mb-3">
                                         <label class="form-label">Recipient Wallet Addresses (Max 10)</label>
                                         <div id="recipientsList">
-                                            <div class="input-group mb-2">
-                                                <input type="text" class="form-control recipient-input" 
-                                                       placeholder="T... (Recipient 1)" required>
-                                                <button type="button" class="btn btn-success" onclick="app.addRecipientField()">
-                                                    + Add
-                                                </button>
+                                            <div class="recipient-row mb-2">
+                                                <div class="input-group">
+                                                    <input type="text" class="form-control recipient-input"
+                                                           placeholder="T... (Wallet Address)" required>
+                                                    <input type="text" class="form-control recipient-label"
+                                                           placeholder="Label (optional)" style="max-width: 150px;">
+                                                    <button type="button" class="btn btn-success" onclick="app.addRecipientField()">
+                                                        + Add
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
-                                        <small class="text-muted">Add up to 10 recipients. They will all receive the same document package.</small>
+                                        <small class="text-muted">Add up to 10 recipients. Use optional labels (e.g., "Defendant 1", "Jane Doe") to help identify them.</small>
                                     </div>
 
                                     <!-- Metadata Section -->

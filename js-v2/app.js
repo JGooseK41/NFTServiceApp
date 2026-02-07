@@ -102,9 +102,7 @@ window.app = {
                 noticeType: document.getElementById('noticeType')?.value || '',
                 caseDetails: document.getElementById('caseDetails')?.value || '',
                 responseDeadline: document.getElementById('responseDeadline')?.value || '',
-                recipients: Array.from(document.querySelectorAll('.recipient-input'))
-                    .map(input => input.value)
-                    .filter(v => v),
+                recipients: this.getRecipients(),
                 fileQueue: this.state.fileQueue.map(f => ({
                     name: f.name,
                     size: f.size,
@@ -147,12 +145,23 @@ window.app = {
                 if (data.caseDetails) document.getElementById('caseDetails').value = data.caseDetails;
                 if (data.responseDeadline) document.getElementById('responseDeadline').value = data.responseDeadline;
                 
-                // Restore recipients
+                // Restore recipients (handle both old format [string] and new format [{address, label}])
                 if (data.recipients && data.recipients.length > 0) {
                     data.recipients.forEach((recipient, index) => {
                         if (index > 0) this.addRecipientField();
-                        const inputs = document.querySelectorAll('.recipient-input');
-                        if (inputs[index]) inputs[index].value = recipient;
+                        const rows = document.querySelectorAll('.recipient-row');
+                        const row = rows[index];
+                        if (row) {
+                            const addressInput = row.querySelector('.recipient-input');
+                            const labelInput = row.querySelector('.recipient-label');
+                            // Handle both old (string) and new ({address, label}) formats
+                            if (typeof recipient === 'string') {
+                                if (addressInput) addressInput.value = recipient;
+                            } else {
+                                if (addressInput) addressInput.value = recipient.address || '';
+                                if (labelInput) labelInput.value = recipient.label || '';
+                            }
+                        }
                     });
                 }
                 
@@ -574,38 +583,63 @@ window.app = {
     addRecipientField() {
         const recipientsList = document.getElementById('recipientsList');
         const currentCount = recipientsList.querySelectorAll('.recipient-input').length;
-        
+
         if (currentCount >= 10) {
             this.showError('Maximum 10 recipients allowed');
             return;
         }
-        
+
         const newField = document.createElement('div');
-        newField.className = 'input-group mb-2';
+        newField.className = 'recipient-row mb-2';
         newField.innerHTML = `
-            <input type="text" class="form-control recipient-input" 
-                   placeholder="T... (Recipient ${currentCount + 1})" required>
-            <button type="button" class="btn btn-danger" onclick="this.parentElement.remove()">
-                Remove
-            </button>
+            <div class="input-group">
+                <input type="text" class="form-control recipient-input"
+                       placeholder="T... (Wallet Address)" required>
+                <input type="text" class="form-control recipient-label"
+                       placeholder="Label (optional)" style="max-width: 150px;">
+                <button type="button" class="btn btn-danger" onclick="this.closest('.recipient-row').remove()">
+                    Remove
+                </button>
+            </div>
         `;
-        
+
         recipientsList.appendChild(newField);
     },
     
-    // Get all recipient addresses from the form
-    getRecipientAddresses() {
-        const recipientInputs = document.querySelectorAll('.recipient-input');
-        const addresses = [];
-        
-        recipientInputs.forEach(input => {
-            const value = input.value.trim();
-            if (value) {
-                addresses.push(value);
+    // Get all recipients with addresses and optional labels
+    getRecipients() {
+        const recipientRows = document.querySelectorAll('.recipient-row');
+        const recipients = [];
+
+        recipientRows.forEach(row => {
+            const addressInput = row.querySelector('.recipient-input');
+            const labelInput = row.querySelector('.recipient-label');
+
+            const address = addressInput?.value?.trim();
+            const label = labelInput?.value?.trim() || null;
+
+            if (address) {
+                recipients.push({ address, label });
             }
         });
-        
-        return addresses;
+
+        // Fallback for old HTML structure (single inputs without rows)
+        if (recipients.length === 0) {
+            const recipientInputs = document.querySelectorAll('.recipient-input');
+            recipientInputs.forEach(input => {
+                const address = input.value.trim();
+                if (address) {
+                    recipients.push({ address, label: null });
+                }
+            });
+        }
+
+        return recipients;
+    },
+
+    // Get just the addresses (for backward compatibility)
+    getRecipientAddresses() {
+        return this.getRecipients().map(r => r.address);
     },
     
     // Preview notice before minting
@@ -648,27 +682,26 @@ window.app = {
                 }
             }
             
-            // Collect and validate recipient addresses
-            const recipientInputs = document.querySelectorAll('.recipient-input');
-            const recipients = Array.from(recipientInputs)
-                .map(input => this.sanitizeInput(input.value.trim()))
-                .filter(addr => addr.length > 0);
-            
+            // Collect and validate recipient addresses with labels
+            const recipients = this.getRecipients();
+            const recipientAddresses = recipients.map(r => this.sanitizeInput(r.address));
+
             // Validate each address
             for (const recipient of recipients) {
-                if (!this.validateTronAddress(recipient)) {
-                    this.showError(`Invalid TRON address: ${recipient}`);
+                if (!this.validateTronAddress(recipient.address)) {
+                    const label = recipient.label ? ` (${recipient.label})` : '';
+                    this.showError(`Invalid TRON address${label}: ${recipient.address}`);
                     return;
                 }
             }
-            
+
             // Check for duplicates
-            const uniqueRecipients = [...new Set(recipients)];
-            if (uniqueRecipients.length < recipients.length) {
+            const uniqueAddresses = [...new Set(recipientAddresses)];
+            if (uniqueAddresses.length < recipientAddresses.length) {
                 this.showError('Duplicate recipient addresses detected');
                 return;
             }
-            
+
             if (recipients.length === 0) {
                 this.showError('Please add at least one recipient');
                 return;
@@ -1253,8 +1286,8 @@ window.app = {
             formData.append('legalRights', document.getElementById('legalRights')?.value || 'View full notice at www.blockserved.com');
             formData.append('serverAddress', window.tronWeb.defaultAddress.base58);
             
-            // Add recipients as JSON
-            const recipients = this.getRecipientAddresses();
+            // Add recipients as JSON (includes labels)
+            const recipients = this.getRecipients();
             formData.append('recipients', JSON.stringify(recipients));
             
             // Debug: Log what we're sending
@@ -1908,16 +1941,18 @@ window.app = {
             this.showError('Please enter at least one recipient address');
             return false;
         }
-        
+
         if (data.recipients.length > 10) {
             this.showError('Maximum 10 recipients allowed');
             return false;
         }
-        
-        // Validate each recipient address
+
+        // Validate each recipient address (handles both string and {address, label} formats)
         for (const recipient of data.recipients) {
-            if (!recipient.startsWith('T') || recipient.length !== 34) {
-                this.showError(`Invalid TRON address: ${recipient}`);
+            const address = typeof recipient === 'string' ? recipient : recipient.address;
+            if (!address || !address.startsWith('T') || address.length !== 34) {
+                const label = typeof recipient === 'object' && recipient.label ? ` (${recipient.label})` : '';
+                this.showError(`Invalid TRON address${label}: ${address || 'empty'}`);
                 return false;
             }
         }

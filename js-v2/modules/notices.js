@@ -11,6 +11,21 @@ function toBigIntSafe(value) {
     return value;
 }
 
+// Helper to extract addresses from recipients (handles both old [string] and new [{address, label}] formats)
+function getRecipientAddresses(recipients) {
+    if (!recipients || recipients.length === 0) return [];
+    return recipients.map(r => typeof r === 'string' ? r : r.address);
+}
+
+// Helper to get recipient label by address
+function getRecipientLabel(recipients, address) {
+    if (!recipients) return null;
+    const recipient = recipients.find(r =>
+        (typeof r === 'string' ? r : r.address) === address
+    );
+    return recipient && typeof recipient === 'object' ? recipient.label : null;
+}
+
 window.notices = {
 
     // Initialize module
@@ -53,10 +68,11 @@ window.notices = {
             
             // Process multiple PDFs into ONE consolidated document (shared by all recipients)
             // Document stored encrypted on backend, only thumbnail goes to IPFS
+            const recipientAddresses = getRecipientAddresses(data.recipients);
             const documentData = await window.documents.processDocuments(data.documents, {
                 encrypt: true,           // Encrypt document for backend storage
                 useIPFS: true,          // Upload thumbnail to IPFS for NFT display
-                recipientAddress: data.recipients.join(', '), // All recipients
+                recipientAddress: recipientAddresses.join(', '), // All recipients
                 caseNumber: data.caseNumber,
                 agency: data.agency || data.issuingAgency,  // Pass agency for Alert NFT
                 noticeType: data.noticeType,               // Pass notice type for display
@@ -98,9 +114,9 @@ window.notices = {
                     throw new Error('createBatchNotices method not found in contract module');
                 }
                 
-                // Use v5 contract's batch function
+                // Use v5 contract's batch function (contract needs addresses only)
                 const batchResult = await window.contract.createBatchNotices({
-                    recipients: data.recipients,
+                    recipients: recipientAddresses,
                     noticeId,
                     caseNumber: data.caseNumber,
                     noticeText: data.noticeText,
@@ -130,7 +146,7 @@ window.notices = {
 
                 const nftData = {
                     noticeId,
-                    recipient: data.recipients[0],
+                    recipient: recipientAddresses[0],
                     caseNumber: data.caseNumber,
                     noticeText: data.noticeText,
                     serverId,
@@ -1101,7 +1117,14 @@ window.notices = {
         y += 10;
 
         doc.setFontSize(10);
-        doc.text(`Wallet Address: ${data.recipient || 'N/A'}`, 20, y);
+        // Handle recipient as string or {address, label} object
+        const recipientAddr = data.recipient && typeof data.recipient === 'object' ? data.recipient.address : data.recipient;
+        const recipientLabel = data.recipient && typeof data.recipient === 'object' ? data.recipient.label : null;
+        if (recipientLabel) {
+            doc.text(`Recipient Label: ${recipientLabel}`, 20, y);
+            y += 7;
+        }
+        doc.text(`Wallet Address: ${recipientAddr || 'N/A'}`, 20, y);
         y += 7;
         doc.text(`Access URL: https://blockserved.com?case=${encodeURIComponent(data.caseNumber || '')}`, 20, y);
         y += 12;

@@ -2,7 +2,34 @@
 window.cases = {
     currentCase: null,
     currentCases: [],
-    
+
+    // Helper: Get address from recipient (handles both string and {address, label} formats)
+    getRecipientAddress(recipient) {
+        if (!recipient) return '';
+        return typeof recipient === 'string' ? recipient : (recipient.address || '');
+    },
+
+    // Helper: Get label from recipient (returns null if no label)
+    getRecipientLabel(recipient) {
+        if (!recipient || typeof recipient === 'string') return null;
+        return recipient.label || null;
+    },
+
+    // Helper: Format recipient for display (shows label if available, then address)
+    formatRecipientDisplay(recipient) {
+        const address = this.getRecipientAddress(recipient);
+        const label = this.getRecipientLabel(recipient);
+        if (label) {
+            return `<span class="recipient-label-tag badge bg-info me-1">${label}</span><code>${address}</code>`;
+        }
+        return `<code>${address}</code>`;
+    },
+
+    // Helper: Get recipient for data attributes (just the address)
+    getRecipientDataAttr(recipient) {
+        return this.getRecipientAddress(recipient);
+    },
+
     // Initialize module
     async init() {
         console.log('Initializing cases module...');
@@ -450,26 +477,41 @@ window.cases = {
                     }
                 });
                 
-                // Load recipients
+                // Load recipients (handles both string and {address, label} formats)
                 if (caseData.metadata.recipients && Array.isArray(caseData.metadata.recipients)) {
                     // Clear existing recipients
-                    const recipientInputs = document.querySelectorAll('.recipient-input');
-                    recipientInputs.forEach(input => input.value = '');
-                    
+                    const recipientRows = document.querySelectorAll('.recipient-row');
+                    recipientRows.forEach(row => {
+                        const addrInput = row.querySelector('.recipient-input');
+                        const labelInput = row.querySelector('.recipient-label');
+                        if (addrInput) addrInput.value = '';
+                        if (labelInput) labelInput.value = '';
+                    });
+
                     // Add saved recipients
                     caseData.metadata.recipients.forEach((recipient, index) => {
+                        const address = typeof recipient === 'string' ? recipient : recipient.address;
+                        const label = typeof recipient === 'object' ? recipient.label : null;
+
                         if (index === 0) {
-                            // Use the first recipient input by class
-                            const firstInput = document.querySelector('.recipient-input');
-                            if (firstInput) {
-                                firstInput.value = recipient;
+                            // Use the first recipient row
+                            const firstRow = document.querySelector('.recipient-row');
+                            if (firstRow) {
+                                const addrInput = firstRow.querySelector('.recipient-input');
+                                const labelInput = firstRow.querySelector('.recipient-label');
+                                if (addrInput) addrInput.value = address || '';
+                                if (labelInput && label) labelInput.value = label;
                             }
                         } else {
                             // Add additional recipient fields if needed
                             window.app.addRecipientField();
-                            const inputs = document.querySelectorAll('.recipient-input');
-                            if (inputs[index]) {
-                                inputs[index].value = recipient;
+                            const rows = document.querySelectorAll('.recipient-row');
+                            const row = rows[index];
+                            if (row) {
+                                const addrInput = row.querySelector('.recipient-input');
+                                const labelInput = row.querySelector('.recipient-label');
+                                if (addrInput) addrInput.value = address || '';
+                                if (labelInput && label) labelInput.value = label;
                             }
                         }
                     });
@@ -1043,19 +1085,23 @@ window.cases = {
                                 </div>
                                 <div class="card-body">
                                     <div class="list-group" id="recipientsStatusList">
-                                        ${recipients.map((r, i) => `
-                                            <div class="list-group-item d-flex justify-content-between align-items-center" data-recipient="${r}">
+                                        ${recipients.map((r, i) => {
+                                            const addr = cases.getRecipientAddress(r);
+                                            const label = cases.getRecipientLabel(r);
+                                            return `
+                                            <div class="list-group-item d-flex justify-content-between align-items-center" data-recipient="${addr}">
                                                 <div>
-                                                    <code>${r}</code>
-                                                    <span class="badge bg-secondary ms-2 recipient-status" data-recipient="${r}">Checking...</span>
+                                                    ${label ? `<span class="badge bg-info me-2">${label}</span>` : ''}
+                                                    <code>${addr}</code>
+                                                    <span class="badge bg-secondary ms-2 recipient-status" data-recipient="${addr}">Checking...</span>
                                                 </div>
                                                 <button class="btn btn-sm btn-outline-dark"
-                                                        onclick="cases.checkRecipientActivity('${r}', '${caseNumber}')"
+                                                        onclick="cases.checkRecipientActivity('${addr}', '${caseNumber}')"
                                                         title="Check detailed activity">
                                                     <i class="bi bi-search"></i>
                                                 </button>
-                                            </div>
-                                        `).join('')}
+                                            </div>`;
+                                        }).join('')}
                                     </div>
                                 </div>
                             </div>
@@ -1134,11 +1180,14 @@ window.cases = {
                                             ${recipients.length}
                                         </div>
                                         <div style="margin-top: 10px;">
-                                            ${recipients.map((r, i) => `
+                                            ${recipients.map((r, i) => {
+                                                const addr = cases.getRecipientAddress(r);
+                                                const label = cases.getRecipientLabel(r);
+                                                return `
                                                 <div style="margin-bottom: 5px;">
-                                                    <small>${i + 1}. <code class="hash">${r}</code></small>
-                                                </div>
-                                            `).join('')}
+                                                    <small>${i + 1}. ${label ? `<strong>[${label}]</strong> ` : ''}<code class="hash">${addr}</code></small>
+                                                </div>`;
+                                            }).join('')}
                                         </div>
                                     </div>
                                     
@@ -1286,11 +1335,17 @@ window.cases = {
     // Show audit log modal
     showAuditLogModal(caseNumber, auditData) {
         const { recipients, events } = auditData;
-        
-        // Group events by recipient
+
+        // Group events by recipient address (handle both string and object formats)
         const eventsByRecipient = {};
-        recipients.forEach(r => eventsByRecipient[r] = []);
-        
+        const recipientLabels = {}; // Map address -> label
+        recipients.forEach(r => {
+            const addr = this.getRecipientAddress(r);
+            eventsByRecipient[addr] = [];
+            const label = this.getRecipientLabel(r);
+            if (label) recipientLabels[addr] = label;
+        });
+
         events.forEach(event => {
             if (eventsByRecipient[event.recipientWallet]) {
                 eventsByRecipient[event.recipientWallet].push(event);
@@ -1312,23 +1367,24 @@ window.cases = {
                             
                             ${recipients.length === 0 ? `
                                 <p class="text-muted">No recipients found for this case.</p>
-                            ` : recipients.map(recipient => `
+                            ` : recipients.map(recipient => {
+                                const addr = cases.getRecipientAddress(recipient);
+                                const label = recipientLabels[addr];
+                                return `
                                 <div class="card mb-3">
                                     <div class="card-header">
                                         <h6 class="mb-0">
-                                            <i class="bi bi-person"></i> Recipient: <code>${recipient}</code>
-                                            ${eventsByRecipient[recipient].length > 0 ? 
-                                                `<span class="badge bg-success float-end">Viewed</span>` : 
-                                                `<span class="badge bg-warning float-end">Not Viewed Yet</span>`
+                                            <i class="bi bi-person"></i> Recipient: ${label ? `<span class="badge bg-info me-2">${label}</span>` : ''}<code>${addr}</code>
+                                            ${eventsByRecipient[addr].length > 0 ?
+                                                '<span class="badge bg-success float-end">Viewed</span>' :
+                                                '<span class="badge bg-warning float-end">Not Viewed Yet</span>'
                                             }
                                         </h6>
                                     </div>
                                     <div class="card-body">
-                                        ${eventsByRecipient[recipient].length === 0 ? `
-                                            <p class="text-muted mb-0">
-                                                <i class="bi bi-clock"></i> This recipient has not accessed their notice yet
-                                            </p>
-                                        ` : `
+                                        ${eventsByRecipient[addr].length === 0 ?
+                                            '<p class="text-muted mb-0"><i class="bi bi-clock"></i> This recipient has not accessed their notice yet</p>'
+                                        : `
                                             <div class="table-responsive">
                                                 <table class="table table-sm">
                                                     <thead>
@@ -1340,11 +1396,11 @@ window.cases = {
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        ${eventsByRecipient[recipient].map(event => `
+                                                        ${eventsByRecipient[addr].map(event => `
                                                             <tr>
                                                                 <td>${new Date(event.timestamp).toLocaleString()}</td>
                                                                 <td>
-                                                                    ${event.action === 'recipient_notice_query' ? 
+                                                                    ${event.action === 'recipient_notice_query' ?
                                                                         '<span class="badge bg-info">Checked Notices</span>' :
                                                                         event.action === 'recipient_document_view' ?
                                                                         '<span class="badge bg-success">Viewed Document</span>' :
@@ -1360,8 +1416,8 @@ window.cases = {
                                             </div>
                                         `}
                                     </div>
-                                </div>
-                            `).join('')}
+                                </div>`;
+                            }).join('')}
                             
                             <div class="text-center mt-3">
                                 <p class="text-muted">
@@ -2409,13 +2465,16 @@ window.cases = {
         
         // If case has been served, show the actual notices
         if (alertTokenId && recipients.length > 0) {
-            return recipients.map(recipient => `
+            return recipients.map(recipient => {
+                const addr = this.getRecipientAddress(recipient);
+                const label = this.getRecipientLabel(recipient);
+                return `
                 <tr>
                     <td>
                         Alert: #${alertTokenId}<br>
                         Doc: #${documentTokenId || 'N/A'}
                     </td>
-                    <td>${this.formatAddress(recipient)}</td>
+                    <td>${label ? `<span class="badge bg-info me-1">${label}</span>` : ''}${this.formatAddress(addr)}</td>
                     <td>${noticeType}</td>
                     <td>${servedAt ? new Date(servedAt).toLocaleDateString() : 'Pending'}</td>
                     <td>
@@ -2424,8 +2483,8 @@ window.cases = {
                             <i class="bi bi-eye"></i> View
                         </button>
                     </td>
-                </tr>
-            `).join('');
+                </tr>`;
+            }).join('');
         }
         
         // If we have old-style notices array
