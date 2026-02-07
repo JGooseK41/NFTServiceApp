@@ -10,8 +10,9 @@ const pool = new Pool({
 
 /**
  * Register or update a process server after blockchain registration
+ * Supports both /api/server/register (singular) and /api/servers/register (plural)
  */
-router.post('/api/servers/register', async (req, res) => {
+const handleServerRegistration = async (req, res) => {
     let client;
     
     try {
@@ -118,7 +119,11 @@ router.post('/api/servers/register', async (req, res) => {
             client.release();
         }
     }
-});
+};
+
+// Register both singular and plural routes
+router.post('/api/server/register', handleServerRegistration);
+router.post('/api/servers/register', handleServerRegistration);
 
 /**
  * Get process server details by wallet address or server ID
