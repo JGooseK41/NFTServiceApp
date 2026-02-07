@@ -337,25 +337,25 @@ class CaseManager {
             const query = `
                 WITH all_cases AS (
                     -- Get from case_service_records (primary source)
-                    SELECT 
+                    SELECT
                         case_number as id,
                         COALESCE(status, 'served') as status,
                         created_at,
                         created_at as served_at,
-                        page_count,
+                        page_count::text as page_count,
                         NULL as file_size,
-                        recipients as recipient_address,
+                        recipients::text as recipient_address,
                         ipfs_hash,
                         alert_token_id as alert_nft_id,
                         'case_service_records' as source
                     FROM case_service_records
                     WHERE server_address = $1
                        OR server_address LIKE $2
-                    
+
                     UNION ALL
-                    
+
                     -- Get from cases table
-                    SELECT 
+                    SELECT
                         id,
                         status,
                         created_at,
