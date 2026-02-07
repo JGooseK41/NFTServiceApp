@@ -17,6 +17,7 @@
     "recover:single": "node recover-from-ipfs.js --single"
   },
   "dependencies": {
+    "@sendgrid/mail": "^8.1.6",
     "canvas": "^2.11.2",
     "cors": "^2.8.5",
     "crypto-js": "^4.2.0",

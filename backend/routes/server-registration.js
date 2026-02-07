@@ -2,6 +2,14 @@ const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');
 
+// Email service for notifications
+let emailService;
+try {
+    emailService = require('../services/email-service');
+} catch (err) {
+    console.log('Email service not available:', err.message);
+}
+
 // Database connection
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL || 'postgresql://nftservice:nftservice123@localhost:5432/nftservice_db',
@@ -192,6 +200,36 @@ const handleServerRegistration = async (req, res) => {
             ]);
         } catch (auditError) {
             console.log('Note: Could not log to audit_logs:', auditError.message);
+        }
+
+        // Send email notifications (non-blocking)
+        if (emailService) {
+            const serverData = {
+                wallet_address: wallet_address.toLowerCase(),
+                agency_name: agency_name.trim(),
+                contact_email: contact_email.trim().toLowerCase(),
+                phone_number: phone_number.trim(),
+                website: website || null,
+                license_number: license_number || null
+            };
+
+            // Notify admin of new registration
+            emailService.notifyNewServerRegistration(serverData)
+                .then(result => {
+                    if (result.success) {
+                        console.log('Admin notified of new server registration');
+                    }
+                })
+                .catch(err => console.log('Failed to notify admin:', err.message));
+
+            // Send welcome email to server
+            emailService.sendServerWelcomeEmail(serverData)
+                .then(result => {
+                    if (result.success) {
+                        console.log('Welcome email sent to server');
+                    }
+                })
+                .catch(err => console.log('Failed to send welcome email:', err.message));
         }
 
         res.status(201).json({
@@ -435,6 +473,78 @@ router.get('/api/server/check/:walletAddress', async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Failed to check registration'
+        });
+    }
+});
+
+/**
+ * POST /api/server/approve
+ * Admin endpoint to mark a server as blockchain-approved and send notification
+ * Call this after granting the role on the blockchain
+ */
+router.post('/api/server/approve', async (req, res) => {
+    try {
+        const { wallet_address, admin_key } = req.body;
+
+        // Simple admin key validation (you may want to enhance this)
+        const ADMIN_KEY = process.env.ADMIN_API_KEY || 'default-admin-key';
+        if (admin_key !== ADMIN_KEY) {
+            return res.status(403).json({
+                success: false,
+                error: 'Invalid admin key'
+            });
+        }
+
+        if (!wallet_address) {
+            return res.status(400).json({
+                success: false,
+                error: 'wallet_address is required'
+            });
+        }
+
+        // Get server data
+        const result = await pool.query(
+            'SELECT * FROM process_servers WHERE LOWER(wallet_address) = LOWER($1)',
+            [wallet_address]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Server not found'
+            });
+        }
+
+        const serverData = result.rows[0];
+
+        // Update status to approved
+        await pool.query(
+            'UPDATE process_servers SET status = $1, updated_at = NOW() WHERE LOWER(wallet_address) = LOWER($2)',
+            ['blockchain_approved', wallet_address]
+        );
+
+        // Send approval notification email
+        if (emailService) {
+            emailService.notifyServerApproved(serverData)
+                .then(result => {
+                    if (result.success) {
+                        console.log('Approval notification sent to server');
+                    }
+                })
+                .catch(err => console.log('Failed to send approval notification:', err.message));
+        }
+
+        res.json({
+            success: true,
+            message: 'Server marked as approved and notification sent',
+            server: serverData.agency_name
+        });
+
+    } catch (error) {
+        console.error('Error approving server:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to approve server'
         });
     }
 });
