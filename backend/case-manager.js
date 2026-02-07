@@ -334,9 +334,10 @@ class CaseManager {
             // Hierarchy: Wallet -> Cases -> Notices/Recipients
             
             // UNION query to get ALL cases from ALL sources for this wallet
+            // Priority: case_service_records (served) > cases table (may be draft)
             const query = `
                 WITH all_cases AS (
-                    -- Get from case_service_records (primary source)
+                    -- Get from case_service_records (primary source - these are served)
                     SELECT
                         case_number as id,
                         COALESCE(status, 'served') as status,
@@ -347,14 +348,16 @@ class CaseManager {
                         recipients::text as recipient_address,
                         ipfs_hash,
                         alert_token_id as alert_nft_id,
-                        'case_service_records' as source
+                        transaction_hash,
+                        'case_service_records' as source,
+                        1 as priority
                     FROM case_service_records
                     WHERE server_address = $1
                        OR server_address LIKE $2
 
                     UNION ALL
 
-                    -- Get from cases table
+                    -- Get from cases table (may be draft or served)
                     SELECT
                         id,
                         status,
@@ -365,13 +368,15 @@ class CaseManager {
                         recipient_address,
                         ipfs_hash,
                         alert_nft_id,
-                        'cases' as source
+                        tx_hash as transaction_hash,
+                        'cases' as source,
+                        CASE WHEN status = 'served' THEN 1 ELSE 2 END as priority
                     FROM cases
                     WHERE server_address = $1
                        OR server_address LIKE $2
                 )
                 SELECT DISTINCT ON (id) * FROM all_cases
-                ORDER BY id, created_at DESC
+                ORDER BY id, priority ASC, created_at DESC
                 LIMIT 100
             `;
             
