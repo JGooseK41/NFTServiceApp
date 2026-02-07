@@ -20,7 +20,7 @@ const pool = new Pool({
  */
 router.put('/cases/:caseNumber/service-complete', async (req, res) => {
     const client = await pool.connect();
-    
+
     try {
         // Trim case number to prevent issues with trailing whitespace
         const caseNumber = (req.params.caseNumber || '').trim();
@@ -56,6 +56,14 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
         console.log('IPFS Hash:', ipfsHash);
         console.log('Chain:', chain || 'not specified');
         console.log('Has Alert Image:', !!alertImage);
+
+        // Ensure chain and explorer_url columns exist before we try to use them
+        try {
+            await client.query(`ALTER TABLE case_service_records ADD COLUMN IF NOT EXISTS chain VARCHAR(50) DEFAULT 'tron-mainnet'`);
+            await client.query(`ALTER TABLE case_service_records ADD COLUMN IF NOT EXISTS explorer_url TEXT`);
+        } catch (e) {
+            console.log('Note: Could not add chain columns:', e.message);
+        }
 
         await client.query('BEGIN');
 
@@ -945,6 +953,193 @@ router.post('/cases/manual-recipient-fix', async (req, res) => {
 
     } catch (error) {
         console.error('Manual fix error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Recipient Activity Logging
+ * Creates audit trail for when recipients view/download their served documents
+ */
+
+// Create recipient_activity table on startup
+async function createActivityTable() {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS recipient_activity (
+                id SERIAL PRIMARY KEY,
+                case_number VARCHAR(255) NOT NULL,
+                recipient_address VARCHAR(255) NOT NULL,
+                activity_type VARCHAR(50) NOT NULL,
+                ip_address VARCHAR(45),
+                user_agent TEXT,
+                metadata JSONB,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        `);
+
+        // Create index for fast lookups
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_recipient_activity_case
+            ON recipient_activity(case_number)
+        `);
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS idx_recipient_activity_recipient
+            ON recipient_activity(recipient_address)
+        `);
+
+        console.log('✅ Recipient activity table ready');
+    } catch (error) {
+        console.log('Note: Could not create recipient_activity table:', error.message);
+    }
+}
+createActivityTable();
+
+/**
+ * POST /api/cases/log-activity
+ * Log recipient activity (view, download, accept) for audit trail
+ */
+router.post('/cases/log-activity', async (req, res) => {
+    try {
+        const {
+            caseNumber,
+            recipientAddress,
+            activityType,      // 'view', 'download', 'decrypt', 'accept'
+            metadata = {}
+        } = req.body;
+
+        if (!caseNumber || !recipientAddress || !activityType) {
+            return res.status(400).json({
+                success: false,
+                error: 'caseNumber, recipientAddress, and activityType are required'
+            });
+        }
+
+        // Valid activity types
+        const validTypes = ['view', 'download', 'decrypt', 'accept', 'view_alert', 'view_document'];
+        if (!validTypes.includes(activityType)) {
+            return res.status(400).json({
+                success: false,
+                error: `Invalid activityType. Must be one of: ${validTypes.join(', ')}`
+            });
+        }
+
+        // Get IP and user agent from request
+        const ipAddress = req.headers['x-forwarded-for']?.split(',')[0] ||
+                         req.connection?.remoteAddress ||
+                         'unknown';
+        const userAgent = req.headers['user-agent'] || 'unknown';
+
+        const result = await pool.query(`
+            INSERT INTO recipient_activity (
+                case_number,
+                recipient_address,
+                activity_type,
+                ip_address,
+                user_agent,
+                metadata,
+                created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+            RETURNING id, created_at
+        `, [
+            caseNumber,
+            recipientAddress,
+            activityType,
+            ipAddress,
+            userAgent,
+            JSON.stringify(metadata)
+        ]);
+
+        console.log(`📝 Activity logged: ${activityType} by ${recipientAddress} on case ${caseNumber}`);
+
+        res.json({
+            success: true,
+            message: 'Activity logged',
+            activityId: result.rows[0].id,
+            timestamp: result.rows[0].created_at
+        });
+
+    } catch (error) {
+        console.error('Activity log error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
+ * GET /api/cases/:caseNumber/activity
+ * Get all activity for a specific case (for audit trail)
+ */
+router.get('/cases/:caseNumber/activity', async (req, res) => {
+    try {
+        const { caseNumber } = req.params;
+
+        const result = await pool.query(`
+            SELECT
+                id,
+                recipient_address,
+                activity_type,
+                ip_address,
+                user_agent,
+                metadata,
+                created_at
+            FROM recipient_activity
+            WHERE case_number = $1
+            ORDER BY created_at DESC
+        `, [caseNumber]);
+
+        res.json({
+            success: true,
+            caseNumber,
+            activities: result.rows,
+            count: result.rows.length
+        });
+
+    } catch (error) {
+        console.error('Get activity error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
+ * GET /api/cases/recipient/:address/activity
+ * Get all activity for a specific recipient across all cases
+ */
+router.get('/cases/recipient/:address/activity', async (req, res) => {
+    try {
+        const { address } = req.params;
+
+        const result = await pool.query(`
+            SELECT
+                id,
+                case_number,
+                activity_type,
+                ip_address,
+                metadata,
+                created_at
+            FROM recipient_activity
+            WHERE recipient_address = $1
+            ORDER BY created_at DESC
+            LIMIT 100
+        `, [address]);
+
+        res.json({
+            success: true,
+            recipientAddress: address,
+            activities: result.rows,
+            count: result.rows.length
+        });
+
+    } catch (error) {
+        console.error('Get recipient activity error:', error);
         res.status(500).json({
             success: false,
             error: error.message

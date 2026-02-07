@@ -1607,7 +1607,10 @@
                                 <i class="bi bi-printer"></i> Print
                             </button>
                             <button onclick="downloadDocumentImages('${notice.case_number}')" class="btn btn-secondary" style="${deviceInfo.isMobile ? 'flex: 1; min-width: 120px;' : ''}">
-                                <i class="bi bi-download"></i> Download
+                                <i class="bi bi-image"></i> Images
+                            </button>
+                            <button onclick="downloadOriginalPDF(currentNotice)" class="btn btn-primary" style="${deviceInfo.isMobile ? 'flex: 1; min-width: 120px;' : ''}">
+                                <i class="bi bi-file-pdf"></i> Download PDF
                             </button>
                             ${signMode && !notice.accepted ? `
                                 <button onclick="signDocument()" class="btn btn-primary" style="${deviceInfo.isMobile ? 'flex: 1; min-width: 120px;' : ''}">
@@ -2215,7 +2218,141 @@ Transaction Hash: ${currentNotice.transaction_hash}
                 console.error('Failed to log document action:', error);
             }
         }
-        
+
+        // Load CryptoJS for document decryption
+        async function loadCryptoJS() {
+            return new Promise((resolve) => {
+                if (window.CryptoJS) {
+                    resolve();
+                    return;
+                }
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js';
+                script.onload = resolve;
+                script.onerror = () => {
+                    console.error('Failed to load CryptoJS');
+                    resolve();
+                };
+                document.head.appendChild(script);
+            });
+        }
+
+        // Download the actual PDF from backend (decrypted)
+        async function downloadOriginalPDF(notice) {
+            try {
+                showAlert('Downloading document...', 'info');
+
+                // First try to download from backend (preferred method)
+                const response = await fetch(
+                    `${BACKEND_URL}/api/recipient-cases/${notice.case_number}/download-pdf?recipientAddress=${currentWallet}`
+                );
+
+                if (response.ok) {
+                    const contentType = response.headers.get('content-type');
+
+                    if (contentType && contentType.includes('application/pdf')) {
+                        // Direct PDF download from backend
+                        const blob = await response.blob();
+                        const downloadUrl = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = downloadUrl;
+                        a.download = `legal_document_case_${notice.case_number}.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(downloadUrl);
+                        showAlert('Document downloaded successfully', 'success');
+                        return;
+                    }
+
+                    // Backend returned IPFS info for client-side decryption
+                    const data = await response.json();
+                    if (data.success && data.method === 'ipfs') {
+                        await downloadFromIPFS(data.ipfsHash, data.encryptionKey, notice.case_number);
+                        return;
+                    }
+                }
+
+                // Fallback to IPFS if notice has hash and key
+                if (notice.ipfs_hash && notice.encryption_key) {
+                    await downloadFromIPFS(notice.ipfs_hash, notice.encryption_key, notice.case_number);
+                    return;
+                }
+
+                throw new Error('Document not available for download');
+
+            } catch (error) {
+                console.error('Error downloading PDF:', error);
+                showAlert('Failed to download document: ' + error.message, 'error');
+            }
+        }
+
+        // Download and decrypt from IPFS (fallback method)
+        async function downloadFromIPFS(ipfsHash, encryptionKey, caseNumber) {
+            // Log the download action
+            await logDocumentAction(caseNumber, 'download_pdf_ipfs');
+
+            // Load CryptoJS if needed
+            await loadCryptoJS();
+
+            if (!window.CryptoJS) {
+                throw new Error('Failed to load decryption library');
+            }
+
+            // Fetch encrypted document from IPFS
+            const ipfsGateway = 'https://gateway.pinata.cloud/ipfs/';
+            const response = await fetch(`${ipfsGateway}${ipfsHash}`);
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch document from IPFS');
+            }
+
+            const encryptedData = await response.arrayBuffer();
+            console.log('Downloaded encrypted data, size:', encryptedData.byteLength);
+
+            // Convert to string for CryptoJS
+            const uint8Array = new Uint8Array(encryptedData);
+            let encryptedString = '';
+            for (let i = 0; i < uint8Array.length; i++) {
+                encryptedString += String.fromCharCode(uint8Array[i]);
+            }
+
+            // Decrypt using CryptoJS AES
+            const decrypted = CryptoJS.AES.decrypt(encryptedString, encryptionKey);
+
+            if (!decrypted || decrypted.sigBytes <= 0) {
+                throw new Error('Decryption failed - invalid encryption key');
+            }
+
+            // Convert WordArray to Uint8Array
+            const decryptedWords = decrypted.words;
+            const sigBytes = decrypted.sigBytes;
+            const decryptedArray = new Uint8Array(sigBytes);
+
+            for (let i = 0; i < sigBytes; i++) {
+                decryptedArray[i] = (decryptedWords[i >>> 2] >>> (24 - (i % 4) * 8)) & 0xff;
+            }
+
+            // Verify it's a PDF
+            const pdfHeader = new TextDecoder().decode(decryptedArray.slice(0, 5));
+            if (pdfHeader !== '%PDF-') {
+                console.warn('Decrypted content may not be a valid PDF, header:', pdfHeader);
+            }
+
+            // Create blob and download
+            const blob = new Blob([decryptedArray], { type: 'application/pdf' });
+            const downloadUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = `legal_document_case_${caseNumber}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(downloadUrl);
+
+            showAlert('Document downloaded successfully', 'success');
+        }
+
         // Show alert message
         function showAlert(message, type = 'info') {
             const alertDiv = document.createElement('div');

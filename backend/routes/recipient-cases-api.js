@@ -456,9 +456,175 @@ router.get('/:caseNumber/document', async (req, res) => {
         
     } catch (error) {
         console.error('Error fetching document:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: 'Failed to fetch document',
             success: false,
+            details: error.message
+        });
+    }
+});
+
+/**
+ * GET /api/recipient-cases/:caseNumber/download-pdf
+ * Download decrypted PDF for a specific case (for BlockServed recipients)
+ * Logs the download activity for audit trail
+ */
+router.get('/:caseNumber/download-pdf', async (req, res) => {
+    try {
+        const { caseNumber } = req.params;
+        const { recipientAddress } = req.query;
+
+        console.log(`PDF download request for case: ${caseNumber} by recipient: ${recipientAddress}`);
+
+        if (!recipientAddress) {
+            return res.status(400).json({
+                success: false,
+                error: 'Recipient address required'
+            });
+        }
+
+        // Get case data including encryption key
+        const query = `
+            SELECT
+                case_number,
+                ipfs_hash,
+                encryption_key,
+                recipients,
+                alert_token_id,
+                document_token_id
+            FROM case_service_records
+            WHERE case_number = $1
+        `;
+
+        const result = await pool.query(query, [caseNumber]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Case not found'
+            });
+        }
+
+        const caseData = result.rows[0];
+
+        // Verify recipient is authorized
+        let recipients = [];
+        try {
+            recipients = typeof caseData.recipients === 'string'
+                ? JSON.parse(caseData.recipients)
+                : caseData.recipients || [];
+        } catch (e) {
+            console.log('Could not parse recipients:', e.message);
+        }
+
+        if (!recipients.some(r => r.toLowerCase() === recipientAddress.toLowerCase())) {
+            return res.status(403).json({
+                success: false,
+                error: 'Not authorized to access this document'
+            });
+        }
+
+        // Log the download activity
+        try {
+            await pool.query(`
+                INSERT INTO recipient_document_actions (
+                    case_number,
+                    wallet_address,
+                    action_type,
+                    ip_address,
+                    user_agent,
+                    metadata
+                ) VALUES ($1, $2, 'download_pdf', $3, $4, $5)
+            `, [
+                caseNumber,
+                recipientAddress,
+                req.headers['x-forwarded-for'] || req.connection?.remoteAddress || 'unknown',
+                req.headers['user-agent'] || 'unknown',
+                JSON.stringify({ timestamp: new Date().toISOString() })
+            ]);
+        } catch (logError) {
+            console.log('Could not log download activity:', logError.message);
+        }
+
+        // Try to get PDF from document_storage table first
+        try {
+            const docStorageQuery = `
+                SELECT file_path, encrypted_data
+                FROM document_storage
+                WHERE notice_id = $1 OR case_number = $2
+                LIMIT 1
+            `;
+            const docResult = await pool.query(docStorageQuery, [caseData.alert_token_id, caseNumber]);
+
+            if (docResult.rows.length > 0) {
+                const doc = docResult.rows[0];
+
+                if (doc.file_path) {
+                    // File stored on disk
+                    const fs = require('fs').promises;
+                    const path = require('path');
+                    const filePath = path.join(__dirname, '..', doc.file_path);
+
+                    try {
+                        await fs.access(filePath);
+                        res.setHeader('Content-Type', 'application/pdf');
+                        res.setHeader('Content-Disposition', `attachment; filename="legal_document_${caseNumber}.pdf"`);
+                        return res.sendFile(filePath);
+                    } catch {
+                        console.log('File not found on disk:', filePath);
+                    }
+                }
+
+                if (doc.encrypted_data && caseData.encryption_key) {
+                    // Decrypt data stored in database
+                    const crypto = require('crypto');
+                    const IV_LENGTH = 16;
+                    const TAG_LENGTH = 16;
+
+                    const encryptedBuffer = Buffer.from(doc.encrypted_data);
+                    const iv = encryptedBuffer.slice(0, IV_LENGTH);
+                    const authTag = encryptedBuffer.slice(IV_LENGTH, IV_LENGTH + TAG_LENGTH);
+                    const encrypted = encryptedBuffer.slice(IV_LENGTH + TAG_LENGTH);
+                    const key = Buffer.from(caseData.encryption_key, 'hex');
+
+                    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+                    decipher.setAuthTag(authTag);
+
+                    const decrypted = Buffer.concat([
+                        decipher.update(encrypted),
+                        decipher.final()
+                    ]);
+
+                    res.setHeader('Content-Type', 'application/pdf');
+                    res.setHeader('Content-Disposition', `attachment; filename="legal_document_${caseNumber}.pdf"`);
+                    return res.send(decrypted);
+                }
+            }
+        } catch (storageError) {
+            console.log('Could not fetch from document_storage:', storageError.message);
+        }
+
+        // If IPFS hash available, return download info for client-side decryption
+        if (caseData.ipfs_hash && caseData.encryption_key) {
+            return res.json({
+                success: true,
+                method: 'ipfs',
+                ipfsHash: caseData.ipfs_hash,
+                encryptionKey: caseData.encryption_key,
+                ipfsGateway: 'https://gateway.pinata.cloud/ipfs/'
+            });
+        }
+
+        return res.status(404).json({
+            success: false,
+            error: 'PDF document not available for download'
+        });
+
+    } catch (error) {
+        console.error('Error downloading PDF:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to download PDF',
             details: error.message
         });
     }
