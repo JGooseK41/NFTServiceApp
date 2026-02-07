@@ -9,10 +9,10 @@ window.AppConfig = {
         },
         nile: {
             fullHost: 'https://nile.trongrid.io',
-            contractAddress: '', // Add if you have testnet contract
+            contractAddress: 'TUM1cojG7vdtph81H2Dy2VyRqoa1v9FywW', // Lite contract on Nile
             chainId: '0x8dd8f8'
         },
-        current: 'mainnet' // Change to 'nile' for testnet
+        current: 'nile' // Change to 'mainnet' for production
     },
     
     // Backend Configuration

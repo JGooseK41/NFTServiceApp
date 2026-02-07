@@ -1936,6 +1936,33 @@ window.app = {
         }
     },
 
+    // Switch wallet - prompts user to switch in TronLink
+    async switchWallet() {
+        // Show instructions to user
+        this.showInfo('Please switch your wallet in TronLink, then the page will refresh automatically.');
+
+        // Reset current connection state
+        this.state.walletConnected = false;
+        this.state.userAddress = null;
+
+        // Show connect button again
+        document.getElementById('connectWallet').style.display = 'block';
+        const dropdown = document.getElementById('walletDropdown');
+        if (dropdown) {
+            dropdown.style.display = 'none';
+        }
+
+        // Try to trigger TronLink account selection
+        if (window.tronLink) {
+            try {
+                // Request accounts again - this may prompt the user to select an account
+                await window.tronLink.request({ method: 'tron_requestAccounts' });
+            } catch (e) {
+                console.log('TronLink request during switch:', e);
+            }
+        }
+    },
+
     // Disconnect wallet
     disconnectWallet() {
         // Reset app state
