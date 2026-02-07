@@ -57,12 +57,14 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
         console.log('Chain:', chain || 'not specified');
         console.log('Has Alert Image:', !!alertImage);
 
-        // Ensure chain and explorer_url columns exist before we try to use them
+        // Ensure required columns exist before we try to use them (use pool, not client, to avoid transaction issues)
         try {
-            await client.query(`ALTER TABLE case_service_records ADD COLUMN IF NOT EXISTS chain VARCHAR(50) DEFAULT 'tron-mainnet'`);
-            await client.query(`ALTER TABLE case_service_records ADD COLUMN IF NOT EXISTS explorer_url TEXT`);
+            await pool.query(`ALTER TABLE case_service_records ADD COLUMN IF NOT EXISTS chain VARCHAR(50) DEFAULT 'tron-mainnet'`);
+            await pool.query(`ALTER TABLE case_service_records ADD COLUMN IF NOT EXISTS explorer_url TEXT`);
+            await pool.query(`ALTER TABLE case_service_records ADD COLUMN IF NOT EXISTS viewed_at TIMESTAMP`);
+            await pool.query(`ALTER TABLE case_service_records ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'served'`);
         } catch (e) {
-            console.log('Note: Could not add chain columns:', e.message);
+            console.log('Note: Could not add columns:', e.message);
         }
 
         await client.query('BEGIN');
