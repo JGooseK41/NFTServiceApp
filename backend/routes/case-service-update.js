@@ -1224,7 +1224,7 @@ router.get('/diagnose-service-complete', async (req, res) => {
             results.push({ step: 'select_from_cases', status: 'error', error: e.message });
         }
 
-        // Step 7: Test INSERT into cases with chain column
+        // Step 7: Test INSERT into cases with chain column (matches actual service-complete code)
         try {
             const testInsert = await client.query(`
                 INSERT INTO cases (
@@ -1236,16 +1236,15 @@ router.get('/diagnose-service-complete', async (req, res) => {
                     updated_at,
                     metadata
                 ) VALUES ($1, $2, $3, $4, NOW(), NOW(), $5)
-                ON CONFLICT (case_number) DO NOTHING
                 RETURNING id
             `, [
-                '__test_diagnostic__',
+                '__test_diagnostic_' + Date.now() + '__',
                 'TTestAddress',
                 'test',
                 'tron-nile',
                 '{}'
             ]);
-            results.push({ step: 'insert_into_cases', status: 'ok', inserted: testInsert.rows.length > 0 });
+            results.push({ step: 'insert_into_cases', status: 'ok', inserted: testInsert.rows.length > 0, id: testInsert.rows[0]?.id });
         } catch (e) {
             results.push({ step: 'insert_into_cases', status: 'error', error: e.message });
         }
