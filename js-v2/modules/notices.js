@@ -446,12 +446,14 @@ window.notices = {
             throw new Error('At least one recipient address is required');
         }
         
-        // Validate each recipient
+        // Validate each recipient (handle both string and {address, label} formats)
         for (const recipient of data.recipients) {
-            if (!window.wallet || !window.wallet.isValidAddress || !window.wallet.isValidAddress(recipient)) {
+            const address = typeof recipient === 'string' ? recipient : recipient.address;
+            const label = typeof recipient === 'object' && recipient.label ? ` (${recipient.label})` : '';
+            if (!window.wallet || !window.wallet.isValidAddress || !window.wallet.isValidAddress(address)) {
                 // Basic validation if wallet module not ready
-                if (!recipient.startsWith('T') || recipient.length !== 34) {
-                    throw new Error(`Invalid recipient address: ${recipient}`);
+                if (!address || !address.startsWith('T') || address.length !== 34) {
+                    throw new Error(`Invalid recipient address${label}: ${address || 'empty'}`);
                 }
             }
         }

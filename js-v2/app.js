@@ -753,11 +753,13 @@ window.app = {
             document.getElementById('previewResponseDeadline').textContent = this.pendingFormData.responseDeadline;
             document.getElementById('previewNoticeText').textContent = this.pendingFormData.noticeText;
             
-            // Populate recipients list
+            // Populate recipients list (handle {address, label} format)
             const recipientsList = document.getElementById('previewRecipients');
-            recipientsList.innerHTML = recipients.map((addr, idx) => 
-                `<li><small>${idx + 1}. ${addr}</small></li>`
-            ).join('');
+            recipientsList.innerHTML = recipients.map((r, idx) => {
+                const addr = typeof r === 'string' ? r : r.address;
+                const label = typeof r === 'object' && r.label ? `[${r.label}] ` : '';
+                return `<li><small>${idx + 1}. ${label}${addr}</small></li>`;
+            }).join('');
             
             // Populate document list
             const docList = document.getElementById('previewDocumentList');
