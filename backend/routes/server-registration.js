@@ -36,7 +36,7 @@ const handleServerRegistration = async (req, res) => {
             });
         }
         
-        // Ensure process_servers table exists
+        // Ensure process_servers table exists with all required columns
         try {
             await pool.query(`
                 CREATE TABLE IF NOT EXISTS process_servers (
@@ -57,6 +57,22 @@ const handleServerRegistration = async (req, res) => {
             `);
         } catch (tableErr) {
             console.log('Note: Could not create process_servers table:', tableErr.message);
+        }
+
+        // Add missing columns if table already exists with different schema
+        const alterStatements = [
+            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS server_id VARCHAR(255)',
+            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS server_name VARCHAR(255)',
+            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS physical_address TEXT'
+        ];
+
+        for (const stmt of alterStatements) {
+            try {
+                await pool.query(stmt);
+            } catch (alterErr) {
+                // Column already exists or other non-fatal error
+                console.log('Note: ALTER statement skipped:', alterErr.message);
+            }
         }
 
         client = await pool.connect();
