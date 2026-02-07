@@ -669,11 +669,13 @@
     <script>
         // Configuration
         const BACKEND_URL = 'https://nftserviceapp.onrender.com';
-        
+        const CONTRACT_ADDRESS = 'TUM1cojG7vdtph81H2Dy2VyRqoa1v9FywW';
+
         // State
         let tronWeb = null;
         let currentWallet = null;
         let currentNotice = null;
+        let contract = null;
 
         // Initialize on load
         document.addEventListener('DOMContentLoaded', function() {
@@ -973,21 +975,40 @@
             }
         }
 
-        // Sign notice
+        // Sign notice - records acknowledgment ON THE BLOCKCHAIN
         async function signNotice(notice) {
             if (!currentWallet) {
                 showAlert('Please connect your wallet first', 'error');
                 return;
             }
-            
+
+            if (!notice.alert_token_id) {
+                showAlert('Cannot sign: missing token ID', 'error');
+                return;
+            }
+
             try {
-                // Create signature message
-                const message = `I acknowledge receipt of legal notice for Case #${notice.case_number} served on ${new Date(notice.served_at).toISOString()}`;
-                
-                // Sign with TronLink
-                const signature = await tronWeb.trx.sign(tronWeb.toHex(message));
-                
-                // Send to backend
+                showAlert('Signing on blockchain... Please confirm in TronLink', 'info');
+
+                // Get contract instance
+                const contract = await tronWeb.contract().at(CONTRACT_ADDRESS);
+
+                // Call acknowledgeNotice on the blockchain
+                // This creates a permanent, immutable record
+                const alertId = parseInt(notice.alert_token_id);
+                console.log('Calling acknowledgeNotice for token:', alertId);
+
+                const tx = await contract.acknowledgeNotice(alertId).send({
+                    feeLimit: 100000000, // 100 TRX max fee
+                    callValue: 0
+                });
+
+                console.log('Blockchain transaction:', tx);
+                const txHash = tx;
+
+                showAlert('Blockchain signature recorded! Saving to database...', 'info');
+
+                // Also record in backend with the transaction hash
                 const timezone = getUserTimezone();
                 const response = await fetch(`${BACKEND_URL}/api/recipient-cases/${notice.case_number}/acknowledge`, {
                     method: 'POST',
@@ -997,24 +1018,33 @@
                     },
                     body: JSON.stringify({
                         wallet: currentWallet,
-                        signature: signature,
-                        timestamp: new Date().toISOString()
+                        signature: txHash,
+                        transactionHash: txHash,
+                        timestamp: new Date().toISOString(),
+                        onChain: true
                     })
                 });
-                
+
                 const data = await response.json();
-                
-                if (data.success) {
-                    showAlert('Document signed successfully!', 'success');
+
+                if (data.success || txHash) {
+                    showAlert(`Document signed on blockchain! TX: ${txHash.substring(0, 16)}...`, 'success');
                     // Reload notices to update status
                     loadNotices();
                     closeDocumentModal();
                 } else {
-                    showAlert('Failed to sign document. Please try again.', 'error');
+                    // Even if backend fails, blockchain record exists
+                    showAlert(`Signed on chain (TX: ${txHash.substring(0, 16)}...) but backend update failed`, 'warning');
                 }
             } catch (error) {
                 console.error('Error signing document:', error);
-                showAlert('Failed to sign document. Please try again.', 'error');
+                if (error.message?.includes('Already acknowledged')) {
+                    showAlert('This notice has already been signed on the blockchain.', 'info');
+                } else if (error.message?.includes('Not recipient')) {
+                    showAlert('Only the recipient can sign this notice.', 'error');
+                } else {
+                    showAlert('Failed to sign. ' + (error.message || 'Please try again.'), 'error');
+                }
             }
         }
 
