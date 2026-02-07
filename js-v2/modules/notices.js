@@ -52,10 +52,10 @@ window.notices = {
             console.log('Processing and consolidating PDFs...');
             
             // Process multiple PDFs into ONE consolidated document (shared by all recipients)
-            // IMPORTANT: Enable IPFS upload for permanent immutable storage
+            // Document stored encrypted on backend, only thumbnail goes to IPFS
             const documentData = await window.documents.processDocuments(data.documents, {
-                encrypt: true,           // ALWAYS encrypt for IPFS
-                useIPFS: true,          // ENABLE IPFS upload for immutable record
+                encrypt: true,           // Encrypt document for backend storage
+                useIPFS: true,          // Upload thumbnail to IPFS for NFT display
                 recipientAddress: data.recipients.join(', '), // All recipients
                 caseNumber: data.caseNumber,
                 agency: data.agency || data.issuingAgency,  // Pass agency for Alert NFT

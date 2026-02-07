@@ -76,14 +76,17 @@ window.documents = {
             // Step 3: Upload encrypted PDF to disk storage for fast retrieval
             const diskStorage = await this.uploadPDFToDisk(consolidatedPDF, options);
             
-            // Step 4: Also upload encrypted version to IPFS for permanent blockchain record
+            // Step 4: Encrypt document for backend storage (NOT uploaded to IPFS)
+            // Full document stays on backend only - only thumbnail goes to IPFS
             let ipfsHash = null;
             let encryptionKey = null;
-            
-            if (options.encrypt && options.useIPFS) {
+
+            if (options.encrypt) {
                 const encrypted = await this.encryptDocument(consolidatedPDF, options.recipientAddress);
-                ipfsHash = await this.uploadToIPFS(encrypted.data, options);
                 encryptionKey = encrypted.key;
+                // Document stays on backend (disk storage from Step 3)
+                // ipfsHash remains null - we don't upload full document to IPFS
+                console.log('Document encrypted for backend storage (not uploaded to IPFS)');
             }
             
             // Step 5: Skip storing document reference - Case Manager already handled this
