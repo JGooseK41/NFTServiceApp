@@ -16,13 +16,17 @@ The root directory is deployed to Netlify (`publish = "."`). These are the ONLY 
 - **`/backend/`** - Express server deployed to Render
 - **`/backend/routes/`** - API route handlers
 
-### DO NOT EDIT (deprecated/backup directories)
-- `/v2/` - Old version, NOT deployed
-- `/v2-deploy/` - Old version, NOT deployed
+### DELETED (removed to prevent confusion)
+- `/v2/` - DELETED
+- `/v2-deploy/` - DELETED
+- `/js-v2/js/` - DELETED (was orphaned duplicate of `/js-v2/modules/`)
+
+### Ignore (not deployed)
 - `/js-v2/index.html` - NOT used (root index.html is the production file)
 - `/v1-backup/` - Backup only
 
 **ALWAYS edit `/index.html` and `/js-v2/` files for frontend changes.**
+**NEVER create new directories like v3/ or copies of existing files.**
 
 ---
 
