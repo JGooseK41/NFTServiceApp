@@ -1360,6 +1360,16 @@ async function initializeDatabase() {
       ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS user_agent TEXT
     `).catch(() => {});
 
+    // Add accept_language column for language preferences
+    await pool.query(`
+      ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS accept_language TEXT
+    `).catch(() => {});
+
+    // Add timezone column (populated by frontend)
+    await pool.query(`
+      ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS timezone TEXT
+    `).catch(() => {});
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS process_servers (
         id SERIAL PRIMARY KEY,

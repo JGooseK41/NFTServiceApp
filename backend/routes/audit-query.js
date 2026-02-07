@@ -30,6 +30,8 @@ router.get('/recipient/:address', async (req, res) => {
                 details,
                 ip_address,
                 user_agent,
+                accept_language,
+                timezone,
                 created_at
             FROM audit_logs
             WHERE actor_address = $1
@@ -73,6 +75,8 @@ router.get('/recipient/:address', async (req, res) => {
                 targetId: row.target_id,
                 ipAddress: row.ip_address,
                 userAgent: row.user_agent,
+                language: row.accept_language,
+                timezone: row.timezone,
                 details: details,
                 // Human-readable action description
                 description: getActionDescription(row.action_type, row.target_id)
@@ -142,6 +146,8 @@ router.get('/case/:caseNumber', async (req, res) => {
                 details,
                 ip_address,
                 user_agent,
+                accept_language,
+                timezone,
                 created_at
             FROM audit_logs
             WHERE actor_address = ANY($1::text[])
@@ -163,6 +169,8 @@ router.get('/case/:caseNumber', async (req, res) => {
                 targetId: row.target_id,
                 ipAddress: row.ip_address,
                 userAgent: row.user_agent,
+                language: row.accept_language,
+                timezone: row.timezone,
                 details: details,
                 description: getActionDescription(row.action_type, row.target_id)
             };
@@ -227,6 +235,8 @@ router.get('/summary', async (req, res) => {
                 target_id,
                 ip_address,
                 user_agent,
+                accept_language,
+                timezone,
                 created_at
             FROM audit_logs
             ${dateFilter}

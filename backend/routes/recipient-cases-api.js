@@ -330,16 +330,20 @@ router.get('/wallet/:address', async (req, res) => {
             try {
                 const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress;
                 const userAgent = req.headers['user-agent'];
+                const acceptLanguage = req.headers['accept-language'];
+                const timezone = req.headers['x-timezone'] || req.query.timezone;
                 await pool.query(`
-                    INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent)
-                    VALUES ($1, $2, $3, $4, $5, $6)
+                    INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, accept_language, timezone)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 `, [
                     'recipient_notice_query',
                     address,
                     notices.map(n => n.case_number).join(','),
                     JSON.stringify({ notices_found: notices.length, case_numbers: notices.map(n => n.case_number) }),
                     ipAddress,
-                    userAgent
+                    userAgent,
+                    acceptLanguage,
+                    timezone
                 ]);
                 console.log(`✅ Logged audit event for ${address} querying ${notices.length} notices`);
             } catch (auditError) {
@@ -500,16 +504,20 @@ router.get('/:caseNumber/document', async (req, res) => {
         try {
             const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress;
             const userAgent = req.headers['user-agent'];
+            const acceptLanguage = req.headers['accept-language'];
+            const timezone = req.headers['x-timezone'] || req.query.timezone;
             await pool.query(`
-                INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent)
-                VALUES ($1, $2, $3, $4, $5, $6)
+                INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, accept_language, timezone)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             `, [
                 'recipient_document_view',
                 recipientAddress || 'anonymous',
                 caseNumber,
                 JSON.stringify({ alert_token_id: caseData.alert_token_id, document_token_id: caseData.document_token_id }),
                 ipAddress,
-                userAgent
+                userAgent,
+                acceptLanguage,
+                timezone
             ]);
             console.log(`✅ Logged document view for case ${caseNumber} by ${recipientAddress || 'anonymous'}`);
         } catch (auditError) {
@@ -609,17 +617,21 @@ router.get('/:caseNumber/download-pdf', async (req, res) => {
         // Log the download activity to audit_logs
         const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress || 'unknown';
         const userAgent = req.headers['user-agent'];
+        const acceptLanguage = req.headers['accept-language'];
+        const timezone = req.headers['x-timezone'] || req.query.timezone;
         try {
             await pool.query(`
-                INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent)
-                VALUES ($1, $2, $3, $4, $5, $6)
+                INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, accept_language, timezone)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             `, [
                 'recipient_document_download',
                 recipientAddress,
                 caseNumber,
                 JSON.stringify({ alert_token_id: caseData.alert_token_id, document_token_id: caseData.document_token_id }),
                 ipAddress,
-                userAgent
+                userAgent,
+                acceptLanguage,
+                timezone
             ]);
             console.log(`✅ Logged PDF download for case ${caseNumber} by ${recipientAddress}`);
         } catch (logError) {
