@@ -604,23 +604,30 @@ window.proofOfService = {
                 console.log('No alert image found in case data');
             }
             
-            // Add NFT details
+            // Add NFT details - check multiple field name variations
+            const txHash = caseData.transactionHash || caseData.transaction_hash || caseData.txHash || caseData.alertTxId || 'Not Available';
+            const tokenId = caseData.alertTokenId || caseData.alert_token_id || caseData.tokenId || 'N/A';
+            const servedAt = caseData.servedAt || caseData.served_at || caseData.createdAt || new Date().toISOString();
+            const caseNum = caseData.caseNumber || caseData.case_number || 'Unknown';
+            const agency = caseData.agency || caseData.issuingAgency || caseData.issuing_agency || 'The Block Audit';
+            const noticeType = caseData.noticeType || caseData.notice_type || 'Legal Notice';
+
             const detailsY = alertImage ? pageHeight - 450 : pageHeight - 150;
             const details = [
                 'NFT INFORMATION',
                 '---------------------------------------------------',
                 '',
-                `Token ID: #${caseData.alertTokenId || 'N/A'}`,
-                `Case Number: ${caseData.caseNumber}`,
-                `Service Date: ${new Date(caseData.servedAt).toLocaleString()}`,
-                `Issuing Agency: ${caseData.agency || 'The Block Audit'}`,
-                `Notice Type: ${caseData.noticeType || 'Legal Notice'}`,
+                `Token ID: #${tokenId}`,
+                `Case Number: ${caseNum}`,
+                `Service Date: ${new Date(servedAt).toLocaleString()}`,
+                `Issuing Agency: ${agency}`,
+                `Notice Type: ${noticeType}`,
                 '',
                 'BLOCKCHAIN VERIFICATION',
                 '---------------------------------------------------',
                 '',
                 `Transaction Hash:`,
-                `${caseData.transactionHash}`,
+                `${txHash}`,
                 '',
                 'INSTRUCTIONS FOR RECIPIENTS',
                 '---------------------------------------------------',
@@ -680,9 +687,9 @@ window.proofOfService = {
                 // Add stamp text centered
                 const lines = [
                     'DELIVERED via BlockServed™',
-                    `Date: ${new Date(caseData.servedAt).toLocaleDateString()} | Case: ${caseData.caseNumber}`,
+                    `Date: ${new Date(servedAt).toLocaleDateString()} | Case: ${caseNum}`,
                     `Transaction Hash:`,
-                    `${caseData.transactionHash || 'Not Available'}`
+                    `${txHash}`
                 ];
                 
                 // Calculate text positioning for centering
