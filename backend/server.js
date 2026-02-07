@@ -1354,7 +1354,12 @@ async function initializeDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    
+
+    // Add user_agent column if it doesn't exist
+    await pool.query(`
+      ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS user_agent TEXT
+    `).catch(() => {});
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS process_servers (
         id SERIAL PRIMARY KEY,
