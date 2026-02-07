@@ -325,8 +325,8 @@ router.get('/cases/:caseNumber/service-data', async (req, res) => {
                 ni.alert_image,
                 ni.document_preview
             FROM cases c
-            LEFT JOIN case_service_records csr ON c.case_number = csr.case_number
-            LEFT JOIN notice_images ni ON c.case_number = ni.case_number
+            LEFT JOIN case_service_records csr ON (c.case_number = csr.case_number OR c.id::text = csr.case_number)
+            LEFT JOIN notice_images ni ON (c.case_number = ni.case_number OR c.id::text = ni.case_number)
             WHERE c.case_number = $1 OR c.id = $1
         `, [caseNumber]);
 
