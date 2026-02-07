@@ -413,7 +413,7 @@ router.post('/signature-event', async (req, res) => {
                 INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, timezone)
                 VALUES ($1, $2, $3, $4, $5, $6, $7)
             `, [
-                `signature_${event_type}`,
+                event_type,
                 wallet_address,
                 case_number,
                 JSON.stringify({
