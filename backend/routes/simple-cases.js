@@ -38,107 +38,117 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
         // Get a client from the pool
         client = await pool.connect();
         
-        // Query to get cases from both served_notices and cases tables
+        // Query to get cases from cases table with case_service_records for recipient details
+        // Primary source: cases table + case_service_records
+        // Fallback: served_notices for backwards compatibility
         const query = `
-            -- Get cases from served_notices table
-            SELECT 
-                case_number,
-                server_address,
-                recipient_address,
-                recipient_name,
-                notice_type,
-                issuing_agency,
-                created_at,
-                notice_id,
-                alert_id,
-                document_id,
-                accepted,
-                'served' as source
-            FROM served_notices
-            WHERE LOWER(server_address) = LOWER($1)
-                AND case_number IS NOT NULL
-                AND case_number != ''
-            
-            UNION ALL
-            
-            -- Get draft cases from cases table that aren't in served_notices
+            -- Get all cases from cases table with their service records
             SELECT
                 c.id::text as case_number,
                 c.server_address,
-                NULL as recipient_address,
-                NULL as recipient_name,
-                COALESCE((c.metadata->>'noticeType')::text, 'Legal Notice') as notice_type,
-                COALESCE((c.metadata->>'issuingAgency')::text, 'The Block Audit') as issuing_agency,
+                c.status as case_status,
+                csr.recipient_address,
+                csr.recipient_name,
+                COALESCE(csr.notice_type, c.metadata->>'noticeType', 'Legal Notice') as notice_type,
+                COALESCE(c.metadata->>'issuingAgency', 'The Block Audit') as issuing_agency,
                 c.created_at,
-                NULL as notice_id,
-                NULL as alert_id,
+                csr.token_id as alert_id,
                 NULL as document_id,
+                csr.transaction_hash,
                 false as accepted,
-                'draft' as source
+                CASE WHEN c.status = 'served' THEN 'served' ELSE 'draft' END as source
             FROM cases c
+            LEFT JOIN case_service_records csr ON c.id = csr.case_id
             WHERE LOWER(c.server_address) = LOWER($1)
-                AND c.status = 'draft'
+
+            UNION ALL
+
+            -- Fallback: Get cases from served_notices that aren't in cases table
+            SELECT
+                sn.case_number,
+                sn.server_address,
+                'served' as case_status,
+                sn.recipient_address,
+                sn.recipient_name,
+                sn.notice_type,
+                sn.issuing_agency,
+                sn.created_at,
+                sn.alert_id,
+                sn.document_id,
+                NULL as transaction_hash,
+                sn.accepted,
+                'served' as source
+            FROM served_notices sn
+            WHERE LOWER(sn.server_address) = LOWER($1)
+                AND sn.case_number IS NOT NULL
+                AND sn.case_number != ''
                 AND NOT EXISTS (
-                    SELECT 1 FROM served_notices sn 
-                    WHERE sn.case_number = c.id 
-                    AND LOWER(sn.server_address) = LOWER($1)
+                    SELECT 1 FROM cases c
+                    WHERE c.id::text = sn.case_number
                 )
-            
+
             ORDER BY created_at DESC
         `;
         
         const result = await client.query(query, [serverAddress]);
         
-        // Group by case number and pair Alert+Document notices per recipient
+        // Group by case number and aggregate recipient data
         const caseMap = new Map();
-        const recipientNotices = new Map(); // Track notices by recipient to pair Alert+Document
-        
+
         for (const row of result.rows) {
             const caseNumber = row.case_number;
-            
+
             if (!caseMap.has(caseNumber)) {
                 caseMap.set(caseNumber, {
                     caseNumber: caseNumber,
                     serverAddress: row.server_address,
+                    status: row.case_status || row.source, // Use case_status from cases table
                     noticeType: row.notice_type,
                     issuingAgency: row.issuing_agency || 'The Block Audit',
                     createdAt: row.created_at,
+                    transactionHash: row.transaction_hash,
                     recipients: new Map() // Use Map to group by recipient
                 });
             }
-            
+
             const caseData = caseMap.get(caseNumber);
-            const recipientKey = `${caseNumber}_${row.recipient_address}`;
-            
-            // Check if we already have a notice for this recipient in this case
-            if (!caseData.recipients.has(row.recipient_address)) {
-                // Create a new service event for this recipient
-                caseData.recipients.set(row.recipient_address, {
-                    recipientAddress: row.recipient_address,
-                    recipientName: row.recipient_name,
-                    alertId: row.alert_id,
-                    documentId: row.document_id,
-                    pageCount: 1, // Default to 1 since page_count is in notice_components
-                    documentStatus: row.accepted ? 'SIGNED' : 'AWAITING_SIGNATURE',
-                    isPaired: !!(row.alert_id && row.document_id) // Set isPaired if both IDs exist
-                });
-            } else {
-                // This recipient already has a notice, merge Alert and Document IDs
-                const existing = caseData.recipients.get(row.recipient_address);
-                if (row.alert_id && !existing.alertId) {
-                    existing.alertId = row.alert_id;
-                }
-                if (row.document_id && !existing.documentId) {
-                    existing.documentId = row.document_id;
-                    existing.pageCount = row.page_count || existing.pageCount;
-                }
-                // Mark as paired if we have both Alert and Document
-                if (existing.alertId && existing.documentId) {
-                    existing.isPaired = true;
-                }
-                // Update status if newer notice is accepted
-                if (row.accepted) {
-                    existing.documentStatus = 'SIGNED';
+
+            // Update transaction hash if not set but row has one
+            if (!caseData.transactionHash && row.transaction_hash) {
+                caseData.transactionHash = row.transaction_hash;
+            }
+
+            // Only add recipient if we have recipient data
+            if (row.recipient_address) {
+                if (!caseData.recipients.has(row.recipient_address)) {
+                    // Create a new service event for this recipient
+                    caseData.recipients.set(row.recipient_address, {
+                        recipientAddress: row.recipient_address,
+                        recipientName: row.recipient_name,
+                        alertId: row.alert_id,
+                        documentId: row.document_id,
+                        pageCount: 1, // Default to 1 since page_count is in notice_components
+                        documentStatus: row.accepted ? 'SIGNED' : 'AWAITING_SIGNATURE',
+                        isPaired: !!(row.alert_id && row.document_id) // Set isPaired if both IDs exist
+                    });
+                } else {
+                    // This recipient already has a notice, merge Alert and Document IDs
+                    const existing = caseData.recipients.get(row.recipient_address);
+                    if (row.alert_id && !existing.alertId) {
+                        existing.alertId = row.alert_id;
+                    }
+                    if (row.document_id && !existing.documentId) {
+                        existing.documentId = row.document_id;
+                        existing.pageCount = row.page_count || existing.pageCount;
+                    }
+                    // Mark as paired if we have both Alert and Document
+                    if (existing.alertId && existing.documentId) {
+                        existing.isPaired = true;
+                    }
+                    // Update status if newer notice is accepted
+                    if (row.accepted) {
+                        existing.documentStatus = 'SIGNED';
+                    }
                 }
             }
         }
@@ -148,14 +158,22 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
             // Convert recipients Map to array
             const recipientsArray = Array.from(caseData.recipients.values());
             const totalAccepted = recipientsArray.filter(r => r.documentStatus === 'SIGNED').length;
-            
+            const isServed = caseData.status === 'served';
+
             return {
-                ...caseData,
+                caseNumber: caseData.caseNumber,
+                serverAddress: caseData.serverAddress,
+                status: caseData.status, // Include case status (draft/served)
+                noticeType: caseData.noticeType,
+                issuingAgency: caseData.issuingAgency,
+                createdAt: caseData.createdAt,
+                transactionHash: caseData.transactionHash, // Include transaction hash
                 recipients: recipientsArray, // Convert Map back to array
                 recipientCount: recipientsArray.length, // Count unique recipients (service events)
                 totalAccepted: totalAccepted,
-                allSigned: totalAccepted === recipientsArray.length,
+                allSigned: totalAccepted === recipientsArray.length && recipientsArray.length > 0,
                 partialSigned: totalAccepted > 0 && totalAccepted < recipientsArray.length,
+                isServed: isServed, // Explicit served flag
                 totalViews: 0,
                 // Include a count of actual individual notices for debugging
                 totalNotices: recipientsArray.reduce((count, r) => {
