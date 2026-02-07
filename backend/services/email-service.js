@@ -7,8 +7,8 @@ const sgMail = require('@sendgrid/mail');
 
 // Initialize SendGrid with API key
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@theblockservice.com';
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@theblockservice.com';
+const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@theblockaudit.com';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@theblockaudit.com';
 
 if (SENDGRID_API_KEY) {
     sgMail.setApiKey(SENDGRID_API_KEY);
@@ -119,7 +119,7 @@ async function notifyNewServerRegistration(serverData) {
             </div>
 
             <div style="padding: 20px; text-align: center; color: #999; font-size: 12px;">
-                <p>TheBlockService - Blockchain Legal Service Platform</p>
+                <p>TheBlockService - A Product of The Block Audit LLC</p>
             </div>
         </div>
     `;
@@ -184,7 +184,7 @@ async function sendServerWelcomeEmail(serverData) {
             </div>
 
             <div style="padding: 20px; text-align: center; color: #999; font-size: 12px;">
-                <p>TheBlockService - Blockchain Legal Service Platform</p>
+                <p>TheBlockService - A Product of The Block Audit LLC</p>
                 <p>This is an automated message. Please do not reply directly to this email.</p>
             </div>
         </div>
@@ -246,7 +246,7 @@ async function notifyServerApproved(serverData) {
             </div>
 
             <div style="padding: 20px; text-align: center; color: #999; font-size: 12px;">
-                <p>TheBlockService - Blockchain Legal Service Platform</p>
+                <p>TheBlockService - A Product of The Block Audit LLC</p>
             </div>
         </div>
     `;
