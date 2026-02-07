@@ -9,124 +9,165 @@ const pool = new Pool({
 });
 
 /**
- * Register or update a process server after blockchain registration
- * Supports both /api/server/register (singular) and /api/servers/register (plural)
+ * Ensure process_servers table exists with all required columns
+ */
+async function ensureTableExists() {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS process_servers (
+                id SERIAL PRIMARY KEY,
+                wallet_address VARCHAR(255) UNIQUE NOT NULL,
+                agency_name VARCHAR(255) NOT NULL,
+                contact_email VARCHAR(255) NOT NULL,
+                phone_number VARCHAR(50) NOT NULL,
+                server_name VARCHAR(255),
+                physical_address TEXT,
+                website VARCHAR(255),
+                license_number VARCHAR(100),
+                status VARCHAR(50) DEFAULT 'approved',
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            )
+        `);
+    } catch (tableErr) {
+        console.log('Note: Could not create process_servers table:', tableErr.message);
+    }
+
+    // Add potentially missing columns if table already exists
+    const alterStatements = [
+        'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS agency_name VARCHAR(255)',
+        'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255)',
+        'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS phone_number VARCHAR(50)',
+        'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS server_name VARCHAR(255)',
+        'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS physical_address TEXT',
+        'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS website VARCHAR(255)',
+        'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS license_number VARCHAR(100)',
+        'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT \'approved\'',
+        'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()',
+        'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()'
+    ];
+
+    for (const stmt of alterStatements) {
+        try {
+            await pool.query(stmt);
+        } catch (alterErr) {
+            // Column already exists or other non-fatal error
+        }
+    }
+}
+
+// Run table check on module load
+ensureTableExists();
+
+/**
+ * POST /api/server/register
+ * Register a NEW process server (first-time only)
+ *
+ * Required fields:
+ * - wallet_address: TRON wallet address (becomes permanent server ID)
+ * - agency_name: Agency name (PERMANENT - cannot be changed after registration)
+ * - contact_email: Admin contact email (can be updated later)
+ * - phone_number: Admin contact phone (can be updated later)
+ *
+ * Optional fields:
+ * - server_name, physical_address, website, license_number
  */
 const handleServerRegistration = async (req, res) => {
     let client;
-    
+
     try {
         const {
-            server_id,
             wallet_address,
-            server_name,
             agency_name,
-            physical_address,
-            phone_number,
             contact_email,
+            phone_number,
+            server_name,
+            physical_address,
             website,
             license_number
         } = req.body;
-        
+
         // Validate required fields
-        if (!wallet_address || !server_id) {
+        const missingFields = [];
+        if (!wallet_address) missingFields.push('wallet_address');
+        if (!agency_name) missingFields.push('agency_name');
+        if (!contact_email) missingFields.push('contact_email');
+        if (!phone_number) missingFields.push('phone_number');
+
+        if (missingFields.length > 0) {
             return res.status(400).json({
                 success: false,
-                error: 'wallet_address and server_id are required'
+                error: `Missing required fields: ${missingFields.join(', ')}`,
+                required_fields: ['wallet_address', 'agency_name', 'contact_email', 'phone_number']
             });
         }
-        
-        // Ensure process_servers table exists with all required columns
-        try {
-            await pool.query(`
-                CREATE TABLE IF NOT EXISTS process_servers (
-                    id SERIAL PRIMARY KEY,
-                    server_id VARCHAR(255),
-                    wallet_address VARCHAR(255) UNIQUE NOT NULL,
-                    server_name VARCHAR(255),
-                    agency_name VARCHAR(255),
-                    physical_address TEXT,
-                    phone_number VARCHAR(50),
-                    contact_email VARCHAR(255),
-                    website VARCHAR(255),
-                    license_number VARCHAR(100),
-                    status VARCHAR(50) DEFAULT 'pending',
-                    created_at TIMESTAMP DEFAULT NOW(),
-                    updated_at TIMESTAMP DEFAULT NOW()
-                )
-            `);
-        } catch (tableErr) {
-            console.log('Note: Could not create process_servers table:', tableErr.message);
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(contact_email)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid email format'
+            });
         }
 
-        // Add all potentially missing columns if table already exists with different schema
-        const alterStatements = [
-            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS server_id VARCHAR(255)',
-            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS server_name VARCHAR(255)',
-            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS physical_address TEXT',
-            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS phone_number VARCHAR(50)',
-            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255)',
-            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS website VARCHAR(255)',
-            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS license_number VARCHAR(100)',
-            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS agency_name VARCHAR(255)',
-            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT \'pending\'',
-            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()',
-            'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()'
-        ];
-
-        for (const stmt of alterStatements) {
-            try {
-                await pool.query(stmt);
-            } catch (alterErr) {
-                // Column already exists or other non-fatal error
-                console.log('Note: ALTER statement skipped:', alterErr.message);
-            }
+        // Validate phone number (basic check - at least 10 digits)
+        const phoneDigits = phone_number.replace(/\D/g, '');
+        if (phoneDigits.length < 10) {
+            return res.status(400).json({
+                success: false,
+                error: 'Phone number must have at least 10 digits'
+            });
         }
 
         client = await pool.connect();
 
-        // Upsert the process server record
+        // Check if wallet is already registered
+        const existingCheck = await client.query(
+            'SELECT wallet_address, agency_name FROM process_servers WHERE LOWER(wallet_address) = LOWER($1)',
+            [wallet_address]
+        );
+
+        if (existingCheck.rows.length > 0) {
+            return res.status(409).json({
+                success: false,
+                error: 'This wallet address is already registered',
+                existing_agency: existingCheck.rows[0].agency_name,
+                message: 'Use PUT /api/server/contact to update contact information'
+            });
+        }
+
+        // Insert new server registration (agency_name is permanent)
         const query = `
             INSERT INTO process_servers (
-                server_id,
                 wallet_address,
-                server_name,
                 agency_name,
-                physical_address,
-                phone_number,
                 contact_email,
+                phone_number,
+                server_name,
+                physical_address,
                 website,
                 license_number,
-                status
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'approved')
-            ON CONFLICT (wallet_address) DO UPDATE SET
-                server_id = EXCLUDED.server_id,
-                server_name = EXCLUDED.server_name,
-                agency_name = EXCLUDED.agency_name,
-                physical_address = EXCLUDED.physical_address,
-                phone_number = EXCLUDED.phone_number,
-                contact_email = EXCLUDED.contact_email,
-                website = EXCLUDED.website,
-                license_number = EXCLUDED.license_number,
-                updated_at = NOW()
+                status,
+                created_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'approved', NOW())
             RETURNING *
         `;
-        
+
         const values = [
-            server_id,
             wallet_address.toLowerCase(),
-            server_name || `Server #${server_id}`,
-            agency_name || 'Independent Process Server',
-            physical_address || '',
-            phone_number || '',
-            contact_email || '',
-            website || '',
-            license_number || ''
+            agency_name.trim(),
+            contact_email.trim().toLowerCase(),
+            phone_number.trim(),
+            server_name || null,
+            physical_address || null,
+            website || null,
+            license_number || null
         ];
-        
+
         const result = await client.query(query, values);
 
-        // Log the registration in audit_logs (non-fatal if it fails)
+        // Log the registration in audit_logs
         try {
             await client.query(`
                 INSERT INTO audit_logs (
@@ -142,10 +183,10 @@ const handleServerRegistration = async (req, res) => {
                 )
             `, [
                 wallet_address,
-                server_id.toString(),
+                wallet_address,
                 JSON.stringify({
-                    server_name,
                     agency_name,
+                    contact_email,
                     timestamp: new Date().toISOString()
                 })
             ]);
@@ -153,19 +194,18 @@ const handleServerRegistration = async (req, res) => {
             console.log('Note: Could not log to audit_logs:', auditError.message);
         }
 
-        res.json({
+        res.status(201).json({
             success: true,
             server: result.rows[0],
-            message: 'Process server registered successfully'
+            message: 'Process server registered successfully. Agency name is now permanently linked to this wallet.'
         });
-        
+
     } catch (error) {
         console.error('Error registering process server:', error);
         res.status(500).json({
             success: false,
             error: 'Failed to register process server',
-            details: error.message,
-            code: error.code
+            details: error.message
         });
     } finally {
         if (client) {
@@ -174,45 +214,184 @@ const handleServerRegistration = async (req, res) => {
     }
 };
 
-// Register all route variations (different frontends use different paths)
-router.post('/api/server/register', handleServerRegistration);
-router.post('/api/servers/register', handleServerRegistration);
-router.post('/api/registerServer', handleServerRegistration);  // camelCase version used by some frontends
+/**
+ * PUT /api/server/contact
+ * Update server contact information (NOT agency name)
+ *
+ * Agency name cannot be changed - it is permanently linked to the wallet
+ */
+router.put('/api/server/contact', async (req, res) => {
+    let client;
+
+    try {
+        const {
+            wallet_address,
+            contact_email,
+            phone_number,
+            server_name,
+            physical_address,
+            website,
+            license_number
+        } = req.body;
+
+        if (!wallet_address) {
+            return res.status(400).json({
+                success: false,
+                error: 'wallet_address is required'
+            });
+        }
+
+        // At least one field to update
+        if (!contact_email && !phone_number && !server_name && !physical_address && !website && !license_number) {
+            return res.status(400).json({
+                success: false,
+                error: 'At least one field to update is required'
+            });
+        }
+
+        // Validate email if provided
+        if (contact_email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(contact_email)) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Invalid email format'
+                });
+            }
+        }
+
+        // Validate phone if provided
+        if (phone_number) {
+            const phoneDigits = phone_number.replace(/\D/g, '');
+            if (phoneDigits.length < 10) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Phone number must have at least 10 digits'
+                });
+            }
+        }
+
+        client = await pool.connect();
+
+        // Check if server exists
+        const existingCheck = await client.query(
+            'SELECT * FROM process_servers WHERE LOWER(wallet_address) = LOWER($1)',
+            [wallet_address]
+        );
+
+        if (existingCheck.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'Server not found. Please register first.'
+            });
+        }
+
+        // Build update query dynamically
+        const updates = [];
+        const values = [];
+        let paramCount = 1;
+
+        if (contact_email) {
+            updates.push(`contact_email = $${paramCount++}`);
+            values.push(contact_email.trim().toLowerCase());
+        }
+        if (phone_number) {
+            updates.push(`phone_number = $${paramCount++}`);
+            values.push(phone_number.trim());
+        }
+        if (server_name !== undefined) {
+            updates.push(`server_name = $${paramCount++}`);
+            values.push(server_name);
+        }
+        if (physical_address !== undefined) {
+            updates.push(`physical_address = $${paramCount++}`);
+            values.push(physical_address);
+        }
+        if (website !== undefined) {
+            updates.push(`website = $${paramCount++}`);
+            values.push(website);
+        }
+        if (license_number !== undefined) {
+            updates.push(`license_number = $${paramCount++}`);
+            values.push(license_number);
+        }
+
+        updates.push(`updated_at = NOW()`);
+        values.push(wallet_address);
+
+        const query = `
+            UPDATE process_servers
+            SET ${updates.join(', ')}
+            WHERE LOWER(wallet_address) = LOWER($${paramCount})
+            RETURNING *
+        `;
+
+        const result = await client.query(query, values);
+
+        res.json({
+            success: true,
+            server: result.rows[0],
+            message: 'Contact information updated successfully'
+        });
+
+    } catch (error) {
+        console.error('Error updating server contact:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to update contact information',
+            details: error.message
+        });
+    } finally {
+        if (client) {
+            client.release();
+        }
+    }
+});
 
 /**
- * Get process server details by wallet address or server ID
+ * GET /api/servers/:identifier
+ * Get process server details by wallet address
  */
 router.get('/api/servers/:identifier', async (req, res) => {
     let client;
-    
+
     try {
         const { identifier } = req.params;
-        
+
         client = await pool.connect();
-        
-        // Check if identifier is a number (server_id) or address
-        const isServerId = !isNaN(identifier);
-        
-        const query = isServerId ? `
-            SELECT * FROM process_servers WHERE server_id = $1
-        ` : `
-            SELECT * FROM process_servers WHERE LOWER(wallet_address) = LOWER($1)
+
+        const query = `
+            SELECT
+                wallet_address,
+                agency_name,
+                contact_email,
+                phone_number,
+                server_name,
+                physical_address,
+                website,
+                license_number,
+                status,
+                created_at,
+                updated_at
+            FROM process_servers
+            WHERE LOWER(wallet_address) = LOWER($1)
         `;
-        
+
         const result = await client.query(query, [identifier]);
-        
+
         if (result.rows.length === 0) {
             return res.status(404).json({
                 success: false,
-                error: 'Process server not found'
+                error: 'Process server not found',
+                message: 'This wallet is not registered. Use POST /api/server/register to register.'
             });
         }
-        
+
         res.json({
             success: true,
             server: result.rows[0]
         });
-        
+
     } catch (error) {
         console.error('Error fetching process server:', error);
         res.status(500).json({
@@ -225,5 +404,43 @@ router.get('/api/servers/:identifier', async (req, res) => {
         }
     }
 });
+
+/**
+ * GET /api/server/check/:walletAddress
+ * Quick check if a wallet is registered (for frontend validation)
+ */
+router.get('/api/server/check/:walletAddress', async (req, res) => {
+    try {
+        const { walletAddress } = req.params;
+
+        const result = await pool.query(
+            'SELECT wallet_address, agency_name FROM process_servers WHERE LOWER(wallet_address) = LOWER($1)',
+            [walletAddress]
+        );
+
+        if (result.rows.length === 0) {
+            return res.json({
+                registered: false,
+                message: 'Wallet not registered'
+            });
+        }
+
+        res.json({
+            registered: true,
+            agency_name: result.rows[0].agency_name
+        });
+
+    } catch (error) {
+        console.error('Error checking server registration:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to check registration'
+        });
+    }
+});
+
+// Register route handlers
+router.post('/api/server/register', handleServerRegistration);
+router.post('/api/servers/register', handleServerRegistration);
 
 module.exports = router;

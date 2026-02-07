@@ -164,13 +164,14 @@
 
                                     <!-- Metadata Section -->
                                     <h6 class="mb-3 text-muted">Legal Notice Metadata</h6>
-                                    
-                                    <!-- Issuing Agency -->
+
+                                    <!-- Issuing Agency (Auto-filled from registration, read-only) -->
                                     <div class="row mb-3">
                                         <div class="col-md-6">
                                             <label class="form-label">Issuing Agency/Law Firm</label>
-                                            <input type="text" id="issuingAgency" class="form-control" 
-                                                   placeholder="Smith & Associates Law Firm" required>
+                                            <input type="text" id="issuingAgency" class="form-control"
+                                                   placeholder="Loading from registration..." readonly required>
+                                            <small class="text-muted">Auto-filled from your server registration</small>
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label">Notice Type</label>
@@ -216,14 +217,31 @@
                                     <div class="row mb-3">
                                         <div class="col-md-6">
                                             <label class="form-label">Case Number</label>
-                                            <input type="text" id="caseNumber" class="form-control" 
+                                            <input type="text" id="caseNumber" class="form-control"
                                                    placeholder="2024-CV-001" required>
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label">Response Deadline (Days)</label>
-                                            <input type="number" id="responseDeadline" class="form-control" 
+                                            <input type="number" id="responseDeadline" class="form-control"
                                                    placeholder="30" value="30" min="1" max="365" required>
                                             <small class="text-muted">Days from delivery to respond</small>
+                                        </div>
+                                    </div>
+
+                                    <!-- Case-Specific Contact Info (for recipient) -->
+                                    <h6 class="mb-3 text-muted">Recipient Contact Information</h6>
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Contact Email (for this case)</label>
+                                            <input type="email" id="noticeEmail" class="form-control"
+                                                   placeholder="contact@lawfirm.com" required>
+                                            <small class="text-muted">Recipient will see this email for inquiries</small>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Contact Phone (for this case)</label>
+                                            <input type="tel" id="noticePhone" class="form-control"
+                                                   placeholder="(555) 123-4567" required>
+                                            <small class="text-muted">Recipient will see this phone number</small>
                                         </div>
                                     </div>
                                     
@@ -763,6 +781,68 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     <button type="button" class="btn btn-primary" id="rentEnergyBtn" style="display: none;" onclick="app.openEnergyRental()">
                         <i class="bi bi-lightning-charge"></i> Rent Energy
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Server Registration Modal (First-time users) -->
+    <div class="modal fade" id="serverRegistrationModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-person-badge"></i> Server Registration Required
+                    </h5>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <strong>First-time setup:</strong> Please register your agency details.
+                        Your agency name will be permanently linked to this wallet.
+                    </div>
+                    <form id="serverRegistrationForm">
+                        <div class="mb-3">
+                            <label class="form-label">Wallet Address</label>
+                            <input type="text" id="regWalletAddress" class="form-control" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Agency/Law Firm Name <span class="text-danger">*</span></label>
+                            <input type="text" id="regAgencyName" class="form-control"
+                                   placeholder="Smith & Associates Law Firm" required>
+                            <small class="text-warning"><i class="bi bi-exclamation-triangle"></i> This cannot be changed after registration</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Admin Contact Email <span class="text-danger">*</span></label>
+                            <input type="email" id="regContactEmail" class="form-control"
+                                   placeholder="admin@lawfirm.com" required>
+                            <small class="text-muted">For system notifications and support</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Admin Contact Phone <span class="text-danger">*</span></label>
+                            <input type="tel" id="regPhoneNumber" class="form-control"
+                                   placeholder="(555) 123-4567" required>
+                            <small class="text-muted">For urgent support matters</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Website (Optional)</label>
+                            <input type="url" id="regWebsite" class="form-control"
+                                   placeholder="https://www.lawfirm.com">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">License Number (Optional)</label>
+                            <input type="text" id="regLicenseNumber" class="form-control"
+                                   placeholder="BAR-12345">
+                        </div>
+                    </form>
+                    <div id="registrationError" class="alert alert-danger" style="display: none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="app.disconnectWallet()">
+                        Cancel & Disconnect
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="app.submitServerRegistration()">
+                        <i class="bi bi-check-lg"></i> Register Agency
                     </button>
                 </div>
             </div>

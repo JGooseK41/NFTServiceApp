@@ -466,8 +466,10 @@ window.contract = {
                             `the required timeframe may result in default judgments or other legal consequences.\n\n` +
                             `📄 NOTICE PREVIEW:\n${data.noticeText ? data.noticeText.substring(0, 200) : 'Legal Notice'}...\n\n` +
                             `👥 SERVED TO: ${data.recipients.length} recipient(s)\n` +
-                            `🏛️ ISSUING AGENCY: ${data.agency || 'Legal Services'}\n\n` +
-                            `✅ This NFT serves as immutable proof of service on the blockchain.`,
+                            `🏛️ ISSUING AGENCY: ${data.agency || 'Legal Services'}\n` +
+                            (data.noticeEmail ? `📧 CONTACT: ${data.noticeEmail}\n` : '') +
+                            (data.noticePhone ? `📞 PHONE: ${data.noticePhone}\n` : '') +
+                            `\n✅ This NFT serves as immutable proof of service on the blockchain.`,
                 image: imageData,  // Direct URL that wallets can fetch
                 external_url: `https://blockserved.com?case=${encodeURIComponent(data.caseNumber || data.noticeId)}`,
                 animation_url: data.ipfsHash ? `https://gateway.pinata.cloud/ipfs/${data.ipfsHash}` : null, // Link to encrypted document
@@ -477,6 +479,8 @@ window.contract = {
                     { trait_type: "Notice Type", value: data.noticeType || "Legal Notice" },
                     { trait_type: "Status", value: "Delivered" },
                     { trait_type: "Agency", value: data.agency || "Legal Services" },
+                    { trait_type: "Contact Email", value: data.noticeEmail || "" },
+                    { trait_type: "Contact Phone", value: data.noticePhone || "" },
                     { trait_type: "Service Date", value: new Date().toLocaleDateString() },
                     { trait_type: "Access Portal", value: "www.BlockServed.com" },
                     { trait_type: "Blockchain", value: "TRON" }
@@ -484,6 +488,8 @@ window.contract = {
                 properties: {
                     category: "legal",
                     issuing_agency: data.agency || "Legal Services",
+                    contact_email: data.noticeEmail || null,
+                    contact_phone: data.noticePhone || null,
                     encrypted: data.encrypted ? "true" : "false",
                     ipfs_document: data.ipfsHash || null,
                     server_id: data.serverId || null
@@ -514,11 +520,15 @@ window.contract = {
                         caseNumber: data.caseNumber,
                         issuingAgency: data.agency || 'Legal Services',
                         noticeType: data.noticeType || 'Legal Notice',
-                        
+
+                        // Case-specific contact information (for recipient inquiries)
+                        contactEmail: data.noticeEmail || null,
+                        contactPhone: data.noticePhone || null,
+
                         // Full notice details (not limited)
                         noticeText: data.noticeText,
                         caseDetails: data.caseDetails || data.noticeText,
-                        
+
                         // Legal rights and instructions
                         legalRights: 'View full document at www.BlockServed.com for info on your rights and next steps',
                         portalUrl: 'https://www.BlockServed.com',

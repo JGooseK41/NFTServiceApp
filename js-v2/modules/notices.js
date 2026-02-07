@@ -115,6 +115,8 @@ window.notices = {
                     pageCount: documentData.pageCount || 1,
                     deadline: data.deadline || '',
                     agency: data.issuingAgency || data.agency || 'Legal Services',  // From form
+                    noticeEmail: data.noticeEmail || '',  // Case-specific contact email
+                    noticePhone: data.noticePhone || '',  // Case-specific contact phone
                     legalRights: 'View full document at www.BlockServed.com for info on your rights and next steps',  // Hardcoded
                     sponsorFees: false,
                     caseDetails: data.caseDetails || data.noticeText
@@ -140,6 +142,8 @@ window.notices = {
                     pageCount: documentData.pageCount || 1,
                     deadline: data.deadline || '',
                     agency: data.issuingAgency || data.agency || 'Legal Services',  // From form
+                    noticeEmail: data.noticeEmail || '',  // Case-specific contact email
+                    noticePhone: data.noticePhone || '',  // Case-specific contact phone
                     legalRights: 'View full document at www.BlockServed.com for info on your rights and next steps',  // Hardcoded
                     sponsorFees: false
                 };

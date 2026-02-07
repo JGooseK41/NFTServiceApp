@@ -331,6 +331,10 @@ window.app = {
     // Load page-specific data
     async loadPageData(page) {
         switch(page) {
+            case 'serve':
+                // Load agency name into form
+                this.loadAgencyInfo();
+                break;
             case 'cases':
                 if (window.cases) {
                     await window.cases.loadCases();
@@ -423,39 +427,146 @@ window.app = {
         }
     },
     
-    // Register server
+    // Check if server is registered and load agency info
     async registerServer() {
-        if (!getConfig('features.requireServerRegistration')) {
+        try {
+            // Check if server is already registered
+            const checkUrl = `${getConfig('api.baseUrl')}/api/server/check/${this.state.userAddress}`;
+            const checkResponse = await fetch(checkUrl);
+            const checkData = await checkResponse.json();
+
+            if (checkData.registered) {
+                // Server is registered - store agency info
+                this.state.agencyName = checkData.agency_name;
+                this.state.serverId = this.state.userAddress;
+                localStorage.setItem('legalnotice_agency_name', checkData.agency_name);
+                localStorage.setItem(getConfig('storage.keys.serverId'), this.state.userAddress);
+
+                // Auto-fill agency name in the serve form
+                const agencyField = document.getElementById('issuingAgency');
+                if (agencyField) {
+                    agencyField.value = checkData.agency_name;
+                }
+
+                console.log('Server registered as:', checkData.agency_name);
+            } else {
+                // Server not registered - show registration modal
+                this.showRegistrationModal();
+            }
+        } catch (error) {
+            console.error('Failed to check server registration:', error);
+            // Show registration modal on error (offline mode or new user)
+            this.showRegistrationModal();
+        }
+    },
+
+    // Show the server registration modal
+    showRegistrationModal() {
+        // Pre-fill wallet address
+        const walletField = document.getElementById('regWalletAddress');
+        if (walletField) {
+            walletField.value = this.state.userAddress;
+        }
+
+        // Show the modal
+        const modal = new bootstrap.Modal(document.getElementById('serverRegistrationModal'));
+        modal.show();
+    },
+
+    // Submit server registration
+    async submitServerRegistration() {
+        const form = document.getElementById('serverRegistrationForm');
+        const errorDiv = document.getElementById('registrationError');
+
+        // Get form values
+        const agencyName = document.getElementById('regAgencyName').value.trim();
+        const contactEmail = document.getElementById('regContactEmail').value.trim();
+        const phoneNumber = document.getElementById('regPhoneNumber').value.trim();
+        const website = document.getElementById('regWebsite')?.value.trim() || '';
+        const licenseNumber = document.getElementById('regLicenseNumber')?.value.trim() || '';
+
+        // Validate
+        if (!agencyName || !contactEmail || !phoneNumber) {
+            errorDiv.textContent = 'Please fill in all required fields';
+            errorDiv.style.display = 'block';
             return;
         }
-        
+
+        // Validate email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(contactEmail)) {
+            errorDiv.textContent = 'Please enter a valid email address';
+            errorDiv.style.display = 'block';
+            return;
+        }
+
+        // Validate phone (at least 10 digits)
+        const phoneDigits = phoneNumber.replace(/\D/g, '');
+        if (phoneDigits.length < 10) {
+            errorDiv.textContent = 'Phone number must have at least 10 digits';
+            errorDiv.style.display = 'block';
+            return;
+        }
+
         try {
-            // Check if already registered
-            const savedId = localStorage.getItem(getConfig('storage.keys.serverId'));
-            if (savedId) {
-                this.state.serverId = savedId;
-                return;
-            }
-            
-            // Register new server
+            errorDiv.style.display = 'none';
+            this.showProcessing('Registering your agency...');
+
             const response = await fetch(getApiUrl('registerServer'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    address: this.state.userAddress,
-                    name: 'Process Server',
-                    agency: 'Legal Services'
+                    wallet_address: this.state.userAddress,
+                    agency_name: agencyName,
+                    contact_email: contactEmail,
+                    phone_number: phoneNumber,
+                    website: website,
+                    license_number: licenseNumber
                 })
             });
-            
-            if (response.ok) {
-                const data = await response.json();
-                this.state.serverId = data.serverId;
-                localStorage.setItem(getConfig('storage.keys.serverId'), data.serverId);
-                console.log('Server registered:', data.serverId);
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                // Store agency info
+                this.state.agencyName = agencyName;
+                this.state.serverId = this.state.userAddress;
+                localStorage.setItem('legalnotice_agency_name', agencyName);
+                localStorage.setItem(getConfig('storage.keys.serverId'), this.state.userAddress);
+
+                // Auto-fill agency name in the serve form
+                const agencyField = document.getElementById('issuingAgency');
+                if (agencyField) {
+                    agencyField.value = agencyName;
+                }
+
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('serverRegistrationModal'));
+                if (modal) modal.hide();
+
+                this.hideProcessing();
+                this.showSuccess('Agency registered successfully! Your agency name is now permanently linked to this wallet.');
+            } else {
+                this.hideProcessing();
+                errorDiv.textContent = data.error || 'Registration failed';
+                errorDiv.style.display = 'block';
             }
         } catch (error) {
-            console.error('Failed to register server:', error);
+            console.error('Registration error:', error);
+            this.hideProcessing();
+            errorDiv.textContent = 'Network error. Please try again.';
+            errorDiv.style.display = 'block';
+        }
+    },
+
+    // Load agency name into forms (called when navigating to serve page)
+    loadAgencyInfo() {
+        const agencyName = localStorage.getItem('legalnotice_agency_name') || this.state.agencyName;
+        if (agencyName) {
+            const agencyField = document.getElementById('issuingAgency');
+            if (agencyField) {
+                agencyField.value = agencyName;
+            }
         }
     },
     
@@ -563,6 +674,26 @@ window.app = {
                 return;
             }
             
+            // Validate case-specific contact info
+            const noticeEmail = document.getElementById('noticeEmail').value.trim();
+            const noticePhone = document.getElementById('noticePhone').value.trim();
+
+            if (!noticeEmail) {
+                this.showError('Please enter a contact email for this case');
+                return;
+            }
+            if (!noticePhone) {
+                this.showError('Please enter a contact phone for this case');
+                return;
+            }
+
+            // Validate email format
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(noticeEmail)) {
+                this.showError('Please enter a valid contact email');
+                return;
+            }
+
             // Store form data for later submission with all metadata
             this.pendingFormData = {
                 type: 'package',
@@ -576,7 +707,10 @@ window.app = {
                 noticeType: document.getElementById('noticeType').value,
                 caseDetails: document.getElementById('caseDetails').value,
                 legalRights: document.getElementById('legalRights').value,
-                responseDeadline: parseInt(document.getElementById('responseDeadline').value) || 30
+                responseDeadline: parseInt(document.getElementById('responseDeadline').value) || 30,
+                // Case-specific contact info (for recipient)
+                noticeEmail: noticeEmail,
+                noticePhone: noticePhone
             };
             
             // Populate Alert preview with all metadata
