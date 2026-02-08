@@ -175,51 +175,107 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
         }
 
         // Store service details in a dedicated table (case_number is the key, no need for case_id)
-        const insertResult = await client.query(`
-            INSERT INTO case_service_records (
-                case_number,
-                transaction_hash,
-                alert_token_id,
-                document_token_id,
-                ipfs_hash,
-                encryption_key,
-                recipients,
-                page_count,
-                served_at,
-                server_address,
-                chain,
-                explorer_url,
-                created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
-            ON CONFLICT (case_number)
-            DO UPDATE SET
-                transaction_hash = EXCLUDED.transaction_hash,
-                alert_token_id = EXCLUDED.alert_token_id,
-                document_token_id = EXCLUDED.document_token_id,
-                ipfs_hash = EXCLUDED.ipfs_hash,
-                encryption_key = EXCLUDED.encryption_key,
-                recipients = EXCLUDED.recipients,
-                page_count = EXCLUDED.page_count,
-                served_at = EXCLUDED.served_at,
-                chain = COALESCE(EXCLUDED.chain, case_service_records.chain),
-                explorer_url = COALESCE(EXCLUDED.explorer_url, case_service_records.explorer_url),
-                updated_at = NOW()
-            RETURNING id, case_number
-        `, [
-            caseNumber,
-            transactionHash,
-            alertTokenId,
-            documentTokenId,
-            ipfsHash,
-            encryptionKey,
-            JSON.stringify(normalizedRecipients),
-            pageCount || 1,
-            servedAt || new Date().toISOString(),
-            serverAddress || req.headers['x-server-address'],
-            chain || 'tron-mainnet',
-            explorerUrl || null
-        ]);
+        // First, check if the unique constraint exists - if not, we need to handle differently
+        const constraintCheck = await client.query(`
+            SELECT 1 FROM pg_indexes
+            WHERE tablename = 'case_service_records'
+            AND indexname LIKE '%case_number%'
+        `);
+        const hasUniqueConstraint = constraintCheck.rows.length > 0;
+        console.log(`Unique constraint on case_number exists: ${hasUniqueConstraint}`);
+
+        let insertResult;
+        if (hasUniqueConstraint) {
+            insertResult = await client.query(`
+                INSERT INTO case_service_records (
+                    case_number,
+                    transaction_hash,
+                    alert_token_id,
+                    document_token_id,
+                    ipfs_hash,
+                    encryption_key,
+                    recipients,
+                    page_count,
+                    served_at,
+                    server_address,
+                    chain,
+                    explorer_url,
+                    created_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+                ON CONFLICT (case_number)
+                DO UPDATE SET
+                    transaction_hash = EXCLUDED.transaction_hash,
+                    alert_token_id = EXCLUDED.alert_token_id,
+                    document_token_id = EXCLUDED.document_token_id,
+                    ipfs_hash = EXCLUDED.ipfs_hash,
+                    encryption_key = EXCLUDED.encryption_key,
+                    recipients = EXCLUDED.recipients,
+                    page_count = EXCLUDED.page_count,
+                    served_at = EXCLUDED.served_at,
+                    chain = COALESCE(EXCLUDED.chain, case_service_records.chain),
+                    explorer_url = COALESCE(EXCLUDED.explorer_url, case_service_records.explorer_url),
+                    updated_at = NOW()
+                RETURNING id, case_number
+            `, [
+                caseNumber,
+                transactionHash,
+                alertTokenId,
+                documentTokenId,
+                ipfsHash,
+                encryptionKey,
+                JSON.stringify(normalizedRecipients),
+                pageCount || 1,
+                servedAt || new Date().toISOString(),
+                serverAddress || req.headers['x-server-address'],
+                chain || 'tron-mainnet',
+                explorerUrl || null
+            ]);
+        } else {
+            // No unique constraint - try delete + insert approach
+            console.log('No unique constraint - using delete + insert approach');
+            await client.query(
+                'DELETE FROM case_service_records WHERE case_number = $1',
+                [caseNumber]
+            );
+            insertResult = await client.query(`
+                INSERT INTO case_service_records (
+                    case_number,
+                    transaction_hash,
+                    alert_token_id,
+                    document_token_id,
+                    ipfs_hash,
+                    encryption_key,
+                    recipients,
+                    page_count,
+                    served_at,
+                    server_address,
+                    chain,
+                    explorer_url,
+                    created_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+                RETURNING id, case_number
+            `, [
+                caseNumber,
+                transactionHash,
+                alertTokenId,
+                documentTokenId,
+                ipfsHash,
+                encryptionKey,
+                JSON.stringify(normalizedRecipients),
+                pageCount || 1,
+                servedAt || new Date().toISOString(),
+                serverAddress || req.headers['x-server-address'],
+                chain || 'tron-mainnet',
+                explorerUrl || null
+            ]);
+        }
         console.log('INSERT result:', insertResult.rows);
+
+        // CRITICAL: Validate that the INSERT actually returned a row
+        if (!insertResult.rows || insertResult.rows.length === 0) {
+            throw new Error('INSERT into case_service_records returned no rows - data may not have been saved');
+        }
+        console.log(`✅ Service record inserted/updated: id=${insertResult.rows[0].id}, case_number=${insertResult.rows[0].case_number}`);
 
         // Update notice_components if they exist (optional - may not exist in all deployments)
         if (alertTokenId || documentTokenId) {
@@ -240,39 +296,62 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
             }
         }
 
-        await client.query('COMMIT');
-
-        // Verify the insert worked - CRITICAL: fail if verification fails
-        const verifyServiceRecord = await pool.query(
+        // CRITICAL: Verify WITHIN the transaction (using same client) BEFORE committing
+        // This ensures we catch any issues before the data is committed
+        const verifyServiceRecord = await client.query(
             'SELECT case_number, transaction_hash FROM case_service_records WHERE case_number = $1',
             [caseNumber]
         );
-        console.log(`Verification query found ${verifyServiceRecord.rows.length} rows for case ${caseNumber}`);
+        console.log(`Pre-commit verification: found ${verifyServiceRecord.rows.length} rows in case_service_records for case ${caseNumber}`);
 
         if (verifyServiceRecord.rows.length === 0) {
-            // This should never happen after a successful COMMIT, but if it does, report failure
-            console.error('CRITICAL: COMMIT succeeded but record not found in case_service_records!');
+            // Data wasn't actually saved - rollback and report error
+            console.error('CRITICAL: INSERT appeared to succeed but record not found before COMMIT!');
+            await client.query('ROLLBACK');
             return res.status(500).json({
                 success: false,
-                error: 'Database verification failed - record not saved',
-                message: 'Transaction committed but verification query found no record. Please retry.',
-                caseNumber
+                error: 'Database verification failed - record not saved in transaction',
+                message: 'INSERT succeeded but record not found before COMMIT. This may indicate a database issue.',
+                caseNumber,
+                debug: {
+                    insertResult: insertResult.rows,
+                    hasUniqueConstraint
+                }
             });
         }
 
-        // Also verify cases table was updated
-        const verifyCases = await pool.query(
+        // Verify cases table too
+        const verifyCases = await client.query(
             'SELECT id, status FROM cases WHERE id = $1',
             [caseNumber]
         );
         if (verifyCases.rows.length === 0 || verifyCases.rows[0].status !== 'served') {
-            console.error('CRITICAL: Cases table not properly updated!');
+            console.error('CRITICAL: Cases table not properly updated before COMMIT!');
+            await client.query('ROLLBACK');
             return res.status(500).json({
                 success: false,
-                error: 'Database verification failed - case status not updated',
-                message: 'Service record saved but case status not updated. Please retry.',
-                caseNumber
+                error: 'Database verification failed - case status not updated in transaction',
+                message: 'Case status not properly updated before COMMIT.',
+                caseNumber,
+                casesVerifyResult: verifyCases.rows
             });
+        }
+
+        console.log(`✅ Pre-commit verification passed. Committing transaction...`);
+        await client.query('COMMIT');
+        console.log(`✅ Transaction committed successfully`);
+
+        // Post-commit verification on pool (to detect any connection/replication issues)
+        const postCommitVerify = await pool.query(
+            'SELECT case_number, transaction_hash FROM case_service_records WHERE case_number = $1',
+            [caseNumber]
+        );
+        if (postCommitVerify.rows.length === 0) {
+            // This indicates a serious database issue - data committed but not visible
+            console.error('WARNING: Post-commit verification failed - data may not be immediately visible');
+            // Still return success since commit succeeded, but log the issue
+        } else {
+            console.log(`✅ Post-commit verification passed`);
         }
 
         console.log(`✅ Case ${caseNumber} updated with complete service data (verified)`);
@@ -597,18 +676,87 @@ async function createTables() {
                 )
             `);
 
-            // Try to add missing columns (will fail silently if they exist)
-            await pool.query(`ALTER TABLE case_service_records ADD COLUMN IF NOT EXISTS case_number VARCHAR(255)`).catch(() => {});
+            // Try to add missing columns
+            await pool.query(`ALTER TABLE case_service_records ADD COLUMN IF NOT EXISTS case_number VARCHAR(255)`).catch(e => {
+                console.log('Note: Could not add case_number column:', e.message);
+            });
 
-            // Try to add unique constraint if it doesn't exist
-            await pool.query(`
-                CREATE UNIQUE INDEX IF NOT EXISTS case_service_records_case_number_key
-                ON case_service_records(case_number)
-            `).catch(() => {});
-            
         } catch (fallbackError) {
             console.error('Fallback table creation also failed:', fallbackError);
         }
+    }
+
+    // CRITICAL: Ensure unique index exists on case_number
+    // This is required for ON CONFLICT (case_number) to work
+    await ensureUniqueIndex();
+}
+
+/**
+ * Ensure unique index exists on case_number column
+ * This is CRITICAL for the ON CONFLICT clause to work properly
+ */
+async function ensureUniqueIndex() {
+    try {
+        // Check if index exists
+        const indexCheck = await pool.query(`
+            SELECT indexname FROM pg_indexes
+            WHERE tablename = 'case_service_records'
+            AND indexdef LIKE '%case_number%'
+            AND indexdef LIKE '%UNIQUE%'
+        `);
+
+        if (indexCheck.rows.length > 0) {
+            console.log('✅ Unique index on case_number already exists:', indexCheck.rows[0].indexname);
+            return;
+        }
+
+        console.log('⚠️ No unique index on case_number found. Attempting to create...');
+
+        // First, check for NULL or duplicate values that would prevent index creation
+        const duplicateCheck = await pool.query(`
+            SELECT case_number, COUNT(*) as count
+            FROM case_service_records
+            WHERE case_number IS NOT NULL
+            GROUP BY case_number
+            HAVING COUNT(*) > 1
+        `);
+
+        if (duplicateCheck.rows.length > 0) {
+            console.error('❌ Found duplicate case_number values - cannot create unique index:');
+            for (const row of duplicateCheck.rows) {
+                console.error(`   - "${row.case_number}" appears ${row.count} times`);
+            }
+            console.error('   Please manually fix duplicates before unique index can be created');
+            return;
+        }
+
+        // Check for NULL values
+        const nullCheck = await pool.query(`
+            SELECT COUNT(*) as count FROM case_service_records WHERE case_number IS NULL
+        `);
+
+        if (parseInt(nullCheck.rows[0].count) > 0) {
+            console.log(`⚠️ Found ${nullCheck.rows[0].count} rows with NULL case_number - will exclude from index`);
+            // Create partial index excluding NULLs
+            await pool.query(`
+                CREATE UNIQUE INDEX IF NOT EXISTS case_service_records_case_number_key
+                ON case_service_records(case_number)
+                WHERE case_number IS NOT NULL
+            `);
+        } else {
+            // Create regular unique index
+            await pool.query(`
+                CREATE UNIQUE INDEX IF NOT EXISTS case_service_records_case_number_key
+                ON case_service_records(case_number)
+            `);
+        }
+
+        console.log('✅ Created unique index on case_number');
+
+    } catch (error) {
+        console.error('❌ Failed to ensure unique index on case_number:', error.message);
+        console.error('   The ON CONFLICT clause may not work correctly!');
+        console.error('   Error details:', error.detail || 'none');
     }
 }
 
