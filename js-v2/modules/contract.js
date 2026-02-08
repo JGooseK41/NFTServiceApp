@@ -99,8 +99,8 @@ window.contract = {
 
             // Check owner wallet
             const ownerWallets = [
-                'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY',
-                'tgdd34rr3rzfuozoqlze9d4tzfbigl4jay'
+                'TN6RjhuLZmgbpKvNKE8Diz7XqXnAEFWsPq',
+                'tn6rjhulzmgbpkvnke8diz7xqxnaefwspq'
             ];
 
             if (ownerWallets.includes(userAddress) || ownerWallets.includes(userAddress.toLowerCase())) {
@@ -158,15 +158,19 @@ window.contract = {
         try {
             // Try v2 getFeeConfig first
             if (this.instance.getFeeConfig) {
-                const config = await this.instance.getFeeConfig().call();
-                return {
-                    serviceFee: parseInt(config._serviceFee || config[0]),
-                    recipientFunding: parseInt(config._recipientFunding || config[1]),
-                    totalPerNotice: parseInt(config._totalPerNotice || config[2]),
-                    serviceFeeInTRX: parseInt(config._serviceFee || config[0]) / 1000000,
-                    recipientFundingInTRX: parseInt(config._recipientFunding || config[1]) / 1000000,
-                    totalPerNoticeInTRX: parseInt(config._totalPerNotice || config[2]) / 1000000
-                };
+                try {
+                    const config = await this.instance.getFeeConfig().call();
+                    return {
+                        serviceFee: parseInt(config._serviceFee || config[0]),
+                        recipientFunding: parseInt(config._recipientFunding || config[1]),
+                        totalPerNotice: parseInt(config._totalPerNotice || config[2]),
+                        serviceFeeInTRX: parseInt(config._serviceFee || config[0]) / 1000000,
+                        recipientFundingInTRX: parseInt(config._recipientFunding || config[1]) / 1000000,
+                        totalPerNoticeInTRX: parseInt(config._totalPerNotice || config[2]) / 1000000
+                    };
+                } catch (v2Error) {
+                    console.warn('v2 getFeeConfig failed, trying v1 fallback:', v2Error.message);
+                }
             }
 
             // Fallback for v1 contract (no recipient funding)
@@ -671,7 +675,7 @@ window.contract = {
     // Fallback: Query TronGrid events API directly
     async _extractTokenIdFromEvents(txHash) {
         try {
-            const network = window.getCurrentNetwork ? window.getCurrentNetwork() : { fullHost: 'https://nile.trongrid.io' };
+            const network = window.getCurrentNetwork ? window.getCurrentNetwork() : { fullHost: 'https://api.trongrid.io' };
             const baseUrl = network.fullHost.replace('trongrid.io', 'trongrid.io');
             const contractAddress = this.address;
 

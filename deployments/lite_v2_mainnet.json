@@ -1,0 +1,14 @@
+{
+  "network": "mainnet",
+  "contractName": "LegalNoticeNFT_Lite_v2",
+  "contractAddress": "TAWScLCb73qn9FqgwoUZgTt5T3cwYKTWXq",
+  "contractAddressHex": "4105e8411bb73c564fd99f8cb83fc31c1cc92f009d",
+  "deployer": "TN6RjhuLZmgbpKvNKE8Diz7XqXnAEFWsPq",
+  "serviceFee": 10000000,
+  "serviceFeeInTRX": 10,
+  "recipientFunding": 10000000,
+  "recipientFundingInTRX": 10,
+  "totalPerNotice": 20000000,
+  "totalPerNoticeInTRX": 20,
+  "deployedAt": "2026-02-08T00:00:00.000Z"
+}

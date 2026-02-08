@@ -370,9 +370,9 @@ router.get('/contract-info', async (req, res) => {
     try {
         const results = {
             contract: {
-                address: 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN',
+                address: 'TAWScLCb73qn9FqgwoUZgTt5T3cwYKTWXq',
                 network: 'TRON Mainnet',
-                admin: 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY'
+                admin: 'TN6RjhuLZmgbpKvNKE8Diz7XqXnAEFWsPq'
             },
             roles: {
                 ADMIN_ROLE: '0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775',

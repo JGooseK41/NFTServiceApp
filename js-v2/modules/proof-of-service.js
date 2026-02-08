@@ -1158,7 +1158,7 @@ window.proofOfService = {
                 
                 const response = await fetch(pdfUrl, {
                     headers: {
-                        'X-Server-Address': window.wallet?.address || 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY'
+                        'X-Server-Address': window.wallet?.address || 'TN6RjhuLZmgbpKvNKE8Diz7XqXnAEFWsPq'
                     }
                 });
                 

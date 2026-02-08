@@ -65,7 +65,7 @@ async function ensureTablesExist() {
         `);
 
         // Ensure there's at least one admin (contract owner)
-        const CONTRACT_OWNER = 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY';
+        const CONTRACT_OWNER = 'TN6RjhuLZmgbpKvNKE8Diz7XqXnAEFWsPq';
         await pool.query(`
             INSERT INTO admin_users (wallet_address, name, role, is_active, permissions)
             VALUES ($1, $2, $3, $4, $5)
@@ -1707,7 +1707,7 @@ async function initializeBlockchainSync() {
 
 // Ensure master admin is registered
 async function ensureMasterAdminRegistered() {
-  const walletAddress = 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY';
+  const walletAddress = 'TN6RjhuLZmgbpKvNKE8Diz7XqXnAEFWsPq';
   const agencyName = 'The Block Audit LLC';
 
   try {

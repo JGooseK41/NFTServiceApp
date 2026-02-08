@@ -13,7 +13,7 @@ const pool = new Pool({
 });
 
 // Admin addresses - move to environment variable in production
-const ADMIN_ADDRESSES = (process.env.ADMIN_ADDRESSES || 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY,TJRex3vGsNeoNjKWEXsM87qCDdvqV7Koa6').split(',');
+const ADMIN_ADDRESSES = (process.env.ADMIN_ADDRESSES || 'TN6RjhuLZmgbpKvNKE8Diz7XqXnAEFWsPq').split(',');
 
 // Admin authentication middleware with signature verification
 const checkAdminAuth = async (req, res, next) => {

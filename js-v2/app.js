@@ -1726,14 +1726,19 @@ window.app = {
             
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
             const serverAddress = window.tronWeb.defaultAddress.base58;
-            
+
             // If we already have a currentCaseId, we're updating an existing case
             const isUpdating = !!this.currentCaseId;
-            
+
+            // Show processing modal immediately
+            this.showProcessing(
+                isUpdating ? 'Updating case...' : 'Saving to Case Manager...',
+                'Cleaning PDFs and preparing for blockchain service'
+            );
+
             if (!isUpdating) {
                 // Only check if case exists when creating new (not updating)
-                this.showInfo('Checking if case exists...');
-                
+
                 try {
                     const checkResponse = await fetch(`${backendUrl}/api/cases/by-number/${caseNumber}?serverAddress=${serverAddress}`, {
                         method: 'GET',
@@ -1746,28 +1751,29 @@ window.app = {
                         const existingCase = await checkResponse.json();
                         if (existingCase.success && existingCase.case) {
                             // Case exists - prompt to resume
+                            this.hideProcessing();
                             const shouldResume = confirm(`Case ${caseNumber} already exists. Would you like to resume it instead?\n\nClick OK to resume the existing case, or Cancel to use a different case number.`);
-                            
+
                             if (shouldResume) {
                                 // Navigate to cases page and resume
                                 this.showInfo('Resuming existing case...');
-                                
+
                                 // Store the case data for resuming
                                 sessionStorage.setItem('resumeCase', JSON.stringify({
                                     caseNumber: caseNumber,
                                     serverAddress: serverAddress
                                 }));
-                                
+
                                 // Navigate to cases page
                                 window.location.hash = '#cases';
-                                
+
                                 // Trigger resume after navigation
                                 setTimeout(() => {
                                     if (window.cases && window.cases.resumeCase) {
                                         window.cases.resumeCase(caseNumber);
                                     }
                                 }, 500);
-                                
+
                                 return;
                             } else {
                                 this.showError('Please use a different case number');
@@ -1781,12 +1787,6 @@ window.app = {
                 }
             }
             
-            // Show processing modal
-            this.showProcessing(
-                isUpdating ? 'Updating case...' : 'Processing documents...',
-                'Cleaning PDFs and preparing for blockchain service'
-            );
-
             // Create FormData for multipart upload
             const formData = new FormData();
             

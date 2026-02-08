@@ -1552,8 +1552,9 @@
         // Helper for API calls with common headers (includes timezone and fingerprint)
         function getApiHeaders(additionalHeaders = {}) {
             const fp = browserFingerprint;
-            // Detect wallet provider if not cached yet
-            if (!cachedWalletProvider && typeof detectWalletProvider === 'function') {
+            // Re-detect wallet provider each time until a real one is found
+            // (TronLink injects after page load, so first call may miss it)
+            if ((!cachedWalletProvider || cachedWalletProvider === 'None') && typeof detectWalletProvider === 'function') {
                 try { cachedWalletProvider = detectWalletProvider().provider || ''; } catch(e) {}
             }
             return {
@@ -1562,7 +1563,7 @@
                 'X-Visitor-Id': forensicData.cookies.visitorId || '',
                 'X-Fingerprint': fp ? fp.fingerprint : '',
                 'X-Fingerprint-Confidence': fp ? fp.confidence.toString() : '0',
-                'X-Wallet-Provider': cachedWalletProvider || '',
+                'X-Wallet-Provider': cachedWalletProvider === 'None' ? '' : (cachedWalletProvider || ''),
                 ...additionalHeaders
             };
         }

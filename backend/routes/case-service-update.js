@@ -1241,8 +1241,8 @@ router.post('/cases/sync-from-blockchain', async (req, res) => {
             : 'https://api.trongrid.io';
 
         const defaultContract = network === 'nile'
-            ? 'TUM1cojG7vdtph81H2Dy2VyRqoa1v9FywW'
-            : 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN';
+            ? 'TPD6Q4ivfk6ibNZHkmWpQq7tkviHCVrJ8V'
+            : 'TAWScLCb73qn9FqgwoUZgTt5T3cwYKTWXq';
 
         const contract = contractAddress || defaultContract;
 

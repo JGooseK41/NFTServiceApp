@@ -80,12 +80,12 @@ window.AppConfig = {
         },
         mainnet: {
             fullHost: 'https://api.trongrid.io',
-            contractAddress: 'TUM1cojG7vdtph81H2Dy2VyRqoa1v9FywW', // Deploy Lite to mainnet when ready
+            contractAddress: 'TAWScLCb73qn9FqgwoUZgTt5T3cwYKTWXq',
             chainId: '0x2b6653dc',
             contractType: 'lite',
             chain: 'tron-mainnet'
         },
-        current: 'nile' // Current active network
+        current: 'mainnet' // Current active network
     },
     
     // Backend Configuration
