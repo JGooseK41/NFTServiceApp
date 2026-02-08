@@ -242,24 +242,49 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
 
         await client.query('COMMIT');
 
-        // Verify the insert worked
+        // Verify the insert worked - CRITICAL: fail if verification fails
         const verifyServiceRecord = await pool.query(
             'SELECT case_number, transaction_hash FROM case_service_records WHERE case_number = $1',
             [caseNumber]
         );
         console.log(`Verification query found ${verifyServiceRecord.rows.length} rows for case ${caseNumber}`);
+
         if (verifyServiceRecord.rows.length === 0) {
-            console.error('WARNING: INSERT succeeded but record not found!');
+            // This should never happen after a successful COMMIT, but if it does, report failure
+            console.error('CRITICAL: COMMIT succeeded but record not found in case_service_records!');
+            return res.status(500).json({
+                success: false,
+                error: 'Database verification failed - record not saved',
+                message: 'Transaction committed but verification query found no record. Please retry.',
+                caseNumber
+            });
         }
 
-        console.log(`✅ Case ${caseNumber} updated with complete service data`);
+        // Also verify cases table was updated
+        const verifyCases = await pool.query(
+            'SELECT id, status FROM cases WHERE id = $1',
+            [caseNumber]
+        );
+        if (verifyCases.rows.length === 0 || verifyCases.rows[0].status !== 'served') {
+            console.error('CRITICAL: Cases table not properly updated!');
+            return res.status(500).json({
+                success: false,
+                error: 'Database verification failed - case status not updated',
+                message: 'Service record saved but case status not updated. Please retry.',
+                caseNumber
+            });
+        }
+
+        console.log(`✅ Case ${caseNumber} updated with complete service data (verified)`);
 
         res.json({
             success: true,
             message: 'Case updated with service data',
+            verified: true,
             caseNumber,
             data: {
                 caseId,
+                caseStatus: verifyCases.rows[0].status,
                 transactionHash,
                 alertTokenId,
                 documentTokenId,
