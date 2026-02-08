@@ -216,13 +216,24 @@ window.contract = {
 
             console.log('NFT created, txHash:', txHash);
 
-            // Extract token ID from transaction logs
-            const tokenId = await this._extractTokenId(txHash);
+            // Start token ID extraction in background (don't block)
+            // This allows the success modal to show immediately
+            this._extractTokenIdAsync(txHash).then(tokenId => {
+                if (tokenId) {
+                    console.log('Token ID extracted in background:', tokenId);
+                    // Store for later retrieval
+                    this._lastTokenId = tokenId;
+                    this._tokenIdCache = this._tokenIdCache || {};
+                    this._tokenIdCache[txHash] = tokenId;
+                }
+            });
 
+            // Return immediately with txHash - token ID will be available later
             return {
                 success: true,
                 txId: txHash,
-                tokenId: tokenId
+                alertTx: txHash,
+                tokenId: null // Will be populated async
             };
 
         } catch (error) {
@@ -313,14 +324,21 @@ window.contract = {
 
             console.log('Batch transaction successful:', txHash);
 
-            // Extract token IDs
-            const tokenIds = await this._extractBatchTokenIds(txHash, recipients.length);
+            // Extract token IDs in background (don't block success modal)
+            this._extractBatchTokenIds(txHash, recipients.length).then(tokenIds => {
+                if (tokenIds && tokenIds.length > 0) {
+                    console.log('Token IDs extracted in background:', tokenIds);
+                    this._tokenIdCache = this._tokenIdCache || {};
+                    this._tokenIdCache[txHash] = tokenIds;
+                }
+            });
 
+            // Return immediately - token IDs will be available later
             return {
                 success: true,
                 txId: txHash,
                 alertTx: txHash,
-                tokenIds: tokenIds,
+                tokenIds: null, // Will be populated async
                 recipientCount: recipients.length
             };
 
@@ -455,6 +473,13 @@ window.contract = {
             (data.noticeEmail ? `📧 CONTACT: ${data.noticeEmail}\n` : '') +
             (data.noticePhone ? `📞 PHONE: ${data.noticePhone}\n` : '') +
             `\n✅ This NFT serves as immutable proof of service.`;
+    },
+
+    // Async wrapper for token ID extraction (non-blocking)
+    async _extractTokenIdAsync(txHash) {
+        // Small initial delay to let transaction propagate
+        await new Promise(r => setTimeout(r, 3000));
+        return this._extractTokenId(txHash, 3); // Fewer retries for background
     },
 
     // Extract token ID from single transaction
