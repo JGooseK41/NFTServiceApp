@@ -1748,6 +1748,49 @@
             const ua = navigator.userAgent.toLowerCase();
 
             // Check for specific wallet in-app browsers (most specific first)
+
+            // TronScan wallet/browser
+            if (ua.includes('tronscan')) {
+                return {
+                    provider: 'TronScan',
+                    version: extractVersion(ua, 'tronscan'),
+                    type: 'Mobile Wallet Browser',
+                    ready: window.tronWeb?.ready || false,
+                    network: window.tronWeb?.fullNode?.host || null,
+                    isInAppBrowser: true,
+                    chainType: 'tron'
+                };
+            }
+
+            // MetaMask detection (Ethereum wallet - may have TRON via snap/bridge)
+            if (window.ethereum?.isMetaMask) {
+                return {
+                    provider: 'MetaMask',
+                    version: window.ethereum?.version || null,
+                    type: deviceInfo.isMobile ? 'Mobile App' : 'Browser Extension',
+                    ready: window.ethereum?.isConnected?.() || false,
+                    network: null, // MetaMask uses different network format
+                    isInAppBrowser: ua.includes('metamask'),
+                    chainId: window.ethereum?.chainId || null,
+                    chainType: 'ethereum',
+                    isEthereum: true
+                };
+            }
+
+            // Coinbase Wallet
+            if (window.ethereum?.isCoinbaseWallet || ua.includes('coinbase')) {
+                return {
+                    provider: 'Coinbase Wallet',
+                    version: null,
+                    type: deviceInfo.isMobile ? 'Mobile App' : 'Browser Extension',
+                    ready: window.ethereum?.isConnected?.() || false,
+                    network: null,
+                    isInAppBrowser: ua.includes('coinbase'),
+                    chainType: 'ethereum',
+                    isEthereum: true
+                };
+            }
+
             if (ua.includes('tokenpocket')) {
                 return {
                     provider: 'TokenPocket',
@@ -1755,7 +1798,8 @@
                     type: 'Mobile Wallet Browser',
                     ready: window.tronWeb?.ready || false,
                     network: window.tronWeb?.fullNode?.host || null,
-                    isInAppBrowser: true
+                    isInAppBrowser: true,
+                    chainType: window.tronWeb ? 'tron' : (window.ethereum ? 'ethereum' : 'multi')
                 };
             }
 
@@ -1766,7 +1810,8 @@
                     type: 'Mobile Wallet Browser',
                     ready: window.tronWeb?.ready || false,
                     network: window.tronWeb?.fullNode?.host || null,
-                    isInAppBrowser: true
+                    isInAppBrowser: true,
+                    chainType: window.tronWeb ? 'tron' : (window.ethereum ? 'ethereum' : 'multi')
                 };
             }
 
@@ -1777,7 +1822,8 @@
                     type: 'Mobile Wallet Browser',
                     ready: window.tronWeb?.ready || false,
                     network: window.tronWeb?.fullNode?.host || null,
-                    isInAppBrowser: true
+                    isInAppBrowser: true,
+                    chainType: window.tronWeb ? 'tron' : (window.ethereum ? 'ethereum' : 'multi')
                 };
             }
 
@@ -1788,7 +1834,8 @@
                     type: 'Mobile Wallet Browser',
                     ready: window.tronWeb?.ready || false,
                     network: window.tronWeb?.fullNode?.host || null,
-                    isInAppBrowser: true
+                    isInAppBrowser: true,
+                    chainType: window.tronWeb ? 'tron' : (window.ethereum ? 'ethereum' : 'multi')
                 };
             }
 
@@ -1799,7 +1846,8 @@
                     type: 'Mobile Wallet Browser',
                     ready: window.tronWeb?.ready || false,
                     network: window.tronWeb?.fullNode?.host || null,
-                    isInAppBrowser: true
+                    isInAppBrowser: true,
+                    chainType: window.tronWeb ? 'tron' : (window.ethereum ? 'ethereum' : 'multi')
                 };
             }
 
@@ -1810,7 +1858,8 @@
                     type: 'Mobile Wallet Browser',
                     ready: window.tronWeb?.ready || false,
                     network: window.tronWeb?.fullNode?.host || null,
-                    isInAppBrowser: true
+                    isInAppBrowser: true,
+                    chainType: window.tronWeb ? 'tron' : (window.ethereum ? 'ethereum' : 'multi')
                 };
             }
 
@@ -1824,6 +1873,7 @@
                     ready: window.tronLink.ready,
                     network: window.tronWeb?.fullNode?.host || null,
                     isInAppBrowser: isMobileApp,
+                    chainType: 'tron',
                     // Additional TronLink-specific info
                     tronLinkInfo: {
                         version: window.tronLink.version,
@@ -1842,7 +1892,47 @@
                     type: deviceInfo.isMobile ? 'Mobile Wallet' : 'Unknown Wallet',
                     ready: window.tronWeb.ready,
                     network: window.tronWeb?.fullNode?.host || null,
-                    isInAppBrowser: deviceInfo.isMobile
+                    isInAppBrowser: deviceInfo.isMobile,
+                    chainType: 'tron'
+                };
+            }
+
+            // Check for any Ethereum-compatible wallet
+            if (window.ethereum) {
+                let providerName = 'Ethereum Wallet';
+                if (window.ethereum.isRabby) providerName = 'Rabby Wallet';
+                else if (window.ethereum.isBraveWallet) providerName = 'Brave Wallet';
+                else if (window.ethereum.isFrame) providerName = 'Frame';
+                else if (window.ethereum.isTokenPocket) providerName = 'TokenPocket';
+                else if (window.ethereum.isPhantom) providerName = 'Phantom';
+
+                return {
+                    provider: providerName,
+                    version: null,
+                    type: deviceInfo.isMobile ? 'Mobile App' : 'Browser Extension',
+                    ready: window.ethereum?.isConnected?.() || false,
+                    network: null,
+                    chainId: window.ethereum?.chainId || null,
+                    isInAppBrowser: false,
+                    chainType: 'ethereum',
+                    isEthereum: true
+                };
+            }
+
+            // Check for Solana wallets (future support)
+            if (window.solana) {
+                let providerName = 'Solana Wallet';
+                if (window.solana.isPhantom) providerName = 'Phantom';
+                else if (window.solana.isSolflare) providerName = 'Solflare';
+
+                return {
+                    provider: providerName,
+                    version: null,
+                    type: 'Browser Extension',
+                    ready: window.solana?.isConnected || false,
+                    network: null,
+                    isInAppBrowser: false,
+                    chainType: 'solana'
                 };
             }
 
@@ -1852,7 +1942,8 @@
                 type: null,
                 ready: false,
                 network: null,
-                isInAppBrowser: false
+                isInAppBrowser: false,
+                chainType: null
             };
         }
 
@@ -1898,6 +1989,10 @@
                     walletReady: walletInfo.ready,
                     isInAppBrowser: walletInfo.isInAppBrowser,
                     tronLinkInfo: walletInfo.tronLinkInfo || null,
+                    // Multi-chain support
+                    chainType: walletInfo.chainType || null,
+                    chainId: walletInfo.chainId || null,
+                    isEthereum: walletInfo.isEthereum || false,
 
                     // Device details
                     platform: navigator.platform,

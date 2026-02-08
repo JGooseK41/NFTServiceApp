@@ -13,6 +13,49 @@ const pool = new Pool({
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
+// Add wallet provider columns to wallet_connections table
+async function initializeWalletProviderColumns() {
+    try {
+        await pool.query(`
+            ALTER TABLE wallet_connections
+            ADD COLUMN IF NOT EXISTS wallet_provider VARCHAR(100)
+        `).catch(() => {});
+
+        await pool.query(`
+            ALTER TABLE wallet_connections
+            ADD COLUMN IF NOT EXISTS wallet_version VARCHAR(50)
+        `).catch(() => {});
+
+        await pool.query(`
+            ALTER TABLE wallet_connections
+            ADD COLUMN IF NOT EXISTS wallet_network VARCHAR(255)
+        `).catch(() => {});
+
+        await pool.query(`
+            ALTER TABLE wallet_connections
+            ADD COLUMN IF NOT EXISTS is_in_app_browser BOOLEAN DEFAULT FALSE
+        `).catch(() => {});
+
+        // Multi-chain support columns
+        await pool.query(`
+            ALTER TABLE wallet_connections
+            ADD COLUMN IF NOT EXISTS chain_type VARCHAR(50)
+        `).catch(() => {});
+
+        await pool.query(`
+            ALTER TABLE wallet_connections
+            ADD COLUMN IF NOT EXISTS chain_id VARCHAR(50)
+        `).catch(() => {});
+
+        console.log('✅ Wallet provider columns initialized in wallet_connections');
+    } catch (error) {
+        console.error('Error initializing wallet provider columns:', error.message);
+    }
+}
+
+// Initialize on startup
+initializeWalletProviderColumns();
+
 /**
  * POST /api/audit/view
  * Record that a notice was viewed
@@ -100,7 +143,15 @@ router.post('/wallet-connect', async (req, res) => {
             sessionId,
             network,
             walletType = 'tronlink',
-            connectionMethod = 'browser_extension'
+            connectionMethod = 'browser_extension',
+            // Wallet provider fields
+            walletProvider,
+            walletVersion,
+            walletNetwork,
+            isInAppBrowser = false,
+            // Multi-chain support
+            chainType,
+            chainId
         } = req.body;
         
         const ipAddress = req.clientIp || req.ip;
@@ -117,7 +168,17 @@ router.post('/wallet-connect', async (req, res) => {
         const isRecipient = recipientCheck.rows.length > 0 && 
                            recipientCheck.rows[0].recipient_address?.toLowerCase() === walletAddress?.toLowerCase();
         
-        // Record wallet connection
+        // Use detected wallet provider or fall back to walletType
+        const detectedProvider = walletProvider || walletType || 'Unknown';
+
+        // Determine chain type if not provided
+        const detectedChainType = chainType ||
+            (network?.includes('tron') ? 'tron' :
+             network?.includes('eth') ? 'ethereum' :
+             network?.includes('bsc') ? 'bsc' :
+             network?.includes('polygon') ? 'polygon' : null);
+
+        // Record wallet connection with wallet provider info
         await pool.query(`
             INSERT INTO wallet_connections (
                 wallet_address,
@@ -131,12 +192,24 @@ router.post('/wallet-connect', async (req, res) => {
                 ip_address,
                 user_agent,
                 is_recipient,
-                viewed_notice
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, true)
+                viewed_notice,
+                wallet_provider,
+                wallet_version,
+                wallet_network,
+                is_in_app_browser,
+                chain_type,
+                chain_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, true, $12, $13, $14, $15, $16, $17)
             ON CONFLICT (wallet_address, session_id, alert_token_id)
-            DO UPDATE SET 
+            DO UPDATE SET
                 connection_timestamp = CURRENT_TIMESTAMP,
-                viewed_notice = true
+                viewed_notice = true,
+                wallet_provider = COALESCE(EXCLUDED.wallet_provider, wallet_connections.wallet_provider),
+                wallet_version = COALESCE(EXCLUDED.wallet_version, wallet_connections.wallet_version),
+                wallet_network = COALESCE(EXCLUDED.wallet_network, wallet_connections.wallet_network),
+                is_in_app_browser = COALESCE(EXCLUDED.is_in_app_browser, wallet_connections.is_in_app_browser),
+                chain_type = COALESCE(EXCLUDED.chain_type, wallet_connections.chain_type),
+                chain_id = COALESCE(EXCLUDED.chain_id, wallet_connections.chain_id)
         `, [
             walletAddress,
             alertTokenId,
@@ -148,10 +221,19 @@ router.post('/wallet-connect', async (req, res) => {
             sessionId,
             ipAddress,
             userAgent,
-            isRecipient
+            isRecipient,
+            detectedProvider,
+            walletVersion || null,
+            walletNetwork || null,
+            isInAppBrowser,
+            detectedChainType,
+            chainId || null
         ]);
-        
-        // Record audit event
+
+        // Log wallet provider for debugging
+        console.log(`Wallet connected: ${walletAddress} using ${detectedProvider} ${walletVersion || ''} (${connectionMethod})`);
+
+        // Record audit event with comprehensive wallet info
         await pool.query(
             'SELECT record_audit_event($1, $2, $3, $4, $5, $6, $7, $8)',
             [
@@ -159,11 +241,23 @@ router.post('/wallet-connect', async (req, res) => {
                 alertTokenId,
                 documentTokenId,
                 walletAddress,
-                JSON.stringify({ 
-                    network, 
-                    walletType, 
+                JSON.stringify({
+                    // Network info
+                    network,
+                    walletNetwork,
+                    // Wallet identification
+                    walletProvider: detectedProvider,
+                    walletVersion,
+                    walletType,
                     connectionMethod,
-                    isRecipient 
+                    isInAppBrowser,
+                    // Recipient verification
+                    isRecipient,
+                    // Multi-chain ready metadata
+                    chainType: network?.includes('tron') ? 'tron' :
+                               network?.includes('eth') ? 'ethereum' :
+                               network?.includes('bsc') ? 'bsc' :
+                               network?.includes('polygon') ? 'polygon' : 'unknown'
                 }),
                 sessionId,
                 ipAddress,

@@ -183,6 +183,17 @@ async function initializeLoggingTables() {
             ADD COLUMN IF NOT EXISTS is_in_app_browser BOOLEAN DEFAULT FALSE
         `).catch(() => {});
 
+        // Multi-chain support columns
+        await pool.query(`
+            ALTER TABLE recipient_connections
+            ADD COLUMN IF NOT EXISTS chain_type VARCHAR(50)
+        `).catch(() => {});
+
+        await pool.query(`
+            ALTER TABLE recipient_connections
+            ADD COLUMN IF NOT EXISTS chain_id VARCHAR(50)
+        `).catch(() => {});
+
         // Table for notice views
         await pool.query(`
             CREATE TABLE IF NOT EXISTS recipient_notice_views (
