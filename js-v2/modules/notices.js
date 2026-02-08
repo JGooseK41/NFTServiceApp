@@ -969,6 +969,7 @@ window.notices = {
             caseNumber: data.caseNumber,
             alertTxId: data.alertTxId,
             documentTxId: data.documentTxId,
+            tokenId: data.tokenId, // Store tokenId at top level
             recipients: data.recipients,
             timestamp: data.timestamp,
             thumbnail: data.thumbnail,
@@ -980,6 +981,7 @@ window.notices = {
             chainName: chainInfo?.name || 'TRON',
             explorerUrl: window.getExplorerTxUrl ? window.getExplorerTxUrl(data.alertTxId, chainId) : null
         };
+        console.log('Stored lastMintResult with tokenId:', data.tokenId);
 
         // Build blockchain confirmation section based on contract type
         const blockchainSection = isLiteContract ? `
@@ -1111,12 +1113,17 @@ window.notices = {
                 // Use unified receipt style via proofOfService module
                 if (window.proofOfService && window.proofOfService.printReceipt) {
                     // Convert fresh mint data to receipt format
+                    // Token ID can be in multiple places - check all
+                    const tokenId = this.lastMintResult.tokenId ||
+                                   this.lastMintResult.receipt?.alertTokenId ||
+                                   this.lastMintResult.receipt?.tokenId;
+
                     const receiptData = {
                         caseNumber: this.lastMintResult.caseNumber,
                         serverAddress: window.wallet?.address || window.tronWeb?.defaultAddress?.base58,
                         servedAt: this.lastMintResult.timestamp,
                         transactionHash: this.lastMintResult.alertTxId,
-                        alertTokenId: this.lastMintResult.receipt?.alertTokenId,
+                        alertTokenId: tokenId,
                         documentTokenId: this.lastMintResult.receipt?.documentTokenId,
                         recipients: this.lastMintResult.recipients || [],
                         alertImage: this.lastMintResult.thumbnail,
@@ -1125,6 +1132,7 @@ window.notices = {
                         chainName: this.lastMintResult.chainName,
                         explorerUrl: this.lastMintResult.explorerUrl
                     };
+                    console.log('Receipt data with tokenId:', tokenId);
                     await window.proofOfService.printReceipt(receiptData);
                 } else {
                     // Fallback to simple PDF if proofOfService not available
