@@ -1618,6 +1618,128 @@ router.get('/diagnose-service-complete', async (req, res) => {
 });
 
 /**
+ * GET /api/test-service-complete-flow
+ * Test endpoint to debug the exact service-complete flow with hardcoded values
+ */
+router.get('/test-service-complete-flow', async (req, res) => {
+    const client = await pool.connect();
+    const results = [];
+    const caseNumber = 'test_flow_' + Date.now();
+
+    try {
+        // Step 1: ROLLBACK (cleanup)
+        try {
+            await client.query('ROLLBACK');
+            results.push({ step: 'rollback_cleanup', status: 'ok' });
+        } catch (e) {
+            results.push({ step: 'rollback_cleanup', status: 'skipped', message: e.message });
+        }
+
+        // Step 2: BEGIN
+        try {
+            await client.query('BEGIN');
+            results.push({ step: 'begin', status: 'ok' });
+        } catch (e) {
+            results.push({ step: 'begin', status: 'error', error: e.message });
+            throw e;
+        }
+
+        // Step 3: SELECT to check if case exists
+        let existingCase;
+        try {
+            existingCase = await client.query(
+                'SELECT id, status FROM cases WHERE id = $1',
+                [caseNumber]
+            );
+            results.push({ step: 'select', status: 'ok', found: existingCase.rows.length });
+        } catch (e) {
+            results.push({ step: 'select', status: 'error', error: e.message, code: e.code });
+            throw e;
+        }
+
+        // Step 4: INSERT (case doesn't exist)
+        try {
+            const metadataJson = JSON.stringify({ test: true });
+            const insertResult = await client.query(`
+                INSERT INTO cases (
+                    id,
+                    server_address,
+                    status,
+                    chain,
+                    tx_hash,
+                    alert_nft_id,
+                    created_at,
+                    updated_at,
+                    served_at,
+                    metadata
+                ) VALUES ($1, $2, 'served', $3, $4, $5, NOW(), NOW(), NOW(), $6)
+                RETURNING id, status
+            `, [
+                caseNumber,
+                'TTestServer',
+                'tron-nile',
+                'test_tx_hash',
+                '12345',
+                metadataJson
+            ]);
+            results.push({ step: 'insert_cases', status: 'ok', inserted: insertResult.rows[0] });
+        } catch (e) {
+            results.push({ step: 'insert_cases', status: 'error', error: e.message, code: e.code, detail: e.detail });
+            throw e;
+        }
+
+        // Step 5: INSERT into case_service_records
+        try {
+            const csrResult = await client.query(`
+                INSERT INTO case_service_records (
+                    case_number,
+                    transaction_hash,
+                    alert_token_id,
+                    recipients,
+                    served_at,
+                    server_address,
+                    chain,
+                    created_at
+                ) VALUES ($1, $2, $3, $4, NOW(), $5, $6, NOW())
+                ON CONFLICT (case_number)
+                DO UPDATE SET
+                    transaction_hash = EXCLUDED.transaction_hash,
+                    updated_at = NOW()
+                RETURNING id, case_number
+            `, [
+                caseNumber,
+                'test_tx_hash',
+                '12345',
+                JSON.stringify(['TTestRecipient']),
+                'TTestServer',
+                'tron-nile'
+            ]);
+            results.push({ step: 'insert_csr', status: 'ok', inserted: csrResult.rows[0] });
+        } catch (e) {
+            results.push({ step: 'insert_csr', status: 'error', error: e.message, code: e.code });
+            throw e;
+        }
+
+        // Step 6: ROLLBACK (cleanup test data)
+        await client.query('ROLLBACK');
+        results.push({ step: 'rollback_final', status: 'ok' });
+
+        res.json({ success: true, results });
+
+    } catch (error) {
+        try { await client.query('ROLLBACK'); } catch (e) {}
+        res.json({
+            success: false,
+            error: error.message,
+            code: error.code,
+            results
+        });
+    } finally {
+        client.release();
+    }
+});
+
+/**
  * GET /api/cases/check-constraints
  * Diagnostic endpoint to check table constraints
  */
