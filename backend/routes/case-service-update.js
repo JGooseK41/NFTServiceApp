@@ -1707,12 +1707,12 @@ router.post('/cases/manual-mark-served', async (req, res) => {
                 metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
                     'manuallyMarkedServed', true,
                     'markedAt', NOW()::text,
-                    'transactionHash', $2,
-                    'alertTokenId', $3
+                    'transactionHash', $2::text,
+                    'alertTokenId', $3::text
                 )
             WHERE id = $1
             RETURNING id, status, served_at
-        `, [trimmedCaseNumber, transactionHash, alertTokenId]);
+        `, [trimmedCaseNumber, transactionHash, alertTokenId || null]);
 
         if (casesUpdate.rows.length === 0) {
             await client.query('ROLLBACK');
