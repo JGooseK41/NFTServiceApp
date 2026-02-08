@@ -1618,6 +1618,96 @@ router.get('/diagnose-service-complete', async (req, res) => {
 });
 
 /**
+ * PUT /api/test-service-complete-echo
+ * Echo the received data and attempt the same flow as service-complete
+ */
+router.put('/test-service-complete-echo', async (req, res) => {
+    const client = await pool.connect();
+    const results = [];
+
+    try {
+        const caseNumber = 'test_echo_' + Date.now();
+        const { transactionHash, alertTokenId, recipients, serverAddress, chain, metadata = {} } = req.body;
+
+        results.push({
+            step: 'parse_body',
+            status: 'ok',
+            received: {
+                caseNumber,
+                transactionHash: transactionHash?.substring(0, 20) + '...',
+                alertTokenId,
+                recipientsCount: recipients?.length,
+                serverAddress: serverAddress?.substring(0, 10) + '...',
+                chain,
+                metadataKeys: Object.keys(metadata || {})
+            }
+        });
+
+        // Normalize recipients
+        let normalizedRecipients = recipients || [];
+        if (Array.isArray(normalizedRecipients)) {
+            normalizedRecipients = normalizedRecipients.map(r => {
+                if (typeof r === 'string') return r;
+                if (r && typeof r === 'object' && r.address) return r.address;
+                return r;
+            }).filter(Boolean);
+        }
+        results.push({ step: 'normalize_recipients', status: 'ok', count: normalizedRecipients.length });
+
+        // Build metadata JSON
+        let metadataJson;
+        try {
+            metadataJson = JSON.stringify({
+                recipients: normalizedRecipients,
+                transactionHash,
+                alertTokenId,
+                ...metadata
+            });
+            results.push({ step: 'json_stringify', status: 'ok', length: metadataJson.length });
+        } catch (e) {
+            results.push({ step: 'json_stringify', status: 'error', error: e.message });
+            throw e;
+        }
+
+        // ROLLBACK cleanup
+        try {
+            await client.query('ROLLBACK');
+            results.push({ step: 'rollback', status: 'ok' });
+        } catch (e) {
+            results.push({ step: 'rollback', status: 'skipped' });
+        }
+
+        // BEGIN
+        await client.query('BEGIN');
+        results.push({ step: 'begin', status: 'ok' });
+
+        // SELECT
+        const existing = await client.query('SELECT id FROM cases WHERE id = $1', [caseNumber]);
+        results.push({ step: 'select', status: 'ok', found: existing.rows.length });
+
+        // INSERT
+        const insertResult = await client.query(`
+            INSERT INTO cases (id, server_address, status, chain, tx_hash, alert_nft_id, metadata, created_at, updated_at, served_at)
+            VALUES ($1, $2, 'served', $3, $4, $5, $6, NOW(), NOW(), NOW())
+            RETURNING id, status
+        `, [caseNumber, serverAddress || 'TTest', chain || 'tron-nile', transactionHash, alertTokenId, metadataJson]);
+        results.push({ step: 'insert', status: 'ok', id: insertResult.rows[0]?.id });
+
+        // ROLLBACK to cleanup test
+        await client.query('ROLLBACK');
+        results.push({ step: 'cleanup', status: 'ok' });
+
+        res.json({ success: true, results });
+
+    } catch (error) {
+        try { await client.query('ROLLBACK'); } catch (e) {}
+        res.json({ success: false, error: error.message, code: error.code, results });
+    } finally {
+        client.release();
+    }
+});
+
+/**
  * GET /api/test-service-complete-flow
  * Test endpoint to debug the exact service-complete flow with hardcoded values
  */
