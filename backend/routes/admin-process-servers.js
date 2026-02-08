@@ -13,34 +13,63 @@ const pool = new Pool({
 });
 
 // GET all process servers for admin dashboard
+router.get('/', async (req, res) => {
+    // Redirect root to /list handler
+    return listServers(req, res);
+});
+
 router.get('/list', async (req, res) => {
+    return listServers(req, res);
+});
+
+async function listServers(req, res) {
     let client;
     try {
         client = await pool.connect();
-        
+
         const result = await client.query(`
-            SELECT 
+            SELECT
                 id,
                 wallet_address,
-                name,
-                agency,
-                email,
-                phone,
-                server_id,
-                status,
+                agency_name,
+                contact_email,
+                phone_number,
+                website,
                 license_number,
-                jurisdiction,
+                jurisdictions,
+                status,
+                total_notices_served,
                 created_at,
                 updated_at
             FROM process_servers
             ORDER BY created_at DESC
         `);
-        
+
+        // Map DB column names to what the frontend expects
+        const servers = result.rows.map(row => ({
+            id: row.id,
+            wallet_address: row.wallet_address,
+            full_name: row.agency_name || 'Unknown',
+            agency: row.agency_name || 'N/A',
+            email: row.contact_email,
+            phone: row.phone_number,
+            website: row.website,
+            license_number: row.license_number,
+            jurisdictions: row.jurisdictions,
+            status: row.status,
+            is_active: row.status === 'active' || row.status === 'approved',
+            total_cases: row.total_notices_served || 0,
+            signed_cases: 0,
+            last_activity: row.updated_at,
+            created_at: row.created_at,
+            updated_at: row.updated_at
+        }));
+
         res.json({
             success: true,
-            servers: result.rows
+            servers
         });
-        
+
     } catch (error) {
         console.error('Error fetching servers:', error);
         res.status(500).json({
@@ -50,7 +79,7 @@ router.get('/list', async (req, res) => {
     } finally {
         if (client) client.release();
     }
-});
+}
 
 // UPDATE a process server
 router.post('/update', async (req, res) => {
@@ -58,38 +87,38 @@ router.post('/update', async (req, res) => {
     try {
         const {
             wallet_address,
-            name,
-            agency,
-            email,
-            phone,
+            agency_name,
+            contact_email,
+            phone_number,
+            website,
             license_number,
-            jurisdiction,
+            jurisdictions,
             status
         } = req.body;
-        
+
         if (!wallet_address) {
             return res.status(400).json({
                 success: false,
                 error: 'Wallet address is required'
             });
         }
-        
+
         client = await pool.connect();
-        
+
         const result = await client.query(`
             UPDATE process_servers
-            SET 
-                name = $2,
-                agency = $3,
-                email = $4,
-                phone = $5,
-                license_number = $6,
-                jurisdiction = $7,
-                status = $8,
+            SET
+                agency_name = COALESCE($2, agency_name),
+                contact_email = COALESCE($3, contact_email),
+                phone_number = COALESCE($4, phone_number),
+                website = COALESCE($5, website),
+                license_number = COALESCE($6, license_number),
+                jurisdictions = COALESCE($7, jurisdictions),
+                status = COALESCE($8, status),
                 updated_at = NOW()
             WHERE wallet_address = $1
             RETURNING *
-        `, [wallet_address, name, agency, email, phone, license_number, jurisdiction, status]);
+        `, [wallet_address, agency_name, contact_email, phone_number, website, license_number, jurisdictions, status]);
         
         if (result.rows.length === 0) {
             return res.status(404).json({
