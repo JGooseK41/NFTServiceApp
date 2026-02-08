@@ -207,32 +207,77 @@ window.notices = {
             console.log('Token ID from contract result:', alertTokenId);
             console.log('Full txResult:', JSON.stringify(txResult, null, 2));
 
-            // If we didn't get token ID from contract, try to get from transaction logs
+            // If we didn't get token ID from contract, try multiple methods with retries
             if (!alertTokenId) {
-                try {
-                    if (window.tronWeb) {
-                        // Get transaction info to extract token IDs from logs
-                        const txInfo = await window.tronWeb.trx.getTransactionInfo(txResult.alertTx);
-                        if (txInfo && txInfo.log) {
-                            // Look for Transfer events in logs
-                            for (const log of txInfo.log) {
-                                if (log.topics && log.topics.length >= 4) {
-                                    // Transfer event has signature, from, to, tokenId
-                                    const tokenIdHex = log.topics[3];
-                                    if (tokenIdHex) {
-                                        const tokenId = parseInt(tokenIdHex, 16);
-                                        if (!alertTokenId) {
-                                            alertTokenId = tokenId;
-                                        } else if (!documentTokenId) {
-                                            documentTokenId = tokenId;
+                console.log('Token ID not in contract result, attempting extraction...');
+
+                // Method 1: Try TronGrid events API (most reliable)
+                const extractFromEventsApi = async (txHash, retries = 3) => {
+                    const chainInfo = window.getChainInfo ? window.getChainInfo() : null;
+                    const isMainnet = chainInfo?.id === 'tron-mainnet';
+                    const apiBase = isMainnet ? 'https://api.trongrid.io' : 'https://nile.trongrid.io';
+                    const contractAddress = window.getContractAddress ? window.getContractAddress() : 'TUM1cojG7vdtph81H2Dy2VyRqoa1v9FywW';
+
+                    for (let attempt = 1; attempt <= retries; attempt++) {
+                        try {
+                            // Wait a bit for transaction to be indexed (longer on first attempt)
+                            await new Promise(r => setTimeout(r, attempt * 2000));
+
+                            const url = `${apiBase}/v1/contracts/${contractAddress}/events?event_name=Transfer&limit=10`;
+                            console.log(`Token extraction attempt ${attempt}/${retries} from: ${url}`);
+
+                            const response = await fetch(url);
+                            if (response.ok) {
+                                const data = await response.json();
+                                if (data.success && data.data) {
+                                    const event = data.data.find(e => e.transaction_id === txHash);
+                                    if (event && event.result && event.result.tokenId) {
+                                        console.log(`✅ Token ID extracted from events API: ${event.result.tokenId}`);
+                                        return parseInt(event.result.tokenId);
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.log(`Events API attempt ${attempt} failed:`, e.message);
+                        }
+                    }
+                    return null;
+                };
+
+                // Method 2: Try getTransactionInfo (fallback)
+                const extractFromTxInfo = async (txHash) => {
+                    try {
+                        if (window.tronWeb) {
+                            const txInfo = await window.tronWeb.trx.getTransactionInfo(txHash);
+                            if (txInfo && txInfo.log) {
+                                for (const log of txInfo.log) {
+                                    if (log.topics && log.topics.length >= 4) {
+                                        const tokenIdHex = log.topics[3];
+                                        if (tokenIdHex) {
+                                            const tokenId = parseInt(tokenIdHex, 16);
+                                            console.log(`✅ Token ID extracted from txInfo: ${tokenId}`);
+                                            return tokenId;
                                         }
                                     }
                                 }
                             }
                         }
+                    } catch (e) {
+                        console.log('txInfo extraction failed:', e.message);
                     }
-                } catch (error) {
-                    console.log('Could not extract token IDs from transaction:', error);
+                    return null;
+                };
+
+                // Try events API first (more reliable), then txInfo
+                alertTokenId = await extractFromEventsApi(txResult.alertTx);
+                if (!alertTokenId) {
+                    alertTokenId = await extractFromTxInfo(txResult.alertTx);
+                }
+
+                if (alertTokenId) {
+                    console.log(`Token ID successfully extracted: ${alertTokenId}`);
+                } else {
+                    console.warn('Could not extract token ID - will show as N/A');
                 }
             }
             
