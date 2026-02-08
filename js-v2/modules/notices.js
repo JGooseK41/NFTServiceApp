@@ -307,8 +307,19 @@ window.notices = {
 
                             if (serviceUpdateResponse.ok) {
                                 const result = await serviceUpdateResponse.json();
-                                console.log('✅ Case service data stored in backend:', result);
-                                backendUpdateSuccess = true;
+                                // Check for verified flag to ensure data was actually saved
+                                if (result.success && result.verified) {
+                                    console.log('✅ Case service data stored and verified:', result);
+                                    backendUpdateSuccess = true;
+                                } else if (result.success) {
+                                    // Old backend version without verification - accept but log warning
+                                    console.warn('⚠️ Case service data stored (not verified):', result);
+                                    backendUpdateSuccess = true;
+                                } else {
+                                    // Backend returned 200 but success:false (shouldn't happen but handle it)
+                                    lastError = result.error || 'Unknown error';
+                                    console.error(`Backend returned success:false:`, result);
+                                }
                             } else {
                                 const errorText = await serviceUpdateResponse.text();
                                 lastError = `HTTP ${serviceUpdateResponse.status}: ${errorText}`;
