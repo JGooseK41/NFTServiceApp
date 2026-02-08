@@ -190,6 +190,7 @@ window.proofOfService = {
                     .page {
                         min-height: 9.5in;
                         position: relative;
+                        padding-bottom: 50px; /* Space for footer */
                     }
                     .header {
                         text-align: center;
@@ -315,6 +316,10 @@ window.proofOfService = {
                         color: #666;
                         border-top: 1px solid #ccc;
                         padding-top: 10px;
+                        background: #fff; /* Ensure footer has solid background */
+                    }
+                    .section:last-of-type {
+                        margin-bottom: 60px; /* Extra space before footer */
                     }
                     .page-num {
                         font-size: 9pt;
