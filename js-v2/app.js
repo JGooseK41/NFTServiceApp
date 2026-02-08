@@ -521,7 +521,27 @@ window.app = {
 
         } catch (error) {
             console.error('Failed to check server registration:', error);
-            this.state.isRegisteredServer = false;
+
+            // Backend unavailable - still try blockchain role check as fallback
+            let hasBlockchainRole = false;
+            if (window.contract && window.contract.instance) {
+                try {
+                    const serverRole = await window.contract.instance.PROCESS_SERVER_ROLE().call();
+                    hasBlockchainRole = await window.contract.instance.hasRole(serverRole, this.state.userAddress).call();
+                    console.log('Blockchain PROCESS_SERVER_ROLE fallback check:', hasBlockchainRole);
+                } catch (contractError) {
+                    console.log('Contract role fallback check failed:', contractError.message);
+                }
+            }
+
+            if (hasBlockchainRole) {
+                this.state.isRegisteredServer = true;
+                this.state.serverId = this.state.userAddress;
+                console.log('Wallet has PROCESS_SERVER_ROLE on blockchain (backend unavailable)');
+            } else {
+                this.state.isRegisteredServer = false;
+            }
+
             this.updateUIForRole();
         }
     },
