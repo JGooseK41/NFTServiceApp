@@ -431,7 +431,7 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
         });
 
     } catch (error) {
-        await client.query('ROLLBACK');
+        try { await client.query('ROLLBACK'); } catch (e) {}
         console.error('Error updating case service data:', error);
         console.error('Error details:', {
             code: error.code,
@@ -444,10 +444,63 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
             success: false,
             error: 'Failed to update case service data',
             message: error.message,
-            detail: error.detail || null
+            code: error.code || null,
+            detail: error.detail || null,
+            version: '20260208-v2' // Version tracker
         });
     } finally {
         client.release();
+    }
+});
+
+/**
+ * PUT /api/cases/:caseNumber/service-complete-notx
+ * Same as service-complete but WITHOUT transactions - for debugging
+ */
+router.put('/cases/:caseNumber/service-complete-notx', async (req, res) => {
+    try {
+        const caseNumber = (req.params.caseNumber || '').trim();
+        const { transactionHash, alertTokenId, recipients, serverAddress, chain, metadata = {} } = req.body;
+
+        if (!caseNumber) {
+            return res.status(400).json({ success: false, error: 'Case number required' });
+        }
+
+        const normalizedRecipients = (recipients || []).map(r => typeof r === 'string' ? r : r?.address).filter(Boolean);
+        const metadataJson = JSON.stringify({ ...metadata, transactionHash, alertTokenId, recipients: normalizedRecipients });
+
+        // Check if case exists
+        const existing = await pool.query('SELECT id FROM cases WHERE id = $1', [caseNumber]);
+
+        if (existing.rows.length > 0) {
+            // Update
+            await pool.query(`
+                UPDATE cases SET status = 'served', tx_hash = $2, alert_nft_id = $3,
+                metadata = COALESCE(metadata, '{}'::jsonb) || $4::jsonb, updated_at = NOW(), served_at = COALESCE(served_at, NOW())
+                WHERE id = $1
+            `, [caseNumber, transactionHash, alertTokenId, metadataJson]);
+        } else {
+            // Insert
+            await pool.query(`
+                INSERT INTO cases (id, server_address, status, chain, tx_hash, alert_nft_id, metadata, created_at, updated_at, served_at)
+                VALUES ($1, $2, 'served', $3, $4, $5, $6, NOW(), NOW(), NOW())
+            `, [caseNumber, serverAddress, chain || 'tron-nile', transactionHash, alertTokenId, metadataJson]);
+        }
+
+        // Insert service record
+        await pool.query(`
+            INSERT INTO case_service_records (case_number, transaction_hash, alert_token_id, recipients, served_at, server_address, chain, created_at)
+            VALUES ($1, $2, $3, $4, NOW(), $5, $6, NOW())
+            ON CONFLICT (case_number) DO UPDATE SET
+                transaction_hash = EXCLUDED.transaction_hash,
+                alert_token_id = EXCLUDED.alert_token_id,
+                updated_at = NOW()
+        `, [caseNumber, transactionHash, alertTokenId, JSON.stringify(normalizedRecipients), serverAddress, chain || 'tron-nile']);
+
+        res.json({ success: true, message: 'Saved without transaction', caseNumber });
+    } catch (error) {
+        console.error('No-TX service-complete error:', error);
+        res.status(500).json({ success: false, error: error.message, code: error.code });
     }
 });
 
