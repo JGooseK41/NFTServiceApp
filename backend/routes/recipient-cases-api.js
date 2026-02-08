@@ -215,14 +215,11 @@ router.get('/wallet/:address', async (req, res) => {
                     csr.recipients,
                     csr.transaction_hash,
                     csr.alert_token_id,
-                    COALESCE(
-                        csr.document_token_id,
-                        CASE
-                            WHEN csr.alert_token_id IS NOT NULL
-                            THEN (csr.alert_token_id::int + 1)::text
-                            ELSE NULL
-                        END
-                    ) as document_token_id,
+                    csr.document_token_id,
+                    CASE
+                        WHEN csr.document_token_id IS NULL THEN 'lite'
+                        ELSE 'v5'
+                    END as contract_type,
                     csr.ipfs_hash,
                     csr.encryption_key,
                     csr.served_at,
@@ -249,14 +246,11 @@ router.get('/wallet/:address', async (req, res) => {
                     recipients,
                     transaction_hash,
                     alert_token_id,
-                    COALESCE(
-                        document_token_id,
-                        CASE
-                            WHEN alert_token_id IS NOT NULL
-                            THEN (alert_token_id::int + 1)::text
-                            ELSE NULL
-                        END
-                    ) as document_token_id,
+                    document_token_id,
+                    CASE
+                        WHEN document_token_id IS NULL THEN 'lite'
+                        ELSE 'v5'
+                    END as contract_type,
                     ipfs_hash,
                     encryption_key,
                     served_at,
@@ -311,6 +305,7 @@ router.get('/wallet/:address', async (req, res) => {
                 case_number: row.case_number,
                 alert_token_id: row.alert_token_id,
                 document_token_id: row.document_token_id,
+                contract_type: row.contract_type || 'lite',
                 transaction_hash: row.transaction_hash,
                 ipfs_hash: row.ipfs_hash,
                 encryption_key: row.encryption_key,
@@ -390,16 +385,12 @@ router.get('/:caseNumber/document', async (req, res) => {
                 case_number,
                 ipfs_hash,
                 encryption_key,
-                -- If document_token_id is missing, calculate it as alert_token_id + 1
-                COALESCE(
-                    document_token_id,
-                    CASE
-                        WHEN alert_token_id IS NOT NULL
-                        THEN (alert_token_id::int + 1)::text
-                        ELSE NULL
-                    END
-                ) as document_token_id,
+                document_token_id,
                 alert_token_id,
+                CASE
+                    WHEN document_token_id IS NULL THEN 'lite'
+                    ELSE 'v5'
+                END as contract_type,
                 page_count,
                 served_at,
                 accepted,
@@ -584,6 +575,7 @@ router.get('/:caseNumber/document', async (req, res) => {
                 encryption_key: caseData.encryption_key,
                 document_token_id: caseData.document_token_id,
                 alert_token_id: caseData.alert_token_id,
+                contract_type: caseData.contract_type || 'lite',
                 page_count: caseData.page_count,
                 served_at: caseData.served_at,
                 accepted: caseData.accepted || false,
