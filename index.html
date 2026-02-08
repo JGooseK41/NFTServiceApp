@@ -55,8 +55,9 @@
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><span class="dropdown-item-text small text-muted" id="walletFullAddress"></span></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="#" onclick="app.switchWallet(); return false;">Switch Wallet</a></li>
-                            <li><a class="dropdown-item" href="#" onclick="app.disconnectWallet(); return false;">Disconnect Wallet</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="app.checkMyRole(); return false;"><i class="bi bi-person-badge"></i> Check My Role</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="app.switchWallet(); return false;"><i class="bi bi-arrow-repeat"></i> Switch Wallet</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="app.disconnectWallet(); return false;"><i class="bi bi-box-arrow-right"></i> Disconnect Wallet</a></li>
                         </ul>
                     </div>
                 </div>
@@ -83,7 +84,19 @@
                                 <h1 class="display-4 mb-2" style="color: #1a237e;">TheBlockService</h1>
                                 <p class="text-muted mb-3">A Product of The Block Audit LLC</p>
                                 <p class="lead mb-4">Blockchain-powered legal document service on TRON</p>
-                                
+
+                                <!-- New User Get Started Section -->
+                                <div id="getStartedSection" class="mt-4 p-4 border border-primary rounded bg-light">
+                                    <h3 class="text-primary mb-3">
+                                        <i class="bi bi-rocket-takeoff"></i> New to TheBlockService?
+                                    </h3>
+                                    <p class="mb-3">Get set up in just a few minutes. We'll walk you through everything.</p>
+                                    <button class="btn btn-primary btn-lg" onclick="app.showOnboardingModal()">
+                                        <i class="bi bi-play-circle"></i> Get Started - Register as a Process Server
+                                    </button>
+                                    <p class="text-muted mt-2 mb-0"><small>No crypto experience needed - we'll guide you step by step</small></p>
+                                </div>
+
                                 <div class="row mt-5">
                                     <div class="col-md-4 mb-3">
                                         <div class="card h-100">
@@ -794,6 +807,170 @@
         </div>
     </div>
 
+    <!-- Onboarding Modal (Step-by-step guide for new users) -->
+    <div class="modal fade" id="onboardingModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-rocket-takeoff"></i> Get Started with TheBlockService
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Step indicator -->
+                    <div class="d-flex justify-content-center mb-4">
+                        <div class="d-flex align-items-center">
+                            <div id="step1Indicator" class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; font-weight: bold;">1</div>
+                            <div class="bg-secondary" style="width: 60px; height: 3px;"></div>
+                            <div id="step2Indicator" class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; font-weight: bold;">2</div>
+                            <div class="bg-secondary" style="width: 60px; height: 3px;"></div>
+                            <div id="step3Indicator" class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center" style="width: 36px; height: 36px; font-weight: bold;">3</div>
+                        </div>
+                    </div>
+
+                    <!-- Step 1: Install TronLink -->
+                    <div id="onboardingStep1" class="onboarding-step">
+                        <h4 class="text-center mb-4">Step 1: Get a TronLink Wallet</h4>
+
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> <strong>What is TronLink?</strong><br>
+                            TronLink is a free browser extension that acts as your secure digital wallet. It's like a digital ID that lets you sign and send legal documents on the blockchain.
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h5><i class="bi bi-laptop"></i> For Desktop (Recommended)</h5>
+                                <p>Install the TronLink browser extension:</p>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <a href="https://chrome.google.com/webstore/detail/tronlink/ibnejdfjmmkpcnlpebklmnkoeoihofec" target="_blank" class="btn btn-outline-primary">
+                                        <i class="bi bi-browser-chrome"></i> Chrome Extension
+                                    </a>
+                                    <a href="https://www.tronlink.org/" target="_blank" class="btn btn-outline-secondary">
+                                        <i class="bi bi-globe"></i> TronLink Website
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h5><i class="bi bi-phone"></i> For Mobile</h5>
+                                <p>Download the TronLink app:</p>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <a href="https://apps.apple.com/app/tronlink-trx-btt-wallet/id1453530188" target="_blank" class="btn btn-outline-dark">
+                                        <i class="bi bi-apple"></i> App Store
+                                    </a>
+                                    <a href="https://play.google.com/store/apps/details?id=com.tronlinkpro.wallet" target="_blank" class="btn btn-outline-success">
+                                        <i class="bi bi-google-play"></i> Google Play
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <i class="bi bi-shield-check"></i> <strong>Security Tip:</strong> When you create your wallet, you'll get a "seed phrase" (12-24 words). Write this down and keep it safe - it's the only way to recover your wallet if you lose access.
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Connect Wallet -->
+                    <div id="onboardingStep2" class="onboarding-step" style="display: none;">
+                        <h4 class="text-center mb-4">Step 2: Connect Your Wallet</h4>
+
+                        <div class="text-center mb-4">
+                            <div id="walletCheckStatus">
+                                <div class="spinner-border text-primary mb-3" role="status">
+                                    <span class="visually-hidden">Checking...</span>
+                                </div>
+                                <p>Checking for TronLink wallet...</p>
+                            </div>
+                        </div>
+
+                        <div id="walletNotDetected" style="display: none;">
+                            <div class="alert alert-warning">
+                                <i class="bi bi-exclamation-triangle"></i> <strong>TronLink not detected</strong><br>
+                                Please make sure you've installed TronLink and refreshed this page.
+                            </div>
+                            <div class="text-center">
+                                <button class="btn btn-secondary me-2" onclick="window.location.reload()">
+                                    <i class="bi bi-arrow-clockwise"></i> Refresh Page
+                                </button>
+                                <button class="btn btn-outline-primary" onclick="app.goToOnboardingStep(1)">
+                                    <i class="bi bi-arrow-left"></i> Back to Install Instructions
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="walletDetected" style="display: none;">
+                            <div class="alert alert-success">
+                                <i class="bi bi-check-circle"></i> <strong>TronLink detected!</strong>
+                            </div>
+
+                            <div class="card mb-3">
+                                <div class="card-body text-center">
+                                    <p class="mb-3">Click below to connect your wallet to TheBlockService:</p>
+                                    <button class="btn btn-primary btn-lg" onclick="app.connectFromOnboarding()">
+                                        <i class="bi bi-wallet2"></i> Connect TronLink Wallet
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i> <strong>What happens next:</strong><br>
+                                TronLink will open a popup asking you to approve the connection. This is safe - we can only see your public wallet address, not your private keys or funds.
+                            </div>
+                        </div>
+
+                        <div id="walletConnected" style="display: none;">
+                            <div class="alert alert-success">
+                                <i class="bi bi-check-circle"></i> <strong>Wallet Connected!</strong><br>
+                                Address: <code id="onboardingWalletAddress"></code>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Register -->
+                    <div id="onboardingStep3" class="onboarding-step" style="display: none;">
+                        <h4 class="text-center mb-4">Step 3: Register Your Agency</h4>
+
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-info-circle"></i> Almost done! Register your agency details to start serving legal documents.
+                        </div>
+
+                        <div id="alreadyRegistered" style="display: none;">
+                            <div class="alert alert-success">
+                                <i class="bi bi-check-circle"></i> <strong>You're already registered!</strong><br>
+                                Agency: <strong id="onboardingAgencyName"></strong>
+                            </div>
+                            <div class="text-center">
+                                <button class="btn btn-success btn-lg" data-bs-dismiss="modal" onclick="app.navigate('serve')">
+                                    <i class="bi bi-send"></i> Start Serving Documents
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="needsRegistration" style="display: none;">
+                            <p class="text-center mb-3">Click below to complete your registration:</p>
+                            <div class="text-center">
+                                <button class="btn btn-primary btn-lg" onclick="app.openRegistrationFromOnboarding()">
+                                    <i class="bi bi-person-badge"></i> Complete Registration
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="onboardingBackBtn" class="btn btn-secondary" onclick="app.previousOnboardingStep()" style="display: none;">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </button>
+                    <button id="onboardingNextBtn" class="btn btn-primary" onclick="app.nextOnboardingStep()">
+                        I've Installed TronLink <i class="bi bi-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Server Registration Modal (First-time users) -->
     <div class="modal fade" id="serverRegistrationModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="modal-dialog modal-dialog-centered">
@@ -929,6 +1106,6 @@
     <script src="js/streamlined-energy-flow.js"></script>
     
     <!-- Main App -->
-    <script src="js-v2/app.js?v=1.0.8"></script>
+    <script src="js-v2/app.js?v=1.0.9"></script>
 </body>
 </html>

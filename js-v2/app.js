@@ -577,6 +577,342 @@ window.app = {
         }
     },
 
+    // ========== ONBOARDING FLOW ==========
+
+    // Current onboarding step (1, 2, or 3)
+    onboardingStep: 1,
+
+    // Show the onboarding modal
+    showOnboardingModal() {
+        this.onboardingStep = 1;
+        this.updateOnboardingUI();
+
+        const modal = new bootstrap.Modal(document.getElementById('onboardingModal'));
+        modal.show();
+    },
+
+    // Update UI for current step
+    updateOnboardingUI() {
+        // Update step indicators
+        for (let i = 1; i <= 3; i++) {
+            const indicator = document.getElementById(`step${i}Indicator`);
+            if (indicator) {
+                if (i < this.onboardingStep) {
+                    indicator.className = 'rounded-circle bg-success text-white d-flex align-items-center justify-content-center';
+                    indicator.innerHTML = '<i class="bi bi-check"></i>';
+                } else if (i === this.onboardingStep) {
+                    indicator.className = 'rounded-circle bg-primary text-white d-flex align-items-center justify-content-center';
+                    indicator.textContent = i;
+                } else {
+                    indicator.className = 'rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center';
+                    indicator.textContent = i;
+                }
+                indicator.style.width = '36px';
+                indicator.style.height = '36px';
+                indicator.style.fontWeight = 'bold';
+            }
+        }
+
+        // Show/hide step content
+        document.querySelectorAll('.onboarding-step').forEach(el => el.style.display = 'none');
+        const currentStep = document.getElementById(`onboardingStep${this.onboardingStep}`);
+        if (currentStep) currentStep.style.display = 'block';
+
+        // Update buttons
+        const backBtn = document.getElementById('onboardingBackBtn');
+        const nextBtn = document.getElementById('onboardingNextBtn');
+
+        if (backBtn) backBtn.style.display = this.onboardingStep > 1 ? 'inline-block' : 'none';
+
+        if (nextBtn) {
+            if (this.onboardingStep === 1) {
+                nextBtn.innerHTML = "I've Installed TronLink <i class='bi bi-arrow-right'></i>";
+                nextBtn.style.display = 'inline-block';
+            } else if (this.onboardingStep === 2) {
+                nextBtn.style.display = 'none'; // Connect button handles this
+            } else {
+                nextBtn.style.display = 'none'; // Registration button handles this
+            }
+        }
+
+        // Step-specific logic
+        if (this.onboardingStep === 2) {
+            this.checkTronLinkForOnboarding();
+        } else if (this.onboardingStep === 3) {
+            this.checkRegistrationStatus();
+        }
+    },
+
+    // Go to specific step
+    goToOnboardingStep(step) {
+        this.onboardingStep = step;
+        this.updateOnboardingUI();
+    },
+
+    // Next step
+    nextOnboardingStep() {
+        if (this.onboardingStep < 3) {
+            this.onboardingStep++;
+            this.updateOnboardingUI();
+        }
+    },
+
+    // Previous step
+    previousOnboardingStep() {
+        if (this.onboardingStep > 1) {
+            this.onboardingStep--;
+            this.updateOnboardingUI();
+        }
+    },
+
+    // Check if TronLink is installed
+    async checkTronLinkForOnboarding() {
+        const checkStatus = document.getElementById('walletCheckStatus');
+        const notDetected = document.getElementById('walletNotDetected');
+        const detected = document.getElementById('walletDetected');
+        const connected = document.getElementById('walletConnected');
+
+        // Show loading
+        if (checkStatus) checkStatus.style.display = 'block';
+        if (notDetected) notDetected.style.display = 'none';
+        if (detected) detected.style.display = 'none';
+        if (connected) connected.style.display = 'none';
+
+        // Wait a moment for TronLink to initialize
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        const hasTronLink = window.tronWeb || window.tronLink;
+
+        if (checkStatus) checkStatus.style.display = 'none';
+
+        if (this.state.userAddress) {
+            // Already connected
+            if (connected) {
+                connected.style.display = 'block';
+                document.getElementById('onboardingWalletAddress').textContent = this.state.userAddress;
+            }
+            // Auto-advance to step 3
+            setTimeout(() => {
+                this.onboardingStep = 3;
+                this.updateOnboardingUI();
+            }, 1000);
+        } else if (hasTronLink) {
+            if (detected) detected.style.display = 'block';
+        } else {
+            if (notDetected) notDetected.style.display = 'block';
+        }
+    },
+
+    // Connect wallet from onboarding flow
+    async connectFromOnboarding() {
+        try {
+            await this.connectWallet();
+
+            if (this.state.userAddress) {
+                const connected = document.getElementById('walletConnected');
+                const detected = document.getElementById('walletDetected');
+                if (detected) detected.style.display = 'none';
+                if (connected) {
+                    connected.style.display = 'block';
+                    document.getElementById('onboardingWalletAddress').textContent = this.state.userAddress;
+                }
+
+                // Move to step 3
+                setTimeout(() => {
+                    this.onboardingStep = 3;
+                    this.updateOnboardingUI();
+                }, 1500);
+            }
+        } catch (error) {
+            console.error('Onboarding connect error:', error);
+            this.showError('Failed to connect wallet: ' + error.message);
+        }
+    },
+
+    // Check if user is already registered
+    async checkRegistrationStatus() {
+        const alreadyRegistered = document.getElementById('alreadyRegistered');
+        const needsRegistration = document.getElementById('needsRegistration');
+
+        if (!this.state.userAddress) {
+            if (needsRegistration) needsRegistration.style.display = 'block';
+            return;
+        }
+
+        try {
+            const checkUrl = `${getConfig('backend.baseUrl')}/api/server/check/${this.state.userAddress}`;
+            const response = await fetch(checkUrl);
+            const data = await response.json();
+
+            if (data.registered) {
+                if (alreadyRegistered) {
+                    alreadyRegistered.style.display = 'block';
+                    document.getElementById('onboardingAgencyName').textContent = data.agency_name;
+                }
+                if (needsRegistration) needsRegistration.style.display = 'none';
+            } else {
+                if (alreadyRegistered) alreadyRegistered.style.display = 'none';
+                if (needsRegistration) needsRegistration.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Check registration error:', error);
+            if (needsRegistration) needsRegistration.style.display = 'block';
+        }
+    },
+
+    // Open registration modal from onboarding
+    openRegistrationFromOnboarding() {
+        // Close onboarding modal
+        const onboardingModal = bootstrap.Modal.getInstance(document.getElementById('onboardingModal'));
+        if (onboardingModal) onboardingModal.hide();
+
+        // Open registration modal
+        setTimeout(() => {
+            this.showRegistrationModal();
+        }, 300);
+    },
+
+    // ========== END ONBOARDING FLOW ==========
+
+    // Check the role of the connected wallet
+    async checkMyRole() {
+        if (!this.state.userAddress) {
+            this.showError('Please connect your wallet first');
+            return;
+        }
+
+        this.showProcessing('Checking wallet role...');
+
+        try {
+            const roles = [];
+
+            // Check backend registration
+            const checkUrl = `${getConfig('backend.baseUrl')}/api/server/check/${this.state.userAddress}`;
+            const response = await fetch(checkUrl);
+            const data = await response.json();
+
+            if (data.registered) {
+                roles.push({
+                    role: 'Registered Process Server',
+                    icon: 'bi-person-badge-fill',
+                    color: 'success',
+                    details: `Agency: ${data.agency_name}`
+                });
+            }
+
+            // Check contract roles if contract is available
+            if (window.contract && window.contract.instance) {
+                try {
+                    // Check ADMIN_ROLE
+                    const adminRole = await window.contract.instance.ADMIN_ROLE().call();
+                    const isAdmin = await window.contract.instance.hasRole(adminRole, this.state.userAddress).call();
+                    if (isAdmin) {
+                        roles.push({
+                            role: 'Contract Admin',
+                            icon: 'bi-shield-fill-check',
+                            color: 'danger',
+                            details: 'Full administrative access to the smart contract'
+                        });
+                    }
+
+                    // Check PROCESS_SERVER_ROLE
+                    const serverRole = await window.contract.instance.PROCESS_SERVER_ROLE().call();
+                    const isServer = await window.contract.instance.hasRole(serverRole, this.state.userAddress).call();
+                    if (isServer) {
+                        roles.push({
+                            role: 'Approved Process Server (On-Chain)',
+                            icon: 'bi-patch-check-fill',
+                            color: 'primary',
+                            details: 'Authorized to mint legal notice NFTs'
+                        });
+                    }
+                } catch (contractError) {
+                    console.log('Contract role check skipped:', contractError.message);
+                }
+            }
+
+            this.hideProcessing();
+
+            // Show results in a modal
+            this.showRoleModal(roles);
+
+        } catch (error) {
+            console.error('Error checking role:', error);
+            this.hideProcessing();
+            this.showError('Failed to check wallet role: ' + error.message);
+        }
+    },
+
+    // Show role information modal
+    showRoleModal(roles) {
+        // Remove any existing role modal
+        const existingModal = document.getElementById('roleModal');
+        if (existingModal) existingModal.remove();
+
+        let rolesHtml = '';
+        if (roles.length === 0) {
+            rolesHtml = `
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i> <strong>No roles assigned</strong><br>
+                    This wallet is not registered as a process server.
+                </div>
+                <p>To get started, click the "Get Started" button on the home page or register through the registration form.</p>
+            `;
+        } else {
+            rolesHtml = '<div class="list-group">';
+            roles.forEach(r => {
+                rolesHtml += `
+                    <div class="list-group-item">
+                        <div class="d-flex align-items-center">
+                            <i class="bi ${r.icon} text-${r.color} me-3" style="font-size: 1.5rem;"></i>
+                            <div>
+                                <h6 class="mb-0">${r.role}</h6>
+                                <small class="text-muted">${r.details}</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            rolesHtml += '</div>';
+        }
+
+        const modalHtml = `
+            <div class="modal fade" id="roleModal" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-dark text-white">
+                            <h5 class="modal-title"><i class="bi bi-person-badge"></i> Wallet Role Information</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label text-muted">Connected Wallet</label>
+                                <div class="font-monospace bg-light p-2 rounded" style="word-break: break-all;">
+                                    ${this.state.userAddress}
+                                </div>
+                            </div>
+                            <hr>
+                            <h6>Assigned Roles:</h6>
+                            ${rolesHtml}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        const modal = new bootstrap.Modal(document.getElementById('roleModal'));
+        modal.show();
+
+        // Clean up when closed
+        document.getElementById('roleModal').addEventListener('hidden.bs.modal', function() {
+            this.remove();
+        });
+    },
+
     // Load agency name into forms (called when navigating to serve page)
     loadAgencyInfo() {
         let agencyName = localStorage.getItem('legalnotice_agency_name') || this.state.agencyName;
