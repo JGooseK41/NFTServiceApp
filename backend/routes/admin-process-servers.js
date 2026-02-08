@@ -28,34 +28,22 @@ async function listServers(req, res) {
         client = await pool.connect();
 
         const result = await client.query(`
-            SELECT
-                id,
-                wallet_address,
-                agency_name,
-                contact_email,
-                phone_number,
-                website,
-                license_number,
-                jurisdictions,
-                status,
-                total_notices_served,
-                created_at,
-                updated_at
+            SELECT *
             FROM process_servers
             ORDER BY created_at DESC
         `);
 
-        // Map DB column names to what the frontend expects
+        // Map DB column names to what the frontend expects (fallbacks for schema variations)
         const servers = result.rows.map(row => ({
             id: row.id,
             wallet_address: row.wallet_address,
-            full_name: row.agency_name || 'Unknown',
-            agency: row.agency_name || 'N/A',
-            email: row.contact_email,
-            phone: row.phone_number,
+            full_name: row.agency_name || row.name || 'Unknown',
+            agency: row.agency_name || row.agency || row.name || 'N/A',
+            email: row.contact_email || row.email,
+            phone: row.phone_number || row.phone,
             website: row.website,
             license_number: row.license_number,
-            jurisdictions: row.jurisdictions,
+            jurisdictions: row.jurisdictions || row.jurisdiction,
             status: row.status,
             is_active: row.status === 'active' || row.status === 'approved',
             total_cases: row.total_notices_served || 0,

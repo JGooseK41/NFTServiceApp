@@ -150,39 +150,28 @@ router.get('/process-servers', checkAdminAuth, async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT
-                ps.id,
-                ps.wallet_address,
-                ps.agency_name,
-                ps.contact_email,
-                ps.phone_number,
-                ps.website,
-                ps.license_number,
-                ps.jurisdictions,
-                ps.status,
-                ps.total_notices_served,
-                ps.created_at,
-                ps.updated_at,
+                ps.*,
                 COUNT(DISTINCT csr.case_number) as total_cases,
                 COUNT(DISTINCT CASE WHEN csr.accepted THEN csr.case_number END) as signed_cases,
                 COUNT(DISTINCT CASE WHEN csr.served_at > NOW() - INTERVAL '7 days' THEN csr.case_number END) as recent_cases,
                 MAX(csr.served_at) as last_activity
             FROM process_servers ps
             LEFT JOIN case_service_records csr ON LOWER(ps.wallet_address) = LOWER(csr.server_address)
-            GROUP BY ps.id, ps.wallet_address
+            GROUP BY ps.id
             ORDER BY ps.created_at DESC
         `);
 
-        // Map to frontend-expected field names
+        // Map to frontend-expected field names (use fallbacks for columns that may not exist)
         const servers = result.rows.map(row => ({
             id: row.id,
             wallet_address: row.wallet_address,
-            full_name: row.agency_name || 'Unknown',
-            agency: row.agency_name || 'N/A',
-            email: row.contact_email,
-            phone: row.phone_number,
+            full_name: row.agency_name || row.name || 'Unknown',
+            agency: row.agency_name || row.agency || row.name || 'N/A',
+            email: row.contact_email || row.email,
+            phone: row.phone_number || row.phone,
             website: row.website,
             license_number: row.license_number,
-            jurisdictions: row.jurisdictions,
+            jurisdictions: row.jurisdictions || row.jurisdiction,
             status: row.status,
             is_active: row.status === 'active' || row.status === 'approved',
             total_cases: parseInt(row.total_cases) || 0,
