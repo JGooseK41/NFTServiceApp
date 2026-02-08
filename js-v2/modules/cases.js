@@ -974,18 +974,27 @@ window.cases = {
                 return;
             }
 
-            // Show comprehensive service details modal
-            this.showServiceDetailsModal(caseData);
-            
+            // Show comprehensive service details modal (pass caseId as fallback)
+            this.showServiceDetailsModal(caseData, caseId);
+
         } catch (error) {
             console.error('Failed to view receipt:', error);
             window.app.showError('Failed to view receipt: ' + error.message);
         }
     },
-    
+
     // Show comprehensive service details modal with all actions
-    showServiceDetailsModal(caseData) {
-        const caseNumber = caseData.caseNumber || caseData.case_number;
+    showServiceDetailsModal(caseData, fallbackCaseId = null) {
+        const caseNumber = caseData.caseNumber || caseData.case_number || caseData.id || fallbackCaseId;
+
+        // Validate we have a case number
+        if (!caseNumber || caseNumber === 'undefined' || caseNumber === 'null') {
+            console.error('showServiceDetailsModal: No valid case number found', { caseData, fallbackCaseId });
+            window.app.showError('Unable to display service details: Case number not found');
+            return;
+        }
+
+        console.log('showServiceDetailsModal: Using case number:', caseNumber);
         const txHash = caseData.transactionHash || caseData.transaction_hash;
         const alertTokenId = caseData.alertTokenId || caseData.alert_token_id;
         const documentTokenId = caseData.documentTokenId || caseData.document_token_id;
@@ -1377,10 +1386,18 @@ window.cases = {
     // View audit log for a case
     async viewAuditLog(caseId) {
         try {
+            // Validate caseId
+            if (!caseId || caseId === 'undefined' || caseId === 'null') {
+                console.error('viewAuditLog: Invalid caseId provided:', caseId);
+                window.app.showError('Unable to fetch audit log: Invalid case ID');
+                return;
+            }
+
             // Get case data to find recipients
             let caseData = this.getCaseData(caseId);
             const caseNumber = caseData?.caseNumber || caseData?.case_number || caseId;
 
+            console.log('viewAuditLog: Fetching audit for case:', caseNumber);
             window.app.showProcessing('Fetching audit logs...');
 
             // Fetch audit logs from backend (URL encode case number for spaces/special chars)
@@ -1631,14 +1648,21 @@ window.cases = {
     // Fetch status for all recipients in a case
     async fetchRecipientStatus(caseNumber) {
         try {
+            // Validate caseNumber
+            if (!caseNumber || caseNumber === 'undefined' || caseNumber === 'null') {
+                console.error('fetchRecipientStatus: Invalid caseNumber provided:', caseNumber);
+                return;
+            }
+
             const walletAddress = window.wallet?.address;
             if (!walletAddress) {
                 console.log('No wallet connected, cannot fetch recipient status');
                 return;
             }
 
+            console.log('fetchRecipientStatus: Fetching status for case:', caseNumber);
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-            const response = await fetch(`${backendUrl}/api/server/${walletAddress}/case/${caseNumber}/recipient-status?detailed=true`);
+            const response = await fetch(`${backendUrl}/api/server/${walletAddress}/case/${encodeURIComponent(caseNumber)}/recipient-status?detailed=true`);
 
             if (!response.ok) {
                 console.error('Failed to fetch recipient status:', response.status);
@@ -2021,10 +2045,13 @@ window.cases = {
     // Print proof of service receipt
     async printReceipt(caseId) {
         try {
-            if (!caseId) {
-                window.app.showError('Invalid case ID');
+            if (!caseId || caseId === 'undefined' || caseId === 'null') {
+                console.error('printReceipt: Invalid caseId provided:', caseId);
+                window.app.showError('Unable to print receipt: Invalid case ID');
                 return;
             }
+
+            console.log('printReceipt: Printing receipt for case:', caseId);
 
             // First fetch fresh data from backend
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
