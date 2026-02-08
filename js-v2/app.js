@@ -386,24 +386,28 @@ window.app = {
     async connectWallet() {
         try {
             this.showProcessing('Connecting to wallet...');
-            
+
             if (window.wallet) {
                 const connected = await window.wallet.connect();
                 if (connected) {
                     this.state.walletConnected = true;
                     this.state.userAddress = window.wallet.address;
                     this.state.tronWeb = window.wallet.tronWeb;
-                    
+
                     // Update UI
                     this.updateWalletUI(this.state.userAddress);
 
                     // Initialize contract with wallet
                     if (window.contract) {
-                        await window.contract.initialize(this.state.tronWeb);
-                        this.state.contract = window.contract.instance;
+                        try {
+                            await window.contract.initialize(this.state.tronWeb);
+                            this.state.contract = window.contract.instance;
+                        } catch (contractError) {
+                            console.warn('Contract initialization warning:', contractError);
+                        }
                     }
 
-                    // Register server if needed
+                    // Check server registration status
                     await this.registerServer();
 
                     // Dispatch walletConnected event for admin-access and other modules
@@ -411,12 +415,17 @@ window.app = {
 
                     this.hideProcessing();
                     this.showSuccess('Wallet connected successfully');
+                } else {
+                    this.hideProcessing();
                 }
+            } else {
+                this.hideProcessing();
+                this.showError('Wallet module not available');
             }
         } catch (error) {
             console.error('Failed to connect wallet:', error);
             this.hideProcessing();
-            this.showError('Failed to connect wallet');
+            this.showError('Failed to connect wallet: ' + error.message);
         }
     },
     
@@ -610,31 +619,37 @@ window.app = {
 
             const data = await response.json();
 
+            // Always hide processing when done
+            this.hideProcessing();
+
             if (response.ok && data.success) {
-                // Store agency info and mark as registered
-                this.state.isRegisteredServer = true;
-                this.state.agencyName = agencyName;
-                this.state.serverId = this.state.userAddress;
-                localStorage.setItem('legalnotice_agency_name', agencyName);
-                localStorage.setItem(getConfig('storage.keys.serverId'), this.state.userAddress);
+                try {
+                    // Store agency info and mark as registered
+                    this.state.isRegisteredServer = true;
+                    this.state.agencyName = agencyName;
+                    this.state.serverId = this.state.userAddress;
+                    localStorage.setItem('legalnotice_agency_name', agencyName);
+                    localStorage.setItem(getConfig('storage.keys.serverId'), this.state.userAddress);
 
-                // Auto-fill agency name in the serve form
-                const agencyField = document.getElementById('issuingAgency');
-                if (agencyField) {
-                    agencyField.value = agencyName;
+                    // Auto-fill agency name in the serve form
+                    const agencyField = document.getElementById('issuingAgency');
+                    if (agencyField) {
+                        agencyField.value = agencyName;
+                    }
+
+                    // Update UI to show registered server options
+                    this.updateUIForRole();
+
+                    // Close registration modal
+                    const regModal = bootstrap.Modal.getInstance(document.getElementById('serverRegistrationModal'));
+                    if (regModal) regModal.hide();
+
+                    this.showSuccess('Agency registered successfully! Your agency name is now permanently linked to this wallet.');
+                } catch (successError) {
+                    console.error('Error in registration success handler:', successError);
+                    this.showSuccess('Agency registered successfully!');
                 }
-
-                // Update UI to show registered server options
-                this.updateUIForRole();
-
-                // Close modal
-                const modal = bootstrap.Modal.getInstance(document.getElementById('serverRegistrationModal'));
-                if (modal) modal.hide();
-
-                this.hideProcessing();
-                this.showSuccess('Agency registered successfully! Your agency name is now permanently linked to this wallet.');
             } else {
-                this.hideProcessing();
                 errorDiv.textContent = data.error || 'Registration failed';
                 errorDiv.style.display = 'block';
             }
@@ -2466,7 +2481,15 @@ window.app = {
     },
     
     // UI Helper Functions
-    showProcessing(message, details = '') {
+    processingTimeout: null,
+
+    showProcessing(message, details = '', maxDuration = 30000) {
+        // Clear any existing timeout
+        if (this.processingTimeout) {
+            clearTimeout(this.processingTimeout);
+            this.processingTimeout = null;
+        }
+
         const modal = document.getElementById('processingModal');
         const messageEl = document.getElementById('processingMessage');
         const detailsEl = document.getElementById('processingDetails');
@@ -2478,24 +2501,50 @@ window.app = {
             // Reuse existing instance or create new one
             let bsModal = bootstrap.Modal.getInstance(modal);
             if (!bsModal) {
-                bsModal = new bootstrap.Modal(modal);
+                bsModal = new bootstrap.Modal(modal, {
+                    backdrop: 'static',
+                    keyboard: false
+                });
             }
             bsModal.show();
+
+            // Safety timeout - auto-hide after maxDuration to prevent stuck modals
+            this.processingTimeout = setTimeout(() => {
+                console.warn('Processing modal auto-hidden after timeout');
+                this.hideProcessing();
+            }, maxDuration);
         }
     },
 
     hideProcessing() {
+        // Clear timeout
+        if (this.processingTimeout) {
+            clearTimeout(this.processingTimeout);
+            this.processingTimeout = null;
+        }
+
         const modal = document.getElementById('processingModal');
         if (modal) {
-            const bsModal = bootstrap.Modal.getInstance(modal);
-            if (bsModal) {
-                bsModal.hide();
+            try {
+                const bsModal = bootstrap.Modal.getInstance(modal);
+                if (bsModal) {
+                    bsModal.hide();
+                }
+            } catch (e) {
+                console.error('Error hiding modal via Bootstrap:', e);
             }
-            // Also remove backdrop manually if it persists
-            const backdrop = document.querySelector('.modal-backdrop');
-            if (backdrop) backdrop.remove();
-            document.body.classList.remove('modal-open');
-            document.body.style.removeProperty('padding-right');
+
+            // Force cleanup - remove backdrop and modal-open class
+            setTimeout(() => {
+                const backdrops = document.querySelectorAll('.modal-backdrop');
+                backdrops.forEach(backdrop => backdrop.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.removeProperty('padding-right');
+                document.body.style.removeProperty('overflow');
+                modal.classList.remove('show');
+                modal.style.display = 'none';
+                modal.setAttribute('aria-hidden', 'true');
+            }, 150);
         }
     },
     
