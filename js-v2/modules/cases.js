@@ -1872,6 +1872,17 @@ window.cases = {
             const chainId = serviceData?.chain || caseData.chain || (window.getCurrentChainId ? window.getCurrentChainId() : 'tron-mainnet');
             const chainInfo = window.getChainInfo ? window.getChainInfo(chainId) : null;
 
+            // Get fee breakdown from various sources
+            const feeBreakdown = serviceData?.feeBreakdown || caseData.feeBreakdown || caseData.metadata?.feeBreakdown;
+            const recipientCount = recipients.length || 1;
+
+            // Get fee config for fallback values
+            const feeConfig = window.app?.feeConfig || {
+                serviceFeeInTRX: 10,
+                recipientFundingInTRX: 20,
+                totalPerNoticeInTRX: 30
+            };
+
             // Prepare case data for receipt generation
             const receiptData = {
                 caseNumber: serviceData?.caseNumber || caseData.caseNumber || caseData.case_number || caseId,
@@ -1889,7 +1900,13 @@ window.cases = {
                 ipfsHash: serviceData?.ipfsHash || serviceData?.ipfsDocument || caseData.ipfsHash || caseData.ipfsDocument,
                 chain: chainId,
                 chainName: chainInfo?.name || 'Blockchain',
-                explorerUrl: serviceData?.explorerUrl || (window.getExplorerTxUrl ? window.getExplorerTxUrl(transactionHash, chainId) : null)
+                explorerUrl: serviceData?.explorerUrl || (window.getExplorerTxUrl ? window.getExplorerTxUrl(transactionHash, chainId) : null),
+                // Fee breakdown for Page 4
+                serviceFee: feeBreakdown?.serviceFee || serviceData?.serviceFee || (feeConfig.serviceFeeInTRX * recipientCount),
+                recipientFunding: feeBreakdown?.recipientFunding || serviceData?.recipientFunding || (feeConfig.recipientFundingInTRX * recipientCount),
+                networkFee: feeBreakdown?.networkFee || serviceData?.networkFee || (5 * recipientCount),
+                totalCost: feeBreakdown?.total || serviceData?.totalCost || ((feeConfig.totalPerNoticeInTRX + 5) * recipientCount),
+                recipientCount: recipientCount
             };
 
             console.log('Receipt data prepared:', receiptData);
