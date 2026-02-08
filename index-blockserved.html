@@ -795,47 +795,102 @@
         <div class="mobile-wallet-content">
             <div class="mobile-wallet-header">
                 <i class="bi bi-phone" style="font-size: 48px; color: var(--secondary-color); margin-bottom: 15px;"></i>
-                <h2>Mobile Wallet Connection</h2>
-                <p style="color: var(--text-light);">To view your legal documents on mobile, you need to access this site from within your wallet app</p>
+                <h2>Connect Your Wallet</h2>
+                <p style="color: var(--text-light);">Choose your wallet app to view your legal documents</p>
             </div>
-            
+
             <div class="mobile-instructions">
-                <h5><i class="bi bi-exclamation-triangle-fill"></i> Important for Mobile Users</h5>
-                <p style="margin-bottom: 10px;">Mobile browsers cannot connect directly to wallet apps for security reasons. You must:</p>
-                <ol>
-                    <li>Open your <strong>TronLink</strong> wallet app</li>
-                    <li>Navigate to the built-in browser (DApp Browser)</li>
-                    <li>Enter this URL: <strong>blockserved.com</strong></li>
-                    <li>Your wallet will automatically connect</li>
+                <h5><i class="bi bi-info-circle-fill"></i> How Mobile Wallet Connection Works</h5>
+                <p style="margin-bottom: 10px;">For security, mobile browsers can't connect directly to wallet apps. Choose one of these options:</p>
+            </div>
+
+            <!-- Wallet Selection Grid -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0;">
+                <div class="wallet-option" onclick="openInWallet('tronlink')" style="padding: 15px; text-align: center;">
+                    <img src="https://cdn.jsdelivr.net/gh/niconiahi/if-i-go-content@0.0.1/icons/tronlink.png"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                         style="width: 40px; height: 40px; margin-bottom: 8px;" alt="TronLink">
+                    <i class="bi bi-wallet2" style="font-size: 40px; color: #2e7dd0; display: none;"></i>
+                    <h5 style="margin: 5px 0 0 0; font-size: 14px;">TronLink</h5>
+                </div>
+
+                <div class="wallet-option" onclick="openInWallet('trust')" style="padding: 15px; text-align: center;">
+                    <img src="https://trustwallet.com/assets/images/favicon.png"
+                         onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22><circle cx=%2220%22 cy=%2220%22 r=%2218%22 fill=%22%230500FF%22/><text x=%2220%22 y=%2226%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2216%22>T</text></svg>'"
+                         style="width: 40px; height: 40px; margin-bottom: 8px;" alt="Trust Wallet">
+                    <h5 style="margin: 5px 0 0 0; font-size: 14px;">Trust Wallet</h5>
+                </div>
+
+                <div class="wallet-option" onclick="openInWallet('tokenpocket')" style="padding: 15px; text-align: center;">
+                    <img src="https://tokenpocket.pro/favicon.ico"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                         style="width: 40px; height: 40px; margin-bottom: 8px;" alt="TokenPocket">
+                    <i class="bi bi-wallet-fill" style="font-size: 40px; color: #2980fe; display: none;"></i>
+                    <h5 style="margin: 5px 0 0 0; font-size: 14px;">TokenPocket</h5>
+                </div>
+
+                <div class="wallet-option" onclick="openInWallet('imtoken')" style="padding: 15px; text-align: center;">
+                    <img src="https://token.im/favicon.ico"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                         style="width: 40px; height: 40px; margin-bottom: 8px;" alt="imToken">
+                    <i class="bi bi-wallet-fill" style="font-size: 40px; color: #11c3d0; display: none;"></i>
+                    <h5 style="margin: 5px 0 0 0; font-size: 14px;">imToken</h5>
+                </div>
+            </div>
+
+            <!-- Alternative Options -->
+            <div style="border-top: 1px solid #e0e0e0; padding-top: 15px; margin-top: 10px;">
+                <p style="text-align: center; color: #666; font-size: 13px; margin-bottom: 10px;">Or use these options:</p>
+
+                <div class="wallet-option" onclick="copyUrlToClipboard()" style="display: flex; align-items: center; padding: 12px 15px;">
+                    <i class="bi bi-clipboard" style="font-size: 24px; color: var(--primary-color); margin-right: 12px;"></i>
+                    <div>
+                        <h5 style="margin: 0; font-size: 14px;">Copy URL</h5>
+                        <p style="margin: 0; font-size: 12px; color: #666;">Paste in your wallet's browser</p>
+                    </div>
+                </div>
+
+                <div class="wallet-option" onclick="showManualInstructions()" style="display: flex; align-items: center; padding: 12px 15px;">
+                    <i class="bi bi-question-circle" style="font-size: 24px; color: var(--secondary-color); margin-right: 12px;"></i>
+                    <div>
+                        <h5 style="margin: 0; font-size: 14px;">Need Help?</h5>
+                        <p style="margin: 0; font-size: 12px; color: #666;">Step-by-step instructions</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manual Instructions (hidden by default) -->
+            <div id="manualInstructions" style="display: none; background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                <h5 style="color: var(--primary-color); margin-bottom: 10px;">Step-by-Step Instructions</h5>
+                <ol style="margin: 0; padding-left: 20px; font-size: 14px;">
+                    <li style="margin-bottom: 8px;">Open your wallet app (TronLink, Trust Wallet, etc.)</li>
+                    <li style="margin-bottom: 8px;">Find the "Browser" or "DApp" section</li>
+                    <li style="margin-bottom: 8px;">Enter: <strong style="color: var(--primary-color);">blockserved.com</strong></li>
+                    <li style="margin-bottom: 8px;">Your wallet will connect automatically</li>
                 </ol>
+                <div style="background: #fff3cd; padding: 10px; border-radius: 5px; margin-top: 10px;">
+                    <small><i class="bi bi-lightbulb-fill" style="color: #856404;"></i>
+                    <strong>Tip:</strong> Make sure you're using the same wallet that received the legal notice NFT.</small>
+                </div>
             </div>
-            
-            <div class="wallet-option" onclick="openInTronLink()">
-                <h4><i class="bi bi-wallet2"></i> Open in TronLink</h4>
-                <p>If you have TronLink installed, click here to open this site in the TronLink browser</p>
-            </div>
-            
-            <div class="wallet-option" onclick="copyUrlToClipboard()">
-                <h4><i class="bi bi-clipboard"></i> Copy URL</h4>
-                <p>Copy the URL to paste into your wallet's browser</p>
-            </div>
-            
-            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                <h5 style="color: var(--primary-color); margin-bottom: 10px;">Don't have TronLink?</h5>
-                <p style="font-size: 14px; margin-bottom: 10px;">Download the official TronLink wallet app:</p>
+
+            <!-- Download Options -->
+            <div style="background: #e8f4fd; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                <h5 style="color: var(--primary-color); margin-bottom: 10px;">Don't have a TRON wallet?</h5>
+                <p style="font-size: 13px; margin-bottom: 10px;">Download TronLink - the official TRON wallet:</p>
                 <div style="display: flex; gap: 10px; justify-content: center;">
-                    <a href="https://apps.apple.com/app/tronlink/id1453530188" target="_blank" class="btn btn-primary" style="font-size: 14px;">
-                        <i class="bi bi-apple"></i> App Store
+                    <a href="https://apps.apple.com/app/tronlink/id1453530188" target="_blank" class="btn btn-primary" style="font-size: 13px; padding: 8px 15px;">
+                        <i class="bi bi-apple"></i> iOS
                     </a>
-                    <a href="https://play.google.com/store/apps/details?id=com.tronlinkpro.wallet" target="_blank" class="btn btn-primary" style="font-size: 14px;">
-                        <i class="bi bi-google-play"></i> Google Play
+                    <a href="https://play.google.com/store/apps/details?id=com.tronlinkpro.wallet" target="_blank" class="btn btn-primary" style="font-size: 13px; padding: 8px 15px;">
+                        <i class="bi bi-google-play"></i> Android
                     </a>
                 </div>
             </div>
-            
-            <div style="text-align: center; margin-top: 20px;">
-                <button onclick="closeMobileWalletModal()" class="btn btn-secondary">
-                    Try Desktop Instead
+
+            <div style="text-align: center; margin-top: 15px;">
+                <button onclick="closeMobileWalletModal()" class="btn btn-secondary" style="font-size: 14px;">
+                    <i class="bi bi-x-lg"></i> Close
                 </button>
             </div>
         </div>
@@ -1602,18 +1657,96 @@
             return true;
         }
         
-        // Open in TronLink browser
-        function openInTronLink() {
+        // Deep link URLs for various wallets
+        const walletDeepLinks = {
+            tronlink: {
+                name: 'TronLink',
+                scheme: 'tronlink://open?url=',
+                fallbackUrl: 'https://www.tronlink.org/'
+            },
+            trust: {
+                name: 'Trust Wallet',
+                // Trust Wallet uses different deep link format
+                scheme: 'trust://open_url?url=',
+                // Alternative: trust://browser_open?coin_id=195&url=
+                fallbackUrl: 'https://trustwallet.com/'
+            },
+            tokenpocket: {
+                name: 'TokenPocket',
+                scheme: 'tpoutside://open?url=',
+                fallbackUrl: 'https://www.tokenpocket.pro/'
+            },
+            imtoken: {
+                name: 'imToken',
+                scheme: 'imtokenv2://navigate/DappView?url=',
+                fallbackUrl: 'https://token.im/'
+            },
+            bitget: {
+                name: 'Bitget Wallet',
+                scheme: 'bitkeep://open?url=',
+                fallbackUrl: 'https://web3.bitget.com/'
+            },
+            okx: {
+                name: 'OKX Wallet',
+                scheme: 'okx://wallet/dapp/url?dappUrl=',
+                fallbackUrl: 'https://www.okx.com/web3'
+            },
+            mathwallet: {
+                name: 'Math Wallet',
+                scheme: 'mathwallet://open?url=',
+                fallbackUrl: 'https://mathwallet.org/'
+            }
+        };
+
+        // Open site in specified wallet app
+        function openInWallet(walletKey) {
+            const wallet = walletDeepLinks[walletKey];
+            if (!wallet) {
+                showAlert('Unknown wallet', 'error');
+                return;
+            }
+
             const currentUrl = window.location.href;
-            const tronLinkUrl = `tronlink://open?url=${encodeURIComponent(currentUrl)}`;
-            
-            // Try to open in TronLink
-            window.location.href = tronLinkUrl;
-            
-            // Fallback message after a delay
+            const deepLink = wallet.scheme + encodeURIComponent(currentUrl);
+
+            console.log(`Attempting to open in ${wallet.name}: ${deepLink}`);
+
+            // Track the attempt
+            try {
+                fetch(`${backendUrl}/api/recipient-logs/wallet-open-attempt`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        wallet: walletKey,
+                        walletName: wallet.name,
+                        url: currentUrl
+                    })
+                }).catch(() => {});
+            } catch (e) {}
+
+            // Try to open the wallet
+            window.location.href = deepLink;
+
+            // Show fallback message after delay
             setTimeout(() => {
-                showAlert('If TronLink did not open, please open it manually and navigate to blockserved.com', 'info');
-            }, 2000);
+                showAlert(`If ${wallet.name} didn't open, please open the app manually and go to: blockserved.com`, 'info');
+            }, 2500);
+        }
+
+        // Legacy function for backwards compatibility
+        function openInTronLink() {
+            openInWallet('tronlink');
+        }
+
+        // Show/hide manual instructions
+        function showManualInstructions() {
+            const instructions = document.getElementById('manualInstructions');
+            if (instructions.style.display === 'none') {
+                instructions.style.display = 'block';
+                instructions.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+                instructions.style.display = 'none';
+            }
         }
         
         // Copy URL to clipboard
