@@ -1745,10 +1745,11 @@ window.app = {
             // If we already have a currentCaseId, we're updating an existing case
             const isUpdating = !!this.currentCaseId;
 
-            // Show processing modal immediately
+            // Show processing modal immediately (longer timeout for large PDF uploads)
             this.showProcessing(
                 isUpdating ? 'Updating case...' : 'Saving to Case Manager...',
-                'Cleaning PDFs and preparing for blockchain service'
+                'Cleaning PDFs and preparing for blockchain service',
+                120000
             );
 
             if (!isUpdating) {
@@ -1856,7 +1857,7 @@ window.app = {
             
             // Add timeout to prevent hanging
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+            const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout for large PDF uploads
             
             const response = await fetch(apiUrl, {
                 method: 'POST',
