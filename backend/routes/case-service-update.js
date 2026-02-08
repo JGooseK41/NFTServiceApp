@@ -69,20 +69,17 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
         console.log('Chain:', chain || 'tron-nile');
         console.log('Has Alert Image:', !!alertImage);
 
-        // Ensure required columns exist before we try to use them (use pool, not client, to avoid transaction issues)
+        // Ensure we start with a clean transaction state
+        // (in case the previous request left the connection in a bad state)
         try {
-            // Add columns to case_service_records
-            await pool.query(`ALTER TABLE case_service_records ADD COLUMN IF NOT EXISTS chain VARCHAR(50) DEFAULT 'tron-mainnet'`);
-            await pool.query(`ALTER TABLE case_service_records ADD COLUMN IF NOT EXISTS explorer_url TEXT`);
-            await pool.query(`ALTER TABLE case_service_records ADD COLUMN IF NOT EXISTS viewed_at TIMESTAMP`);
-            await pool.query(`ALTER TABLE case_service_records ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'served'`);
-            // Add chain column to cases table as well (used in INSERT below)
-            await pool.query(`ALTER TABLE cases ADD COLUMN IF NOT EXISTS chain VARCHAR(50) DEFAULT 'tron-mainnet'`);
+            await client.query('ROLLBACK');
         } catch (e) {
-            console.log('Note: Could not add columns:', e.message);
+            // Ignore - no transaction to rollback
         }
 
+        // Start fresh transaction
         await client.query('BEGIN');
+        console.log('Transaction started successfully');
 
         console.log(`\n========== SERVICE-COMPLETE: ${caseNumber} ==========`);
         console.log(`Server Address: ${serverAddress}`);
