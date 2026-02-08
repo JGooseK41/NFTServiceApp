@@ -495,8 +495,60 @@ window.contract = {
             }
         }
 
+        // Fallback: Try TronGrid events API directly
+        console.log('  Trying TronGrid events API fallback...');
+        const tokenId = await this._extractTokenIdFromEvents(txHash);
+        if (tokenId) {
+            return tokenId;
+        }
+
         console.log('❌ Could not extract token ID after', maxRetries, 'retries');
         return null;
+    },
+
+    // Fallback: Query TronGrid events API directly
+    async _extractTokenIdFromEvents(txHash) {
+        try {
+            const network = window.getCurrentNetwork ? window.getCurrentNetwork() : { fullHost: 'https://nile.trongrid.io' };
+            const baseUrl = network.fullHost.replace('trongrid.io', 'trongrid.io');
+            const contractAddress = this.address;
+
+            // Query events for this transaction
+            const eventsUrl = `${baseUrl}/v1/contracts/${contractAddress}/events?transaction_id=${txHash}`;
+            console.log('  Querying events API:', eventsUrl);
+
+            const response = await fetch(eventsUrl, {
+                headers: {
+                    'TRON-PRO-API-KEY': window.TRONGRID_API_KEY || ''
+                }
+            });
+
+            if (!response.ok) {
+                console.log('  Events API returned:', response.status);
+                return null;
+            }
+
+            const data = await response.json();
+            console.log('  Events API response:', data?.data?.length || 0, 'events');
+
+            if (data && data.data && data.data.length > 0) {
+                for (const event of data.data) {
+                    // Look for Transfer event
+                    if (event.event_name === 'Transfer' && event.result) {
+                        const tokenId = event.result.tokenId || event.result['2'];
+                        if (tokenId) {
+                            console.log('✅ Extracted token ID from events API:', tokenId);
+                            return parseInt(tokenId);
+                        }
+                    }
+                }
+            }
+
+            return null;
+        } catch (e) {
+            console.log('  Events API fallback failed:', e.message);
+            return null;
+        }
     },
 
     // Extract token IDs from batch transaction

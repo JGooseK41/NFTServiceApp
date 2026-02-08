@@ -408,7 +408,8 @@ window.notices = {
             this.showSuccessConfirmation({
                 success: true,
                 noticeId,
-                transactionHash: txResult.alertTx,
+                alertTxId: txResult.alertTx,
+                documentTxId: txResult.alertTx, // Same for Lite contract
                 tokenId: alertTokenId,
                 receipt,
                 viewUrl: `https://blockserved.com?case=${encodeURIComponent(data.caseNumber || noticeId)}`,
