@@ -125,6 +125,37 @@ window.receipts = {
         });
     },
     
+    // Format date in UTC
+    formatDateUTC(dateInput) {
+        if (!dateInput) return 'N/A';
+        const date = new Date(dateInput);
+        return date.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC');
+    },
+
+    // Get registered server name from backend or localStorage
+    async getServerName(walletAddress) {
+        if (!walletAddress) return 'N/A';
+
+        // Try to get from window.app state first
+        if (window.app?.state?.serverName) {
+            return window.app.state.serverName;
+        }
+
+        // Try localStorage
+        try {
+            const serverRegistrations = JSON.parse(localStorage.getItem('serverRegistrations') || '{}');
+            const registration = serverRegistrations[walletAddress];
+            if (registration?.agency_name) {
+                return registration.agency_name;
+            }
+        } catch (e) {
+            console.log('Could not get server name from localStorage');
+        }
+
+        // Fall back to wallet address (truncated)
+        return `${walletAddress.substring(0, 8)}...${walletAddress.substring(walletAddress.length - 6)}`;
+    },
+
     // Generate receipt HTML
     generateReceiptHTML(receipt) {
         // Handle different field name variations
@@ -145,6 +176,11 @@ window.receipts = {
         const explorerUrl = window.getExplorerTxUrl ? window.getExplorerTxUrl(txHash) :
                            `https://tronscan.org/#/transaction/${txHash}`;
 
+        // Get server name (use agency name if registered, else truncated address)
+        const serverName = receipt.serverName || receipt.agencyName ||
+                          window.app?.state?.serverName ||
+                          this.formatAddress(receipt.serverAddress || receipt.serverId);
+
         return `
             <div class="receipt-document" style="padding: 20px; font-family: 'Times New Roman', serif;">
                 <!-- Header -->
@@ -161,7 +197,7 @@ window.receipts = {
                                 <strong>Receipt ID:</strong> ${receipt.receiptId || 'N/A'}
                             </td>
                             <td style="width: 50%; padding: 5px;">
-                                <strong>Date Served:</strong> ${receipt.timestamp ? new Date(receipt.timestamp).toLocaleString() : 'N/A'}
+                                <strong>Date Served:</strong> ${this.formatDateUTC(receipt.timestamp)}
                             </td>
                         </tr>
                         <tr>
@@ -174,7 +210,7 @@ window.receipts = {
                         </tr>
                     </table>
                 </div>
-                
+
                 <!-- Service Details -->
                 <div style="margin-bottom: 30px;">
                     <h4 style="border-bottom: 1px solid #ccc; padding-bottom: 5px;">SERVICE DETAILS</h4>
@@ -188,7 +224,12 @@ window.receipts = {
                         </tr>
                         <tr>
                             <td style="padding: 5px;">
-                                <strong>Process Server ID:</strong> ${receipt.serverId || receipt.serverAddress || 'N/A'}
+                                <strong>Process Server:</strong> ${serverName}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 5px;">
+                                <strong>Server Wallet:</strong> ${receipt.serverAddress || receipt.serverId || 'N/A'}
                             </td>
                         </tr>
                         <tr>
@@ -256,8 +297,9 @@ window.receipts = {
                     <div style="margin-top: 30px;">
                         <div style="border-bottom: 1px solid #000; width: 300px; margin-bottom: 5px;"></div>
                         <p style="font-size: 14px; margin: 0;">Digital Signature</p>
-                        <p style="font-size: 12px; margin: 5px 0;">Server ID: ${receipt.serverId}</p>
-                        <p style="font-size: 12px; margin: 0;">Generated: ${new Date(receipt.generatedAt).toLocaleString()}</p>
+                        <p style="font-size: 12px; margin: 5px 0;">Process Server: ${serverName}</p>
+                        <p style="font-size: 12px; margin: 5px 0;">Wallet: ${receipt.serverAddress || receipt.serverId || 'N/A'}</p>
+                        <p style="font-size: 12px; margin: 0;">Generated: ${this.formatDateUTC(receipt.generatedAt)}</p>
                     </div>
                 </div>
             </div>
