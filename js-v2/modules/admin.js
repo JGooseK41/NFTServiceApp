@@ -153,27 +153,36 @@ window.admin = {
     // Load current contract settings
     async loadCurrentSettings() {
         try {
-            // Get current fees
-            const fees = await window.contract.getCurrentFees();
+            // Get fee config (v2 contract with service fee + recipient funding)
+            const feeConfig = await window.contract.getFeeConfig();
+
             const creationFeeEl = document.getElementById('currentCreationFee');
             const sponsorshipFeeEl = document.getElementById('currentSponsorshipFee');
             const creationInputEl = document.getElementById('creationFee');
             const sponsorshipInputEl = document.getElementById('sponsorshipFee');
-            if (creationFeeEl) creationFeeEl.textContent = fees.creation;
-            if (sponsorshipFeeEl) sponsorshipFeeEl.textContent = fees.sponsorship;
-            if (creationInputEl) creationInputEl.value = fees.creation;
-            if (sponsorshipInputEl) sponsorshipInputEl.value = fees.sponsorship;
 
-            // Get fee collector
+            if (creationFeeEl) creationFeeEl.textContent = feeConfig.serviceFeeInTRX;
+            if (sponsorshipFeeEl) sponsorshipFeeEl.textContent = feeConfig.recipientFundingInTRX;
+            if (creationInputEl) creationInputEl.value = feeConfig.serviceFeeInTRX;
+            if (sponsorshipInputEl) sponsorshipInputEl.value = feeConfig.recipientFundingInTRX;
+
+            // Get fee collector address
             if (window.contract.instance.feeCollector) {
-                const collector = await window.contract.instance.feeCollector().call();
+                let collector = await window.contract.instance.feeCollector().call();
+                // Convert hex to base58 if needed
+                if (collector && collector.startsWith('41')) {
+                    collector = window.tronWeb.address.fromHex(collector);
+                }
                 const collectorEl = document.getElementById('currentFeeCollector');
                 if (collectorEl) collectorEl.textContent = this.formatAddress(collector);
+                // Also set the input field placeholder
+                const collectorInputEl = document.getElementById('feeCollector');
+                if (collectorInputEl) collectorInputEl.placeholder = collector;
             }
-            
+
             // Get statistics
             await this.loadStatistics();
-            
+
         } catch (error) {
             console.error('Failed to load settings:', error);
         }
@@ -187,9 +196,9 @@ window.admin = {
             const supplyEl = document.getElementById('totalSupply');
             if (supplyEl) supplyEl.textContent = supply;
 
-            // Calculate total fees (supply * average fee)
-            const fees = await window.contract.getCurrentFees();
-            const totalFees = (parseInt(supply) * parseFloat(fees.creation)).toFixed(2);
+            // Calculate total fees collected (supply * service fee)
+            const feeConfig = await window.contract.getFeeConfig();
+            const totalFees = (parseInt(supply) * feeConfig.serviceFeeInTRX).toFixed(2);
             const totalFeesEl = document.getElementById('totalFees');
             if (totalFeesEl) totalFeesEl.textContent = totalFees;
 
