@@ -2,13 +2,15 @@ const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
 
-// Database connection
+// Database connection - uses environment variable only
+if (!process.env.DATABASE_URL) {
+  console.error('ERROR: DATABASE_URL environment variable is required');
+  console.error('Set it before running: export DATABASE_URL="postgresql://user:pass@host:5432/db"');
+  process.exit(1);
+}
+
 const pool = new Pool({
-  host: 'dpg-d290ovqli9vc739cllm0-a.virginia-postgres.render.com',
-  port: 5432,
-  database: 'nftserviceapp_db',
-  user: 'nftserviceapp_db_user',
-  password: '9sH6aWG250oNlzbEyeg5Z75TyFJgXp4C',
+  connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 

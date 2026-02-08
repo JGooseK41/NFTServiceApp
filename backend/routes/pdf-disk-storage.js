@@ -188,20 +188,44 @@ router.get('/pdf/:noticeId', async (req, res) => {
         }
 
         const doc = result.rows[0];
-        const filePath = path.join(__dirname, '..', doc.file_path);
+
+        // SECURITY: Validate and sanitize file path to prevent path traversal
+        const baseDir = path.resolve(__dirname, '..');
+        const requestedPath = path.normalize(doc.file_path || '');
+
+        // Ensure the path doesn't contain traversal sequences
+        if (requestedPath.includes('..') || requestedPath.startsWith('/')) {
+            console.error('Path traversal attempt detected:', doc.file_path);
+            return res.status(403).json({
+                success: false,
+                error: 'Invalid file path'
+            });
+        }
+
+        const filePath = path.join(baseDir, requestedPath);
+        const resolvedPath = path.resolve(filePath);
+
+        // Ensure resolved path is still within the base directory
+        if (!resolvedPath.startsWith(baseDir)) {
+            console.error('Path traversal attempt (resolved):', resolvedPath);
+            return res.status(403).json({
+                success: false,
+                error: 'Invalid file path'
+            });
+        }
 
         // Check if file exists
         try {
-            await fs.access(filePath);
+            await fs.access(resolvedPath);
         } catch {
-            return res.status(404).json({ 
+            return res.status(404).json({
                 success: false,
-                error: 'PDF file not found on disk' 
+                error: 'PDF file not found on disk'
             });
         }
 
         // Send the PDF file
-        res.sendFile(filePath);
+        res.sendFile(resolvedPath);
 
     } catch (error) {
         console.error('Error retrieving PDF:', error);

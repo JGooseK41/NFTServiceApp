@@ -155,15 +155,20 @@ window.admin = {
         try {
             // Get current fees
             const fees = await window.contract.getCurrentFees();
-            document.getElementById('currentCreationFee').textContent = fees.creation;
-            document.getElementById('currentSponsorshipFee').textContent = fees.sponsorship;
-            document.getElementById('creationFee').value = fees.creation;
-            document.getElementById('sponsorshipFee').value = fees.sponsorship;
-            
+            const creationFeeEl = document.getElementById('currentCreationFee');
+            const sponsorshipFeeEl = document.getElementById('currentSponsorshipFee');
+            const creationInputEl = document.getElementById('creationFee');
+            const sponsorshipInputEl = document.getElementById('sponsorshipFee');
+            if (creationFeeEl) creationFeeEl.textContent = fees.creation;
+            if (sponsorshipFeeEl) sponsorshipFeeEl.textContent = fees.sponsorship;
+            if (creationInputEl) creationInputEl.value = fees.creation;
+            if (sponsorshipInputEl) sponsorshipInputEl.value = fees.sponsorship;
+
             // Get fee collector
             if (window.contract.instance.feeCollector) {
                 const collector = await window.contract.instance.feeCollector().call();
-                document.getElementById('currentFeeCollector').textContent = this.formatAddress(collector);
+                const collectorEl = document.getElementById('currentFeeCollector');
+                if (collectorEl) collectorEl.textContent = this.formatAddress(collector);
             }
             
             // Get statistics
@@ -179,23 +184,27 @@ window.admin = {
         try {
             // Total supply
             const supply = await window.contract.getTotalSupply();
-            document.getElementById('totalSupply').textContent = supply;
-            
+            const supplyEl = document.getElementById('totalSupply');
+            if (supplyEl) supplyEl.textContent = supply;
+
             // Calculate total fees (supply * average fee)
             const fees = await window.contract.getCurrentFees();
             const totalFees = (parseInt(supply) * parseFloat(fees.creation)).toFixed(2);
-            document.getElementById('totalFees').textContent = totalFees;
-            
+            const totalFeesEl = document.getElementById('totalFees');
+            if (totalFeesEl) totalFeesEl.textContent = totalFees;
+
             // Get contract balance
             const balance = await window.wallet.tronWeb.trx.getBalance(window.contract.address);
-            document.getElementById('contractBalance').textContent = (balance / 1e6).toFixed(2);
-            
+            const balanceEl = document.getElementById('contractBalance');
+            if (balanceEl) balanceEl.textContent = (balance / 1e6).toFixed(2);
+
             // Active servers (from backend)
             try {
                 const response = await fetch(getApiUrl('getServerInfo'));
                 if (response.ok) {
                     const data = await response.json();
-                    document.getElementById('activeServers').textContent = data.count || 0;
+                    const serversEl = document.getElementById('activeServers');
+                    if (serversEl) serversEl.textContent = data.count || 0;
                 }
             } catch (error) {
                 console.error('Failed to get server count:', error);

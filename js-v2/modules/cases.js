@@ -1,7 +1,54 @@
 // Cases Module - Handles case management
+
+// HTML escape helper to prevent XSS - used for all user input in templates
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+// Safe attribute helper - for onclick handlers and href attributes
+function escapeAttr(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 window.cases = {
     currentCase: null,
     currentCases: [],
+
+    // Helper: Safe localStorage setItem with quota handling
+    safeLocalStorageSet(key, value) {
+        try {
+            localStorage.setItem(key, value);
+            return true;
+        } catch (error) {
+            if (error.name === 'QuotaExceededError' || error.code === 22) {
+                console.warn('LocalStorage quota exceeded, triggering cleanup...');
+                if (window.storage?.cleanup) {
+                    window.storage.cleanup();
+                }
+                try {
+                    localStorage.setItem(key, value);
+                    return true;
+                } catch (retryError) {
+                    console.error('LocalStorage still full after cleanup');
+                    return false;
+                }
+            }
+            console.error('LocalStorage error:', error);
+            return false;
+        }
+    },
 
     // Helper: Get address from recipient (handles both string and {address, label} formats)
     getRecipientAddress(recipient) {
@@ -101,12 +148,18 @@ window.cases = {
                     
                     // Fetch complete service data for each served case
                     const enrichedCases = await Promise.all(backendCases.map(async (caseData) => {
-                        const caseNumber = caseData.case_number || caseData.caseNumber;
-                        
+                        const caseNumber = caseData.case_number || caseData.caseNumber || caseData.id;
+
+                        // Skip if no valid case number
+                        if (!caseNumber) {
+                            console.warn('Skipping case with no identifier:', caseData);
+                            return caseData;
+                        }
+
                         // If case is served, fetch complete service data
                         if (caseData.status === 'served' || caseData.transaction_hash || caseData.transactionHash) {
                             try {
-                                const serviceResponse = await fetch(`${backendUrl}/api/cases/${caseNumber}/service-data`, {
+                                const serviceResponse = await fetch(`${backendUrl}/api/cases/${encodeURIComponent(caseNumber)}/service-data`, {
                                     headers: {
                                         'X-Server-Address': window.wallet.address
                                     }
@@ -302,11 +355,16 @@ window.cases = {
             const alertTokenId = c.alertTokenId || c.alert_token_id;
             const documentTokenId = c.documentTokenId || c.document_token_id;
             
+            // Escape values for safe HTML insertion
+            const safeCaseId = escapeAttr(caseId);
+            const safeServerAddr = escapeAttr(c.server_address || window.wallet?.address || '');
+            const safeTxHash = txHash ? escapeHtml(txHash.substring(0, 8)) : '';
+
             return `
                 <tr>
                     <td>
-                        <a href="#" onclick="cases.viewCase('${caseId}'); return false;">
-                            ${caseId}
+                        <a href="#" onclick="cases.viewCase('${safeCaseId}'); return false;">
+                            ${escapeHtml(caseId)}
                         </a>
                     </td>
                     <td>${new Date(createdDate).toLocaleDateString()}</td>
@@ -316,13 +374,13 @@ window.cases = {
                     </td>
                     <td>
                         <span class="badge bg-${this.getStatusColor(status)}">
-                            ${status}
+                            ${escapeHtml(status)}
                         </span>
                         ${txHash ? `
                             <br>
                             <small style="font-size: 10px; line-height: 1.2;">
-                                Tx: <code>${txHash.substring(0, 8)}...</code>
-                                <a href="${window.getTronScanUrl ? window.getTronScanUrl(txHash) : 'https://tronscan.org/#/transaction/' + txHash}" target="_blank"
+                                Tx: <code>${safeTxHash}...</code>
+                                <a href="${window.getTronScanUrl ? window.getTronScanUrl(txHash) : 'https://tronscan.org/#/transaction/' + encodeURIComponent(txHash)}" target="_blank"
                                    class="text-info" title="View on TronScan">
                                     <i class="bi bi-box-arrow-up-right"></i>
                                 </a>
@@ -331,27 +389,27 @@ window.cases = {
                         ${(alertTokenId || documentTokenId) ? `
                             <br>
                             <small style="font-size: 10px; color: #666;">
-                                NFTs: ${alertTokenId ? `#${alertTokenId}` : ''} ${documentTokenId ? `#${documentTokenId}` : ''}
+                                NFTs: ${alertTokenId ? `#${escapeHtml(alertTokenId)}` : ''} ${documentTokenId ? `#${escapeHtml(documentTokenId)}` : ''}
                             </small>
                         ` : ''}
                     </td>
                     <td>
                         <div class="btn-group" role="group">
-                            <button class="btn btn-sm btn-primary" onclick="cases.resumeCase('${caseId}')" title="Resume">
+                            <button class="btn btn-sm btn-primary" onclick="cases.resumeCase('${safeCaseId}')" title="Resume">
                                 <i class="bi bi-arrow-clockwise"></i>
                             </button>
                             ${(c.served_at || c.servedAt || status === 'served' || status.toLowerCase() === 'served' || c.transactionHash || c.transaction_hash) ? `
-                                <button class="btn btn-sm btn-primary" onclick="cases.viewServiceDetails('${caseId}')" title="View Complete Service Details">
+                                <button class="btn btn-sm btn-primary" onclick="cases.viewServiceDetails('${safeCaseId}')" title="View Complete Service Details">
                                     <i class="bi bi-eye"></i> View
                                 </button>
-                                <button class="btn btn-sm btn-dark" onclick="cases.viewAuditLog('${caseId}')" title="View Recipient Audit Log">
+                                <button class="btn btn-sm btn-dark" onclick="cases.viewAuditLog('${safeCaseId}')" title="View Recipient Audit Log">
                                     <i class="bi bi-clipboard-data"></i> Audit
                                 </button>
-                                <button class="btn btn-sm btn-warning" onclick="cases.syncBlockchainData('${caseId}')" title="Sync Blockchain Data">
+                                <button class="btn btn-sm btn-warning" onclick="cases.syncBlockchainData('${safeCaseId}')" title="Sync Blockchain Data">
                                     <i class="bi bi-cloud-download"></i>
                                 </button>
                             ` : ''}
-                            <button class="btn btn-sm btn-danger" onclick="cases.deleteCase('${caseId}', '${c.server_address || window.wallet.address}')" title="Delete">
+                            <button class="btn btn-sm btn-danger" onclick="cases.deleteCase('${safeCaseId}', '${safeServerAddr}')" title="Delete">
                                 <i class="bi bi-trash"></i>
                             </button>
                         </div>
@@ -887,23 +945,35 @@ window.cases = {
     // View complete service details with all options
     async viewServiceDetails(caseId) {
         try {
-            // Get case data
-            let caseData = this.getCaseData(caseId);
-            
-            if (!caseData) {
-                // Try fetching from backend
-                const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-                const response = await fetch(`${backendUrl}/api/cases/${caseId}/service-data`);
-                
+            if (!caseId) {
+                window.app.showError('Invalid case ID');
+                return;
+            }
+
+            // Get local case data first
+            let caseData = this.getCaseData(caseId) || {};
+
+            // ALWAYS try to fetch fresh data from backend (has token ID, tx hash, etc.)
+            const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+            try {
+                const response = await fetch(`${backendUrl}/api/cases/${encodeURIComponent(caseId)}/service-data`);
                 if (response.ok) {
                     const data = await response.json();
-                    caseData = data.case;
-                } else {
-                    window.app.showError('Case not found');
-                    return;
+                    if (data.success && data.case) {
+                        // Merge backend data with local data (backend takes precedence for key fields)
+                        caseData = { ...caseData, ...data.case };
+                        console.log('Merged case data with backend:', caseData);
+                    }
                 }
+            } catch (fetchError) {
+                console.log('Could not fetch from backend, using local data:', fetchError.message);
             }
-            
+
+            if (!caseData || Object.keys(caseData).length === 0) {
+                window.app.showError('Case not found');
+                return;
+            }
+
             // Show comprehensive service details modal
             this.showServiceDetailsModal(caseData);
             
@@ -1879,15 +1949,8 @@ window.cases = {
     
     // Print delivery receipt with proper formatting
     async printDeliveryReceipt(caseNumber) {
-        // Show the receipt content for printing
-        const receiptContent = document.querySelector('.receipt-content');
-        if (receiptContent) {
-            receiptContent.classList.remove('d-none');
-            setTimeout(() => {
-                window.print();
-                receiptContent.classList.add('d-none');
-            }, 100);
-        }
+        // Use the full printReceipt function which properly generates the receipt
+        await this.printReceipt(caseNumber);
     },
     
     // Export stamped document
@@ -1958,12 +2021,17 @@ window.cases = {
     // Print proof of service receipt
     async printReceipt(caseId) {
         try {
+            if (!caseId) {
+                window.app.showError('Invalid case ID');
+                return;
+            }
+
             // First fetch fresh data from backend
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
             let serviceData = null;
 
             try {
-                const response = await fetch(`${backendUrl}/api/cases/${caseId}/service-data`);
+                const response = await fetch(`${backendUrl}/api/cases/${encodeURIComponent(caseId)}/service-data`);
                 if (response.ok) {
                     const data = await response.json();
                     serviceData = data.case;
@@ -2052,9 +2120,14 @@ window.cases = {
     // Export stamped documents with delivery confirmation
     async exportStamped(caseId) {
         try {
+            if (!caseId) {
+                window.app.showError('Invalid case ID');
+                return;
+            }
+
             // Get case data
             let caseData = this.getCaseData(caseId);
-            
+
             if (!caseData) {
                 window.app.showError('Case not found');
                 return;
@@ -2071,7 +2144,7 @@ window.cases = {
                 console.log('IPFS hash not in local cache, fetching from backend...');
                 try {
                     const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-                    const response = await fetch(`${backendUrl}/api/cases/${caseId}/service-data`);
+                    const response = await fetch(`${backendUrl}/api/cases/${encodeURIComponent(caseId)}/service-data`);
                     if (response.ok) {
                         const data = await response.json();
                         if (data.case?.ipfsHash || data.case?.ipfsDocument) {
@@ -2275,7 +2348,7 @@ window.cases = {
         
         if (caseIndex >= 0) {
             cases[caseIndex] = { ...cases[caseIndex], ...updatedData };
-            localStorage.setItem('legalnotice_cases', JSON.stringify(cases));
+            this.safeLocalStorageSet('legalnotice_cases', JSON.stringify(cases));
             console.log('✅ Case updated with blockchain data:', caseId);
         }
         
@@ -2285,17 +2358,22 @@ window.cases = {
     // Sync blockchain data for a served case
     async syncBlockchainData(caseId) {
         try {
+            if (!caseId) {
+                window.app.showError('Invalid case ID');
+                return;
+            }
+
             // Show loading indicator
             window.app.showInfo('Syncing data from backend and blockchain...');
-            
+
             // Get case data
             let caseData = this.getCaseData(caseId);
             const caseNumber = caseData?.caseNumber || caseData?.case_number || caseId;
-            
+
             // First try to fetch from backend
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
             try {
-                const response = await fetch(`${backendUrl}/api/cases/${caseNumber}/service-data`, {
+                const response = await fetch(`${backendUrl}/api/cases/${encodeURIComponent(caseNumber)}/service-data`, {
                     headers: {
                         'X-Server-Address': window.wallet?.address || ''
                     }
@@ -2315,7 +2393,7 @@ window.cases = {
                         
                         if (caseIndex >= 0) {
                             localCases[caseIndex] = { ...localCases[caseIndex], ...serviceData.case };
-                            localStorage.setItem('legalnotice_cases', JSON.stringify(localCases));
+                            this.safeLocalStorageSet('legalnotice_cases', JSON.stringify(localCases));
                         }
                         
                         // Reload the cases display
@@ -2439,7 +2517,7 @@ window.cases = {
                     
                     if (caseIndex >= 0) {
                         cases[caseIndex] = { ...cases[caseIndex], ...updatedData };
-                        localStorage.setItem('legalnotice_cases', JSON.stringify(cases));
+                        this.safeLocalStorageSet('legalnotice_cases', JSON.stringify(cases));
                         console.log('✅ Case updated with blockchain data');
                     }
                     
@@ -2554,8 +2632,16 @@ window.cases = {
         // Get recipients list
         let recipients = [];
         if (caseData.recipients) {
-            recipients = Array.isArray(caseData.recipients) ? caseData.recipients : 
-                        (typeof caseData.recipients === 'string' ? JSON.parse(caseData.recipients) : []);
+            if (Array.isArray(caseData.recipients)) {
+                recipients = caseData.recipients;
+            } else if (typeof caseData.recipients === 'string') {
+                try {
+                    recipients = JSON.parse(caseData.recipients);
+                } catch (e) {
+                    console.error('Error parsing recipients:', e);
+                    recipients = [];
+                }
+            }
         } else if (caseData.metadata?.recipients) {
             recipients = caseData.metadata.recipients;
         }

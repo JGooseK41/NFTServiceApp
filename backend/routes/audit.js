@@ -30,7 +30,7 @@ router.post('/log', async (req, res) => {
     } = req.body;
 
     // Get client IP and user agent from request
-    const actualClientIp = client_ip || req.ip || req.connection.remoteAddress;
+    const actualClientIp = client_ip || req.clientIp || req.ip;
     const actualUserAgent = user_agent || req.get('user-agent');
 
     const query = `

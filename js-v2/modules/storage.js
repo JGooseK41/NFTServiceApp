@@ -34,11 +34,81 @@ window.storage = {
         }
     },
     
-    // Set item in storage
+    // Set item in storage with quota handling
     set(key, value) {
         const fullKey = getConfig('storage.keys.' + key) || key;
         const data = typeof value === 'object' ? JSON.stringify(value) : value;
-        localStorage.setItem(fullKey, data);
+        try {
+            localStorage.setItem(fullKey, data);
+        } catch (error) {
+            if (error.name === 'QuotaExceededError' || error.code === 22) {
+                console.warn('LocalStorage quota exceeded, attempting cleanup...');
+                this.cleanup();
+                try {
+                    localStorage.setItem(fullKey, data);
+                } catch (retryError) {
+                    console.error('LocalStorage still full after cleanup:', retryError);
+                }
+            } else {
+                console.error('LocalStorage error:', error);
+            }
+        }
+    },
+
+    // Clean up old/unnecessary data to free localStorage space
+    cleanup() {
+        console.log('Cleaning up localStorage...');
+
+        // Remove old pending transactions (keep only last 24h)
+        const transactions = this.get('pendingTransactions') || [];
+        const recentTx = transactions.filter(tx =>
+            Date.now() - tx.timestamp < 24 * 60 * 60 * 1000
+        );
+        if (recentTx.length < transactions.length) {
+            try {
+                localStorage.setItem(
+                    getConfig('storage.keys.pendingTransactions') || 'pendingTransactions',
+                    JSON.stringify(recentTx)
+                );
+                console.log(`Cleaned up ${transactions.length - recentTx.length} old transactions`);
+            } catch (e) { /* ignore */ }
+        }
+
+        // Limit receipts to 50 (reduce from 100)
+        const receipts = this.get('receipts') || [];
+        if (receipts.length > 50) {
+            receipts.length = 50;
+            try {
+                localStorage.setItem(
+                    getConfig('storage.keys.receipts') || 'receipts',
+                    JSON.stringify(receipts)
+                );
+                console.log('Reduced receipts to 50');
+            } catch (e) { /* ignore */ }
+        }
+
+        // Clean legalnotice_receipts
+        try {
+            const lnReceipts = JSON.parse(localStorage.getItem('legalnotice_receipts') || '[]');
+            if (lnReceipts.length > 50) {
+                lnReceipts.length = 50;
+                localStorage.setItem('legalnotice_receipts', JSON.stringify(lnReceipts));
+                console.log('Reduced legalnotice_receipts to 50');
+            }
+        } catch (e) { /* ignore */ }
+
+        // Remove any debug/test keys
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key.startsWith('debug_') || key.startsWith('test_'))) {
+                keysToRemove.push(key);
+            }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+        if (keysToRemove.length > 0) {
+            console.log(`Removed ${keysToRemove.length} debug/test keys`);
+        }
     },
     
     // Remove item from storage

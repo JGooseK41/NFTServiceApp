@@ -231,7 +231,7 @@ router.post('/notice-view', async (req, res) => {
             wallet_address,
             action_type || 'detail_view',
             view_duration_seconds,
-            req.ip || req.connection.remoteAddress,
+            req.clientIp || req.ip,
             req.headers['user-agent'],
             session_id
         ]);
@@ -271,7 +271,7 @@ router.post('/document-action', async (req, res) => {
             case_number,
             wallet_address,
             action_type,
-            req.ip || req.connection.remoteAddress,
+            req.clientIp || req.ip,
             req.headers['user-agent'],
             metadata
         ]);
@@ -318,7 +318,7 @@ router.post('/acknowledgment', async (req, res) => {
             case_number,
             wallet_address,
             signature,
-            req.ip || req.connection.remoteAddress,
+            req.clientIp || req.ip,
             req.headers['user-agent'],
             geolocation,
             device_info

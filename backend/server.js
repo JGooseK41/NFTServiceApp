@@ -91,6 +91,78 @@ ensureTablesExist();
 // Enhanced CORS configuration
 const { configureCORS, allowedOrigins } = require('./cors');
 
+// Trust proxy headers (Render, Cloudflare, etc.) for correct client IP
+// This makes req.ip return the real client IP from X-Forwarded-For
+app.set('trust proxy', true);
+
+// Helper to extract real client forensic data (attach to all requests)
+app.use((req, res, next) => {
+    // Real client IP - prioritize Cloudflare, then standard proxy headers
+    req.clientIp = req.headers['cf-connecting-ip'] ||  // Cloudflare
+                   req.headers['x-real-ip'] ||          // Common proxy header
+                   req.ip ||                            // Express (uses X-Forwarded-For with trust proxy)
+                   req.connection?.remoteAddress ||
+                   'unknown';
+
+    // Clean IPv6-mapped IPv4 addresses (::ffff:x.x.x.x -> x.x.x.x)
+    if (req.clientIp && req.clientIp.startsWith('::ffff:')) {
+        req.clientIp = req.clientIp.substring(7);
+    }
+
+    // Real client country (from Cloudflare if available)
+    req.clientCountry = req.headers['cf-ipcountry'] || null;
+
+    // User agent - passes through proxies unchanged
+    req.clientUserAgent = req.headers['user-agent'] || null;
+
+    // Accept-Language - passes through proxies unchanged
+    req.clientLanguage = req.headers['accept-language'] || null;
+
+    // Timezone - custom header from frontend
+    req.clientTimezone = req.headers['x-timezone'] || req.query?.timezone || null;
+
+    next();
+});
+
+// CSRF Protection - verify Origin header for state-changing requests
+app.use((req, res, next) => {
+    // Skip CSRF check for safe methods
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+        return next();
+    }
+
+    const origin = req.headers['origin'];
+    const referer = req.headers['referer'];
+
+    // If no origin/referer, this is likely an API call from mobile/curl (no browser)
+    if (!origin && !referer) {
+        // For API calls, we rely on signature verification in routes
+        return next();
+    }
+
+    // Verify origin is from allowed domains
+    const requestOrigin = origin || (referer ? new URL(referer).origin : null);
+    if (requestOrigin) {
+        const isAllowed = allowedOrigins.some(allowed =>
+            requestOrigin === allowed ||
+            requestOrigin.endsWith('.theblockservice.com') ||
+            requestOrigin.endsWith('.blockserved.com') ||
+            requestOrigin.includes('localhost') ||
+            requestOrigin.includes('127.0.0.1')
+        );
+
+        if (!isAllowed) {
+            console.warn(`CSRF protection: Rejected request from ${requestOrigin}`);
+            return res.status(403).json({
+                success: false,
+                error: 'CSRF validation failed'
+            });
+        }
+    }
+
+    next();
+});
+
 // Apply enhanced CORS before other middleware
 configureCORS(app);
 
@@ -171,7 +243,7 @@ app.post('/api/notices/:noticeId/views', async (req, res) => {
     } = req.body;
 
     // Get actual IP if behind proxy
-    const realIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    const realIp = req.clientIp || req.ip;
     
     const query = `
       INSERT INTO notice_views 
@@ -210,7 +282,7 @@ app.post('/api/notices/:noticeId/acceptances', async (req, res) => {
       timestamp 
     } = req.body;
 
-    const realIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    const realIp = req.clientIp || req.ip;
     
     // First, log the acceptance
     const acceptanceQuery = `
@@ -673,7 +745,7 @@ app.post('/api/notices/served', async (req, res) => {
         `INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address)
          VALUES ('notice_served', $1, $2, $3, $4)`,
         [serverAddress, noticeId, JSON.stringify({ recipientAddress, noticeType }), 
-         req.headers['x-forwarded-for'] || req.connection.remoteAddress]
+         req.clientIp || req.ip]
       ).catch(err => {
         console.warn('Could not log audit event:', err.message);
       });
@@ -856,7 +928,7 @@ app.post('/api/wallet-connections', async (req, res) => {
       site
     } = req.body;
 
-    const realIp = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    const realIp = req.clientIp || req.ip;
 
     // Log the connection
     const result = await pool.query(
@@ -1686,20 +1758,61 @@ async function initializeDiskStorage() {
   }
 }
 
+// Graceful shutdown handler
+let server;
+async function gracefulShutdown(signal) {
+  console.log(`\n${signal} received. Starting graceful shutdown...`);
+
+  // Stop accepting new connections
+  if (server) {
+    server.close(() => {
+      console.log('HTTP server closed');
+    });
+  }
+
+  // Close database pool
+  try {
+    await pool.end();
+    console.log('Database pool closed');
+  } catch (error) {
+    console.error('Error closing database pool:', error);
+  }
+
+  // Give ongoing requests time to complete
+  setTimeout(() => {
+    console.log('Shutdown complete');
+    process.exit(0);
+  }, 5000);
+}
+
+// Register shutdown handlers
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  gracefulShutdown('uncaughtException');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 // Start server
-app.listen(PORT, async () => {
+server = app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log('Server version: 2024.08.11.02');
-  
+
   // Initialize disk storage
   const diskAvailable = await initializeDiskStorage();
   if (diskAvailable) {
-    console.log('📁 PDF uploads will use mounted disk storage');
+    console.log('PDF uploads will use mounted disk storage');
   } else {
-    console.log('📁 PDF uploads will use local storage (not persistent)');
+    console.log('PDF uploads will use local storage (not persistent)');
   }
-  
+
   // Initialize database tables
   await initializeDatabase();
 

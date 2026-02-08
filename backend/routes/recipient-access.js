@@ -118,7 +118,7 @@ router.post('/log-view', async (req, res) => {
             walletAddress || 'anonymous',
             viewType,
             timestamp || new Date(),
-            req.ip || req.connection.remoteAddress,
+            req.clientIp || req.ip,
             req.headers['user-agent']
         ]);
         

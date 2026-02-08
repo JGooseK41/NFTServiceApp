@@ -1,6 +1,28 @@
 // Receipts Module - Handles service receipts generation and viewing
+
+// HTML escape helper to prevent XSS
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function escapeAttr(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 window.receipts = {
-    
+
     // Initialize module
     async init() {
         console.log('Initializing receipts module...');
@@ -10,13 +32,26 @@ window.receipts = {
     addReceipt(receipt) {
         if (!receipt) return;
         try {
-            const receipts = JSON.parse(localStorage.getItem('legalnotice_receipts') || '[]');
+            let receipts = JSON.parse(localStorage.getItem('legalnotice_receipts') || '[]');
             // Avoid duplicates
             const exists = receipts.some(r => r.receiptId === receipt.receiptId);
             if (!exists) {
                 receipts.push(receipt);
-                localStorage.setItem('legalnotice_receipts', JSON.stringify(receipts));
-                console.log('Receipt added:', receipt.receiptId);
+                // Limit to 50 receipts to avoid quota issues
+                if (receipts.length > 50) {
+                    receipts = receipts.slice(-50);
+                }
+                try {
+                    localStorage.setItem('legalnotice_receipts', JSON.stringify(receipts));
+                    console.log('Receipt added:', receipt.receiptId);
+                } catch (quotaError) {
+                    if (quotaError.name === 'QuotaExceededError' || quotaError.code === 22) {
+                        // Aggressively trim and retry
+                        receipts = receipts.slice(-25);
+                        localStorage.setItem('legalnotice_receipts', JSON.stringify(receipts));
+                        console.warn('LocalStorage quota exceeded, trimmed receipts to 25');
+                    }
+                }
             }
         } catch (error) {
             console.error('Failed to add receipt:', error);
@@ -43,30 +78,32 @@ window.receipts = {
             return;
         }
         
-        container.innerHTML = receipts.map(receipt => `
+        container.innerHTML = receipts.map(receipt => {
+            const safeReceiptId = escapeAttr(receipt.receiptId);
+            return `
             <div class="col-md-6 col-lg-4 mb-3">
                 <div class="card h-100">
                     <div class="card-body">
-                        <h6 class="card-title">Receipt: ${receipt.receiptId}</h6>
-                        <p class="small mb-1"><strong>Case:</strong> ${receipt.caseNumber}</p>
-                        <p class="small mb-1"><strong>Type:</strong> ${receipt.type}</p>
-                        <p class="small mb-1"><strong>Recipient:</strong> ${this.formatAddress(receipt.recipient)}</p>
+                        <h6 class="card-title">Receipt: ${escapeHtml(receipt.receiptId)}</h6>
+                        <p class="small mb-1"><strong>Case:</strong> ${escapeHtml(receipt.caseNumber)}</p>
+                        <p class="small mb-1"><strong>Type:</strong> ${escapeHtml(receipt.type)}</p>
+                        <p class="small mb-1"><strong>Recipient:</strong> ${escapeHtml(this.formatAddress(receipt.recipient))}</p>
                         <p class="small mb-1"><strong>Date:</strong> ${new Date(receipt.timestamp).toLocaleString()}</p>
-                        
+
                         <div class="mt-3">
-                            <button class="btn btn-sm btn-primary w-100 mb-2" 
-                                    onclick="receipts.viewReceipt('${receipt.receiptId}')">
+                            <button class="btn btn-sm btn-primary w-100 mb-2"
+                                    onclick="receipts.viewReceipt('${safeReceiptId}')">
                                 View Receipt
                             </button>
-                            <button class="btn btn-sm btn-secondary w-100" 
-                                    onclick="receipts.downloadReceipt('${receipt.receiptId}')">
+                            <button class="btn btn-sm btn-secondary w-100"
+                                    onclick="receipts.downloadReceipt('${safeReceiptId}')">
                                 Download PDF
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
-        `).join('');
+        `}).join('');
     },
     
     // View receipt details

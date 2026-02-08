@@ -23,7 +23,7 @@ router.get('/recipient/:address/notices', async (req, res) => {
         console.log(`Getting notices for recipient: ${address}`);
         
         // Log recipient access to audit_logs
-        const ipAddress = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'];
+        const ipAddress = req.clientIp || req.ip;
         const userAgent = req.headers['user-agent'];
         
         await pool.query(`
@@ -128,7 +128,7 @@ router.get('/recipient/:address/notice/:alertId/document', async (req, res) => {
         console.log(`Recipient ${address} requesting document for alert ${alertId}`);
         
         // Log document access to audit_logs
-        const ipAddress = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'];
+        const ipAddress = req.clientIp || req.ip;
         const userAgent = req.headers['user-agent'];
         
         await pool.query(`

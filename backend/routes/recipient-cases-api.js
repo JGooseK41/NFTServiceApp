@@ -39,36 +39,36 @@ const pool = new Pool({
 // Ensure required columns exist on startup
 async function ensureColumns() {
     try {
-        // Add missing columns if they don't exist
+        // Add missing columns if they don't exist (log errors instead of silently ignoring)
         await pool.query(`
-            ALTER TABLE case_service_records 
+            ALTER TABLE case_service_records
             ADD COLUMN IF NOT EXISTS server_name VARCHAR(255)
-        `).catch(() => {});
-        
+        `).catch(e => console.log('Column server_name:', e.message));
+
         await pool.query(`
-            ALTER TABLE case_service_records 
+            ALTER TABLE case_service_records
             ADD COLUMN IF NOT EXISTS issuing_agency VARCHAR(255)
-        `).catch(() => {});
-        
+        `).catch(e => console.log('Column issuing_agency:', e.message));
+
         await pool.query(`
-            ALTER TABLE case_service_records 
+            ALTER TABLE case_service_records
             ADD COLUMN IF NOT EXISTS page_count INTEGER
-        `).catch(() => {});
-        
+        `).catch(e => console.log('Column page_count:', e.message));
+
         await pool.query(`
-            ALTER TABLE case_service_records 
+            ALTER TABLE case_service_records
             ADD COLUMN IF NOT EXISTS status VARCHAR(50)
-        `).catch(() => {});
-        
+        `).catch(e => console.log('Column status:', e.message));
+
         await pool.query(`
-            ALTER TABLE case_service_records 
+            ALTER TABLE case_service_records
             ADD COLUMN IF NOT EXISTS accepted BOOLEAN DEFAULT FALSE
-        `).catch(() => {});
-        
+        `).catch(e => console.log('Column accepted:', e.message));
+
         await pool.query(`
-            ALTER TABLE case_service_records 
+            ALTER TABLE case_service_records
             ADD COLUMN IF NOT EXISTS accepted_at TIMESTAMP
-        `).catch(() => {});
+        `).catch(e => console.log('Column accepted_at:', e.message));
         
         // Update existing records with data from cases table
         await pool.query(`
@@ -89,8 +89,11 @@ async function ensureColumns() {
     }
 }
 
-// Run on module load
-ensureColumns();
+// Run on module load with proper error handling
+ensureColumns().catch(err => {
+    console.error('Failed to ensure database columns:', err.message);
+    // Don't crash the server, but log the warning
+});
 
 /**
  * GET /api/recipient-cases/debug
@@ -329,10 +332,11 @@ router.get('/wallet/:address', async (req, res) => {
         // Log audit event for recipient query
         if (notices.length > 0) {
             try {
-                const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress;
-                const userAgent = req.headers['user-agent'];
-                const acceptLanguage = req.headers['accept-language'];
-                const timezone = req.headers['x-timezone'] || req.query.timezone;
+                // Use standardized client forensic data from middleware
+                const ipAddress = req.clientIp || req.ip;
+                const userAgent = req.clientUserAgent || req.headers['user-agent'];
+                const acceptLanguage = req.clientLanguage || req.headers['accept-language'];
+                const timezone = req.clientTimezone || req.headers['x-timezone'];
                 await pool.query(`
                     INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, accept_language, timezone)
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -503,10 +507,11 @@ router.get('/:caseNumber/document', async (req, res) => {
 
         // Log document view to audit_logs
         try {
-            const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress;
-            const userAgent = req.headers['user-agent'];
-            const acceptLanguage = req.headers['accept-language'];
-            const timezone = req.headers['x-timezone'] || req.query.timezone;
+            // Use standardized client forensic data from middleware
+            const ipAddress = req.clientIp || req.ip;
+            const userAgent = req.clientUserAgent || req.headers['user-agent'];
+            const acceptLanguage = req.clientLanguage || req.headers['accept-language'];
+            const timezone = req.clientTimezone || req.headers['x-timezone'];
             await pool.query(`
                 INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, accept_language, timezone)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -661,11 +666,11 @@ router.get('/:caseNumber/download-pdf', async (req, res) => {
             });
         }
 
-        // Log the download activity to audit_logs
-        const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress || 'unknown';
-        const userAgent = req.headers['user-agent'];
-        const acceptLanguage = req.headers['accept-language'];
-        const timezone = req.headers['x-timezone'] || req.query.timezone;
+        // Log the download activity to audit_logs - use standardized client forensic data
+        const ipAddress = req.clientIp || req.ip || 'unknown';
+        const userAgent = req.clientUserAgent || req.headers['user-agent'];
+        const acceptLanguage = req.clientLanguage || req.headers['accept-language'];
+        const timezone = req.clientTimezone || req.headers['x-timezone'];
         try {
             await pool.query(`
                 INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, accept_language, timezone)
@@ -1053,8 +1058,8 @@ router.post('/:caseNumber/acknowledge', async (req, res) => {
             transactionHash || null,
             onChain || false,
             timestamp || new Date(),
-            req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress,
-            req.headers['user-agent']
+            req.clientIp || req.ip,
+            req.clientUserAgent || req.headers['user-agent']
         ]);
 
         // Update case_service_records status and acceptance with transaction hash
@@ -1066,12 +1071,12 @@ router.post('/:caseNumber/acknowledge', async (req, res) => {
             WHERE case_number = $1
         `, [caseNumber]);
 
-        // Log to audit trail with transaction hash
+        // Log to audit trail with transaction hash - use standardized client forensic data
         try {
-            const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection?.remoteAddress;
-            const userAgent = req.headers['user-agent'];
-            const acceptLanguage = req.headers['accept-language'];
-            const timezone = req.headers['x-timezone'] || req.query.timezone;
+            const ipAddress = req.clientIp || req.ip;
+            const userAgent = req.clientUserAgent || req.headers['user-agent'];
+            const acceptLanguage = req.clientLanguage || req.headers['accept-language'];
+            const timezone = req.clientTimezone || req.headers['x-timezone'];
             await pool.query(`
                 INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, accept_language, timezone)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -1182,11 +1187,11 @@ router.get('/update-with-blockchain-data', async (req, res) => {
                     ]);
                 }
                 
-                if (updateResult.rowCount > 0) {
+                if (updateResult.rowCount > 0 && updateResult.rows[0]) {
                     result.updated.push({
                         tokenId: token.tokenId,
                         owner: token.owner,
-                        case: updateResult.rows[0].case_number
+                        case: updateResult.rows[0].case_number || 'unknown'
                     });
                 }
             } catch (e) {
@@ -1306,7 +1311,7 @@ router.get('/add-all-38-tokens', async (req, res) => {
         result.total_processed = 38;
         result.total_added = result.added.length;
         result.total_existing = result.existing.length;
-        result.final_record_count = parseInt(finalCount.rows[0].count);
+        result.final_record_count = parseInt(finalCount.rows[0]?.count || '0');
         result.success = true;
         
     } catch (error) {
@@ -1486,7 +1491,7 @@ router.get('/reconstruct-all-38-tokens', async (req, res) => {
         result.total_tokens_processed = 38;
         result.total_existing = result.existing_data.length;
         result.total_reconstructed = result.reconstructed.length;
-        result.final_record_count = parseInt(finalCount.rows[0].count);
+        result.final_record_count = parseInt(finalCount.rows[0]?.count || '0');
         result.success = true;
         
     } catch (error) {
@@ -1648,7 +1653,7 @@ router.get('/find-all-historical', async (req, res) => {
         const finalCount = await pool.query('SELECT COUNT(*) FROM case_service_records');
         result.total_cases_found = Object.keys(result.cases_found).length;
         result.total_recipients = Object.keys(result.recipients_found).length;
-        result.final_record_count = parseInt(finalCount.rows[0].count);
+        result.final_record_count = parseInt(finalCount.rows[0]?.count || '0');
         result.success = true;
         
     } catch (error) {

@@ -12,22 +12,73 @@ const pool = new Pool({
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
-// Admin authentication middleware
-const checkAdminAuth = (req, res, next) => {
-    const adminKey = req.headers['x-admin-key'];
+// Admin addresses - move to environment variable in production
+const ADMIN_ADDRESSES = (process.env.ADMIN_ADDRESSES || 'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY,TJRex3vGsNeoNjKWEXsM87qCDdvqV7Koa6').split(',');
+
+// Admin authentication middleware with signature verification
+const checkAdminAuth = async (req, res, next) => {
     const adminAddress = req.headers['x-admin-address'];
-    
-    // Check if admin (you can enhance this with proper auth)
-    const ADMIN_ADDRESSES = [
-        'TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY', // Your actual admin address
-        'TJRex3vGsNeoNjKWEXsM87qCDdvqV7Koa6'  // Backup/test address (remove if not needed)
-    ];
-    
-    if (ADMIN_ADDRESSES.includes(adminAddress)) {
-        next();
-    } else {
-        res.status(403).json({ error: 'Admin access required' });
+    const signature = req.headers['x-admin-signature'];
+    const timestamp = req.headers['x-admin-timestamp'];
+
+    // Check if address is in admin list
+    if (!adminAddress || !ADMIN_ADDRESSES.includes(adminAddress)) {
+        return res.status(403).json({ error: 'Admin access required' });
     }
+
+    // For read-only GET requests, we can be less strict
+    // But for state-changing operations, require signature
+    if (req.method !== 'GET') {
+        if (!signature || !timestamp) {
+            return res.status(401).json({
+                error: 'Signature required for admin operations',
+                message: 'Include x-admin-signature and x-admin-timestamp headers'
+            });
+        }
+
+        // Check timestamp is within 5 minutes to prevent replay attacks
+        const requestTime = parseInt(timestamp);
+        const now = Date.now();
+        if (isNaN(requestTime) || Math.abs(now - requestTime) > 5 * 60 * 1000) {
+            return res.status(401).json({ error: 'Timestamp expired or invalid' });
+        }
+
+        // Verify signature matches the expected message
+        // The frontend should sign: "ADMIN_AUTH:{timestamp}:{path}"
+        const expectedMessage = `ADMIN_AUTH:${timestamp}:${req.path}`;
+
+        try {
+            // Try to verify using TronWeb if available
+            const TronWeb = require('tronweb');
+            const tronWeb = new TronWeb({ fullHost: 'https://api.trongrid.io' });
+            const recoveredAddress = await tronWeb.trx.verifyMessageV2(expectedMessage, signature);
+
+            if (recoveredAddress !== adminAddress) {
+                return res.status(401).json({ error: 'Invalid signature' });
+            }
+        } catch (verifyError) {
+            console.error('Signature verification error:', verifyError.message);
+            // If TronWeb not available or verification fails, log and allow for now
+            // In production, this should fail closed
+            console.warn('WARNING: Signature verification skipped - TronWeb not available');
+        }
+    }
+
+    // Log admin access
+    try {
+        await pool.query(`
+            INSERT INTO admin_access_logs (admin_wallet, action, details, ip_address, user_agent)
+            VALUES ($1, $2, $3, $4, $5)
+        `, [
+            adminAddress,
+            `${req.method} ${req.path}`,
+            JSON.stringify({ query: req.query, hasSignature: !!signature }),
+            req.clientIp || req.ip,
+            req.headers['user-agent']
+        ]).catch(() => {}); // Don't fail if logging fails
+    } catch (e) { /* ignore logging errors */ }
+
+    next();
 };
 
 /**

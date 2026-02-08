@@ -557,7 +557,12 @@ router.post('/execute/:transactionId', async (req, res) => {
         }
         
         const transaction = txResult.rows[0];
-        const txData = JSON.parse(transaction.data);
+        let txData = {};
+        try {
+            txData = JSON.parse(transaction.data || '{}');
+        } catch (parseError) {
+            console.error('Error parsing transaction data:', parseError);
+        }
         
         // Get all related data
         const noticeResult = await client.query(`

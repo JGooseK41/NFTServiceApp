@@ -378,11 +378,19 @@ router.get('/list', async (req, res) => {
             LIMIT 50
         `, [serverAddress]);
         
-        const drafts = result.rows.map(row => ({
-            ...row,
-            recipients: JSON.parse(row.recipients || '[]'),
-            recipientCount: JSON.parse(row.recipients || '[]').length
-        }));
+        const drafts = result.rows.map(row => {
+            let recipients = [];
+            try {
+                recipients = JSON.parse(row.recipients || '[]');
+            } catch (e) {
+                console.error('Error parsing draft recipients:', e);
+            }
+            return {
+                ...row,
+                recipients,
+                recipientCount: recipients.length
+            };
+        });
         
         res.json({
             success: true,
@@ -444,9 +452,19 @@ router.get('/load/:draftId', async (req, res) => {
             SELECT * FROM draft_files WHERE draft_id = $1
         `, [draftId]);
         
-        // Parse JSON fields
-        draft.recipients = JSON.parse(draft.recipients || '[]');
-        draft.custom_fields = JSON.parse(draft.custom_fields || '{}');
+        // Parse JSON fields safely
+        try {
+            draft.recipients = JSON.parse(draft.recipients || '[]');
+        } catch (e) {
+            console.error('Error parsing draft recipients:', e);
+            draft.recipients = [];
+        }
+        try {
+            draft.custom_fields = JSON.parse(draft.custom_fields || '{}');
+        } catch (e) {
+            console.error('Error parsing draft custom_fields:', e);
+            draft.custom_fields = {};
+        }
         
         res.json({
             success: true,

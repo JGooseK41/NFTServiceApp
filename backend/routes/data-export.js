@@ -54,7 +54,7 @@ async function requireAdmin(req, res, next) {
             adminWallet,
             'data_export_access',
             JSON.stringify({ endpoint: req.path }),
-            req.ip || req.connection.remoteAddress
+            req.clientIp || req.ip
         ]);
         
         next();

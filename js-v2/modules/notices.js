@@ -1170,8 +1170,11 @@ window.notices = {
     // Print service receipt directly using fresh mint data
     async printServiceReceipt(caseNumber) {
         try {
-            // First check if we have fresh mint data
-            if (this.lastMintResult && this.lastMintResult.caseNumber === caseNumber) {
+            console.log('printServiceReceipt called with:', caseNumber);
+            console.log('lastMintResult:', this.lastMintResult);
+
+            // First check if we have fresh mint data (use loose comparison for type flexibility)
+            if (this.lastMintResult && String(this.lastMintResult.caseNumber) === String(caseNumber)) {
                 console.log('Using fresh mint data for receipt:', this.lastMintResult);
 
                 // Use unified receipt style via proofOfService module
@@ -1826,7 +1829,14 @@ window.notices = {
     
     // Generate proof of delivery PDF
     async generateProofOfDelivery(encodedData) {
-        const data = JSON.parse(decodeURIComponent(encodedData));
+        let data;
+        try {
+            data = JSON.parse(decodeURIComponent(encodedData));
+        } catch (e) {
+            console.error('Error parsing proof of delivery data:', e);
+            alert('Error loading delivery data');
+            return;
+        }
         const includeImage = document.getElementById('includeNFTImage')?.checked ?? true;
         
         // Create receipt HTML

@@ -37,7 +37,7 @@ router.get('/check/:walletAddress', async (req, res) => {
         const { walletAddress } = req.params;
 
         // Log the check attempt (non-blocking, ignore errors if table doesn't exist)
-        const ipAddress = req.ip || req.connection.remoteAddress || req.headers['x-forwarded-for'];
+        const ipAddress = req.clientIp || req.ip;
         try {
             await pool.query(`
                 INSERT INTO admin_access_logs (admin_wallet, action, ip_address, user_agent)

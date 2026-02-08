@@ -27,9 +27,9 @@ router.post('/view', async (req, res) => {
             referrer
         } = req.body;
         
-        // Get IP and user agent from request
-        const ipAddress = req.ip || req.connection.remoteAddress;
-        const userAgent = req.headers['user-agent'];
+        // Get IP and user agent from request - use standardized client forensic data
+        const ipAddress = req.clientIp || req.ip;
+        const userAgent = req.clientUserAgent || req.headers['user-agent'];
         
         // Record the view event
         const result = await pool.query(
@@ -103,7 +103,7 @@ router.post('/wallet-connect', async (req, res) => {
             connectionMethod = 'browser_extension'
         } = req.body;
         
-        const ipAddress = req.ip || req.connection.remoteAddress;
+        const ipAddress = req.clientIp || req.ip;
         const userAgent = req.headers['user-agent'];
         
         // Check if this wallet is the intended recipient
@@ -212,7 +212,7 @@ router.post('/sign-attempt', async (req, res) => {
             status = 'initiated'
         } = req.body;
         
-        const ipAddress = req.ip || req.connection.remoteAddress;
+        const ipAddress = req.clientIp || req.ip;
         
         // Get recipient address and case number
         const tokenInfo = await pool.query(`

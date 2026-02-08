@@ -612,12 +612,12 @@ window.app = {
         const form = document.getElementById('serverRegistrationForm');
         const errorDiv = document.getElementById('registrationError');
 
-        // Get form values
-        const agencyName = document.getElementById('regAgencyName').value.trim();
-        const contactEmail = document.getElementById('regContactEmail').value.trim();
-        const phoneNumber = document.getElementById('regPhoneNumber').value.trim();
-        const website = document.getElementById('regWebsite')?.value.trim() || '';
-        const licenseNumber = document.getElementById('regLicenseNumber')?.value.trim() || '';
+        // Get form values with null safety
+        const agencyName = document.getElementById('regAgencyName')?.value?.trim() || '';
+        const contactEmail = document.getElementById('regContactEmail')?.value?.trim() || '';
+        const phoneNumber = document.getElementById('regPhoneNumber')?.value?.trim() || '';
+        const website = document.getElementById('regWebsite')?.value?.trim() || '';
+        const licenseNumber = document.getElementById('regLicenseNumber')?.value?.trim() || '';
 
         // Validate
         if (!agencyName || !contactEmail || !phoneNumber) {
@@ -815,7 +815,8 @@ window.app = {
             // Already connected
             if (connected) {
                 connected.style.display = 'block';
-                document.getElementById('onboardingWalletAddress').textContent = this.state.userAddress;
+                const walletAddr = document.getElementById('onboardingWalletAddress');
+                if (walletAddr) walletAddr.textContent = this.state.userAddress;
             }
             // Auto-advance to step 3
             setTimeout(() => {
@@ -840,7 +841,8 @@ window.app = {
                 if (detected) detected.style.display = 'none';
                 if (connected) {
                     connected.style.display = 'block';
-                    document.getElementById('onboardingWalletAddress').textContent = this.state.userAddress;
+                    const walletAddr = document.getElementById('onboardingWalletAddress');
+                    if (walletAddr) walletAddr.textContent = this.state.userAddress;
                 }
 
                 // Move to step 3
