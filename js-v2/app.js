@@ -474,7 +474,7 @@ window.app = {
             const checkData = await checkResponse.json();
 
             if (checkData.registered) {
-                // Server is registered - store agency info
+                // Server is registered in backend - store agency info
                 this.state.isRegisteredServer = true;
                 this.state.agencyName = checkData.agency_name;
                 this.state.serverId = this.state.userAddress;
@@ -489,9 +489,28 @@ window.app = {
 
                 console.log('Server registered as:', checkData.agency_name);
             } else {
-                // Server not registered
-                this.state.isRegisteredServer = false;
-                console.log('Wallet not registered as a process server');
+                // Not in backend - also check blockchain role
+                let hasBlockchainRole = false;
+
+                if (window.contract && window.contract.instance) {
+                    try {
+                        const serverRole = await window.contract.instance.PROCESS_SERVER_ROLE().call();
+                        hasBlockchainRole = await window.contract.instance.hasRole(serverRole, this.state.userAddress).call();
+                        console.log('Blockchain PROCESS_SERVER_ROLE check:', hasBlockchainRole);
+                    } catch (contractError) {
+                        console.log('Contract role check failed:', contractError.message);
+                    }
+                }
+
+                if (hasBlockchainRole) {
+                    // Has blockchain role but not in backend - still grant access
+                    this.state.isRegisteredServer = true;
+                    this.state.serverId = this.state.userAddress;
+                    console.log('Wallet has PROCESS_SERVER_ROLE on blockchain');
+                } else {
+                    this.state.isRegisteredServer = false;
+                    console.log('Wallet not registered as a process server');
+                }
             }
 
             // Update UI based on registration status
