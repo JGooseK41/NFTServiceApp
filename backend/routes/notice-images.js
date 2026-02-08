@@ -104,7 +104,7 @@ router.get('/api/notices/:noticeId/images', async (req, res) => {
                 await client.query(`
                     INSERT INTO access_logs (notice_id, wallet_address, access_type, granted, ip_address, timestamp)
                     VALUES ($1, $2, $3, $4, $5, NOW())
-                `, [noticeId, walletAddress, 'images', false, req.ip]);
+                `, [noticeId, walletAddress, 'images', false, req.clientIp || req.ip]);
             } catch (e) {
                 // Ignore if table doesn't exist
             }
@@ -124,7 +124,7 @@ router.get('/api/notices/:noticeId/images', async (req, res) => {
             await client.query(`
                 INSERT INTO access_logs (notice_id, wallet_address, access_type, granted, ip_address, timestamp)
                 VALUES ($1, $2, $3, $4, $5, NOW())
-            `, [noticeId, walletAddress, isServer ? 'server_access' : 'recipient_access', true, req.ip]);
+            `, [noticeId, walletAddress, isServer ? 'server_access' : 'recipient_access', true, req.clientIp || req.ip]);
         } catch (e) {
             // Ignore if table doesn't exist
         }

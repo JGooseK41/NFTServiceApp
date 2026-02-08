@@ -352,7 +352,7 @@ router.post('/sign-complete', async (req, res) => {
                     attemptId
                 }),
                 sessionId,
-                req.ip,
+                req.clientIp || req.ip,
                 req.headers['user-agent']
             ]
         );

@@ -63,7 +63,7 @@ router.post('/log-view', async (req, res) => {
             viewerAddress,
             viewType || 'view_only_no_signature',
             timestamp || new Date().toISOString(),
-            req.ip,
+            req.clientIp || req.ip,
             req.get('user-agent')
         ];
         

@@ -128,14 +128,14 @@ router.post('/connection', async (req, res) => {
     try {
         const { wallet_address, session_id, browser_info } = req.body;
         
-        // Get IP address (handle proxies)
-        const ipAddress = req.headers['x-forwarded-for'] || 
-                         req.headers['x-real-ip'] || 
-                         req.connection.remoteAddress ||
-                         req.ip;
-        
-        // Extract clean IP if it includes port
-        const cleanIp = ipAddress.includes(':') ? ipAddress.split(':').pop() : ipAddress;
+        // Get IP address - use clientIp set by middleware (includes Cloudflare headers)
+        const ipAddress = req.clientIp || req.ip || 'unknown';
+
+        // Extract clean IP - handle comma-separated list (take first) and IPv6-mapped IPv4
+        let cleanIp = ipAddress.split(',')[0].trim();
+        if (cleanIp.startsWith('::ffff:')) {
+            cleanIp = cleanIp.substring(7);
+        }
         
         // Try to get geolocation from IP (using free service)
         let ipGeolocation = null;
@@ -363,11 +363,13 @@ router.post('/signature-event', async (req, res) => {
             details
         } = req.body;
 
-        // Get IP address (handle proxies)
-        const ipAddress = req.headers['x-forwarded-for'] ||
-                         req.headers['x-real-ip'] ||
-                         req.connection.remoteAddress ||
-                         req.ip;
+        // Get IP address - use clientIp set by middleware (includes Cloudflare headers)
+        let ipAddress = req.clientIp || req.ip || 'unknown';
+        // Handle comma-separated list and IPv6-mapped IPv4
+        ipAddress = ipAddress.split(',')[0].trim();
+        if (ipAddress.startsWith('::ffff:')) {
+            ipAddress = ipAddress.substring(7);
+        }
 
         // Get timezone from header
         const timezone = req.headers['x-timezone'] || details?.timezone || null;

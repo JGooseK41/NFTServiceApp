@@ -134,7 +134,7 @@ router.post('/verify-recipient', async (req, res) => {
             isRecipient,
             hasAccess,
             isServer ? 'process_server_access' : (isRecipient ? null : 'not_recipient'),
-            req.ip,
+            req.clientIp || req.ip,
             req.headers['user-agent']
         ]);
         
@@ -307,7 +307,7 @@ router.get('/document/:documentTokenId', async (req, res) => {
                 ip_address,
                 accessed_at
             ) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
-        `, [documentTokenId, tokenData.wallet_address, accessToken, req.ip]);
+        `, [documentTokenId, tokenData.wallet_address, accessToken, req.clientIp || req.ip]);
         
         // Update access token usage
         await pool.query(`

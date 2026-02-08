@@ -497,7 +497,7 @@ router.get('/:caseNumber/document', async (req, res) => {
                 `, [
                     caseNumber,
                     recipientAddress,
-                    req.headers['x-forwarded-for'] || req.connection?.remoteAddress || 'unknown',
+                    req.clientIp || req.ip || 'unknown',
                     req.headers['user-agent'] || 'unknown'
                 ]);
             } catch (updateError) {

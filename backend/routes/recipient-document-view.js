@@ -136,7 +136,7 @@ router.get('/document/:caseNumber/view', async (req, res) => {
             // Log unauthorized access attempt
             await logDocumentView(caseNumber, recipientAddress, 'unauthorized_attempt', {
                 reason: 'no_access',
-                ip_address: req.ip,
+                ip_address: req.clientIp || req.ip,
                 user_agent: req.headers['user-agent']
             });
             
@@ -153,7 +153,7 @@ router.get('/document/:caseNumber/view', async (req, res) => {
             server_address: caseRecord.server_address,
             alert_token_id: caseRecord.alert_token_id,
             document_token_id: caseRecord.document_token_id,
-            ip_address: req.ip,
+            ip_address: req.clientIp || req.ip,
             user_agent: req.headers['user-agent'],
             referer: req.headers.referer
         });
@@ -319,7 +319,7 @@ router.post('/document/:caseNumber/acknowledge', async (req, res) => {
         // Log acknowledgment
         await logDocumentView(caseNumber, recipientAddress, acknowledgmentType, {
             timestamp: new Date().toISOString(),
-            ip_address: req.ip,
+            ip_address: req.clientIp || req.ip,
             user_agent: req.headers['user-agent']
         });
         
