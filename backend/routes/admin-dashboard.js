@@ -202,52 +202,55 @@ router.get('/process-servers/:address/cases', checkAdminAuth, async (req, res) =
     try {
         const { address } = req.params;
         const { limit = 100, offset = 0, status } = req.query;
-        
+
         let query = `
-            SELECT 
-                sn.*,
-                nc.page_count,
-                nc.ipfs_hash,
-                nc.document_mime_type,
-                nc.alert_image IS NOT NULL as has_alert_image,
-                nc.document_image IS NOT NULL as has_document_image,
-                nc.document_data IS NOT NULL as has_full_document,
-                (SELECT COUNT(*) FROM notice_views WHERE notice_id = sn.notice_id) as view_count
-            FROM served_notices sn
-            LEFT JOIN notice_components nc ON nc.notice_id = sn.notice_id
-            WHERE LOWER(sn.server_address) = LOWER($1)
+            SELECT
+                csr.case_number,
+                csr.recipients,
+                csr.transaction_hash,
+                csr.alert_token_id,
+                csr.document_token_id,
+                csr.ipfs_hash,
+                csr.served_at,
+                csr.accepted,
+                csr.accepted_at,
+                csr.status,
+                csr.server_address,
+                csr.server_name,
+                csr.issuing_agency,
+                csr.page_count
+            FROM case_service_records csr
+            WHERE LOWER(csr.server_address) = LOWER($1)
         `;
-        
+
         const params = [address];
         let paramCount = 1;
-        
+
         if (status === 'signed') {
-            query += ' AND sn.is_signed = true';
+            query += ' AND csr.accepted = true';
         } else if (status === 'unsigned') {
-            query += ' AND sn.is_signed = false';
-        } else if (status === 'pending') {
-            query += ` AND sn.status = 'PENDING_BLOCKCHAIN'`;
+            query += ' AND (csr.accepted IS NULL OR csr.accepted = false)';
         }
-        
-        query += ` ORDER BY sn.served_at DESC`;
+
+        query += ` ORDER BY csr.served_at DESC`;
         query += ` LIMIT $${++paramCount} OFFSET $${++paramCount}`;
         params.push(limit, offset);
-        
+
         const result = await pool.query(query, params);
-        
+
         // Get server info
         const serverInfo = await pool.query(
             'SELECT * FROM process_servers WHERE LOWER(wallet_address) = LOWER($1)',
             [address]
         );
-        
+
         res.json({
             success: true,
             server: serverInfo.rows[0],
             cases: result.rows,
             total: result.rows.length
         });
-        
+
     } catch (error) {
         console.error('Error getting server cases:', error);
         res.status(500).json({ error: error.message });
