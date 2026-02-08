@@ -100,8 +100,13 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
         try {
             await client.query('BEGIN');
             console.log('BEGIN executed successfully');
+
+            // Verify transaction is working with a simple test query
+            const testQuery = await client.query('SELECT 1 as test');
+            console.log('Transaction test query passed:', testQuery.rows[0].test);
         } catch (beginError) {
-            console.error('BEGIN failed:', beginError.message);
+            console.error('BEGIN or test query failed:', beginError.message);
+            console.error('Error code:', beginError.code);
             throw beginError;
         }
 
@@ -109,6 +114,9 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
         let existingCase;
         try {
             console.log('Executing SELECT to check if case exists...');
+            console.log('Case number:', caseNumber);
+            console.log('Case number type:', typeof caseNumber);
+            console.log('Case number length:', caseNumber.length);
             existingCase = await client.query(
                 'SELECT id, status FROM cases WHERE id = $1',
                 [caseNumber]
@@ -218,13 +226,21 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
 
         // Store service details in a dedicated table (case_number is the key, no need for case_id)
         // First, check if the unique constraint exists - if not, we need to handle differently
-        const constraintCheck = await client.query(`
-            SELECT 1 FROM pg_indexes
-            WHERE tablename = 'case_service_records'
-            AND indexname LIKE '%case_number%'
-        `);
-        const hasUniqueConstraint = constraintCheck.rows.length > 0;
-        console.log(`Unique constraint on case_number exists: ${hasUniqueConstraint}`);
+        let hasUniqueConstraint = true; // Assume it exists by default
+        try {
+            const constraintCheck = await client.query(`
+                SELECT 1 FROM pg_indexes
+                WHERE tablename = 'case_service_records'
+                AND indexname LIKE '%case_number%'
+            `);
+            hasUniqueConstraint = constraintCheck.rows.length > 0;
+            console.log(`Unique constraint on case_number exists: ${hasUniqueConstraint}`);
+        } catch (constraintCheckError) {
+            console.error('Constraint check failed:', constraintCheckError.message);
+            console.error('Error code:', constraintCheckError.code);
+            // Assume constraint exists and try to proceed
+            console.log('Assuming unique constraint exists and proceeding...');
+        }
 
         let insertResult;
         if (hasUniqueConstraint) {
