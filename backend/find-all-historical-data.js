@@ -294,7 +294,7 @@ async function findAllHistoricalData() {
                         caseData.document_token_id,
                         caseData.created_at || new Date(),
                         caseData.server_name || 'Process Server',
-                        caseData.issuing_agency || 'Fort Lauderdale Police',
+                        caseData.issuing_agency || 'via Blockserved.com',
                         caseData.page_count || 1,
                         caseData.status || 'served'
                     ]);

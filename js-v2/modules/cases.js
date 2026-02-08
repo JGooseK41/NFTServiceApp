@@ -998,7 +998,7 @@ window.cases = {
             agency = metadata.agency || metadata.issuingAgency;
         }
         if (!agency) {
-            agency = 'Legal Services'; // Default fallback
+            agency = 'via Blockserved.com'; // Default fallback
         }
         const serverAddress = caseData.serverAddress || caseData.server_address || window.wallet?.address;
         
@@ -2649,7 +2649,7 @@ window.cases = {
         // Get notice type and agency
         const noticeType = caseData.noticeType || caseData.metadata?.noticeType || 'Legal Notice';
         const agency = caseData.agency || caseData.issuingAgency || caseData.metadata?.agency || 
-                      caseData.metadata?.issuingAgency || 'Legal Services';
+                      caseData.metadata?.issuingAgency || 'via Blockserved.com';
         
         // If case has been served, show the actual notices
         if (alertTokenId && recipients.length > 0) {

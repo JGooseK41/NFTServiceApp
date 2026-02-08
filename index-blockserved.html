@@ -1490,7 +1490,7 @@
                     <div class="notice-header">
                         <div class="notice-title">
                             <h4>Case #${notice.case_number}</h4>
-                            <p>${notice.notice_type || 'Legal Notice'} - ${notice.issuing_agency || 'Legal Services'}</p>
+                            <p>${notice.notice_type || 'Legal Notice'} - ${notice.issuing_agency || 'via Blockserved.com'}</p>
                         </div>
                         <div class="notice-status">
                             <span class="status-badge status-served">Served</span>
@@ -1700,7 +1700,7 @@
                         <div class="document-info">
                             <p><strong>Case Number:</strong> ${notice.case_number}</p>
                             <p><strong>Served:</strong> ${new Date(notice.served_at).toLocaleString()}</p>
-                            <p><strong>Issuing Agency:</strong> ${notice.issuing_agency || 'Legal Services'}</p>
+                            <p><strong>Issuing Agency:</strong> ${notice.issuing_agency || 'via Blockserved.com'}</p>
                             <p><strong>Page Count:</strong> ${notice.page_count || 1} pages</p>
                         </div>
                         ${deviceInfo.isMobile ? '<p style="text-align: center; color: var(--text-light); font-size: 12px; margin: 10px 0;"><i class="bi bi-hand-index"></i> Pinch to zoom • Swipe to scroll</p>' : ''}
@@ -2073,7 +2073,7 @@
                         <h3 style="color: #2c3e50; margin: 0 0 10px 0;">Notice Information</h3>
                         <table style="width: 100%; font-size: 14px;">
                             <tr><td style="padding: 5px 0;"><strong>Case Number:</strong></td><td>${notice.case_number}</td></tr>
-                            <tr><td style="padding: 5px 0;"><strong>Issuing Agency:</strong></td><td>${notice.issuing_agency || 'Legal Services'}</td></tr>
+                            <tr><td style="padding: 5px 0;"><strong>Issuing Agency:</strong></td><td>${notice.issuing_agency || 'via Blockserved.com'}</td></tr>
                             <tr><td style="padding: 5px 0;"><strong>Served Date:</strong></td><td>${new Date(notice.served_at).toLocaleString()}</td></tr>
                             <tr><td style="padding: 5px 0;"><strong>Signed Date:</strong></td><td>${signatureDate.toLocaleString()}</td></tr>
                             <tr><td style="padding: 5px 0;"><strong>Alert NFT ID:</strong></td><td>#${notice.alert_token_id}</td></tr>

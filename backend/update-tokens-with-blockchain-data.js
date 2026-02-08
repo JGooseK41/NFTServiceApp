@@ -58,7 +58,7 @@ async function updateTokensWithBlockchainData() {
                         recipients = $1,
                         transaction_hash = $2,
                         status = 'served',
-                        issuing_agency = 'Fort Lauderdale Police'
+                        issuing_agency = 'via Blockserved.com'
                     WHERE alert_token_id = $3
                     RETURNING case_number
                 `, [

@@ -212,7 +212,7 @@ async function auditAndReconstruct() {
                     tt.document_token_id,
                     COALESCE(tt.created_at, NOW()),
                     COALESCE(c.server_address, c.server_name, 'Process Server'),
-                    COALESCE(c.issuing_agency, (c.metadata->>'issuingAgency')::text, 'Fort Lauderdale Police'),
+                    COALESCE(c.issuing_agency, (c.metadata->>'issuingAgency')::text, 'via Blockserved.com'),
                     COALESCE(c.page_count, (c.metadata->>'pageCount')::int, 1),
                     COALESCE(c.status, 'served')
                 FROM transaction_tracking tt
@@ -340,7 +340,7 @@ async function auditAndReconstruct() {
                     data.alert_token_id,
                     data.served_at,
                     'Process Server',
-                    'Fort Lauderdale Police',
+                    'via Blockserved.com',
                     1,
                     'served'
                 ]);

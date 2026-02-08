@@ -1177,7 +1177,7 @@ router.get('/update-with-blockchain-data', async (req, res) => {
                             recipients = $1,
                             transaction_hash = $2,
                             status = 'served',
-                            issuing_agency = 'Fort Lauderdale Police'
+                            issuing_agency = 'via Blockserved.com'
                         WHERE alert_token_id = $3
                         RETURNING case_number
                     `, [
@@ -1433,7 +1433,7 @@ router.get('/reconstruct-all-38-tokens', async (req, res) => {
                         JSON.stringify([tokenData.recipient || 'Unknown']),
                         tokenIdStr,
                         'Process Server',
-                        'Fort Lauderdale Police',
+                        'via Blockserved.com',
                         1,
                         'served'
                     ]);
@@ -1637,7 +1637,7 @@ router.get('/find-all-historical', async (req, res) => {
                             caseData.alert_token_id,
                             caseData.created_at || new Date(),
                             caseData.server_name || 'Process Server',
-                            caseData.issuing_agency || 'Fort Lauderdale Police',
+                            caseData.issuing_agency || 'via Blockserved.com',
                             caseData.page_count || 1,
                             caseData.status || 'served'
                         ]);
@@ -1794,7 +1794,7 @@ router.post('/test-add', async (req, res) => {
             alert_token_id,
             served_at || new Date(),
             'Process Server',
-            'Fort Lauderdale Police',
+            'via Blockserved.com',
             1,
             'served'
         ]);

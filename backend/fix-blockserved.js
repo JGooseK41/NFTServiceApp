@@ -152,7 +152,7 @@ async function importServiceRecords() {
                         recipientAddress,
                         record.server_address,
                         'Legal Notice',
-                        'Legal Services',
+                        'via Blockserved.com',
                         record.transaction_hash,
                         record.ipfs_hash,
                         record.encryption_key,

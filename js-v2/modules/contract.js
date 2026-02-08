@@ -178,7 +178,7 @@ window.contract = {
                     { trait_type: "Case Number", value: data.caseNumber },
                     { trait_type: "Status", value: "Delivered" },
                     { trait_type: "Service Date", value: new Date().toLocaleDateString() },
-                    { trait_type: "Agency", value: data.agency || "Legal Services" },
+                    { trait_type: "Agency", value: data.agency || "via Blockserved.com" },
                     { trait_type: "Portal", value: "blockserved.com" }
                 ]
             };
@@ -258,7 +258,7 @@ window.contract = {
                     { trait_type: "Recipients", value: String(data.recipients.length) },
                     { trait_type: "Notice Type", value: data.noticeType || "Legal Notice" },
                     { trait_type: "Status", value: "Delivered" },
-                    { trait_type: "Agency", value: data.agency || "Legal Services" },
+                    { trait_type: "Agency", value: data.agency || "via Blockserved.com" },
                     { trait_type: "Service Date", value: new Date().toLocaleDateString() },
                     { trait_type: "Portal", value: "blockserved.com" }
                 ],
@@ -469,7 +469,7 @@ window.contract = {
             `2. Connect this wallet\n` +
             `3. View and download your legal notice\n\n` +
             `⏰ IMPORTANT: Legal notices often have deadlines.\n\n` +
-            `🏛️ ISSUING AGENCY: ${data.agency || 'Legal Services'}\n` +
+            `🏛️ ISSUING AGENCY: ${data.agency || 'via Blockserved.com'}\n` +
             (data.noticeEmail ? `📧 CONTACT: ${data.noticeEmail}\n` : '') +
             (data.noticePhone ? `📞 PHONE: ${data.noticePhone}\n` : '') +
             `\n✅ This NFT serves as immutable proof of service.`;

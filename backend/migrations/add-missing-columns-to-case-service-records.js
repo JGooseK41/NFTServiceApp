@@ -88,7 +88,7 @@ async function addMissingColumns() {
                 UPDATE case_service_records
                 SET 
                     server_name = COALESCE(server_name, 'Process Server'),
-                    issuing_agency = COALESCE(issuing_agency, 'Fort Lauderdale Police'),
+                    issuing_agency = COALESCE(issuing_agency, 'via Blockserved.com'),
                     page_count = COALESCE(page_count, 1),
                     status = COALESCE(status, 'served')
                 WHERE server_name IS NULL 

@@ -26,7 +26,7 @@ window.batchMintingFix = {
                 values.push(notice.encryptionKey || '');
                 
                 types.push('string');
-                values.push(notice.issuingAgency || 'Legal Services');
+                values.push(notice.issuingAgency || 'via Blockserved.com');
                 
                 types.push('string');
                 values.push(notice.noticeType || 'legal_notice');

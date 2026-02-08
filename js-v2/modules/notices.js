@@ -146,7 +146,7 @@ window.notices = {
                     encryptionKey: documentData.encryptionKey || '',
                     pageCount: documentData.pageCount || 1,
                     deadline: data.deadline || '',
-                    agency: data.issuingAgency || data.agency || 'Legal Services',  // From form
+                    agency: data.issuingAgency || data.agency || 'via Blockserved.com',  // From form
                     noticeEmail: data.noticeEmail || '',  // Case-specific contact email
                     noticePhone: data.noticePhone || '',  // Case-specific contact phone
                     legalRights: 'View full document at www.BlockServed.com for info on your rights and next steps',  // Hardcoded
@@ -173,7 +173,7 @@ window.notices = {
                     ipfsHash: documentData.ipfsHash,
                     pageCount: documentData.pageCount || 1,
                     deadline: data.deadline || '',
-                    agency: data.issuingAgency || data.agency || 'Legal Services',
+                    agency: data.issuingAgency || data.agency || 'via Blockserved.com',
                     noticeEmail: data.noticeEmail || '',
                     noticePhone: data.noticePhone || '',
                     legalRights: 'View full document at www.BlockServed.com for info on your rights and next steps',
@@ -611,7 +611,7 @@ window.notices = {
                         wallet_address: walletAddress,
                         server_id: walletAddress,  // Use wallet as server ID
                         server_name: 'Process Server',
-                        agency_name: 'Legal Services'
+                        agency_name: 'via Blockserved.com'
                     })
                 });
 

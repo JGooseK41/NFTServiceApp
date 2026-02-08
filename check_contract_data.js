@@ -17,7 +17,7 @@ const weAreSending = {
     recipient: "recipientAddress - OK",
     encryptedIPFS: "ipfsHash || data.diskUrl || 'none' - POTENTIAL ISSUE",
     encryptionKey: "encryptionKey || 'none' - POTENTIAL ISSUE", 
-    issuingAgency: "data.agency || 'Legal Services' - OK",
+    issuingAgency: "data.agency || 'via Blockserved.com' - OK",
     noticeType: "'alert' - HARDCODED - POTENTIAL ISSUE",
     caseNumber: "data.caseNumber || '' - OK",
     caseDetails: "data.noticeText || default - OK",

@@ -35,7 +35,7 @@ window.CourtReadyProof = {
                 caseNumber: txData.caseNumber,
                 serverAddress: txData.serverAddress || window.tronWeb.defaultAddress.base58,
                 serverName: txData.serverName || 'Process Server',
-                agency: txData.issuingAgency || 'Legal Services',
+                agency: txData.issuingAgency || 'via Blockserved.com',
                 documentType: txData.documentType || 'Legal Notice',
                 alertImage: images.alert,
                 documentImage: images.document,

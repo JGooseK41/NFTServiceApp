@@ -350,7 +350,7 @@ window.proofOfService = {
                         </div>
                         <div class="field-row">
                             <span class="field-label">Issuing Agency:</span>
-                            <span class="field-value">${receipt.agency || 'Legal Services'}</span>
+                            <span class="field-value">${receipt.agency || 'via Blockserved.com'}</span>
                         </div>
                         <div class="field-row">
                             <span class="field-label">Notice Type:</span>
