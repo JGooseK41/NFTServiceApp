@@ -1725,15 +1725,13 @@ async function ensureMasterAdminRegistered() {
         VALUES ($1, $2, $3, $4, 'active', NOW(), NOW())
       `, [walletAddress, agencyName, 'admin@theblockaudit.com', '000-000-0000']);
       console.log(`✅ Master admin registered: ${agencyName}`);
-    } else if (check.rows[0].agency_name !== agencyName) {
-      // Update agency name if different
-      await pool.query(
-        'UPDATE process_servers SET agency_name = $1, updated_at = NOW() WHERE LOWER(wallet_address) = LOWER($2)',
-        [agencyName, walletAddress]
-      );
-      console.log(`✅ Master admin agency updated to: ${agencyName}`);
     } else {
-      console.log(`✅ Master admin already registered as: ${agencyName}`);
+      // Ensure master admin is always active with correct agency name
+      await pool.query(
+        'UPDATE process_servers SET agency_name = $1, status = $2, updated_at = NOW() WHERE LOWER(wallet_address) = LOWER($3)',
+        [agencyName, 'active', walletAddress]
+      );
+      console.log(`✅ Master admin ensured active: ${agencyName}`);
     }
 
     // Also update agency column if it exists
