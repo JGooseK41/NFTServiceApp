@@ -1010,92 +1010,8 @@ window.cases = {
             agency = 'via Blockserved.com'; // Default fallback
         }
         const serverAddress = caseData.serverAddress || caseData.server_address || window.wallet?.address;
-        
-        // Add print-specific styles
-        const printStyles = `
-            <style id="receiptPrintStyles">
-                @media print {
-                    /* Hide modal chrome when printing */
-                    .modal-header, .modal-footer { display: none !important; }
-                    .modal-dialog { max-width: 100% !important; }
-                    .modal-content { border: none !important; box-shadow: none !important; }
-                    
-                    /* Page setup for 8.5x11 */
-                    @page {
-                        size: letter;
-                        margin: 0.5in;
-                    }
-                    
-                    /* Receipt layout */
-                    .receipt-page {
-                        page-break-after: always;
-                        min-height: 9.5in;
-                        padding: 0.5in;
-                        display: flex;
-                        flex-direction: column;
-                    }
-                    
-                    .receipt-page:last-child {
-                        page-break-after: avoid;
-                    }
-                    
-                    /* Ensure image fits on page */
-                    .alert-preview-img {
-                        max-width: 100% !important;
-                        max-height: 6in !important;
-                        object-fit: contain;
-                    }
-                    
-                    /* Clean printing */
-                    * {
-                        -webkit-print-color-adjust: exact !important;
-                        print-color-adjust: exact !important;
-                    }
-                    
-                    .no-print { display: none !important; }
-                }
-                
-                /* Modal styles */
-                .receipt-content {
-                    font-family: 'Times New Roman', Times, serif;
-                }
-                
-                .receipt-header {
-                    border-bottom: 3px double #000;
-                    padding-bottom: 20px;
-                    margin-bottom: 20px;
-                }
-                
-                .receipt-section {
-                    margin-bottom: 25px;
-                    padding: 15px;
-                    background: #f8f9fa;
-                    border: 1px solid #dee2e6;
-                    border-radius: 5px;
-                }
-                
-                .receipt-field {
-                    margin-bottom: 10px;
-                }
-                
-                .receipt-label {
-                    font-weight: bold;
-                    display: inline-block;
-                    min-width: 150px;
-                }
-                
-                code.hash {
-                    font-size: 11px;
-                    word-break: break-all;
-                    background: #f4f4f4;
-                    padding: 2px 4px;
-                    border-radius: 3px;
-                }
-            </style>
-        `;
-        
+
         const modalHtml = `
-            ${printStyles}
             <div class="modal fade" id="receiptModal" tabindex="-1">
                 <div class="modal-dialog modal-xl">
                     <div class="modal-content">
@@ -1202,150 +1118,6 @@ window.cases = {
                                 </div>
                             </div>
                             ` : ''}
-                            
-                            <div class="receipt-content d-none">
-                                <!-- Page 1: Service Details and Transaction Info -->
-                                <div class="receipt-page">
-                                    <div class="receipt-header text-center">
-                                        <h1 style="font-size: 28px; margin: 0;">PROOF OF SERVICE RECEIPT</h1>
-                                        <p style="font-size: 14px; margin: 10px 0 0 0;">Blockchain-Verified Legal Notice Delivery</p>
-                                    </div>
-                                    
-                                    <div class="receipt-section">
-                                        <h4 style="margin-top: 0; border-bottom: 1px solid #ccc; padding-bottom: 5px;">SERVICE INFORMATION</h4>
-                                        <div class="receipt-field">
-                                            <span class="receipt-label">Case Number:</span>
-                                            <strong>${caseNumber}</strong>
-                                        </div>
-                                        <div class="receipt-field">
-                                            <span class="receipt-label">Date/Time Served:</span>
-                                            ${servedAt ? new Date(servedAt).toLocaleString() : 'Not Available'}
-                                        </div>
-                                        <div class="receipt-field">
-                                            <span class="receipt-label">Issuing Agency:</span>
-                                            ${agency}
-                                        </div>
-                                        <div class="receipt-field">
-                                            <span class="receipt-label">Status:</span>
-                                            <span style="color: green; font-weight: bold;">✓ SUCCESSFULLY SERVED</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="receipt-section">
-                                        <h4 style="margin-top: 0; border-bottom: 1px solid #ccc; padding-bottom: 5px;">BLOCKCHAIN VERIFICATION</h4>
-                                        <div class="receipt-field">
-                                            <span class="receipt-label">Transaction Hash:</span><br>
-                                            <code class="hash">${txHash || 'Pending Synchronization'}</code>
-                                        </div>
-                                        <div class="receipt-field">
-                                            <span class="receipt-label">NFT Token ID:</span>
-                                            #${alertTokenId || 'Pending'}
-                                        </div>
-                                        <div class="receipt-field">
-                                            <span class="receipt-label">Blockchain:</span>
-                                            TRON Mainnet
-                                        </div>
-                                        ${txHash ? `
-                                        <div class="receipt-field">
-                                            <span class="receipt-label">Verification URL:</span><br>
-                                            <small>${window.getTronScanUrl ? window.getTronScanUrl(txHash) : 'https://tronscan.org/#/transaction/' + txHash}</small>
-                                        </div>
-                                        ` : ''}
-                                    </div>
-                                    
-                                    <div class="receipt-section">
-                                        <h4 style="margin-top: 0; border-bottom: 1px solid #ccc; padding-bottom: 5px;">RECIPIENTS</h4>
-                                        <div class="receipt-field">
-                                            <span class="receipt-label">Total Recipients:</span>
-                                            ${recipients.length}
-                                        </div>
-                                        <div style="margin-top: 10px;">
-                                            ${recipients.map((r, i) => {
-                                                const addr = cases.getRecipientAddress(r);
-                                                const label = cases.getRecipientLabel(r);
-                                                return `
-                                                <div style="margin-bottom: 5px;">
-                                                    <small>${i + 1}. ${label ? `<strong>[${label}]</strong> ` : ''}<code class="hash">${addr}</code></small>
-                                                </div>`;
-                                            }).join('')}
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="receipt-section">
-                                        <h4 style="margin-top: 0; border-bottom: 1px solid #ccc; padding-bottom: 5px;">SERVICE CERTIFICATION</h4>
-                                        <p style="font-size: 14px; line-height: 1.6; margin: 10px 0;">
-                                            I hereby certify that the above-described legal notice was served via blockchain technology
-                                            on the date and time indicated. This service has been recorded immutably on the TRON blockchain
-                                            and can be independently verified using the transaction hash provided above.
-                                        </p>
-                                        <div style="margin-top: 30px;">
-                                            <div style="border-bottom: 1px solid #000; width: 300px; margin-bottom: 5px;"></div>
-                                            <p style="font-size: 14px; margin: 0;">Authorized Process Server</p>
-                                            <p style="font-size: 12px; margin: 5px 0;">Server Address: ${serverAddress || 'N/A'}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Page 2: Alert NFT Preview -->
-                                ${caseData.alertImage || caseData.alert_preview ? `
-                                <div class="receipt-page">
-                                    <!-- Page 2 Header -->
-                                    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 2px solid #000; margin-bottom: 20px;">
-                                        <div>
-                                            <strong>Case: ${caseNumber}</strong>
-                                        </div>
-                                        <div style="text-align: center;">
-                                            <strong>PROOF OF SERVICE RECEIPT</strong>
-                                        </div>
-                                        <div style="text-align: right;">
-                                            <strong>Page 2 of 2</strong>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="receipt-header text-center">
-                                        <h2 style="font-size: 24px; margin: 0;">NFT DELIVERY CONFIRMATION</h2>
-                                        <p style="font-size: 14px; margin: 10px 0 0 0;">Visual Record of Notice Delivered to Recipients</p>
-                                    </div>
-
-                                    <div class="receipt-section">
-                                        <h4 style="margin-top: 0; border-bottom: 1px solid #ccc; padding-bottom: 5px;">DELIVERED NOTICE IMAGE</h4>
-                                        <p style="font-size: 14px; margin: 10px 0;">
-                                            The following Legal Notice NFT was delivered to all recipients' wallets as proof of service:
-                                        </p>
-                                    </div>
-                                    
-                                    <div class="text-center" style="margin: 20px 0;">
-                                        <img src="${caseData.alertImage || caseData.alert_preview}" 
-                                             class="alert-preview-img"
-                                             style="max-width: 100%; border: 2px solid #000; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                    </div>
-                                    
-                                    <div class="receipt-section" style="margin-top: auto;">
-                                        <h4 style="margin-top: 0; border-bottom: 1px solid #ccc; padding-bottom: 5px;">RECIPIENT ACCESS</h4>
-                                        <p style="font-size: 14px;">
-                                            Recipients can access and respond to the full legal documents at:<br>
-                                            <strong>https://www.blockserved.com</strong>
-                                        </p>
-                                        <p style="font-size: 12px; color: #666;">
-                                            Recipients must connect their wallet to view and sign documents.
-                                        </p>
-                                    </div>
-                                    
-                                    ${caseData.ipfsHash || caseData.ipfsDocument ? `
-                                    <div class="receipt-section">
-                                        <h4 style="margin-top: 0; border-bottom: 1px solid #ccc; padding-bottom: 5px;">DOCUMENT STORAGE</h4>
-                                        <div class="receipt-field">
-                                            <span class="receipt-label">IPFS Hash:</span><br>
-                                            <code class="hash">${caseData.ipfsHash || caseData.ipfsDocument}</code>
-                                        </div>
-                                        <p style="font-size: 12px; color: #666; margin-top: 10px;">
-                                            Document stored permanently on the InterPlanetary File System (IPFS)
-                                        </p>
-                                    </div>
-                                    ` : ''}
-                                </div>
-                                ` : ''}
-                            </div>
                         </div>
                         <div class="modal-footer no-print">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -1358,11 +1130,7 @@ window.cases = {
         // Remove any existing modal
         const existingModal = document.getElementById('receiptModal');
         if (existingModal) existingModal.remove();
-        
-        // Remove any existing print styles
-        const existingStyles = document.getElementById('receiptPrintStyles');
-        if (existingStyles) existingStyles.remove();
-        
+
         // Add modal to page
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
@@ -1378,8 +1146,6 @@ window.cases = {
         // Clean up on close
         document.getElementById('receiptModal').addEventListener('hidden.bs.modal', function() {
             this.remove();
-            const styles = document.getElementById('receiptPrintStyles');
-            if (styles) styles.remove();
         });
     },
 
