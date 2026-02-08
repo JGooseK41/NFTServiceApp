@@ -1697,6 +1697,14 @@ router.post('/cases/manual-mark-served', async (req, res) => {
         await client.query('BEGIN');
 
         // Step 1: Update cases table
+        // Build metadata JSON separately to avoid type inference issues
+        const metadataUpdate = JSON.stringify({
+            manuallyMarkedServed: true,
+            markedAt: new Date().toISOString(),
+            transactionHash: transactionHash,
+            alertTokenId: alertTokenId || null
+        });
+
         const casesUpdate = await client.query(`
             UPDATE cases
             SET status = 'served',
@@ -1704,15 +1712,10 @@ router.post('/cases/manual-mark-served', async (req, res) => {
                 updated_at = NOW(),
                 tx_hash = $2,
                 alert_nft_id = $3,
-                metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
-                    'manuallyMarkedServed', true,
-                    'markedAt', NOW()::text,
-                    'transactionHash', $2::text,
-                    'alertTokenId', $3::text
-                )
+                metadata = COALESCE(metadata, '{}'::jsonb) || $4::jsonb
             WHERE id = $1
             RETURNING id, status, served_at
-        `, [trimmedCaseNumber, transactionHash, alertTokenId || null]);
+        `, [trimmedCaseNumber, transactionHash, alertTokenId || null, metadataUpdate]);
 
         if (casesUpdate.rows.length === 0) {
             await client.query('ROLLBACK');
