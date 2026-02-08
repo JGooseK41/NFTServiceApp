@@ -1780,8 +1780,12 @@ window.app = {
                 }
             }
             
-            this.showInfo(isUpdating ? 'Updating case with new documents...' : 'Processing documents and creating case...');
-            
+            // Show processing modal
+            this.showProcessing(
+                isUpdating ? 'Updating case...' : 'Processing documents...',
+                'Cleaning PDFs and preparing for blockchain service'
+            );
+
             // Create FormData for multipart upload
             const formData = new FormData();
             
@@ -1873,14 +1877,17 @@ window.app = {
                             );
                             
                             if (choice) {
+                                // Hide processing modal
+                                this.hideProcessing();
+
                                 // Store the existing case data
                                 this.currentCaseId = error.caseId || caseNumber;
-                                
+
                                 // Show the existing PDFs and allow replacement
                                 await this.showExistingCaseDocuments(error.case);
-                                
+
                                 this.showSuccess(`Resuming existing case ${caseNumber}`);
-                                
+
                                 // Don't proceed yet - let user review and potentially update documents
                                 return {
                                     success: false,
@@ -1890,6 +1897,9 @@ window.app = {
                                     message: 'Review and update documents as needed'
                                 };
                             } else {
+                                // Hide processing modal
+                                this.hideProcessing();
+
                                 // User wants to use a different case number
                                 document.getElementById('caseNumber').focus();
                                 document.getElementById('caseNumber').select();
@@ -2038,7 +2048,10 @@ window.app = {
             
             // Mark that we now have the consolidated PDF ready
             this.hasConsolidatedPDF = true;
-            
+
+            // Hide processing modal
+            this.hideProcessing();
+
             // Show success message with case ID
             this.showSuccess(`Case "${this.currentCaseId}" saved successfully! PDFs cleaned and consolidated on server.`);
             
@@ -2050,13 +2063,16 @@ window.app = {
             return result;
             
         } catch (error) {
+            // Hide processing modal on error
+            this.hideProcessing();
+
             console.error('Error saving to case manager:', error);
             console.error('Current state:', {
                 currentCaseId: this.currentCaseId,
                 consolidatedPDFUrl: this.consolidatedPDFUrl,
                 fileQueue: this.state.fileQueue.length
             });
-            
+
             // Clear any partial state on error
             this.currentCaseId = null;
             this.consolidatedPDFUrl = null;
