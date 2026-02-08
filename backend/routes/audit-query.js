@@ -137,6 +137,13 @@ router.get('/case/:caseNumber', async (req, res) => {
         const documentTokenId = caseResult.rows[0].document_token_id;
 
         // Get all audit logs for this case (by recipients AND by target_id)
+        // Exclude action types that are not relevant to recipient/case activity
+        const excludedActionTypes = [
+            'SERVER_REGISTRATION',
+            'ADMIN_ACTION',
+            'SYSTEM_MAINTENANCE'
+        ];
+
         const auditResult = await pool.query(`
             SELECT
                 id,
@@ -150,12 +157,15 @@ router.get('/case/:caseNumber', async (req, res) => {
                 timezone,
                 created_at
             FROM audit_logs
-            WHERE actor_address = ANY($1::text[])
-               OR target_id = $2
-               OR target_id = $3
-               OR target_id = $4
+            WHERE (
+                actor_address = ANY($1::text[])
+                OR target_id = $2
+                OR target_id = $3
+                OR target_id = $4
+            )
+            AND action_type NOT IN (SELECT unnest($5::text[]))
             ORDER BY created_at DESC
-        `, [recipients, caseNumber, alertTokenId, documentTokenId]);
+        `, [recipients, caseNumber, alertTokenId, documentTokenId, excludedActionTypes]);
 
         const auditEntries = auditResult.rows.map(row => {
             const details = typeof row.details === 'string' ?
