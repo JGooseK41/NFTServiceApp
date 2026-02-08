@@ -335,24 +335,26 @@ window.contract = {
 
             console.log('NFT created, txHash:', txHash);
 
-            // Start token ID extraction in background (don't block)
-            // This allows the success modal to show immediately
-            this._extractTokenIdAsync(txHash).then(tokenId => {
+            // Wait for token ID extraction (up to ~15s) before returning
+            // Mainnet indexing can take 3-6 seconds
+            let tokenId = null;
+            try {
+                tokenId = await this._extractTokenId(txHash, 5);
                 if (tokenId) {
-                    console.log('Token ID extracted in background:', tokenId);
-                    // Store for later retrieval
+                    console.log('✅ Token ID extracted:', tokenId);
                     this._lastTokenId = tokenId;
                     this._tokenIdCache = this._tokenIdCache || {};
                     this._tokenIdCache[txHash] = tokenId;
                 }
-            });
+            } catch (e) {
+                console.warn('Token ID extraction failed, will show as N/A:', e.message);
+            }
 
-            // Return immediately with txHash - token ID will be available later
             return {
                 success: true,
                 txId: txHash,
                 alertTx: txHash,
-                tokenId: null, // Will be populated async
+                tokenId: tokenId,
                 // Exact fee breakdown for receipt documentation
                 paymentDetails: {
                     serviceFee: feeConfig.serviceFeeInTRX,

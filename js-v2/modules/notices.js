@@ -212,7 +212,7 @@ window.notices = {
                 console.log('Token ID not in contract result, attempting extraction...');
 
                 // Method 1: Try TronGrid events API (most reliable)
-                const extractFromEventsApi = async (txHash, retries = 3) => {
+                const extractFromEventsApi = async (txHash, retries = 5) => {
                     const chainInfo = window.getChainInfo ? window.getChainInfo() : null;
                     const isMainnet = chainInfo?.id === 'tron-mainnet';
                     const apiBase = isMainnet ? 'https://api.trongrid.io' : 'https://nile.trongrid.io';
@@ -220,8 +220,8 @@ window.notices = {
 
                     for (let attempt = 1; attempt <= retries; attempt++) {
                         try {
-                            // Wait a bit for transaction to be indexed (shorter delays: 1s, 2s, 3s)
-                            await new Promise(r => setTimeout(r, attempt * 1000));
+                            // Wait for transaction to be indexed (mainnet can take 3-6s)
+                            await new Promise(r => setTimeout(r, attempt * 2000));
 
                             const url = `${apiBase}/v1/contracts/${contractAddress}/events?event_name=Transfer&limit=10`;
                             console.log(`Token extraction attempt ${attempt}/${retries} from: ${url}`);
