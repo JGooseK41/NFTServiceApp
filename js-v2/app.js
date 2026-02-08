@@ -455,6 +455,9 @@ window.app = {
                     this.state.contract = window.contract.instance;
                 }
 
+                // Check server registration status
+                await this.registerServer();
+
                 // Dispatch walletConnected event for admin-access and other modules
                 document.dispatchEvent(new CustomEvent('walletConnected', { detail: { address: this.state.userAddress } }));
 
