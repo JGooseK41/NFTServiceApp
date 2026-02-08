@@ -1020,11 +1020,113 @@
             }
         }
 
+        // Cookie utility functions for forensic tracking
+        function setCookie(name, value, days = 365) {
+            const expires = new Date(Date.now() + days * 864e5).toUTCString();
+            document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
+        }
+
+        function getCookie(name) {
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [key, val] = cookie.trim().split('=');
+                if (key === name) return decodeURIComponent(val);
+            }
+            return null;
+        }
+
+        // Get or create visitor ID for tracking return visits
+        function getVisitorId() {
+            let visitorId = getCookie('bs_visitor_id');
+            if (!visitorId) {
+                visitorId = 'v_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                setCookie('bs_visitor_id', visitorId, 365);
+            }
+            return visitorId;
+        }
+
+        // Track first visit timestamp
+        function getFirstVisitTimestamp() {
+            let firstVisit = getCookie('bs_first_visit');
+            if (!firstVisit) {
+                firstVisit = new Date().toISOString();
+                setCookie('bs_first_visit', firstVisit, 365);
+            }
+            return firstVisit;
+        }
+
+        // Get visit count
+        function incrementVisitCount() {
+            let count = parseInt(getCookie('bs_visit_count') || '0', 10);
+            count++;
+            setCookie('bs_visit_count', count.toString(), 365);
+            return count;
+        }
+
+        // Get all forensic cookie data
+        function getForensicCookieData() {
+            return {
+                visitorId: getVisitorId(),
+                firstVisit: getFirstVisitTimestamp(),
+                visitCount: incrementVisitCount(),
+                lastVisit: getCookie('bs_last_visit') || null,
+                hasSeenNotice: getCookie('bs_seen_notice') || null,
+                cookiesEnabled: navigator.cookieEnabled
+            };
+        }
+
+        // Update last visit timestamp
+        function updateLastVisit() {
+            setCookie('bs_last_visit', new Date().toISOString(), 365);
+        }
+
+        // Mark that user has seen a specific notice
+        function markNoticeSeen(caseNumber) {
+            const seen = JSON.parse(getCookie('bs_seen_notices') || '[]');
+            if (!seen.includes(caseNumber)) {
+                seen.push(caseNumber);
+                setCookie('bs_seen_notices', JSON.stringify(seen.slice(-50)), 365); // Keep last 50
+            }
+        }
+
+        // Get referrer information
+        function getReferrerInfo() {
+            return {
+                referrer: document.referrer || null,
+                referrerDomain: document.referrer ? new URL(document.referrer).hostname : null,
+                isDirectVisit: !document.referrer,
+                entryUrl: window.location.href,
+                entryPath: window.location.pathname,
+                queryParams: Object.fromEntries(new URLSearchParams(window.location.search))
+            };
+        }
+
+        // Get comprehensive language preferences
+        function getLanguagePreferences() {
+            return {
+                primaryLanguage: navigator.language,
+                allLanguages: navigator.languages ? [...navigator.languages] : [navigator.language],
+                browserLocale: Intl.DateTimeFormat().resolvedOptions().locale,
+                numberFormat: Intl.NumberFormat().resolvedOptions().locale,
+                dateFormat: Intl.DateTimeFormat().resolvedOptions()
+            };
+        }
+
+        // Initialize forensic tracking on page load
+        const forensicData = {
+            cookies: getForensicCookieData(),
+            referrer: getReferrerInfo(),
+            languages: getLanguagePreferences(),
+            pageLoadTime: new Date().toISOString()
+        };
+        updateLastVisit();
+
         // Helper for API calls with common headers (includes timezone)
         function getApiHeaders(additionalHeaders = {}) {
             return {
                 'Content-Type': 'application/json',
                 'X-Timezone': getUserTimezone() || '',
+                'X-Visitor-Id': forensicData.cookies.visitorId || '',
                 ...additionalHeaders
             };
         }
@@ -1337,59 +1439,78 @@
                     appVersion: navigator.appVersion,
                     vendor: navigator.vendor,
                     language: navigator.language,
-                    languages: navigator.languages,
+                    languages: navigator.languages ? [...navigator.languages] : [navigator.language],
                     cookieEnabled: navigator.cookieEnabled,
                     onLine: navigator.onLine,
                     doNotTrack: navigator.doNotTrack,
-                    
+
                     // Device type detection
                     deviceType: deviceType.type,
                     operatingSystem: deviceType.os,
                     isMobile: deviceType.isMobile,
                     isTablet: deviceType.isTablet,
                     isDesktop: deviceType.isDesktop,
-                    
+
                     // Wallet information
                     walletProvider: walletInfo.provider,
                     walletVersion: walletInfo.version,
                     walletType: walletInfo.type,
-                    
+
                     // Device details
                     platform: navigator.platform,
                     hardwareConcurrency: navigator.hardwareConcurrency,
                     deviceMemory: navigator.deviceMemory,
                     maxTouchPoints: navigator.maxTouchPoints,
-                    
+
                     // Screen details
                     screenResolution: `${screen.width}x${screen.height}`,
                     screenColorDepth: screen.colorDepth,
                     screenPixelDepth: screen.pixelDepth,
                     availableScreenSize: `${screen.availWidth}x${screen.availHeight}`,
-                    
+
                     // Window details
                     windowSize: `${window.innerWidth}x${window.innerHeight}`,
                     devicePixelRatio: window.devicePixelRatio,
-                    
+
                     // Timezone and locale
                     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                     timezoneOffset: new Date().getTimezoneOffset(),
                     locale: Intl.DateTimeFormat().resolvedOptions().locale,
-                    
+
                     // Connection info
                     connection: navigator.connection ? {
                         effectiveType: navigator.connection.effectiveType,
                         downlink: navigator.connection.downlink,
                         rtt: navigator.connection.rtt,
                         saveData: navigator.connection.saveData
-                    } : null
+                    } : null,
+
+                    // Forensic tracking data
+                    forensics: {
+                        visitorId: forensicData.cookies.visitorId,
+                        firstVisit: forensicData.cookies.firstVisit,
+                        visitCount: forensicData.cookies.visitCount,
+                        lastVisit: forensicData.cookies.lastVisit,
+                        isReturnVisitor: forensicData.cookies.visitCount > 1,
+                        referrer: forensicData.referrer.referrer,
+                        referrerDomain: forensicData.referrer.referrerDomain,
+                        isDirectVisit: forensicData.referrer.isDirectVisit,
+                        entryUrl: forensicData.referrer.entryUrl,
+                        queryParams: forensicData.referrer.queryParams,
+                        pageLoadTime: forensicData.pageLoadTime
+                    },
+
+                    // Comprehensive language preferences
+                    languagePreferences: forensicData.languages
                 };
-                
+
                 await fetch(`${BACKEND_URL}/api/recipient-logs/connection`, {
                     method: 'POST',
                     headers: getApiHeaders(),
                     body: JSON.stringify({
                         wallet_address: walletAddress,
                         session_id: sessionId,
+                        visitor_id: forensicData.cookies.visitorId,
                         browser_info: browserInfo,
                         timezone: getUserTimezone()
                     })

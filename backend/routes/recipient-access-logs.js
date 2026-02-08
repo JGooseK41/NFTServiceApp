@@ -101,8 +101,13 @@ async function initializeLoggingTables() {
                 ip_address VARCHAR(45),
                 user_agent TEXT,
                 session_id VARCHAR(255),
+                visitor_id VARCHAR(100),
                 browser_info JSONB,
-                recipient_timezone VARCHAR(100)
+                recipient_timezone VARCHAR(100),
+                is_return_visitor BOOLEAN DEFAULT FALSE,
+                visit_count INTEGER DEFAULT 1,
+                referrer_domain VARCHAR(255),
+                accept_language TEXT
             )
         `);
 
@@ -115,6 +120,31 @@ async function initializeLoggingTables() {
         await pool.query(`
             ALTER TABLE recipient_connections
             ADD COLUMN IF NOT EXISTS recipient_timezone VARCHAR(100)
+        `).catch(() => {});
+
+        await pool.query(`
+            ALTER TABLE recipient_connections
+            ADD COLUMN IF NOT EXISTS visitor_id VARCHAR(100)
+        `).catch(() => {});
+
+        await pool.query(`
+            ALTER TABLE recipient_connections
+            ADD COLUMN IF NOT EXISTS is_return_visitor BOOLEAN DEFAULT FALSE
+        `).catch(() => {});
+
+        await pool.query(`
+            ALTER TABLE recipient_connections
+            ADD COLUMN IF NOT EXISTS visit_count INTEGER DEFAULT 1
+        `).catch(() => {});
+
+        await pool.query(`
+            ALTER TABLE recipient_connections
+            ADD COLUMN IF NOT EXISTS referrer_domain VARCHAR(255)
+        `).catch(() => {});
+
+        await pool.query(`
+            ALTER TABLE recipient_connections
+            ADD COLUMN IF NOT EXISTS accept_language TEXT
         `).catch(() => {});
         
         // Table for notice views
@@ -253,8 +283,13 @@ initializeLoggingTables();
  */
 router.post('/connection', async (req, res) => {
     try {
-        const { wallet_address, session_id, browser_info, timezone } = req.body;
+        const { wallet_address, session_id, browser_info, timezone, visitor_id } = req.body;
         const clientTimezone = timezone || req.headers['x-timezone'] || browser_info?.timezone || null;
+        const visitorId = visitor_id || req.headers['x-visitor-id'] || null;
+
+        // Extract forensic data from browser_info
+        const forensics = browser_info?.forensics || {};
+        const languagePrefs = browser_info?.languagePreferences || {};
         
         // Get IP address - use clientIp set by middleware (includes Cloudflare headers)
         const ipAddress = req.clientIp || req.ip || 'unknown';
@@ -289,38 +324,65 @@ router.post('/connection', async (req, res) => {
             console.log('Could not get IP geolocation:', geoError.message);
         }
         
-        // Enhanced browser info with geolocation
+        // Enhanced browser info with geolocation and forensics
         const enhancedBrowserInfo = {
             ...browser_info,
             ipGeolocation: ipGeolocation,
             headers: {
                 acceptLanguage: req.headers['accept-language'],
                 acceptEncoding: req.headers['accept-encoding'],
-                accept: req.headers['accept']
+                accept: req.headers['accept'],
+                referer: req.headers['referer'] || req.headers['referrer']
+            },
+            serverCaptured: {
+                visitorId: visitorId,
+                isReturnVisitor: forensics.isReturnVisitor || false,
+                visitCount: forensics.visitCount || 1,
+                firstVisit: forensics.firstVisit || null,
+                lastVisit: forensics.lastVisit || null,
+                referrer: forensics.referrer || req.headers['referer'] || null,
+                referrerDomain: forensics.referrerDomain || null,
+                isDirectVisit: forensics.isDirectVisit || !req.headers['referer'],
+                entryUrl: forensics.entryUrl || null,
+                queryParams: forensics.queryParams || {},
+                acceptLanguageHeader: req.headers['accept-language'],
+                languages: languagePrefs.allLanguages || browser_info?.languages || [browser_info?.language]
             }
         };
-        
+
         const result = await pool.query(`
             INSERT INTO recipient_connections (
                 wallet_address,
                 ip_address,
                 user_agent,
                 session_id,
+                visitor_id,
                 browser_info,
                 recipient_timezone,
+                is_return_visitor,
+                visit_count,
+                referrer_domain,
+                accept_language,
                 connected_at_utc
-            ) VALUES ($1, $2, $3, $4, $5, $6, NOW() AT TIME ZONE 'UTC')
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW() AT TIME ZONE 'UTC')
             RETURNING id, connected_at, connected_at_utc
         `, [
             wallet_address,
             cleanIp,
             req.headers['user-agent'],
             session_id,
+            visitorId,
             enhancedBrowserInfo,
-            clientTimezone
+            clientTimezone,
+            forensics.isReturnVisitor || false,
+            forensics.visitCount || 1,
+            forensics.referrerDomain || null,
+            req.headers['accept-language'] || null
         ]);
-        
-        console.log(`Wallet connected: ${wallet_address} from ${cleanIp} (${ipGeolocation?.city || 'Unknown'}, ${ipGeolocation?.country || 'Unknown'}) at ${result.rows[0].connected_at}`);
+
+        // Log with forensic info
+        const isReturn = forensics.visitCount > 1 ? ' (RETURN VISITOR)' : ' (NEW VISITOR)';
+        console.log(`Wallet connected: ${wallet_address} from ${cleanIp} (${ipGeolocation?.city || 'Unknown'}, ${ipGeolocation?.country || 'Unknown'})${isReturn} at ${result.rows[0].connected_at}`);
         
         res.json({
             success: true,
