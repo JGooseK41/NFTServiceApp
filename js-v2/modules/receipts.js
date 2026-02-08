@@ -127,6 +127,24 @@ window.receipts = {
     
     // Generate receipt HTML
     generateReceiptHTML(receipt) {
+        // Handle different field name variations
+        const recipient = receipt.recipient ||
+                         (receipt.recipients && receipt.recipients[0]) ||
+                         receipt.recipient_address ||
+                         'N/A';
+        const recipientAddr = typeof recipient === 'object' ? recipient.address : recipient;
+
+        const txHash = receipt.txId ||
+                      receipt.transactionHash ||
+                      receipt.transaction_hash ||
+                      receipt.alertTxId ||
+                      'N/A';
+
+        const chainInfo = window.getChainInfo ? window.getChainInfo() : null;
+        const networkName = chainInfo?.name || 'TRON';
+        const explorerUrl = window.getExplorerTxUrl ? window.getExplorerTxUrl(txHash) :
+                           `https://tronscan.org/#/transaction/${txHash}`;
+
         return `
             <div class="receipt-document" style="padding: 20px; font-family: 'Times New Roman', serif;">
                 <!-- Header -->
@@ -134,21 +152,21 @@ window.receipts = {
                     <h2 style="margin: 0; font-size: 24px;">PROOF OF SERVICE</h2>
                     <p style="margin: 10px 0 0 0; font-size: 14px;">Blockchain-Verified Legal Notice Delivery</p>
                 </div>
-                
+
                 <!-- Receipt Info -->
                 <div style="margin-bottom: 30px;">
                     <table style="width: 100%; font-size: 14px;">
                         <tr>
                             <td style="width: 50%; padding: 5px;">
-                                <strong>Receipt ID:</strong> ${receipt.receiptId}
+                                <strong>Receipt ID:</strong> ${receipt.receiptId || 'N/A'}
                             </td>
                             <td style="width: 50%; padding: 5px;">
-                                <strong>Date Served:</strong> ${new Date(receipt.timestamp).toLocaleString()}
+                                <strong>Date Served:</strong> ${receipt.timestamp ? new Date(receipt.timestamp).toLocaleString() : 'N/A'}
                             </td>
                         </tr>
                         <tr>
                             <td style="padding: 5px;">
-                                <strong>Case Number:</strong> ${receipt.caseNumber}
+                                <strong>Case Number:</strong> ${receipt.caseNumber || 'N/A'}
                             </td>
                             <td style="padding: 5px;">
                                 <strong>Notice Type:</strong> ${receipt.type === 'alert' ? 'Alert Notice' : 'Document for Signature'}
@@ -164,23 +182,23 @@ window.receipts = {
                         <tr>
                             <td style="padding: 5px;">
                                 <strong>Served To:</strong><br>
-                                ${receipt.recipient}<br>
+                                ${recipientAddr}<br>
                                 <small>(TRON Wallet Address)</small>
                             </td>
                         </tr>
                         <tr>
                             <td style="padding: 5px;">
-                                <strong>Process Server ID:</strong> ${receipt.serverId}
+                                <strong>Process Server ID:</strong> ${receipt.serverId || receipt.serverAddress || 'N/A'}
                             </td>
                         </tr>
                         <tr>
                             <td style="padding: 5px;">
-                                <strong>Notice ID:</strong> ${receipt.noticeId}
+                                <strong>Notice ID:</strong> ${receipt.noticeId || 'N/A'}
                             </td>
                         </tr>
                     </table>
                 </div>
-                
+
                 <!-- Blockchain Verification -->
                 <div style="margin-bottom: 30px;">
                     <h4 style="border-bottom: 1px solid #ccc; padding-bottom: 5px;">BLOCKCHAIN VERIFICATION</h4>
@@ -188,25 +206,25 @@ window.receipts = {
                         <tr>
                             <td style="padding: 5px;">
                                 <strong>Transaction Hash:</strong><br>
-                                <code style="font-size: 12px; word-break: break-all;">${receipt.txId}</code>
+                                <code style="font-size: 12px; word-break: break-all;">${txHash}</code>
                             </td>
                         </tr>
                         <tr>
                             <td style="padding: 5px;">
-                                <strong>Blockchain:</strong> TRON Mainnet
+                                <strong>Blockchain:</strong> ${networkName}
                             </td>
                         </tr>
                         <tr>
                             <td style="padding: 5px;">
                                 <strong>Verification URL:</strong><br>
-                                <a href="${receipt.verificationUrl}" target="_blank" style="font-size: 12px;">
-                                    ${receipt.verificationUrl}
+                                <a href="${explorerUrl}" target="_blank" style="font-size: 12px;">
+                                    ${explorerUrl}
                                 </a>
                             </td>
                         </tr>
                     </table>
                 </div>
-                
+
                 <!-- Thumbnail Preview -->
                 ${receipt.thumbnail ? `
                     <div style="margin-bottom: 30px;">
@@ -216,13 +234,13 @@ window.receipts = {
                         </div>
                     </div>
                 ` : ''}
-                
+
                 <!-- Access Information -->
                 <div style="margin-bottom: 30px;">
                     <h4 style="border-bottom: 1px solid #ccc; padding-bottom: 5px;">RECIPIENT ACCESS</h4>
                     <p style="font-size: 14px; margin-top: 10px;">
                         The recipient can view and respond to this notice at:<br>
-                        <strong>${receipt.accessUrl}</strong>
+                        <strong>${receipt.accessUrl || 'https://blockserved.com'}</strong>
                     </p>
                 </div>
                 
