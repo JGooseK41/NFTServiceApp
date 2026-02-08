@@ -498,14 +498,22 @@ window.app = {
 
                 console.log('Server registered as:', checkData.agency_name);
             } else {
-                // Not in backend - also check blockchain role
+                // Not in backend - check blockchain role
                 let hasBlockchainRole = false;
 
                 if (window.contract && window.contract.instance) {
                     try {
-                        const serverRole = await window.contract.instance.PROCESS_SERVER_ROLE().call();
-                        hasBlockchainRole = await window.contract.instance.hasRole(serverRole, this.state.userAddress).call();
-                        console.log('Blockchain PROCESS_SERVER_ROLE check:', hasBlockchainRole);
+                        // Lite v2: use isServer() mapping
+                        if (window.contract.instance.isServer) {
+                            hasBlockchainRole = await window.contract.instance.isServer(this.state.userAddress).call();
+                            console.log('Blockchain isServer check:', hasBlockchainRole);
+                        }
+                        // V5 fallback: use PROCESS_SERVER_ROLE + hasRole
+                        if (!hasBlockchainRole && window.contract.instance.PROCESS_SERVER_ROLE) {
+                            const serverRole = await window.contract.instance.PROCESS_SERVER_ROLE().call();
+                            hasBlockchainRole = await window.contract.instance.hasRole(serverRole, this.state.userAddress).call();
+                            console.log('Blockchain PROCESS_SERVER_ROLE check:', hasBlockchainRole);
+                        }
                     } catch (contractError) {
                         console.log('Contract role check failed:', contractError.message);
                     }
@@ -515,7 +523,7 @@ window.app = {
                     // Has blockchain role but not in backend - still grant access
                     this.state.isRegisteredServer = true;
                     this.state.serverId = this.state.userAddress;
-                    console.log('Wallet has PROCESS_SERVER_ROLE on blockchain');
+                    console.log('Wallet authorized as server on blockchain');
                 } else {
                     this.state.isRegisteredServer = false;
                     console.log('Wallet not registered as a process server');
@@ -532,9 +540,16 @@ window.app = {
             let hasBlockchainRole = false;
             if (window.contract && window.contract.instance) {
                 try {
-                    const serverRole = await window.contract.instance.PROCESS_SERVER_ROLE().call();
-                    hasBlockchainRole = await window.contract.instance.hasRole(serverRole, this.state.userAddress).call();
-                    console.log('Blockchain PROCESS_SERVER_ROLE fallback check:', hasBlockchainRole);
+                    // Lite v2: use isServer() mapping
+                    if (window.contract.instance.isServer) {
+                        hasBlockchainRole = await window.contract.instance.isServer(this.state.userAddress).call();
+                    }
+                    // V5 fallback
+                    if (!hasBlockchainRole && window.contract.instance.PROCESS_SERVER_ROLE) {
+                        const serverRole = await window.contract.instance.PROCESS_SERVER_ROLE().call();
+                        hasBlockchainRole = await window.contract.instance.hasRole(serverRole, this.state.userAddress).call();
+                    }
+                    console.log('Blockchain server role fallback check:', hasBlockchainRole);
                 } catch (contractError) {
                     console.log('Contract role fallback check failed:', contractError.message);
                 }
@@ -543,7 +558,7 @@ window.app = {
             if (hasBlockchainRole) {
                 this.state.isRegisteredServer = true;
                 this.state.serverId = this.state.userAddress;
-                console.log('Wallet has PROCESS_SERVER_ROLE on blockchain (backend unavailable)');
+                console.log('Wallet authorized as server on blockchain (backend unavailable)');
             } else {
                 this.state.isRegisteredServer = false;
             }
