@@ -1562,6 +1562,30 @@
             };
         }
 
+        // Helper to format date/time as UTC with local time reference
+        function formatDateTimeUTC(dateInput) {
+            if (!dateInput) return 'N/A';
+            const date = new Date(dateInput);
+            if (isNaN(date.getTime())) return 'N/A';
+
+            // Get timezone abbreviation
+            let tzAbbr = 'Local';
+            try {
+                tzAbbr = Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })
+                    .formatToParts(date)
+                    .find(part => part.type === 'timeZoneName')?.value || 'Local';
+            } catch (e) {
+                const offset = date.getTimezoneOffset();
+                const hours = Math.abs(Math.floor(offset / 60));
+                const sign = offset <= 0 ? '+' : '-';
+                tzAbbr = `UTC${sign}${hours}`;
+            }
+
+            const utcStr = date.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC');
+            const localStr = date.toLocaleString();
+            return `${utcStr} (${tzAbbr}: ${localStr})`;
+        }
+
         // State
         let tronWeb = null;
         let currentWallet = null;
@@ -2433,8 +2457,15 @@
                         <div class="detail-item">
                             <i class="bi bi-calendar3"></i>
                             <strong>Served:</strong>
-                            <span>${new Date(notice.served_at || notice.created_at).toLocaleDateString()}</span>
+                            <span>${formatDateTimeUTC(notice.served_at || notice.created_at)}</span>
                         </div>
+                        ${notice.contract_type === 'lite' || notice.contract_type === 'lite-v2' || !notice.document_token_id ? `
+                        <div class="detail-item">
+                            <i class="bi bi-file-earmark-check"></i>
+                            <strong>Token ID:</strong>
+                            <span>#${notice.alert_token_id || notice.token_id || 'Pending'} (In Your Wallet)</span>
+                        </div>
+                        ` : `
                         <div class="detail-item">
                             <i class="bi bi-envelope-check"></i>
                             <strong>Alert NFT:</strong>
@@ -2445,6 +2476,7 @@
                             <strong>Document NFT:</strong>
                             <span>#${notice.document_token_id || 'Pending'} (Permanent Record)</span>
                         </div>
+                        `}
                         <div class="detail-item">
                             <i class="bi bi-file-text"></i>
                             <strong>Pages:</strong>
@@ -2562,8 +2594,22 @@
             const modalBody = document.getElementById('modalBody');
             const deviceInfo = detectDeviceType();
             
-            // Build the NFT pairing info header
-            let headerInfo = `
+            // Build the NFT info header - different for Lite v2 (single NFT) vs v5 (dual NFT)
+            const isLiteContract = notice.contract_type === 'lite' || notice.contract_type === 'lite-v2' || !notice.document_token_id;
+            const tokenId = notice.alert_token_id || notice.token_id || 'Pending';
+
+            let headerInfo = isLiteContract ? `
+                <div class="nft-pairing-info" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h5 style="margin: 0 0 10px 0; color: var(--primary-color);"><i class="bi bi-file-earmark-check"></i> Legal Notice NFT</h5>
+                    <div style="padding: 10px; background: white; border-radius: 5px; border-left: 3px solid var(--success-color);">
+                        <strong><i class="bi bi-file-earmark-check"></i> Token ID #${tokenId}</strong><br>
+                        <span style="color: var(--text-light);">Legal Notice with Document Access (In Your Wallet)</span>
+                    </div>
+                    <p style="margin: 10px 0 0 0; font-size: 13px; color: var(--text-light);">
+                        <i class="bi bi-info-circle"></i> This NFT serves as both proof of delivery and provides access to the full legal document.
+                    </p>
+                </div>
+            ` : `
                 <div class="nft-pairing-info" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                     <h5 style="margin: 0 0 10px 0; color: var(--primary-color);"><i class="bi bi-link-45deg"></i> Legal Notice Package</h5>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
@@ -2702,9 +2748,13 @@
                     ${headerInfo}
                     <div class="document-info" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
                         <p><strong>Case Number:</strong> ${notice.case_number}</p>
+                        ${isLiteContract ? `
+                        <p><strong>Token ID:</strong> #${tokenId}</p>
+                        ` : `
                         <p><strong>Alert NFT:</strong> #${notice.alert_token_id}</p>
                         <p><strong>Document NFT:</strong> #${notice.document_token_id || 'Pending'}</p>
-                        <p><strong>Served:</strong> ${new Date(notice.served_at).toLocaleString()}</p>
+                        `}
+                        <p><strong>Served:</strong> ${formatDateTimeUTC(notice.served_at)}</p>
                         <p><strong>Status:</strong> ${notice.status || 'Served'}</p>
                     </div>
                     <div style="text-align: center; margin: 20px 0;">
@@ -2774,9 +2824,12 @@
                 return;
             }
 
-            // Ensure this is for Document NFT, not Alert NFT
-            if (!notice.document_token_id) {
-                showAlert('Document NFT not available for signing', 'error');
+            // Check for token ID - Lite v2 uses single NFT (alert_token_id), v5 uses document_token_id
+            const isLiteContract = notice.contract_type === 'lite' || notice.contract_type === 'lite-v2' || !notice.document_token_id;
+            const signingTokenId = isLiteContract ? (notice.alert_token_id || notice.token_id) : notice.document_token_id;
+
+            if (!signingTokenId) {
+                showAlert('NFT not available for signing', 'error');
                 return;
             }
 
@@ -2787,13 +2840,15 @@
 
             // Log signature initiated - user clicked sign button
             await logSignatureEvent(notice.case_number, 'signature_initiated', {
-                alert_token_id: notice.alert_token_id,
-                document_token_id: notice.document_token_id
+                token_id: signingTokenId,
+                contract_type: notice.contract_type || (isLiteContract ? 'lite-v2' : 'v5')
             });
 
             try {
-                // Create signature message specifically for Document NFT
-                const message = `I acknowledge and accept the legal document (Document NFT #${notice.document_token_id}) for Case #${notice.case_number} served on ${new Date(notice.served_at).toISOString()}`;
+                // Create signature message - different wording for Lite vs v5
+                const message = isLiteContract
+                    ? `I acknowledge and accept the legal notice (Token #${signingTokenId}) for Case #${notice.case_number} served on ${new Date(notice.served_at).toISOString()}`
+                    : `I acknowledge and accept the legal document (Document NFT #${signingTokenId}) for Case #${notice.case_number} served on ${new Date(notice.served_at).toISOString()}`;
 
                 // Sign with TronLink - user may decline at this point
                 const signature = await tronWeb.trx.sign(tronWeb.toHex(message));
@@ -3007,10 +3062,14 @@
                         <table style="width: 100%; font-size: 14px;">
                             <tr><td style="padding: 5px 0;"><strong>Case Number:</strong></td><td>${notice.case_number}</td></tr>
                             <tr><td style="padding: 5px 0;"><strong>Issuing Agency:</strong></td><td>${notice.issuing_agency || 'via Blockserved.com'}</td></tr>
-                            <tr><td style="padding: 5px 0;"><strong>Served Date:</strong></td><td>${new Date(notice.served_at).toLocaleString()}</td></tr>
-                            <tr><td style="padding: 5px 0;"><strong>Signed Date:</strong></td><td>${signatureDate.toLocaleString()}</td></tr>
+                            <tr><td style="padding: 5px 0;"><strong>Served Date:</strong></td><td>${formatDateTimeUTC(notice.served_at)}</td></tr>
+                            <tr><td style="padding: 5px 0;"><strong>Signed Date:</strong></td><td>${formatDateTimeUTC(signatureDate)}</td></tr>
+                            ${(notice.contract_type === 'lite' || notice.contract_type === 'lite-v2' || !notice.document_token_id) ? `
+                            <tr><td style="padding: 5px 0;"><strong>Token ID:</strong></td><td>#${notice.alert_token_id || notice.token_id}</td></tr>
+                            ` : `
                             <tr><td style="padding: 5px 0;"><strong>Alert NFT ID:</strong></td><td>#${notice.alert_token_id}</td></tr>
                             <tr><td style="padding: 5px 0;"><strong>Document NFT ID:</strong></td><td>#${notice.document_token_id}</td></tr>
+                            `}
                             <tr><td style="padding: 5px 0;"><strong>Recipient Wallet:</strong></td><td style="word-break: break-all;">${currentWallet}</td></tr>
                         </table>
                     </div>
@@ -3193,14 +3252,18 @@
             if (!currentNotice) return;
             
             // Create a text file with document information
+            const isLite = currentNotice.contract_type === 'lite' || currentNotice.contract_type === 'lite-v2' || !currentNotice.document_token_id;
+            const tokenInfo = isLite
+                ? `Token ID: #${currentNotice.alert_token_id || currentNotice.token_id}`
+                : `Alert NFT ID: #${currentNotice.alert_token_id}\nDocument NFT ID: #${currentNotice.document_token_id || 'N/A'}`;
+
             const content = `
 Legal Notice - Case #${currentNotice.case_number}
 ========================================
 Notice Type: ${currentNotice.notice_type}
 Issuing Agency: ${currentNotice.issuing_agency}
-Served Date: ${new Date(currentNotice.served_at).toLocaleDateString()}
-Alert NFT ID: #${currentNotice.alert_token_id}
-Document NFT ID: #${currentNotice.document_token_id || 'N/A'}
+Served Date: ${formatDateTimeUTC(currentNotice.served_at)}
+${tokenInfo}
 
 IPFS Document Hash: ${currentNotice.ipfs_document || 'N/A'}
 Encryption Key: ${currentNotice.encryption_key || 'N/A'}
