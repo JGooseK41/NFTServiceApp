@@ -1549,4 +1549,116 @@ router.get('/cases/orphaned-status', async (req, res) => {
     }
 });
 
+/**
+ * POST /api/cases/fix-whitespace-cases
+ * Fix cases where id has leading/trailing whitespace causing mismatch with case_service_records.
+ * This finds cases in the cases table with whitespace and updates them to match the trimmed version.
+ */
+router.post('/cases/fix-whitespace-cases', async (req, res) => {
+    const results = [];
+
+    try {
+        console.log('🔄 Starting whitespace case fix migration...');
+
+        // Step 1: Find all cases where id has leading/trailing whitespace
+        const whitespaceQuery = await pool.query(`
+            SELECT id, server_address, status, TRIM(id) as trimmed_id
+            FROM cases
+            WHERE id != TRIM(id)
+        `);
+
+        results.push({
+            step: 'find_whitespace_cases',
+            found: whitespaceQuery.rows.length,
+            cases: whitespaceQuery.rows.map(r => ({
+                id: r.id,
+                trimmedId: r.trimmed_id,
+                status: r.status
+            }))
+        });
+
+        if (whitespaceQuery.rows.length === 0) {
+            return res.json({
+                success: true,
+                message: 'No cases with whitespace issues found',
+                fixedCount: 0,
+                results
+            });
+        }
+
+        // Step 2: For each whitespace case, check if there's a served version with trimmed id
+        let fixed = 0;
+        let deleted = 0;
+
+        for (const row of whitespaceQuery.rows) {
+            const untrimmedId = row.id;
+            const trimmedId = row.trimmed_id;
+            const serverAddress = row.server_address;
+
+            // Check if there's already a case with the trimmed id
+            const existingTrimmed = await pool.query(
+                'SELECT id, status FROM cases WHERE id = $1 AND server_address = $2',
+                [trimmedId, serverAddress]
+            );
+
+            if (existingTrimmed.rows.length > 0) {
+                // There's already a trimmed version - delete the whitespace one
+                // Keep the trimmed version (which is likely 'served')
+                await pool.query(
+                    'DELETE FROM cases WHERE id = $1 AND server_address = $2',
+                    [untrimmedId, serverAddress]
+                );
+                deleted++;
+                results.push({
+                    step: 'delete_duplicate',
+                    untrimmedId,
+                    trimmedId,
+                    reason: 'Trimmed version exists, deleted whitespace duplicate'
+                });
+            } else {
+                // No trimmed version exists - update the id to be trimmed
+                await pool.query(
+                    'UPDATE cases SET id = $1 WHERE id = $2 AND server_address = $3',
+                    [trimmedId, untrimmedId, serverAddress]
+                );
+                fixed++;
+                results.push({
+                    step: 'update_id',
+                    from: untrimmedId,
+                    to: trimmedId
+                });
+            }
+        }
+
+        console.log(`✅ Fixed ${fixed} cases, deleted ${deleted} duplicates`);
+
+        // Step 3: Verify no more whitespace cases exist
+        const verifyQuery = await pool.query(`
+            SELECT COUNT(*) as remaining FROM cases WHERE id != TRIM(id)
+        `);
+
+        results.push({
+            step: 'verify',
+            remainingWhitespace: parseInt(verifyQuery.rows[0].remaining)
+        });
+
+        res.json({
+            success: true,
+            message: `Fixed ${fixed} whitespace cases, deleted ${deleted} duplicates`,
+            fixed,
+            deleted,
+            remainingWhitespace: parseInt(verifyQuery.rows[0].remaining),
+            results
+        });
+
+    } catch (error) {
+        console.error('Whitespace fix error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            results
+        });
+    }
+});
+
 module.exports = router;

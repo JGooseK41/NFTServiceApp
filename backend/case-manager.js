@@ -84,8 +84,12 @@ class CaseManager {
             if (!metadata.caseNumber) {
                 throw new Error('Case number is required. Please provide a case number from the form.');
             }
-            
-            const caseId = metadata.caseNumber;
+
+            // IMPORTANT: Trim whitespace to ensure consistency with service-complete endpoint
+            const caseId = (metadata.caseNumber || '').trim();
+            if (!caseId) {
+                throw new Error('Case number cannot be empty after trimming whitespace.');
+            }
             console.log(`Using case number from form: ${caseId}`);
             
             // Check if case already exists for this server
@@ -256,41 +260,43 @@ class CaseManager {
      * Get case details
      */
     async getCase(caseId, serverAddress = null) {
+        // Trim caseId for consistency
+        const trimmedCaseId = (caseId || '').trim();
         try {
             let query = 'SELECT * FROM cases WHERE id = $1';
-            const params = [caseId];
-            
+            const params = [trimmedCaseId];
+
             // Add server check for security
             if (serverAddress) {
                 query += ' AND server_address = $2';
                 params.push(serverAddress);
             }
-            
+
             const result = await this.db.query(query, params);
-            
+
             if (result.rows.length === 0) {
                 return { success: false, error: 'Case not found' };
             }
-            
+
             const caseData = result.rows[0];
-            
+
             // Get PDF from disk if requested
             let pdfBuffer = null;
             if (caseData.pdf_path) {
                 try {
-                    pdfBuffer = await this.diskStorage.readCasePDF(caseId);
+                    pdfBuffer = await this.diskStorage.readCasePDF(trimmedCaseId);
                 } catch (error) {
                     console.error('Failed to read PDF from disk:', error);
                 }
             }
-            
+
             return {
                 success: true,
                 case: caseData,
                 hasPDF: !!pdfBuffer,
                 pdfSize: pdfBuffer ? pdfBuffer.length : 0
             };
-            
+
         } catch (error) {
             console.error('Failed to get case:', error);
             return { success: false, error: error.message };
@@ -301,15 +307,17 @@ class CaseManager {
      * Get case PDF
      */
     async getCasePDF(caseId, serverAddress = null) {
+        // Trim caseId for consistency
+        const trimmedCaseId = (caseId || '').trim();
         // Verify case ownership
-        const caseResult = await this.getCase(caseId, serverAddress);
-        
+        const caseResult = await this.getCase(trimmedCaseId, serverAddress);
+
         if (!caseResult.success) {
             return { success: false, error: caseResult.error };
         }
-        
+
         try {
-            const pdfBuffer = await this.diskStorage.readCasePDF(caseId);
+            const pdfBuffer = await this.diskStorage.readCasePDF(trimmedCaseId);
             return {
                 success: true,
                 pdf: pdfBuffer,
@@ -698,13 +706,15 @@ class CaseManager {
      * Amend/Update an existing case
      */
     async amendCase(caseId, serverAddress, uploadedFiles, metadata = {}) {
-        console.log(`Amending case ${caseId} for server: ${serverAddress}`);
-        
+        // Trim caseId for consistency with other methods
+        const trimmedCaseId = (caseId || '').trim();
+        console.log(`Amending case ${trimmedCaseId} for server: ${serverAddress}`);
+
         try {
             // Check if case exists
             const existingCase = await this.db.query(
                 'SELECT * FROM cases WHERE id = $1 AND server_address = $2',
-                [caseId, serverAddress]
+                [trimmedCaseId, serverAddress]
             );
             
             if (existingCase.rows.length === 0) {
@@ -733,7 +743,7 @@ class CaseManager {
                 const { consolidatedPdf, pageCount } = await this.pdfProcessor.processMultiplePDFs(pdfBuffers);
                 
                 // Store the consolidated PDF
-                pdfPath = await this.diskStorage.storePDF(caseId, consolidatedPdf, 'consolidated.pdf');
+                pdfPath = await this.diskStorage.storePDF(trimmedCaseId, consolidatedPdf, 'consolidated.pdf');
                 
                 // Generate new preview if needed
                 alertPreview = await this.pdfProcessor.generateAlertPreview({
@@ -755,17 +765,17 @@ class CaseManager {
             `;
             
             const result = await this.db.query(updateQuery, [
-                caseId,
+                trimmedCaseId,
                 serverAddress,
                 JSON.stringify({...metadata, amended: true, amendedAt: new Date().toISOString()}),
                 pdfPath,
                 alertPreview
             ]);
-            
+
             return {
                 success: true,
                 amended: true,
-                caseId,
+                caseId: trimmedCaseId,
                 case: result.rows[0],
                 message: 'Case successfully amended'
             };
@@ -783,28 +793,30 @@ class CaseManager {
      * Delete case (allows deletion of any case)
      */
     async deleteCase(caseId, serverAddress) {
+        // Trim caseId for consistency with other methods
+        const trimmedCaseId = (caseId || '').trim();
         try {
-            console.log(`Deleting case ${caseId} for server ${serverAddress}`);
-            
+            console.log(`Deleting case ${trimmedCaseId} for server ${serverAddress}`);
+
             // Delete from cases table
             const casesResult = await this.db.query(
                 'DELETE FROM cases WHERE id = $1 AND server_address = $2',
-                [caseId, serverAddress]
+                [trimmedCaseId, serverAddress]
             );
-            
+
             console.log(`Deleted ${casesResult.rowCount} records from cases table`);
-            
+
             // Try to delete from disk if storage exists
             try {
-                await this.diskStorage.deleteCase(caseId);
+                await this.diskStorage.deleteCase(trimmedCaseId);
                 console.log(`Deleted case files from disk`);
             } catch (diskError) {
                 console.log('No disk files to delete or disk storage unavailable');
             }
-            
-            return { 
-                success: true, 
-                message: `Case ${caseId} deleted successfully`,
+
+            return {
+                success: true,
+                message: `Case ${trimmedCaseId} deleted successfully`,
                 deletedFromCases: casesResult.rowCount
             };
             
