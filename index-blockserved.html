@@ -2500,13 +2500,17 @@
                         <button class="btn-view" onclick='viewDocument(${JSON.stringify(notice)})'>
                             <i class="bi bi-eye"></i> View Legal Notices
                         </button>
-                        ${!notice.accepted ? `
+                        ${notice.accepted ? `
+                            <button class="btn-sign" disabled>
+                                <i class="bi bi-check"></i> Document Signed
+                            </button>
+                        ` : (notice.alert_token_id || notice.document_token_id || notice.token_id) ? `
                             <button class="btn-sign" onclick='viewAndSign(${JSON.stringify(notice)})'>
                                 <i class="bi bi-pen"></i> Sign Document
                             </button>
                         ` : `
-                            <button class="btn-sign" disabled>
-                                <i class="bi bi-check"></i> Document Signed
+                            <button class="btn-sign" disabled title="NFT not yet minted for this notice">
+                                <i class="bi bi-clock"></i> Pending Mint
                             </button>
                         `}
                     </div>
