@@ -142,11 +142,12 @@ window.proofOfService = {
             chain: chainId,
             chainName: chainName,
             explorerUrl: explorerUrl,
-            // Fee breakdown data
-            serviceFee: caseData.serviceFee || caseData.service_fee,
-            recipientFunding: caseData.recipientFunding || caseData.recipient_funding,
-            networkFee: caseData.networkFee || caseData.network_fee,
-            totalCost: caseData.totalCost || caseData.total_cost,
+            // Fee breakdown data (exact costs from transaction)
+            serviceFeePerRecipient: caseData.serviceFeePerRecipient || caseData.feeBreakdown?.perRecipient?.serviceFee,
+            recipientFundingPerRecipient: caseData.recipientFundingPerRecipient || caseData.feeBreakdown?.perRecipient?.recipientFunding,
+            totalServiceFees: caseData.totalServiceFees || caseData.serviceFee || caseData.service_fee || caseData.feeBreakdown?.serviceFee,
+            totalRecipientFunding: caseData.totalRecipientFunding || caseData.recipientFunding || caseData.recipient_funding || caseData.feeBreakdown?.recipientFunding,
+            totalPaymentTRX: caseData.totalPaymentTRX || caseData.feeBreakdown?.totalPaymentTRX || caseData.totalTransactionCost || caseData.totalCost,
             recipientCount: caseData.recipientCount || (caseData.recipients ? caseData.recipients.length : 1)
         };
 
@@ -587,75 +588,74 @@ window.proofOfService = {
                     </div>
 
                     <div class="section">
-                        <div class="section-title">I. Service Fee Breakdown</div>
+                        <div class="section-title">I. Per-Recipient Fee Breakdown</div>
                         <p style="font-size: 10pt; margin-bottom: 15px;">
-                            The following costs were incurred for the blockchain-based legal service delivery:
+                            The following fees were charged for each recipient served:
                         </p>
                         <table>
                             <thead>
                                 <tr>
-                                    <th style="width: 60%;">Description</th>
-                                    <th style="width: 20%; text-align: center;">Rate</th>
-                                    <th style="width: 20%; text-align: right;">Amount</th>
+                                    <th style="width: 50%;">Recipient Address</th>
+                                    <th style="width: 25%; text-align: right;">Service Fee</th>
+                                    <th style="width: 25%; text-align: right;">Sponsorship</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${receipt.serviceFee ? `
+                                ${(receipt.recipients || []).map((r, i) => {
+                                    const addr = typeof r === 'string' ? r : (r.address || 'N/A');
+                                    const shortAddr = addr.length > 20 ? addr.substring(0, 10) + '...' + addr.substring(addr.length - 8) : addr;
+                                    return `
+                                    <tr>
+                                        <td class="mono" style="font-size: 9pt;">${shortAddr}</td>
+                                        <td style="text-align: right;">${receipt.serviceFeePerRecipient || (receipt.totalServiceFees / receipt.recipientCount) || 'N/A'} TRX</td>
+                                        <td style="text-align: right;">${receipt.recipientFundingPerRecipient || (receipt.totalRecipientFunding / receipt.recipientCount) || 'N/A'} TRX</td>
+                                    </tr>
+                                    `;
+                                }).join('') || `
                                 <tr>
-                                    <td>
-                                        <strong>Platform Service Fee</strong><br>
-                                        <span style="font-size: 9pt; color: #666;">Fee for blockchain service processing and platform usage</span>
-                                    </td>
-                                    <td style="text-align: center;">${receipt.recipientCount > 1 ? `${(receipt.serviceFee / receipt.recipientCount).toFixed(0)} TRX × ${receipt.recipientCount}` : '-'}</td>
-                                    <td style="text-align: right;">${receipt.serviceFee} TRX</td>
+                                    <td class="mono" style="font-size: 9pt;">Recipient 1</td>
+                                    <td style="text-align: right;">${receipt.serviceFeePerRecipient || receipt.totalServiceFees || 'N/A'} TRX</td>
+                                    <td style="text-align: right;">${receipt.recipientFundingPerRecipient || receipt.totalRecipientFunding || 'N/A'} TRX</td>
                                 </tr>
-                                ` : ''}
-                                ${receipt.recipientFunding ? `
-                                <tr>
-                                    <td>
-                                        <strong>Recipient Sponsorship</strong><br>
-                                        <span style="font-size: 9pt; color: #666;">TRX sent to recipients for blockchain transaction fees</span>
-                                    </td>
-                                    <td style="text-align: center;">${receipt.recipientCount > 1 ? `${(receipt.recipientFunding / receipt.recipientCount).toFixed(0)} TRX × ${receipt.recipientCount}` : '-'}</td>
-                                    <td style="text-align: right;">${receipt.recipientFunding} TRX</td>
-                                </tr>
-                                ` : ''}
-                                ${receipt.networkFee ? `
-                                <tr>
-                                    <td>
-                                        <strong>Network/Energy Fee</strong><br>
-                                        <span style="font-size: 9pt; color: #666;">Estimated blockchain network transaction costs</span>
-                                    </td>
-                                    <td style="text-align: center;">Est.</td>
-                                    <td style="text-align: right;">~${receipt.networkFee} TRX</td>
-                                </tr>
-                                ` : ''}
-                                ${receipt.totalCost ? `
-                                <tr style="border-top: 2px solid #000;">
-                                    <td colspan="2"><strong>TOTAL EXPENDITURE</strong></td>
-                                    <td style="text-align: right;"><strong>${receipt.totalCost} TRX</strong></td>
-                                </tr>
-                                ` : ''}
+                                `}
                             </tbody>
                         </table>
                     </div>
 
                     <div class="section">
-                        <div class="section-title">II. Fee Explanation</div>
-                        <div style="font-size: 10pt;">
-                            <p><strong>Platform Service Fee:</strong> This fee covers the cost of the BlockServed platform services including document processing, IPFS storage, NFT minting, and blockchain transaction coordination.</p>
-
-                            <p><strong>Recipient Sponsorship:</strong> To ensure recipients can interact with the blockchain notice (view documents, acknowledge receipt), a small amount of TRX cryptocurrency is sent to their wallet. This covers the recipient's transaction fees when signing for or acknowledging the notice.</p>
-
-                            ${receipt.networkFee ? `<p><strong>Network/Energy Fee:</strong> This represents the estimated cost of TRON blockchain resources (energy/bandwidth) consumed during the transaction. Actual costs may vary based on network conditions.</p>` : ''}
-                        </div>
+                        <div class="section-title">II. Total Expenditure Summary</div>
+                        <table>
+                            <tbody>
+                                <tr>
+                                    <td style="width: 70%;">Total Service Fees (${receipt.recipientCount} recipient${receipt.recipientCount > 1 ? 's' : ''} × ${receipt.serviceFeePerRecipient || (receipt.totalServiceFees / receipt.recipientCount)} TRX)</td>
+                                    <td style="width: 30%; text-align: right;">${receipt.totalServiceFees || 'N/A'} TRX</td>
+                                </tr>
+                                <tr>
+                                    <td>Total Recipient Sponsorships (${receipt.recipientCount} × ${receipt.recipientFundingPerRecipient || (receipt.totalRecipientFunding / receipt.recipientCount)} TRX)</td>
+                                    <td style="text-align: right;">${receipt.totalRecipientFunding || 'N/A'} TRX</td>
+                                </tr>
+                                <tr style="border-top: 2px solid #000;">
+                                    <td><strong>TOTAL TRX SENT TO CONTRACT</strong></td>
+                                    <td style="text-align: right;"><strong>${receipt.totalPaymentTRX || (
+                                        (receipt.totalServiceFees && receipt.totalRecipientFunding)
+                                            ? (parseFloat(receipt.totalServiceFees) + parseFloat(receipt.totalRecipientFunding))
+                                            : 'N/A'
+                                    )} TRX</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <p style="font-size: 9pt; margin-top: 10px; color: #666;">
+                            <em>Note: Additional network fees (energy/bandwidth) may apply based on blockchain resource consumption.
+                            These can be verified on the block explorer using the transaction hash.</em>
+                        </p>
                     </div>
 
                     <div class="section">
-                        <div class="section-title">III. Currency Information</div>
+                        <div class="section-title">III. Fee Explanation</div>
                         <div style="font-size: 10pt;">
-                            <p>All fees are denominated in <strong>TRX (TRON)</strong>, the native cryptocurrency of the TRON blockchain network.</p>
-                            <p>Current market values can be verified at major cryptocurrency exchanges. For government accounting purposes, the USD equivalent at the time of transaction should be documented separately.</p>
+                            <p><strong>Service Fee:</strong> Platform fee collected by BlockServed for blockchain service processing, document storage on IPFS, NFT minting, and transaction coordination.</p>
+                            <p><strong>Recipient Sponsorship:</strong> TRX sent directly to each recipient's wallet. This ensures recipients have sufficient TRX to cover their transaction fees when acknowledging receipt of the notice.</p>
+                            <p><strong>Network Fees:</strong> TRON blockchain charges for energy and bandwidth consumption. These fees are separate from the contract payment and depend on the sender's staked TRX resources. Verify actual network costs on the block explorer.</p>
                         </div>
                     </div>
 
@@ -674,7 +674,7 @@ window.proofOfService = {
                             </span>
                         </div>
                         <p style="font-size: 9pt; margin-top: 10px; color: #666;">
-                            <em>All transactions are permanently recorded on the ${receipt.chainName || 'TRON'} blockchain and can be independently verified using the transaction hash above.</em>
+                            <em>All transactions are permanently recorded on the ${receipt.chainName || 'TRON'} blockchain and can be independently verified.</em>
                         </p>
                     </div>
 

@@ -348,7 +348,14 @@ window.contract = {
                 success: true,
                 txId: txHash,
                 alertTx: txHash,
-                tokenId: null // Will be populated async
+                tokenId: null, // Will be populated async
+                // Exact fee breakdown for receipt documentation
+                paymentDetails: {
+                    serviceFee: feeConfig.serviceFeeInTRX,
+                    recipientFunding: feeConfig.recipientFundingInTRX,
+                    totalPaymentTRX: totalPayment / 1000000,
+                    recipientCount: 1
+                }
             };
 
         } catch (error) {
@@ -465,7 +472,16 @@ window.contract = {
                 txId: txHash,
                 alertTx: txHash,
                 tokenIds: null, // Will be populated async
-                recipientCount: recipients.length
+                recipientCount: recipients.length,
+                // Exact fee breakdown for receipt documentation
+                paymentDetails: {
+                    serviceFeePerRecipient: feeConfig.serviceFeeInTRX,
+                    recipientFundingPerRecipient: feeConfig.recipientFundingInTRX,
+                    totalServiceFees: feeConfig.serviceFeeInTRX * recipients.length,
+                    totalRecipientFunding: feeConfig.recipientFundingInTRX * recipients.length,
+                    totalPaymentTRX: totalFee / 1000000,
+                    recipientCount: recipients.length
+                }
             };
 
         } catch (error) {

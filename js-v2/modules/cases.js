@@ -1901,11 +1901,12 @@ window.cases = {
                 chain: chainId,
                 chainName: chainInfo?.name || 'Blockchain',
                 explorerUrl: serviceData?.explorerUrl || (window.getExplorerTxUrl ? window.getExplorerTxUrl(transactionHash, chainId) : null),
-                // Fee breakdown for Page 4
-                serviceFee: feeBreakdown?.serviceFee || serviceData?.serviceFee || (feeConfig.serviceFeeInTRX * recipientCount),
-                recipientFunding: feeBreakdown?.recipientFunding || serviceData?.recipientFunding || (feeConfig.recipientFundingInTRX * recipientCount),
-                networkFee: feeBreakdown?.networkFee || serviceData?.networkFee || (5 * recipientCount),
-                totalCost: feeBreakdown?.total || serviceData?.totalCost || ((feeConfig.totalPerNoticeInTRX + 5) * recipientCount),
+                // Fee breakdown for Page 4 (exact costs, not estimates)
+                serviceFeePerRecipient: feeBreakdown?.perRecipient?.serviceFee || serviceData?.serviceFeePerRecipient || feeConfig.serviceFeeInTRX,
+                recipientFundingPerRecipient: feeBreakdown?.perRecipient?.recipientFunding || serviceData?.recipientFundingPerRecipient || feeConfig.recipientFundingInTRX,
+                totalServiceFees: feeBreakdown?.serviceFee || serviceData?.totalServiceFees || serviceData?.serviceFee || (feeConfig.serviceFeeInTRX * recipientCount),
+                totalRecipientFunding: feeBreakdown?.recipientFunding || serviceData?.totalRecipientFunding || serviceData?.recipientFunding || (feeConfig.recipientFundingInTRX * recipientCount),
+                totalTransactionCost: feeBreakdown?.total || serviceData?.totalTransactionCost || serviceData?.totalCost,
                 recipientCount: recipientCount
             };
 

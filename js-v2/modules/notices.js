@@ -438,13 +438,16 @@ window.notices = {
             // Step 9: Generate receipt with fee breakdown
             let receipt = null;
             try {
-                // Get fee config for receipt
+                // Get payment details from transaction result (exact amounts)
+                const paymentDetails = txResult.paymentDetails || {};
+                const recipientCount = data.recipients?.length || 1;
+
+                // Use exact values from transaction, fallback to config
                 const feeConfig = window.app?.feeConfig || {
                     serviceFeeInTRX: 10,
                     recipientFundingInTRX: 20,
                     totalPerNoticeInTRX: 30
                 };
-                const recipientCount = data.recipients?.length || 1;
 
                 receipt = await this.generateReceipt({
                     noticeId,
@@ -458,16 +461,14 @@ window.notices = {
                     thumbnail,
                     ipfsHash: documentData.ipfsHash,
                     contractType: 'lite',
-                    // Fee breakdown for government documentation
+                    // Fee breakdown with exact amounts from transaction
                     feeBreakdown: {
-                        serviceFee: feeConfig.serviceFeeInTRX * recipientCount,
-                        recipientFunding: feeConfig.recipientFundingInTRX * recipientCount,
-                        networkFee: 5 * recipientCount, // Estimated
-                        total: (feeConfig.totalPerNoticeInTRX + 5) * recipientCount,
+                        serviceFee: paymentDetails.totalServiceFees || (feeConfig.serviceFeeInTRX * recipientCount),
+                        recipientFunding: paymentDetails.totalRecipientFunding || (feeConfig.recipientFundingInTRX * recipientCount),
+                        totalPaymentTRX: paymentDetails.totalPaymentTRX || (feeConfig.totalPerNoticeInTRX * recipientCount),
                         perRecipient: {
-                            serviceFee: feeConfig.serviceFeeInTRX,
-                            recipientFunding: feeConfig.recipientFundingInTRX,
-                            networkFee: 5
+                            serviceFee: paymentDetails.serviceFeePerRecipient || paymentDetails.serviceFee || feeConfig.serviceFeeInTRX,
+                            recipientFunding: paymentDetails.recipientFundingPerRecipient || paymentDetails.recipientFunding || feeConfig.recipientFundingInTRX
                         },
                         recipientCount
                     }
