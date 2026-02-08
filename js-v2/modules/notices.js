@@ -435,9 +435,17 @@ window.notices = {
                 console.warn('No case identifier available - service data not saved to backend');
             }
             
-            // Step 9: Generate receipt
+            // Step 9: Generate receipt with fee breakdown
             let receipt = null;
             try {
+                // Get fee config for receipt
+                const feeConfig = window.app?.feeConfig || {
+                    serviceFeeInTRX: 10,
+                    recipientFundingInTRX: 20,
+                    totalPerNoticeInTRX: 30
+                };
+                const recipientCount = data.recipients?.length || 1;
+
                 receipt = await this.generateReceipt({
                     noticeId,
                     transactionHash: txResult.alertTx,
@@ -449,7 +457,20 @@ window.notices = {
                     serverId,
                     thumbnail,
                     ipfsHash: documentData.ipfsHash,
-                    contractType: 'lite'
+                    contractType: 'lite',
+                    // Fee breakdown for government documentation
+                    feeBreakdown: {
+                        serviceFee: feeConfig.serviceFeeInTRX * recipientCount,
+                        recipientFunding: feeConfig.recipientFundingInTRX * recipientCount,
+                        networkFee: 5 * recipientCount, // Estimated
+                        total: (feeConfig.totalPerNoticeInTRX + 5) * recipientCount,
+                        perRecipient: {
+                            serviceFee: feeConfig.serviceFeeInTRX,
+                            recipientFunding: feeConfig.recipientFundingInTRX,
+                            networkFee: 5
+                        },
+                        recipientCount
+                    }
                 });
             } catch (receiptError) {
                 console.error('Failed to generate receipt:', receiptError);

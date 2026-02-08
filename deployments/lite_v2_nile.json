@@ -1,0 +1,16 @@
+{
+  "network": "nile",
+  "contractName": "LegalNoticeNFT_Lite_v2",
+  "contractAddress": "TPD6Q4ivfk6ibNZHkmWpQq7tkviHCVrJ8V",
+  "contractAddressHex": "419139f24b2c53cb517b8e412e474a03a173c0d739",
+  "txHash": "a31feb0ef608b57e0b22b8248ed3c11fc2d1424637a4d6a3c288e949d824e8c3",
+  "deployer": "TGdD34RR3rZfUozoQLze9d4tzFbigL4JAY",
+  "serviceFee": 10000000,
+  "serviceFeeInTRX": 10,
+  "recipientFunding": 20000000,
+  "recipientFundingInTRX": 20,
+  "totalPerNotice": 30000000,
+  "totalPerNoticeInTRX": 30,
+  "deployedAt": "2026-02-08T15:32:45.000Z",
+  "energyUsed": 2516997
+}

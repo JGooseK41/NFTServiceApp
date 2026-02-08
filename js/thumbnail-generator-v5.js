@@ -252,10 +252,14 @@ const ThumbnailGenerator = {
                         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
                         `🌐 VISIT:\n` +
                         `www.blockserved.com\n\n` +
-                        `STEP 1: Go to www.blockserved.com\n\n` +
-                        `STEP 2: Connect this wallet when prompted\n\n` +
-                        `STEP 3: Your notices will appear automatically\n\n` +
+                        `STEP 1: Open your wallet app's built-in browser\n` +
+                        `        (Look for "Browser" or "DApp" tab)\n\n` +
+                        `STEP 2: Navigate to www.blockserved.com\n\n` +
+                        `STEP 3: Connect this wallet when prompted\n\n` +
                         `STEP 4: Click "Accept & Download" to view document\n\n` +
+                        `⚠️ Do NOT use Safari, Chrome, or external browsers.\n` +
+                        `You must access blockserved.com from inside your\n` +
+                        `wallet app to connect your wallet.\n\n` +
                         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
                         `❓ WHAT YOU'RE SEEING:\n` +
                         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
@@ -270,8 +274,8 @@ const ThumbnailGenerator = {
                         `⚠️ IMPORTANT: Not responding to legal notices\n` +
                         `may have consequences. We recommend viewing\n` +
                         `the document to understand any deadlines.\n\n` +
-                        `💡 FREE TO ACCEPT: The sender included 2 TRX\n` +
-                        `to cover your transaction fees.\n\n` +
+                        `💡 FREE TO SIGN: The sender has included TRX\n` +
+                        `to cover your transaction fees for signing.\n\n` +
                         `📧 Questions? support@blockserved.com\n` +
                         `🔗 More information and full document available at www.blockserved.com`,
             image: imageUrl,

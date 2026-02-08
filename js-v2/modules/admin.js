@@ -215,62 +215,81 @@ window.admin = {
         }
     },
     
-    // Update creation fee
+    // Update creation/service fee (platform revenue)
     async updateCreationFee() {
         try {
-            const newFee = document.getElementById('creationFee').value;
+            // Check both possible input IDs
+            const newFee = document.getElementById('creationFee')?.value ||
+                           document.getElementById('newServiceFee')?.value;
+
             if (!newFee || newFee < 0) {
                 throw new Error('Invalid fee amount');
             }
-            
-            if (!confirm(`Update creation fee to ${newFee} TRX?`)) {
+
+            if (!confirm(`Update service fee to ${newFee} TRX?`)) {
                 return;
             }
-            
-            window.app.showProcessing('Updating creation fee...');
-            
+
+            window.app.showProcessing('Updating service fee...');
+
             const result = await window.contract.updateServiceFee(newFee);
-            
+
             if (result.success) {
                 window.app.hideProcessing();
-                window.app.showSuccess('Creation fee updated successfully');
+                window.app.showSuccess('Service fee updated successfully');
                 await this.loadCurrentSettings();
+                // Reload fee config in main app
+                if (window.app.loadFeeConfig) {
+                    await window.app.loadFeeConfig();
+                }
             }
-            
+
         } catch (error) {
-            console.error('Failed to update creation fee:', error);
+            console.error('Failed to update service fee:', error);
             window.app.hideProcessing();
             window.app.showError('Failed to update fee: ' + error.message);
         }
     },
-    
-    // Update sponsorship fee
-    async updateSponsorshipFee() {
+
+    // Update recipient funding (TRX sent to recipient for gas)
+    async updateRecipientFunding() {
         try {
-            const newFee = document.getElementById('sponsorshipFee').value;
-            if (!newFee || newFee < 0) {
-                throw new Error('Invalid fee amount');
+            // Check both possible input IDs
+            const newAmount = document.getElementById('sponsorshipFee')?.value ||
+                              document.getElementById('newRecipientFunding')?.value;
+
+            if (!newAmount || newAmount < 0) {
+                throw new Error('Invalid amount');
             }
-            
-            if (!confirm(`Update sponsorship fee to ${newFee} TRX?`)) {
+
+            if (!confirm(`Update recipient sponsorship to ${newAmount} TRX?`)) {
                 return;
             }
-            
-            window.app.showProcessing('Updating sponsorship fee...');
-            
-            const result = await window.contract.updateSponsorshipFee(newFee);
-            
+
+            window.app.showProcessing('Updating recipient sponsorship...');
+
+            const result = await window.contract.updateRecipientFunding(newAmount);
+
             if (result.success) {
                 window.app.hideProcessing();
-                window.app.showSuccess('Sponsorship fee updated successfully');
+                window.app.showSuccess('Recipient sponsorship updated successfully');
                 await this.loadCurrentSettings();
+                // Reload fee config in main app
+                if (window.app.loadFeeConfig) {
+                    await window.app.loadFeeConfig();
+                }
             }
-            
+
         } catch (error) {
-            console.error('Failed to update sponsorship fee:', error);
+            console.error('Failed to update recipient sponsorship:', error);
             window.app.hideProcessing();
-            window.app.showError('Failed to update fee: ' + error.message);
+            window.app.showError('Failed to update sponsorship: ' + error.message);
         }
+    },
+
+    // Legacy alias for updateRecipientFunding
+    async updateSponsorshipFee() {
+        return this.updateRecipientFunding();
     },
     
     // Update fee collector

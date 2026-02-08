@@ -303,6 +303,45 @@ window.receipts = {
                     </table>
                 </div>
 
+                <!-- Financial Summary for Government Documentation -->
+                <div style="margin-bottom: 30px;">
+                    <h4 style="border-bottom: 1px solid #ccc; padding-bottom: 5px;">EXPENDITURE SUMMARY</h4>
+                    <p style="font-size: 12px; color: #666; margin-top: 5px;">
+                        For government accounting and documentation purposes
+                    </p>
+                    <table style="width: 100%; font-size: 14px; margin-top: 10px; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Service Fee (Platform)</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">
+                                ${receipt.serviceFee || receipt.feeBreakdown?.serviceFee || 'N/A'} TRX
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Recipient Sponsorship</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">
+                                ${receipt.recipientFunding || receipt.feeBreakdown?.recipientFunding || 'N/A'} TRX
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Network Fee (Estimated)</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">
+                                ${receipt.networkFee || receipt.feeBreakdown?.networkFee || '~5'} TRX
+                            </td>
+                        </tr>
+                        <tr style="font-weight: bold; background-color: #f8f9fa;">
+                            <td style="padding: 8px;">TOTAL EXPENDITURE</td>
+                            <td style="padding: 8px; text-align: right;">
+                                ${receipt.totalCost || receipt.feeBreakdown?.total || 'N/A'} TRX
+                            </td>
+                        </tr>
+                    </table>
+                    <p style="font-size: 11px; color: #888; margin-top: 10px;">
+                        * Service Fee: Fee paid to BlockServed.com for blockchain service processing<br>
+                        * Recipient Sponsorship: TRX sent to recipient's wallet to cover their signing transaction<br>
+                        * Network Fee: TRON blockchain energy/bandwidth consumed (may vary)
+                    </p>
+                </div>
+
                 <!-- Thumbnail Preview -->
                 ${receipt.thumbnail ? `
                     <div style="margin-bottom: 30px;">

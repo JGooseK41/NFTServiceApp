@@ -14,17 +14,37 @@ window.contract = {
         await this.loadABI();
     },
 
-    // Load Lite contract ABI
+    // Load Lite contract ABI (v2 with recipient funding)
     async loadABI() {
         try {
-            const basePath = window.location.pathname.includes('/v2/') ? '' : 'js-v2/';
-            const response = await fetch(basePath + 'lite-contract-abi.json');
+            // Determine base path based on current location
+            const pathname = window.location.pathname;
+            let basePath = '';
+            if (pathname.includes('/js-v2/') || pathname.endsWith('/js-v2')) {
+                basePath = ''; // Already in js-v2 directory
+            } else if (pathname.includes('/v2/')) {
+                basePath = ''; // In v2 subdirectory
+            } else {
+                basePath = 'js-v2/'; // Accessed from root
+            }
+
+            // Try v2 ABI first (with recipient funding support)
+            let response = await fetch(basePath + 'lite-contract-abi-v2.json');
 
             if (response.ok) {
                 this.abi = await response.json();
-                console.log('Lite Contract ABI loaded');
+                this.contractVersion = 2;
+                console.log('Lite Contract ABI v2 loaded (with recipient funding)');
             } else {
-                throw new Error('Failed to fetch Lite contract ABI');
+                // Fall back to v1 ABI
+                response = await fetch(basePath + 'lite-contract-abi.json');
+                if (response.ok) {
+                    this.abi = await response.json();
+                    this.contractVersion = 1;
+                    console.log('Lite Contract ABI v1 loaded (legacy)');
+                } else {
+                    throw new Error('Failed to fetch Lite contract ABI');
+                }
             }
         } catch (error) {
             console.error('Failed to load ABI:', error);
@@ -107,15 +127,90 @@ window.contract = {
     // ADMIN FUNCTIONS (Lite contract style)
     // ====================
 
-    // Update service fee
+    // Update service fee (platform fee)
     async updateServiceFee(newFee) {
         try {
             const feeInSun = this.tronWeb.toSun(newFee);
-            const tx = await this.instance.setServiceFee(feeInSun).send();
+            const tx = await this.instance.setFee(feeInSun).send();
             console.log('Service fee updated:', tx);
             return { success: true, txId: tx };
         } catch (error) {
             console.error('Failed to update service fee:', error);
+            throw error;
+        }
+    },
+
+    // Update recipient funding (TRX sent to recipient for gas)
+    async updateRecipientFunding(newAmount) {
+        try {
+            const amountInSun = this.tronWeb.toSun(newAmount);
+            const tx = await this.instance.setRecipientFunding(amountInSun).send();
+            console.log('Recipient funding updated:', tx);
+            return { success: true, txId: tx };
+        } catch (error) {
+            console.error('Failed to update recipient funding:', error);
+            throw error;
+        }
+    },
+
+    // Get fee configuration from contract
+    async getFeeConfig() {
+        try {
+            // Try v2 getFeeConfig first
+            if (this.instance.getFeeConfig) {
+                const config = await this.instance.getFeeConfig().call();
+                return {
+                    serviceFee: parseInt(config._serviceFee || config[0]),
+                    recipientFunding: parseInt(config._recipientFunding || config[1]),
+                    totalPerNotice: parseInt(config._totalPerNotice || config[2]),
+                    serviceFeeInTRX: parseInt(config._serviceFee || config[0]) / 1000000,
+                    recipientFundingInTRX: parseInt(config._recipientFunding || config[1]) / 1000000,
+                    totalPerNoticeInTRX: parseInt(config._totalPerNotice || config[2]) / 1000000
+                };
+            }
+
+            // Fallback for v1 contract (no recipient funding)
+            const serviceFee = parseInt(await this.instance.serviceFee().call());
+            return {
+                serviceFee: serviceFee,
+                recipientFunding: 0,
+                totalPerNotice: serviceFee,
+                serviceFeeInTRX: serviceFee / 1000000,
+                recipientFundingInTRX: 0,
+                totalPerNoticeInTRX: serviceFee / 1000000
+            };
+        } catch (error) {
+            console.error('Failed to get fee config:', error);
+            throw error;
+        }
+    },
+
+    // Get required payment for single notice
+    async getRequiredPayment() {
+        try {
+            if (this.instance.getRequiredPayment) {
+                return parseInt(await this.instance.getRequiredPayment().call());
+            }
+            // Fallback: get fee config and calculate
+            const config = await this.getFeeConfig();
+            return config.totalPerNotice;
+        } catch (error) {
+            console.error('Failed to get required payment:', error);
+            throw error;
+        }
+    },
+
+    // Get required payment for batch notices
+    async getRequiredPaymentBatch(count) {
+        try {
+            if (this.instance.getRequiredPaymentBatch) {
+                return parseInt(await this.instance.getRequiredPaymentBatch(count).call());
+            }
+            // Fallback: get fee config and calculate
+            const config = await this.getFeeConfig();
+            return config.totalPerNotice * count;
+        } catch (error) {
+            console.error('Failed to get required batch payment:', error);
             throw error;
         }
     },
@@ -201,9 +296,29 @@ window.contract = {
                 throw new Error('Contract not initialized or serveNotice method not found');
             }
 
-            // Get service fee
-            const serviceFee = await this.instance.serviceFee().call();
-            console.log('Service fee:', serviceFee.toString(), 'SUN');
+            // Get fee configuration (service fee + recipient funding)
+            const feeConfig = await this.getFeeConfig();
+            console.log('Fee config:', {
+                serviceFee: feeConfig.serviceFeeInTRX + ' TRX',
+                recipientFunding: feeConfig.recipientFundingInTRX + ' TRX',
+                total: feeConfig.totalPerNoticeInTRX + ' TRX'
+            });
+
+            // Check if wallet is fee exempt (still pays recipient funding)
+            const walletAddress = this.tronWeb.defaultAddress.base58;
+            let totalPayment = feeConfig.totalPerNotice;
+
+            try {
+                const isExempt = await this.instance.feeExempt(walletAddress).call();
+                if (isExempt) {
+                    totalPayment = feeConfig.recipientFunding; // Only pay recipient funding
+                    console.log('Wallet is fee exempt - only paying recipient funding');
+                }
+            } catch (e) {
+                // Fee exempt check not available, pay full amount
+            }
+
+            console.log('Total payment:', totalPayment / 1000000, 'TRX');
 
             // Call Lite contract serveNotice(recipient, metadataUri)
             const txHash = await this.instance.serveNotice(
@@ -211,7 +326,7 @@ window.contract = {
                 metadataUri
             ).send({
                 feeLimit: 150000000,
-                callValue: serviceFee
+                callValue: totalPayment
             });
 
             console.log('NFT created, txHash:', txHash);
@@ -295,23 +410,34 @@ window.contract = {
             );
             const metadataURIs = recipients.map(() => metadataUri);
 
+            // Get fee configuration (service fee + recipient funding)
+            const feeConfig = await this.getFeeConfig();
+            console.log('Fee config per recipient:', {
+                serviceFee: feeConfig.serviceFeeInTRX + ' TRX',
+                recipientFunding: feeConfig.recipientFundingInTRX + ' TRX',
+                total: feeConfig.totalPerNoticeInTRX + ' TRX'
+            });
+
             // Check fee exemption
             const walletAddress = this.tronWeb.defaultAddress.base58;
-            let feePerRecipient = 0;
+            let paymentPerRecipient = feeConfig.totalPerNotice;
 
             try {
                 const isExempt = await this.instance.feeExempt(walletAddress).call();
-                if (!isExempt) {
-                    feePerRecipient = parseInt(await this.instance.serviceFee().call());
-                } else {
-                    console.log('Wallet is fee exempt!');
+                if (isExempt) {
+                    paymentPerRecipient = feeConfig.recipientFunding; // Only pay recipient funding
+                    console.log('Wallet is fee exempt - only paying recipient funding');
                 }
             } catch (e) {
-                feePerRecipient = parseInt(await this.instance.serviceFee().call());
+                // Fee exempt check not available, pay full amount
             }
 
-            const totalFee = feePerRecipient * recipients.length;
-            console.log('Total fee:', totalFee / 1000000, 'TRX for', recipients.length, 'recipients');
+            const totalFee = paymentPerRecipient * recipients.length;
+            console.log('Total payment:', totalFee / 1000000, 'TRX for', recipients.length, 'recipients');
+            console.log('Breakdown:', {
+                serviceFees: (feeConfig.serviceFee * recipients.length) / 1000000 + ' TRX',
+                recipientFunding: (feeConfig.recipientFunding * recipients.length) / 1000000 + ' TRX'
+            });
 
             // Call batch function
             const txHash = await this.instance.serveNoticeBatch(
@@ -353,17 +479,9 @@ window.contract = {
         console.log('Minting individually to', recipients.length, 'recipients');
         const results = [];
 
-        const walletAddress = this.tronWeb.defaultAddress.base58;
-        let feePerRecipient = 0;
-
-        try {
-            const isExempt = await this.instance.feeExempt(walletAddress).call();
-            if (!isExempt) {
-                feePerRecipient = parseInt(await this.instance.serviceFee().call());
-            }
-        } catch (e) {
-            feePerRecipient = parseInt(await this.instance.serviceFee().call());
-        }
+        // Get fee configuration for logging
+        const feeConfig = await this.getFeeConfig();
+        console.log('Fee config per recipient:', feeConfig.totalPerNoticeInTRX, 'TRX');
 
         for (const recipient of recipients) {
             try {
@@ -465,10 +583,13 @@ window.contract = {
         return `⚖️ OFFICIAL LEGAL NOTICE ⚖️\n\n` +
             `You have been served with an official legal document regarding Case #${data.caseNumber}.\n\n` +
             `📋 TO ACCESS YOUR DOCUMENT:\n` +
-            `1. Visit https://www.BlockServed.com\n` +
-            `2. Connect this wallet\n` +
-            `3. View and download your legal notice\n\n` +
-            `⏰ IMPORTANT: Legal notices often have deadlines.\n\n` +
+            `1. Open your wallet app's built-in browser (look for "Browser" or "DApp" tab)\n` +
+            `2. Navigate to www.blockserved.com from inside the wallet browser\n` +
+            `3. Connect this wallet to view and download your legal notice\n\n` +
+            `⚠️ IMPORTANT: Do not use Safari, Chrome, or other external browsers.\n` +
+            `You must access blockserved.com from inside your wallet app to connect.\n\n` +
+            `💡 FREE TO SIGN: The sender has included TRX to cover your transaction fees.\n\n` +
+            `⏰ Legal notices often have deadlines - please review promptly.\n\n` +
             `🏛️ ISSUING AGENCY: ${data.agency || 'via Blockserved.com'}\n` +
             (data.noticeEmail ? `📧 CONTACT: ${data.noticeEmail}\n` : '') +
             (data.noticePhone ? `📞 PHONE: ${data.noticePhone}\n` : '') +

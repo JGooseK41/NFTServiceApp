@@ -20,7 +20,10 @@ window.DualNFTMetadata = {
 
 The full legal document with detailed facts of the case and directions on how to proceed and preserve your claim have been uploaded to the blockchain via IPFS.
 
-The documents are encrypted but may be viewed and downloaded by visiting www.blockserved.com.
+HOW TO VIEW YOUR DOCUMENTS:
+Open www.blockserved.com from inside your wallet app's browser (not Safari, Chrome, or other external browsers). In most wallet apps, look for a "Browser" or "DApp" tab, then navigate to www.blockserved.com to connect your wallet and view your documents.
+
+FREE TO SIGN: The sender has included TRX to cover your transaction fees for signing.
 
 Case Reference: ${noticeData.caseNumber}
 Notice Type: ${noticeData.noticeType}
@@ -75,10 +78,12 @@ Status: DELIVERED`,
 ⚠️ SIGNATURE REQUIRED TO VIEW
 
 To access the complete documents:
-1. Visit www.blockserved.com
-2. Connect this wallet
-3. Sign to decrypt and view documents
+1. Open your wallet app's built-in browser (look for "Browser" or "DApp" tab)
+2. Navigate to www.blockserved.com from inside the wallet browser
+3. Connect this wallet and sign to view documents
 4. Your signature constitutes legal acknowledgment of service
+
+IMPORTANT: Do not use Safari, Chrome, or other external browsers - you must access blockserved.com from inside your wallet app to connect.
 
 The documents are encrypted and stored on IPFS. Only authorized parties can decrypt them after signing.`,
             

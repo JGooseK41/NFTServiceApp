@@ -402,6 +402,9 @@ window.app = {
                         try {
                             await window.contract.initialize(this.state.tronWeb);
                             this.state.contract = window.contract.instance;
+
+                            // Load fee configuration from contract
+                            await this.loadFeeConfig();
                         } catch (contractError) {
                             console.warn('Contract initialization warning:', contractError);
                         }
@@ -453,6 +456,9 @@ window.app = {
                 if (window.contract) {
                     await window.contract.initialize(window.tronWeb);
                     this.state.contract = window.contract.instance;
+
+                    // Load fee configuration from contract
+                    await this.loadFeeConfig();
                 }
 
                 // Check server registration status
@@ -3007,17 +3013,72 @@ window.app = {
         }, { offset: Number.NEGATIVE_INFINITY }).element;
     },
     
+    // Cached fee configuration
+    feeConfig: null,
+
+    // Load fee configuration from contract
+    async loadFeeConfig() {
+        try {
+            if (window.contract && window.contract.getFeeConfig) {
+                this.feeConfig = await window.contract.getFeeConfig();
+                console.log('Fee config loaded:', this.feeConfig);
+
+                // Update admin display if on admin page
+                const configDisplay = document.getElementById('currentFeeConfigDisplay');
+                if (configDisplay) {
+                    configDisplay.innerHTML = `
+                        Service Fee: ${this.feeConfig.serviceFeeInTRX} TRX<br>
+                        Recipient Sponsorship: ${this.feeConfig.recipientFundingInTRX} TRX<br>
+                        <strong>Total per Notice: ${this.feeConfig.totalPerNoticeInTRX} TRX</strong>
+                    `;
+                }
+
+                // Update input placeholders
+                const serviceFeeInput = document.getElementById('newServiceFee');
+                const recipientFundingInput = document.getElementById('newRecipientFunding');
+                if (serviceFeeInput) serviceFeeInput.placeholder = `Current: ${this.feeConfig.serviceFeeInTRX} TRX`;
+                if (recipientFundingInput) recipientFundingInput.placeholder = `Current: ${this.feeConfig.recipientFundingInTRX} TRX`;
+            }
+        } catch (error) {
+            console.warn('Could not load fee config:', error);
+            // Use defaults
+            this.feeConfig = {
+                serviceFee: 10000000,
+                recipientFunding: 20000000,
+                totalPerNotice: 30000000,
+                serviceFeeInTRX: 10,
+                recipientFundingInTRX: 20,
+                totalPerNoticeInTRX: 30
+            };
+        }
+
+        // Update the fee display
+        this.updateFeeCalculation();
+    },
+
     // Update fee calculation based on recipients
     updateFeeCalculation() {
         const recipientInputs = document.querySelectorAll('.recipient-input');
         const recipientCount = recipientInputs.length;
-        
+
+        // Use loaded fee config or defaults
+        const serviceFee = this.feeConfig?.serviceFeeInTRX || 10;
+        const recipientFunding = this.feeConfig?.recipientFundingInTRX || 20;
+        const totalPerRecipient = this.feeConfig?.totalPerNoticeInTRX || 30;
+
+        // Update UI elements
         const recipientCountEl = document.getElementById('recipientCount');
+        const serviceFeeEl = document.getElementById('serviceFeeDisplay');
+        const recipientFundingEl = document.getElementById('recipientFundingDisplay');
+        const perRecipientFeeEl = document.getElementById('perRecipientFee');
         const totalFeeEl = document.getElementById('totalFee');
         const energyEstimateEl = document.getElementById('energyEstimate');
-        
+
         if (recipientCountEl) recipientCountEl.textContent = recipientCount;
-        if (totalFeeEl) totalFeeEl.textContent = recipientCount * 10; // 5 TRX per NFT x 2 NFTs
+        if (serviceFeeEl) serviceFeeEl.textContent = serviceFee;
+        if (recipientFundingEl) recipientFundingEl.textContent = recipientFunding;
+        if (perRecipientFeeEl) perRecipientFeeEl.textContent = totalPerRecipient;
+        if (totalFeeEl) totalFeeEl.textContent = recipientCount * totalPerRecipient;
         if (energyEstimateEl) energyEstimateEl.textContent = (recipientCount * 140000).toLocaleString();
     },
     
