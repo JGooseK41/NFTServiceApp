@@ -216,7 +216,7 @@ window.notices = {
                     const chainInfo = window.getChainInfo ? window.getChainInfo() : null;
                     const isMainnet = chainInfo?.id === 'tron-mainnet';
                     const apiBase = isMainnet ? 'https://api.trongrid.io' : 'https://nile.trongrid.io';
-                    const contractAddress = window.getContractAddress ? window.getContractAddress() : 'TUM1cojG7vdtph81H2Dy2VyRqoa1v9FywW';
+                    const contractAddress = window.contract?.address || getCurrentNetwork().contractAddress;
 
                     for (let attempt = 1; attempt <= retries; attempt++) {
                         try {
@@ -418,7 +418,21 @@ window.notices = {
                         cases[caseIndex].ipfsHash = documentData.ipfsHash;
                         cases[caseIndex].encryptionKey = documentData.encryptionKey;
                         cases[caseIndex].contractType = 'lite';
-                        localStorage.setItem('legalnotice_cases', JSON.stringify(cases));
+                        try {
+                            localStorage.setItem('legalnotice_cases', JSON.stringify(cases));
+                        } catch (quotaError) {
+                            if (quotaError.name === 'QuotaExceededError') {
+                                // Remove alertImage from older cases to free space
+                                for (let i = 0; i < cases.length; i++) {
+                                    if (i !== caseIndex && cases[i].alertImage) {
+                                        delete cases[i].alertImage;
+                                    }
+                                }
+                                localStorage.setItem('legalnotice_cases', JSON.stringify(cases));
+                            } else {
+                                throw quotaError;
+                            }
+                        }
                     }
 
                 } catch (error) {
@@ -884,9 +898,15 @@ window.notices = {
             } catch (quotaError) {
                 if (quotaError.name === 'QuotaExceededError') {
                     console.log('LocalStorage full, trimming old receipts...');
-                    // Keep only the last 50 receipts
-                    receipts = receipts.slice(-50);
-                    localStorage.setItem(getConfig('storage.keys.receipts'), JSON.stringify(receipts));
+                    // Aggressively trim - keep only last 10 receipts
+                    receipts = receipts.slice(-10);
+                    try {
+                        localStorage.setItem(getConfig('storage.keys.receipts'), JSON.stringify(receipts));
+                    } catch (e) {
+                        // Still full - clear receipts entirely and save just this one
+                        receipts = receipts.slice(-1);
+                        localStorage.setItem(getConfig('storage.keys.receipts'), JSON.stringify(receipts));
+                    }
                 } else {
                     throw quotaError;
                 }
@@ -1219,7 +1239,8 @@ window.notices = {
                         ipfsHash: this.lastMintResult.ipfsHash,
                         chain: this.lastMintResult.chain,
                         chainName: this.lastMintResult.chainName,
-                        explorerUrl: this.lastMintResult.explorerUrl
+                        explorerUrl: this.lastMintResult.explorerUrl,
+                        feeBreakdown: this.lastMintResult.receipt?.feeBreakdown
                     };
                     console.log('Receipt data with tokenId:', tokenId);
                     await window.proofOfService.printReceipt(receiptData);

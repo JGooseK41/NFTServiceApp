@@ -169,7 +169,7 @@ window.proofOfService = {
         const txHash = receipt.transactionHash || receipt.transaction_hash || 'N/A';
 
         // Check if we have fee data for Page 4
-        const hasExpenditure = receipt.serviceFee || receipt.recipientFunding || receipt.totalCost;
+        const hasExpenditure = receipt.totalServiceFees || receipt.totalRecipientFunding || receipt.totalPaymentTRX;
         const totalPages = hasExpenditure ? 4 : 3;
 
         const html = `
@@ -420,7 +420,7 @@ window.proofOfService = {
                                 ${(receipt.recipients || []).map((r, i) => `
                                 <tr>
                                     <td class="mono">${typeof r === 'string' ? r : (r.address || 'N/A')}</td>
-                                    <td>${tokenId !== 'N/A' ? '#' + (parseInt(tokenId) + (i * 2)) : 'N/A'}</td>
+                                    <td>${tokenId !== 'N/A' ? '#' + (parseInt(tokenId) + i) : 'N/A'}</td>
                                     <td>Delivered</td>
                                 </tr>
                                 `).join('') || `
