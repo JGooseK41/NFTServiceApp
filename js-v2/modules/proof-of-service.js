@@ -40,6 +40,39 @@ window.proofOfService = {
         return this.getExplorerUrl(txHash);
     },
 
+    // Format date/time as UTC with local time in parentheses
+    formatDateTime(dateInput) {
+        if (!dateInput) return 'N/A';
+        const date = new Date(dateInput);
+        if (isNaN(date.getTime())) return 'N/A';
+
+        const utcStr = date.toISOString().replace('T', ' ').replace('Z', '') + ' UTC';
+        const localStr = date.toLocaleString();
+        return `${utcStr} (Local: ${localStr})`;
+    },
+
+    // Format date only as UTC with local in parentheses
+    formatDate(dateInput) {
+        if (!dateInput) return 'N/A';
+        const date = new Date(dateInput);
+        if (isNaN(date.getTime())) return 'N/A';
+
+        const utcDate = date.toISOString().split('T')[0] + ' UTC';
+        const localDate = date.toLocaleDateString();
+        return `${utcDate} (Local: ${localDate})`;
+    },
+
+    // Format time only as UTC with local in parentheses
+    formatTime(dateInput) {
+        if (!dateInput) return 'N/A';
+        const date = new Date(dateInput);
+        if (isNaN(date.getTime())) return 'N/A';
+
+        const utcTime = date.toISOString().split('T')[1].replace('Z', '') + ' UTC';
+        const localTime = date.toLocaleTimeString();
+        return `${utcTime} (Local: ${localTime})`;
+    },
+
     // Generate comprehensive proof of service receipt
     async generateServiceReceipt(caseData) {
         // Try to get alert image from various sources
@@ -97,6 +130,16 @@ window.proofOfService = {
     // Generate printable HTML receipt - optimized for 3-page court filing
     generatePrintableReceipt(receipt) {
         const explorerUrl = receipt.explorerUrl || this.getExplorerUrl(receipt.transactionHash, receipt.chain);
+
+        // Format dates as UTC with local time in parentheses
+        const generatedAtFormatted = this.formatDateTime(receipt.generatedAt);
+        const servedAtFormatted = this.formatDateTime(receipt.servedAt);
+        const servedDateFormatted = this.formatDate(receipt.servedAt);
+        const servedTimeFormatted = this.formatTime(receipt.servedAt);
+
+        // Ensure token ID and transaction hash are properly extracted
+        const tokenId = receipt.alertTokenId || receipt.alert_token_id || 'N/A';
+        const txHash = receipt.transactionHash || receipt.transaction_hash || 'N/A';
 
         const html = `
             <!DOCTYPE html>
@@ -275,7 +318,7 @@ window.proofOfService = {
                         <h2>Legal Notice Delivery Confirmation</h2>
                         <div class="case-ref">
                             <strong>Case No. ${receipt.caseNumber}</strong><br>
-                            Receipt Generated: ${new Date(receipt.generatedAt).toLocaleString()}
+                            Receipt Generated: ${generatedAtFormatted}
                         </div>
                     </div>
 
@@ -295,7 +338,7 @@ window.proofOfService = {
                         </div>
                         <div class="field-row">
                             <span class="field-label">Date/Time of Service:</span>
-                            <span class="field-value">${receipt.servedAt ? new Date(receipt.servedAt).toLocaleString() : 'N/A'}</span>
+                            <span class="field-value">${servedAtFormatted}</span>
                         </div>
                     </div>
 
@@ -307,7 +350,7 @@ window.proofOfService = {
                         </div>
                         <div class="field-row">
                             <span class="field-label">NFT Token ID:</span>
-                            <span class="field-value">${receipt.alertTokenId ? '#' + receipt.alertTokenId : 'N/A'}</span>
+                            <span class="field-value">${tokenId !== 'N/A' ? '#' + tokenId : 'N/A'}</span>
                         </div>
                         <div class="field-row">
                             <span class="field-label">Server Wallet:</span>
@@ -317,12 +360,12 @@ window.proofOfService = {
                             <span class="field-label">Transaction Hash:</span>
                         </div>
                         <div class="tx-box">
-                            ${receipt.transactionHash || 'Transaction data not available'}
+                            ${txHash !== 'N/A' ? txHash : 'Transaction hash not available - please ensure the case has been served'}
                         </div>
                         <div class="field-row">
                             <span class="field-label">Block Explorer URL:</span>
                             <span class="field-value" style="font-size: 9pt; word-break: break-all;">
-                                ${receipt.transactionHash ? explorerUrl : 'N/A'}
+                                ${txHash !== 'N/A' ? explorerUrl : 'N/A'}
                             </span>
                         </div>
                     </div>
@@ -341,7 +384,7 @@ window.proofOfService = {
                                 ${(receipt.recipients || []).map((r, i) => `
                                 <tr>
                                     <td class="mono">${typeof r === 'string' ? r : (r.address || 'N/A')}</td>
-                                    <td>${receipt.alertTokenId ? '#' + (parseInt(receipt.alertTokenId) + (i * 2)) : 'N/A'}</td>
+                                    <td>${tokenId !== 'N/A' ? '#' + (parseInt(tokenId) + (i * 2)) : 'N/A'}</td>
                                     <td>Delivered</td>
                                 </tr>
                                 `).join('') || `
@@ -385,10 +428,10 @@ window.proofOfService = {
                         <p style="font-size: 10pt;">To independently verify this service, follow these steps:</p>
                         <ol class="verification-list">
                             <li><strong>Access Block Explorer:</strong> Navigate to the blockchain explorer at:<br>
-                                <span class="mono" style="font-size: 9pt;">${receipt.transactionHash ? explorerUrl : 'N/A'}</span>
+                                <span class="mono" style="font-size: 9pt;">${txHash !== 'N/A' ? explorerUrl : 'N/A'}</span>
                             </li>
                             <li><strong>Verify Transaction:</strong> Confirm the transaction hash matches:<br>
-                                <span class="mono" style="font-size: 9pt;">${receipt.transactionHash || 'N/A'}</span>
+                                <span class="mono" style="font-size: 9pt;">${txHash}</span>
                             </li>
                             <li><strong>Confirm Recipient:</strong> Verify the NFT was transferred to the recipient address(es) listed in Section III.</li>
                             <li><strong>Check Timestamp:</strong> Confirm the blockchain timestamp corresponds to the service date/time.</li>
@@ -425,8 +468,8 @@ window.proofOfService = {
                                 I, the undersigned, hereby declare under penalty of perjury under the laws of the applicable jurisdiction that:
                             </p>
                             <p>
-                                On <strong>${receipt.servedAt ? new Date(receipt.servedAt).toLocaleDateString() : '_______________'}</strong>
-                                at <strong>${receipt.servedAt ? new Date(receipt.servedAt).toLocaleTimeString() : '_______________'}</strong>,
+                                On <strong>${servedDateFormatted}</strong>
+                                at <strong>${servedTimeFormatted}</strong>,
                                 I caused the legal documents referenced in Case No. <strong>${receipt.caseNumber}</strong> to be served upon the
                                 recipient(s) listed herein via blockchain technology.
                             </p>
@@ -437,7 +480,7 @@ window.proofOfService = {
                             </p>
                             <p>
                                 This transaction was permanently recorded on the <strong>${receipt.chainName || 'blockchain'}</strong>
-                                ${receipt.transactionHash ? `with transaction hash <strong class="mono" style="font-size: 9pt;">${receipt.transactionHash.substring(0, 30)}...</strong>` : ''}.
+                                ${txHash !== 'N/A' ? `with transaction hash <strong class="mono" style="font-size: 9pt;">${txHash.substring(0, 30)}...</strong>` : ''}.
                             </p>
                             <p>
                                 I declare that the foregoing is true and correct.
@@ -471,13 +514,13 @@ window.proofOfService = {
                         OFFICIAL BLOCKCHAIN SERVICE RECORD<br>
                         <span style="font-size: 10pt; font-weight: normal;">
                             This document certifies that legal notice was served via ${receipt.chainName || 'blockchain'} technology<br>
-                            and recorded as an immutable transaction on ${receipt.servedAt ? new Date(receipt.servedAt).toLocaleDateString() : 'the date indicated'}
+                            and recorded as an immutable transaction on ${servedDateFormatted}
                         </span>
                     </div>
 
                     <div class="footer">
                         BlockServed™ Proof of Service | Case ${receipt.caseNumber} | Page 3 of 3<br>
-                        <span style="font-size: 8pt;">Generated: ${new Date(receipt.generatedAt).toLocaleString()} | www.BlockServed.com</span>
+                        <span style="font-size: 8pt;">Generated: ${generatedAtFormatted} | www.BlockServed.com</span>
                     </div>
                 </div>
             </body>
@@ -613,13 +656,15 @@ window.proofOfService = {
             const noticeType = caseData.noticeType || caseData.notice_type || 'Legal Notice';
 
             const detailsY = alertImage ? pageHeight - 450 : pageHeight - 150;
+            const servedAtFormatted = this.formatDateTime(servedAt);
+            const servedDateFormatted = this.formatDate(servedAt);
             const details = [
                 'NFT INFORMATION',
                 '---------------------------------------------------',
                 '',
                 `Token ID: #${tokenId}`,
                 `Case Number: ${caseNum}`,
-                `Service Date: ${new Date(servedAt).toLocaleString()}`,
+                `Service Date: ${servedAtFormatted}`,
                 `Issuing Agency: ${agency}`,
                 `Notice Type: ${noticeType}`,
                 '',
@@ -687,7 +732,7 @@ window.proofOfService = {
                 // Add stamp text centered
                 const lines = [
                     'DELIVERED via BlockServed™',
-                    `Date: ${new Date(servedAt).toLocaleDateString()} | Case: ${caseNum}`,
+                    `Date: ${servedDateFormatted} | Case: ${caseNum}`,
                     `Transaction Hash:`,
                     `${txHash}`
                 ];
