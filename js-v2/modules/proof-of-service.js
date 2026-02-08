@@ -40,7 +40,24 @@ window.proofOfService = {
         return this.getExplorerUrl(txHash);
     },
 
-    // Format date/time as UTC with local time in parentheses
+    // Get the user's timezone abbreviation (e.g., "EST", "PST", "CET")
+    getTimezoneAbbr() {
+        try {
+            // Try to get short timezone name
+            const tzName = Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })
+                .formatToParts(new Date())
+                .find(part => part.type === 'timeZoneName')?.value || '';
+            return tzName;
+        } catch (e) {
+            // Fallback to offset-based name
+            const offset = new Date().getTimezoneOffset();
+            const hours = Math.abs(Math.floor(offset / 60));
+            const sign = offset <= 0 ? '+' : '-';
+            return `UTC${sign}${hours}`;
+        }
+    },
+
+    // Format date/time as UTC with local time and timezone in parentheses
     formatDateTime(dateInput) {
         if (!dateInput) return 'N/A';
         const date = new Date(dateInput);
@@ -48,7 +65,8 @@ window.proofOfService = {
 
         const utcStr = date.toISOString().replace('T', ' ').replace('Z', '') + ' UTC';
         const localStr = date.toLocaleString();
-        return `${utcStr} (Local: ${localStr})`;
+        const tz = this.getTimezoneAbbr();
+        return `${utcStr} (${tz}: ${localStr})`;
     },
 
     // Format date only as UTC with local in parentheses
@@ -59,7 +77,8 @@ window.proofOfService = {
 
         const utcDate = date.toISOString().split('T')[0] + ' UTC';
         const localDate = date.toLocaleDateString();
-        return `${utcDate} (Local: ${localDate})`;
+        const tz = this.getTimezoneAbbr();
+        return `${utcDate} (${tz}: ${localDate})`;
     },
 
     // Format time only as UTC with local in parentheses
@@ -70,7 +89,8 @@ window.proofOfService = {
 
         const utcTime = date.toISOString().split('T')[1].replace('Z', '') + ' UTC';
         const localTime = date.toLocaleTimeString();
-        return `${utcTime} (Local: ${localTime})`;
+        const tz = this.getTimezoneAbbr();
+        return `${utcTime} (${tz}: ${localTime})`;
     },
 
     // Generate comprehensive proof of service receipt
