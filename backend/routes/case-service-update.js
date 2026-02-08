@@ -460,14 +460,37 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
 router.put('/cases/:caseNumber/service-complete-notx', async (req, res) => {
     try {
         const caseNumber = (req.params.caseNumber || '').trim();
-        const { transactionHash, alertTokenId, recipients, serverAddress, chain, metadata = {} } = req.body;
+        const {
+            transactionHash,
+            alertTokenId,
+            documentTokenId,
+            recipients,
+            serverAddress,
+            chain,
+            ipfsHash,
+            encryptionKey,
+            agency,
+            noticeType,
+            pageCount,
+            metadata = {}
+        } = req.body;
 
         if (!caseNumber) {
             return res.status(400).json({ success: false, error: 'Case number required' });
         }
 
         const normalizedRecipients = (recipients || []).map(r => typeof r === 'string' ? r : r?.address).filter(Boolean);
-        const metadataJson = JSON.stringify({ ...metadata, transactionHash, alertTokenId, recipients: normalizedRecipients });
+        console.log(`service-complete-notx: ${caseNumber}, recipients: ${normalizedRecipients.length}, pages: ${pageCount}`);
+
+        const metadataJson = JSON.stringify({
+            ...metadata,
+            transactionHash,
+            alertTokenId,
+            recipients: normalizedRecipients,
+            pageCount,
+            agency,
+            noticeType
+        });
 
         // Check if case exists
         const existing = await pool.query('SELECT id FROM cases WHERE id = $1', [caseNumber]);
@@ -487,17 +510,51 @@ router.put('/cases/:caseNumber/service-complete-notx', async (req, res) => {
             `, [caseNumber, serverAddress, chain || 'tron-nile', transactionHash, alertTokenId, metadataJson]);
         }
 
-        // Insert service record
+        // Insert/update service record with ALL fields
         await pool.query(`
-            INSERT INTO case_service_records (case_number, transaction_hash, alert_token_id, recipients, served_at, server_address, chain, created_at)
-            VALUES ($1, $2, $3, $4, NOW(), $5, $6, NOW())
+            INSERT INTO case_service_records (
+                case_number,
+                transaction_hash,
+                alert_token_id,
+                document_token_id,
+                recipients,
+                page_count,
+                ipfs_hash,
+                encryption_key,
+                issuing_agency,
+                served_at,
+                server_address,
+                chain,
+                status,
+                created_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), $10, $11, 'served', NOW())
             ON CONFLICT (case_number) DO UPDATE SET
                 transaction_hash = EXCLUDED.transaction_hash,
                 alert_token_id = EXCLUDED.alert_token_id,
+                document_token_id = COALESCE(EXCLUDED.document_token_id, case_service_records.document_token_id),
+                recipients = EXCLUDED.recipients,
+                page_count = COALESCE(EXCLUDED.page_count, case_service_records.page_count),
+                ipfs_hash = COALESCE(EXCLUDED.ipfs_hash, case_service_records.ipfs_hash),
+                encryption_key = COALESCE(EXCLUDED.encryption_key, case_service_records.encryption_key),
+                issuing_agency = COALESCE(EXCLUDED.issuing_agency, case_service_records.issuing_agency),
+                status = 'served',
                 updated_at = NOW()
-        `, [caseNumber, transactionHash, alertTokenId, JSON.stringify(normalizedRecipients), serverAddress, chain || 'tron-nile']);
+        `, [
+            caseNumber,
+            transactionHash,
+            alertTokenId,
+            documentTokenId,
+            JSON.stringify(normalizedRecipients),
+            pageCount || 1,
+            ipfsHash,
+            encryptionKey,
+            agency,
+            serverAddress,
+            chain || 'tron-nile'
+        ]);
 
-        res.json({ success: true, message: 'Saved without transaction', caseNumber });
+        res.json({ success: true, message: 'Saved without transaction', caseNumber, recipientCount: normalizedRecipients.length, pageCount });
     } catch (error) {
         console.error('No-TX service-complete error:', error);
         res.status(500).json({ success: false, error: error.message, code: error.code });
