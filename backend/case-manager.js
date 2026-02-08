@@ -334,13 +334,16 @@ class CaseManager {
      * Primary identity: Server wallet address
      * Returns ALL cases/notices for this wallet ONLY
      */
-    async listCases(serverAddress, status = null) {
+    async listCases(serverAddress, status = null, chain = null) {
         try {
-            console.log(`Listing cases for server wallet: ${serverAddress}`);
-            
+            console.log(`Listing cases for server wallet: ${serverAddress}, chain filter: ${chain || 'all'}`);
+
+            // Build chain filter clause using parameterized query
+            const chainFilter = chain ? `AND COALESCE(chain, 'tron-mainnet') = $3` : '';
+
             // COMPREHENSIVE QUERY: Get everything for this wallet
             // Hierarchy: Wallet -> Cases -> Notices/Recipients
-            
+
             // UNION query to get ALL cases from ALL sources for this wallet
             // Priority: case_service_records (served) > cases table (may be draft)
             const query = `
@@ -357,11 +360,13 @@ class CaseManager {
                         ipfs_hash,
                         alert_token_id as alert_nft_id,
                         transaction_hash,
+                        COALESCE(chain, 'tron-mainnet') as chain,
                         'case_service_records' as source,
                         1 as priority
                     FROM case_service_records
-                    WHERE server_address = $1
-                       OR server_address LIKE $2
+                    WHERE (server_address = $1
+                       OR server_address LIKE $2)
+                       ${chainFilter}
 
                     UNION ALL
 
@@ -377,11 +382,13 @@ class CaseManager {
                         ipfs_hash,
                         alert_nft_id,
                         COALESCE(metadata->>'transactionHash', NULL) as transaction_hash,
+                        COALESCE(chain, 'tron-mainnet') as chain,
                         'cases' as source,
                         CASE WHEN status = 'served' THEN 1 ELSE 2 END as priority
                     FROM cases
-                    WHERE server_address = $1
-                       OR server_address LIKE $2
+                    WHERE (server_address = $1
+                       OR server_address LIKE $2)
+                       ${chainFilter}
                 )
                 SELECT DISTINCT ON (id) * FROM all_cases
                 ORDER BY id, priority ASC, created_at DESC
@@ -389,6 +396,7 @@ class CaseManager {
             `;
             
             const params = [serverAddress, `${serverAddress}%`];
+            if (chain) params.push(chain);
             const result = await this.db.query(query, params);
 
             console.log(`Found ${result.rows.length} total cases for wallet ${serverAddress}`);

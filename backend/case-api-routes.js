@@ -351,14 +351,15 @@ router.get('/cases/:caseId/preview', verifyServer, async (req, res) => {
 /**
  * LIST CASES
  * GET /api/cases
- * Query params: status (draft|ready|served)
+ * Query params: status (draft|ready|served), chain (tron-mainnet|tron-nile)
  */
 router.get('/cases', verifyServer, async (req, res) => {
-    console.log('GET /api/cases - Server:', req.serverAddress);
+    console.log('GET /api/cases - Server:', req.serverAddress, 'Chain:', req.query.chain || 'all');
     try {
         const result = await caseManager.listCases(
             req.serverAddress,
-            req.query.status
+            req.query.status,
+            req.query.chain
         );
         
         res.json(result);

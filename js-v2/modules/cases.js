@@ -25,6 +25,7 @@ function escapeAttr(str) {
 window.cases = {
     currentCase: null,
     currentCases: [],
+    showAllNetworks: false,
 
     // Helper: Safe localStorage setItem with quota handling
     safeLocalStorageSet(key, value) {
@@ -81,6 +82,12 @@ window.cases = {
     async init() {
         console.log('Initializing cases module...');
     },
+
+    // Toggle network filter and reload cases
+    toggleNetworkFilter(showAll) {
+        this.showAllNetworks = showAll;
+        this.loadCases();
+    },
     
     // Load cases from storage and backend
     async loadCases() {
@@ -119,13 +126,23 @@ window.cases = {
             });
             console.log('All local cases after merging:', allLocalCases);
             
+            // Update network filter label
+            const currentChain = window.getCurrentChainId ? window.getCurrentChainId() : 'tron-mainnet';
+            const chainInfo = window.getChainInfo ? window.getChainInfo(currentChain) : null;
+            const networkName = chainInfo?.name || (currentChain === 'tron-nile' ? 'Nile Testnet' : 'Mainnet');
+            const filterLabel = document.getElementById('networkFilterName');
+            if (filterLabel) {
+                filterLabel.textContent = this.showAllNetworks ? 'All Networks' : networkName;
+            }
+
             // Get backend cases if connected
             if (window.wallet && window.wallet.connected) {
                 const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-                const url = `${backendUrl}/api/cases`;
+                const chainParam = this.showAllNetworks ? '' : `?chain=${encodeURIComponent(currentChain)}`;
+                const url = `${backendUrl}/api/cases${chainParam}`;
                 console.log('Fetching cases from:', url);
                 console.log('Using server address:', window.wallet.address);
-                
+
                 const response = await fetch(url, {
                     headers: {
                         'X-Server-Address': window.wallet.address
@@ -298,9 +315,15 @@ window.cases = {
         if (!tbody) return;
         
         if (cases.length === 0) {
+            const currentChain = window.getCurrentChainId ? window.getCurrentChainId() : 'tron-mainnet';
+            const chainInfo = window.getChainInfo ? window.getChainInfo(currentChain) : null;
+            const networkName = chainInfo?.name || (currentChain === 'tron-nile' ? 'Nile Testnet' : 'Mainnet');
+            const filterMsg = this.showAllNetworks
+                ? 'No cases found'
+                : `No cases found on ${networkName}. Try enabling "Show all networks" above.`;
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="text-center text-muted">No cases found</td>
+                    <td colspan="5" class="text-center text-muted">${filterMsg}</td>
                 </tr>
             `;
             return;
@@ -354,7 +377,14 @@ window.cases = {
             const txHash = c.transactionHash || c.transaction_hash;
             const alertTokenId = c.alertTokenId || c.alert_token_id;
             const documentTokenId = c.documentTokenId || c.document_token_id;
-            
+            const caseChain = c.chain || 'tron-mainnet';
+            const caseChainInfo = window.getChainInfo ? window.getChainInfo(caseChain) : null;
+            const isTestnet = caseChainInfo?.isTestnet || caseChain.includes('nile') || caseChain.includes('sepolia');
+            const chainLabel = caseChainInfo?.shortName || (isTestnet ? 'Testnet' : 'Mainnet');
+            const networkBadge = isTestnet
+                ? `<span class="badge bg-warning text-dark" style="font-size: 9px; padding: 2px 4px;">${chainLabel}</span>`
+                : `<span class="badge bg-success" style="font-size: 9px; padding: 2px 4px;">${chainLabel}</span>`;
+
             // Escape values for safe HTML insertion
             const safeCaseId = escapeAttr(caseId);
             const safeServerAddr = escapeAttr(c.server_address || window.wallet?.address || '');
@@ -376,6 +406,7 @@ window.cases = {
                         <span class="badge bg-${this.getStatusColor(status)}">
                             ${escapeHtml(status)}
                         </span>
+                        ${networkBadge}
                         ${txHash ? `
                             <br>
                             <small style="font-size: 10px; line-height: 1.2;">

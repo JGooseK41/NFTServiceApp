@@ -433,6 +433,13 @@
                         </div>
                     </div>
                     <div class="card-body">
+                        <div class="d-flex align-items-center mb-2">
+                            <span id="networkFilterLabel" class="text-muted small me-2">Showing: <strong id="networkFilterName">All Networks</strong></span>
+                            <div class="form-check form-switch ms-auto">
+                                <input class="form-check-input" type="checkbox" id="showAllNetworks" onchange="cases.toggleNetworkFilter(this.checked)">
+                                <label class="form-check-label small" for="showAllNetworks">Show all networks</label>
+                            </div>
+                        </div>
                         <div id="casesList" class="table-responsive">
                             <table class="table">
                                 <thead>
@@ -1144,7 +1151,7 @@
     <script src="js-v2/modules/batch-minting-fix.js"></script>
     <script src="js-v2/modules/documents.js?v=20260207c"></script>
     <script src="js-v2/modules/notices.js?v=20260208h"></script>
-    <script src="js-v2/modules/cases.js?v=20260208b"></script>
+    <script src="js-v2/modules/cases.js?v=20260208c"></script>
     <script src="js-v2/modules/receipts.js?v=20260208c"></script>
     <script src="js-v2/modules/admin.js?v=20260207b"></script>
     <script src="js-v2/modules/admin-access.js"></script>

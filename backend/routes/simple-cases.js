@@ -24,20 +24,26 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
     
     try {
         const { serverAddress } = req.params;
-        
+        const chainParam = req.query.chain;
+
         // Validate server address format
         if (!serverAddress || !/^T[A-Za-z0-9]{33}$/.test(serverAddress)) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 error: 'Invalid server address format',
-                success: false 
+                success: false
             });
         }
-        
-        console.log(`Simple fetch for server: ${serverAddress}`);
-        
+
+        console.log(`Simple fetch for server: ${serverAddress}, chain: ${chainParam || 'all'}`);
+
         // Get a client from the pool
         client = await pool.connect();
-        
+
+        // Build chain filter
+        const chainFilter = chainParam ? `AND COALESCE(csr.chain, c.chain, 'tron-mainnet') = $2` : '';
+        const chainFilterFallback = chainParam ? `AND 'tron-mainnet' = $2` : '';
+        const params = chainParam ? [serverAddress, chainParam.replace(/[^a-z0-9-]/gi, '')] : [serverAddress];
+
         // Query to get cases from cases table with case_service_records for service data
         // Primary source: cases table + case_service_records
         // Fallback: served_notices for backwards compatibility
@@ -55,10 +61,12 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
                 csr.alert_token_id,
                 csr.recipients as csr_recipients,
                 csr.served_at,
+                COALESCE(csr.chain, c.chain, 'tron-mainnet') as chain,
                 CASE WHEN c.status = 'served' THEN 'served' ELSE 'draft' END as source
             FROM cases c
             LEFT JOIN case_service_records csr ON c.id::text = csr.case_number
             WHERE LOWER(c.server_address) = LOWER($1)
+                ${chainFilter}
 
             UNION ALL
 
@@ -75,6 +83,7 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
                 sn.alert_id as alert_token_id,
                 NULL as csr_recipients,
                 sn.created_at as served_at,
+                'tron-mainnet' as chain,
                 'served' as source
             FROM served_notices sn
             WHERE LOWER(sn.server_address) = LOWER($1)
@@ -84,11 +93,12 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
                     SELECT 1 FROM cases c
                     WHERE c.id::text = sn.case_number
                 )
+                ${chainFilterFallback}
 
             ORDER BY created_at DESC
         `;
-        
-        const result = await client.query(query, [serverAddress]);
+
+        const result = await client.query(query, params);
 
         // Helper to extract recipients from various sources
         const extractRecipients = (row) => {
@@ -140,7 +150,8 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
                     servedAt: row.served_at,
                     transactionHash: row.transaction_hash,
                     alertTokenId: row.alert_token_id,
-                    recipients: recipients
+                    recipients: recipients,
+                    chain: row.chain || 'tron-mainnet'
                 });
             } else {
                 // Update with service data if available
@@ -174,7 +185,8 @@ router.get('/servers/:serverAddress/simple-cases', async (req, res) => {
                 alertTokenId: caseData.alertTokenId,
                 recipients: caseData.recipients,
                 recipientCount: recipientCount,
-                isServed: isServed
+                isServed: isServed,
+                chain: caseData.chain
             };
         });
         
