@@ -1270,11 +1270,12 @@ window.app = {
             // Create merged PDF preview with page separators
             await this.createMergedPDFPreview();
             
-            // Calculate costs
-            const perRecipientCost = 10; // TRX per recipient for Alert + Document
+            // Calculate costs using actual fee config
+            const feeConfig = this.feeConfig || { serviceFeeInTRX: 10, recipientFundingInTRX: 20, totalPerNoticeInTRX: 30 };
+            const perRecipientCost = feeConfig.totalPerNoticeInTRX || 30;
             const totalCost = recipients.length * perRecipientCost;
             const energyEstimate = recipients.length * 140000;
-            
+
             // Update cost summary
             document.getElementById('previewRecipientCount').textContent = recipients.length;
             document.getElementById('previewPerRecipientCost').textContent = perRecipientCost;
