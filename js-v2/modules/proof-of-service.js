@@ -500,7 +500,7 @@ window.proofOfService = {
                             </p>
                             <p>
                                 This transaction was permanently recorded on the <strong>${receipt.chainName || 'blockchain'}</strong>
-                                ${txHash !== 'N/A' ? `with transaction hash <strong class="mono" style="font-size: 9pt;">${txHash.substring(0, 30)}...</strong>` : ''}.
+                                ${txHash !== 'N/A' ? `with transaction hash:<br><strong class="mono" style="font-size: 8pt; word-break: break-all;">${txHash}</strong>` : ''}.
                             </p>
                             <p>
                                 I declare that the foregoing is true and correct.
@@ -525,6 +525,55 @@ window.proofOfService = {
                                 <div class="sig-block">
                                     <div class="sig-line"></div>
                                     <div class="sig-label">License/Registration Number (if applicable)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">${receipt.alertImage ? 'VIII' : 'VII'}. Notary/Witness Acknowledgment</div>
+                        <div class="affirmation">
+                            <p>
+                                <strong>State/Commonwealth of</strong> ________________________________
+                                <strong style="margin-left: 20px;">County/Parish of</strong> ________________________________
+                            </p>
+                            <p style="margin-top: 15px;">
+                                Subscribed and sworn to (or affirmed) before me on this _______ day of __________________, 20_____,
+                                by the above-named Process Server, who is personally known to me or who has produced
+                                ________________________________ as identification.
+                            </p>
+
+                            <div class="sig-row" style="margin-top: 25px;">
+                                <div class="sig-block">
+                                    <div class="sig-line"></div>
+                                    <div class="sig-label">Notary Public / Witness Signature</div>
+                                </div>
+                                <div class="sig-block" style="text-align: center;">
+                                    <div style="border: 2px dashed #999; height: 80px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 10pt;">
+                                        [NOTARY SEAL/STAMP]
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="sig-row">
+                                <div class="sig-block">
+                                    <div class="sig-line"></div>
+                                    <div class="sig-label">Printed Name of Notary/Witness</div>
+                                </div>
+                                <div class="sig-block">
+                                    <div class="sig-line"></div>
+                                    <div class="sig-label">Commission/ID Number</div>
+                                </div>
+                            </div>
+
+                            <div class="sig-row">
+                                <div class="sig-block">
+                                    <div class="sig-line"></div>
+                                    <div class="sig-label">My Commission Expires</div>
+                                </div>
+                                <div class="sig-block">
+                                    <div class="sig-line"></div>
+                                    <div class="sig-label">Date</div>
                                 </div>
                             </div>
                         </div>
@@ -672,7 +721,7 @@ window.proofOfService = {
             const tokenId = caseData.alertTokenId || caseData.alert_token_id || caseData.tokenId || 'N/A';
             const servedAt = caseData.servedAt || caseData.served_at || caseData.createdAt || new Date().toISOString();
             const caseNum = caseData.caseNumber || caseData.case_number || 'Unknown';
-            const agency = caseData.agency || caseData.issuingAgency || caseData.issuing_agency || 'The Block Audit';
+            const agency = caseData.agency || caseData.issuingAgency || caseData.issuing_agency || 'via Blockserved.com';
             const noticeType = caseData.noticeType || caseData.notice_type || 'Legal Notice';
 
             const detailsY = alertImage ? pageHeight - 450 : pageHeight - 150;
