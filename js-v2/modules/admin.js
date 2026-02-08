@@ -72,36 +72,37 @@ window.admin = {
                 <div class="col-md-6">
                     <div class="card mb-3">
                         <div class="card-header">
-                            <h5>Role Management</h5>
+                            <h5>Access Management</h5>
                         </div>
                         <div class="card-body">
                             <div class="mb-3">
-                                <label class="form-label">Grant Process Server Role</label>
+                                <label class="form-label">Process Server</label>
                                 <div class="input-group">
                                     <input type="text" id="serverAddress" class="form-control" placeholder="T...">
-                                    <button class="btn btn-success" onclick="admin.grantServerRole()">Grant</button>
+                                    <button class="btn btn-success btn-sm" onclick="admin.grantServerRole()">Grant</button>
+                                    <button class="btn btn-outline-danger btn-sm" onclick="admin.revokeServerRole()">Revoke</button>
                                 </div>
+                                <small class="text-muted">Can serve legal notices</small>
                             </div>
-                            
+
                             <div class="mb-3">
-                                <label class="form-label">Grant Law Enforcement Role</label>
+                                <label class="form-label">Admin</label>
                                 <div class="input-group">
-                                    <input type="text" id="lawAddress" class="form-control" placeholder="T...">
-                                    <button class="btn btn-success" onclick="admin.grantLawRole()">Grant</button>
+                                    <input type="text" id="adminAddress" class="form-control" placeholder="T...">
+                                    <button class="btn btn-success btn-sm" onclick="admin.grantAdminRole()">Grant</button>
+                                    <button class="btn btn-outline-danger btn-sm" onclick="admin.revokeAdminRole()">Revoke</button>
                                 </div>
+                                <small class="text-muted">Can manage fees and roles</small>
                             </div>
-                            
+
                             <div class="mb-3">
-                                <label class="form-label">Revoke Role</label>
+                                <label class="form-label">Fee Exemption</label>
                                 <div class="input-group">
-                                    <select id="roleToRevoke" class="form-select">
-                                        <option value="">Select role...</option>
-                                        <option value="PROCESS_SERVER">Process Server</option>
-                                        <option value="LAW_ENFORCEMENT">Law Enforcement</option>
-                                    </select>
-                                    <input type="text" id="revokeAddress" class="form-control" placeholder="T...">
-                                    <button class="btn btn-danger" onclick="admin.revokeRole()">Revoke</button>
+                                    <input type="text" id="exemptAddress" class="form-control" placeholder="T...">
+                                    <button class="btn btn-success btn-sm" onclick="admin.setFeeExempt(true)">Exempt</button>
+                                    <button class="btn btn-outline-danger btn-sm" onclick="admin.setFeeExempt(false)">Remove</button>
                                 </div>
+                                <small class="text-muted">Exempt address from service fee (still pays recipient funding)</small>
                             </div>
                         </div>
                     </div>
@@ -337,97 +338,132 @@ window.admin = {
             if (!window.wallet.isValidAddress(address)) {
                 throw new Error('Invalid address');
             }
-            
+
             if (!confirm(`Grant Process Server role to ${address}?`)) {
                 return;
             }
-            
-            window.app.showProcessing('Granting role...');
-            
-            const role = getConfig('contract.roles.PROCESS_SERVER_ROLE');
-            const result = await window.contract.grantRole(role, address);
-            
-            if (result.success) {
-                window.app.hideProcessing();
-                window.app.showSuccess('Role granted successfully');
-                document.getElementById('serverAddress').value = '';
-            }
-            
-        } catch (error) {
-            console.error('Failed to grant role:', error);
+
+            window.app.showProcessing('Granting server role...');
+
+            const tx = await window.contract.instance.setServer(address, true).send();
+
             window.app.hideProcessing();
-            window.app.showError('Failed to grant role: ' + error.message);
+            window.app.showSuccess('Server role granted');
+            document.getElementById('serverAddress').value = '';
+
+        } catch (error) {
+            console.error('Failed to grant server role:', error);
+            window.app.hideProcessing();
+            window.app.showError('Failed: ' + error.message);
         }
     },
-    
-    // Grant law enforcement role
-    async grantLawRole() {
+
+    // Revoke process server role
+    async revokeServerRole() {
         try {
-            const address = document.getElementById('lawAddress').value;
+            const address = document.getElementById('serverAddress').value;
             if (!window.wallet.isValidAddress(address)) {
                 throw new Error('Invalid address');
             }
-            
-            if (!confirm(`Grant Law Enforcement role to ${address}?`)) {
+
+            if (!confirm(`Revoke Process Server role from ${address}?`)) {
                 return;
             }
-            
-            window.app.showProcessing('Granting role...');
-            
-            const role = getConfig('contract.roles.LAW_ENFORCEMENT_ROLE');
-            const result = await window.contract.grantRole(role, address);
-            
-            if (result.success) {
-                window.app.hideProcessing();
-                window.app.showSuccess('Role granted successfully');
-                document.getElementById('lawAddress').value = '';
-            }
-            
-        } catch (error) {
-            console.error('Failed to grant role:', error);
+
+            window.app.showProcessing('Revoking server role...');
+
+            const tx = await window.contract.instance.setServer(address, false).send();
+
             window.app.hideProcessing();
-            window.app.showError('Failed to grant role: ' + error.message);
+            window.app.showSuccess('Server role revoked');
+            document.getElementById('serverAddress').value = '';
+
+        } catch (error) {
+            console.error('Failed to revoke server role:', error);
+            window.app.hideProcessing();
+            window.app.showError('Failed: ' + error.message);
         }
     },
-    
-    // Revoke role
-    async revokeRole() {
+
+    // Grant admin role
+    async grantAdminRole() {
         try {
-            const roleType = document.getElementById('roleToRevoke').value;
-            const address = document.getElementById('revokeAddress').value;
-            
-            if (!roleType) {
-                throw new Error('Please select a role');
-            }
-            
+            const address = document.getElementById('adminAddress').value;
             if (!window.wallet.isValidAddress(address)) {
                 throw new Error('Invalid address');
             }
-            
-            if (!confirm(`Revoke ${roleType} role from ${address}?`)) {
+
+            if (!confirm(`Grant Admin role to ${address}? This gives full control over fees and roles.`)) {
                 return;
             }
-            
-            window.app.showProcessing('Revoking role...');
-            
-            const roles = getConfig('contract.roles');
-            const role = roleType === 'PROCESS_SERVER' 
-                ? roles.PROCESS_SERVER_ROLE 
-                : roles.LAW_ENFORCEMENT_ROLE;
-            
-            const result = await window.contract.revokeRole(role, address);
-            
-            if (result.success) {
-                window.app.hideProcessing();
-                window.app.showSuccess('Role revoked successfully');
-                document.getElementById('roleToRevoke').value = '';
-                document.getElementById('revokeAddress').value = '';
-            }
-            
-        } catch (error) {
-            console.error('Failed to revoke role:', error);
+
+            window.app.showProcessing('Granting admin role...');
+
+            const tx = await window.contract.instance.setAdmin(address, true).send();
+
             window.app.hideProcessing();
-            window.app.showError('Failed to revoke role: ' + error.message);
+            window.app.showSuccess('Admin role granted');
+            document.getElementById('adminAddress').value = '';
+
+        } catch (error) {
+            console.error('Failed to grant admin role:', error);
+            window.app.hideProcessing();
+            window.app.showError('Failed: ' + error.message);
+        }
+    },
+
+    // Revoke admin role
+    async revokeAdminRole() {
+        try {
+            const address = document.getElementById('adminAddress').value;
+            if (!window.wallet.isValidAddress(address)) {
+                throw new Error('Invalid address');
+            }
+
+            if (!confirm(`Revoke Admin role from ${address}?`)) {
+                return;
+            }
+
+            window.app.showProcessing('Revoking admin role...');
+
+            const tx = await window.contract.instance.setAdmin(address, false).send();
+
+            window.app.hideProcessing();
+            window.app.showSuccess('Admin role revoked');
+            document.getElementById('adminAddress').value = '';
+
+        } catch (error) {
+            console.error('Failed to revoke admin role:', error);
+            window.app.hideProcessing();
+            window.app.showError('Failed: ' + error.message);
+        }
+    },
+
+    // Set fee exemption
+    async setFeeExempt(exempt) {
+        try {
+            const address = document.getElementById('exemptAddress').value;
+            if (!window.wallet.isValidAddress(address)) {
+                throw new Error('Invalid address');
+            }
+
+            const action = exempt ? 'exempt from fees' : 'remove fee exemption for';
+            if (!confirm(`${exempt ? 'Exempt' : 'Remove exemption for'} ${address}?`)) {
+                return;
+            }
+
+            window.app.showProcessing(exempt ? 'Setting fee exemption...' : 'Removing fee exemption...');
+
+            const tx = await window.contract.instance.setFeeExempt(address, exempt).send();
+
+            window.app.hideProcessing();
+            window.app.showSuccess(exempt ? 'Address is now fee exempt' : 'Fee exemption removed');
+            document.getElementById('exemptAddress').value = '';
+
+        } catch (error) {
+            console.error('Failed to set fee exemption:', error);
+            window.app.hideProcessing();
+            window.app.showError('Failed: ' + error.message);
         }
     },
     
