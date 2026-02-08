@@ -89,58 +89,80 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
         console.log(`Transaction Hash: ${transactionHash}`);
         console.log(`Alert Token ID: ${alertTokenId}`);
 
-        // STEP 1: Always use UPSERT to handle both existing and new cases
-        // This ensures the case is ALWAYS marked as served, regardless of prior state
-        const upsertResult = await client.query(`
-            INSERT INTO cases (
-                id,
-                server_address,
-                status,
-                chain,
-                created_at,
-                updated_at,
-                served_at,
-                metadata
-            ) VALUES ($1, $2, 'served', $3, NOW(), NOW(), NOW(), $4)
-            ON CONFLICT (id) DO UPDATE SET
-                status = 'served',
-                served_at = COALESCE(cases.served_at, NOW()),
-                updated_at = NOW(),
-                metadata = COALESCE(cases.metadata, '{}'::jsonb) || $4::jsonb
-            RETURNING id, status
-        `, [
-            caseNumber,
-            serverAddress || req.headers['x-server-address'],
-            chain || 'tron-mainnet',
-            JSON.stringify({
-                agency,
-                noticeType,
-                pageCount,
-                recipients: normalizedRecipients,
-                transactionHash,
-                alertTokenId,
-                documentTokenId,
-                ipfsHash,
-                encryptionKey,
-                servedAt: servedAt || new Date().toISOString(),
-                ...metadata
-            })
-        ]);
+        const metadataJson = JSON.stringify({
+            agency,
+            noticeType,
+            pageCount,
+            recipients: normalizedRecipients,
+            transactionHash,
+            alertTokenId,
+            documentTokenId,
+            ipfsHash,
+            encryptionKey,
+            servedAt: servedAt || new Date().toISOString(),
+            ...metadata
+        });
 
-        const caseId = upsertResult.rows[0].id;
-        const caseStatus = upsertResult.rows[0].status;
-        console.log(`✅ Cases table updated: id=${caseId}, status=${caseStatus}`);
-
-        // Verify the update actually worked
-        const verifyResult = await client.query(
+        // STEP 1: Update or insert case - use explicit check to avoid ON CONFLICT issues
+        // Some databases may not have proper constraints on the id column
+        const existingCase = await client.query(
             'SELECT id, status FROM cases WHERE id = $1',
             [caseNumber]
         );
-        if (verifyResult.rows.length > 0) {
-            console.log(`✅ Verified: Case ${caseNumber} status is now: ${verifyResult.rows[0].status}`);
+
+        let caseId, caseStatus;
+
+        if (existingCase.rows.length > 0) {
+            // Case exists - UPDATE it
+            console.log(`Case ${caseNumber} exists, updating to served...`);
+            const updateResult = await client.query(`
+                UPDATE cases SET
+                    status = 'served',
+                    served_at = COALESCE(served_at, NOW()),
+                    updated_at = NOW(),
+                    tx_hash = $2,
+                    alert_nft_id = $3,
+                    metadata = COALESCE(metadata, '{}'::jsonb) || $4::jsonb
+                WHERE id = $1
+                RETURNING id, status
+            `, [
+                caseNumber,
+                transactionHash,
+                alertTokenId,
+                metadataJson
+            ]);
+            caseId = updateResult.rows[0].id;
+            caseStatus = updateResult.rows[0].status;
         } else {
-            console.error(`❌ ERROR: Case ${caseNumber} not found after upsert!`);
+            // Case doesn't exist - INSERT it
+            console.log(`Case ${caseNumber} doesn't exist, creating...`);
+            const insertResult = await client.query(`
+                INSERT INTO cases (
+                    id,
+                    server_address,
+                    status,
+                    chain,
+                    tx_hash,
+                    alert_nft_id,
+                    created_at,
+                    updated_at,
+                    served_at,
+                    metadata
+                ) VALUES ($1, $2, 'served', $3, $4, $5, NOW(), NOW(), NOW(), $6)
+                RETURNING id, status
+            `, [
+                caseNumber,
+                serverAddress || req.headers['x-server-address'],
+                chain || 'tron-mainnet',
+                transactionHash,
+                alertTokenId,
+                metadataJson
+            ]);
+            caseId = insertResult.rows[0].id;
+            caseStatus = insertResult.rows[0].status;
         }
+
+        console.log(`✅ Cases table updated: id=${caseId}, status=${caseStatus}`);
 
         // Store alert image if provided
         if (alertImage) {
@@ -1572,6 +1594,73 @@ router.get('/diagnose-service-complete', async (req, res) => {
         });
     } finally {
         client.release();
+    }
+});
+
+/**
+ * GET /api/cases/check-constraints
+ * Diagnostic endpoint to check table constraints
+ */
+router.get('/cases/check-constraints', async (req, res) => {
+    try {
+        const results = {};
+
+        // Check constraints on cases table
+        const casesConstraints = await pool.query(`
+            SELECT constraint_name, constraint_type
+            FROM information_schema.table_constraints
+            WHERE table_name = 'cases'
+        `);
+        results.cases_constraints = casesConstraints.rows;
+
+        // Check constraints on case_service_records table
+        const csrConstraints = await pool.query(`
+            SELECT constraint_name, constraint_type
+            FROM information_schema.table_constraints
+            WHERE table_name = 'case_service_records'
+        `);
+        results.case_service_records_constraints = csrConstraints.rows;
+
+        // Check indexes on both tables
+        const casesIndexes = await pool.query(`
+            SELECT indexname, indexdef
+            FROM pg_indexes
+            WHERE tablename = 'cases'
+        `);
+        results.cases_indexes = casesIndexes.rows;
+
+        const csrIndexes = await pool.query(`
+            SELECT indexname, indexdef
+            FROM pg_indexes
+            WHERE tablename = 'case_service_records'
+        `);
+        results.case_service_records_indexes = csrIndexes.rows;
+
+        // Check if id has a primary key in cases
+        const hasPK = casesConstraints.rows.some(c => c.constraint_type === 'PRIMARY KEY');
+        results.cases_has_primary_key = hasPK;
+
+        // Check if case_number has unique constraint in case_service_records
+        const hasUnique = csrConstraints.rows.some(c =>
+            c.constraint_type === 'UNIQUE' || c.constraint_name.includes('case_number')
+        ) || csrIndexes.rows.some(i => i.indexdef?.includes('UNIQUE') && i.indexdef?.includes('case_number'));
+        results.csr_has_unique_case_number = hasUnique;
+
+        res.json({
+            success: true,
+            results,
+            recommendations: [
+                !hasPK ? 'CRITICAL: cases table has no PRIMARY KEY on id - ON CONFLICT will fail' : null,
+                !hasUnique ? 'WARNING: case_service_records may not have unique constraint on case_number' : null
+            ].filter(Boolean)
+        });
+
+    } catch (error) {
+        console.error('Check constraints error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
     }
 });
 
