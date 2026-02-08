@@ -69,18 +69,6 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
         console.log('Chain:', chain || 'tron-nile');
         console.log('Has Alert Image:', !!alertImage);
 
-        // Ensure we start with a clean transaction state
-        // (in case the previous request left the connection in a bad state)
-        try {
-            await client.query('ROLLBACK');
-        } catch (e) {
-            // Ignore - no transaction to rollback
-        }
-
-        // Start fresh transaction
-        await client.query('BEGIN');
-        console.log('Transaction started successfully');
-
         console.log(`\n========== SERVICE-COMPLETE: ${caseNumber} ==========`);
         console.log(`Server Address: ${serverAddress}`);
         console.log(`Transaction Hash: ${transactionHash}`);
@@ -100,63 +88,98 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
             ...metadata
         });
 
+        // Ensure we start with a clean transaction state
+        try {
+            await client.query('ROLLBACK');
+            console.log('ROLLBACK executed (cleanup)');
+        } catch (e) {
+            console.log('No transaction to rollback:', e.message);
+        }
+
+        // Start fresh transaction
+        try {
+            await client.query('BEGIN');
+            console.log('BEGIN executed successfully');
+        } catch (beginError) {
+            console.error('BEGIN failed:', beginError.message);
+            throw beginError;
+        }
+
         // STEP 1: Update or insert case - use explicit check to avoid ON CONFLICT issues
-        // Some databases may not have proper constraints on the id column
-        const existingCase = await client.query(
-            'SELECT id, status FROM cases WHERE id = $1',
-            [caseNumber]
-        );
+        let existingCase;
+        try {
+            console.log('Executing SELECT to check if case exists...');
+            existingCase = await client.query(
+                'SELECT id, status FROM cases WHERE id = $1',
+                [caseNumber]
+            );
+            console.log(`SELECT completed: found ${existingCase.rows.length} rows`);
+        } catch (selectError) {
+            console.error('SELECT failed:', selectError.message);
+            console.error('SELECT error code:', selectError.code);
+            console.error('SELECT error detail:', selectError.detail);
+            throw selectError;
+        }
 
         let caseId, caseStatus;
 
-        if (existingCase.rows.length > 0) {
-            // Case exists - UPDATE it
-            console.log(`Case ${caseNumber} exists, updating to served...`);
-            const updateResult = await client.query(`
-                UPDATE cases SET
-                    status = 'served',
-                    served_at = COALESCE(served_at, NOW()),
-                    updated_at = NOW(),
-                    tx_hash = $2,
-                    alert_nft_id = $3,
-                    metadata = COALESCE(metadata, '{}'::jsonb) || $4::jsonb
-                WHERE id = $1
-                RETURNING id, status
-            `, [
-                caseNumber,
-                transactionHash,
-                alertTokenId,
-                metadataJson
-            ]);
-            caseId = updateResult.rows[0].id;
-            caseStatus = updateResult.rows[0].status;
-        } else {
-            // Case doesn't exist - INSERT it
-            console.log(`Case ${caseNumber} doesn't exist, creating...`);
-            const insertResult = await client.query(`
-                INSERT INTO cases (
-                    id,
-                    server_address,
-                    status,
-                    chain,
-                    tx_hash,
-                    alert_nft_id,
-                    created_at,
-                    updated_at,
-                    served_at,
-                    metadata
-                ) VALUES ($1, $2, 'served', $3, $4, $5, NOW(), NOW(), NOW(), $6)
-                RETURNING id, status
-            `, [
-                caseNumber,
-                serverAddress || req.headers['x-server-address'],
-                chain || 'tron-mainnet',
-                transactionHash,
-                alertTokenId,
-                metadataJson
-            ]);
-            caseId = insertResult.rows[0].id;
-            caseStatus = insertResult.rows[0].status;
+        try {
+            if (existingCase.rows.length > 0) {
+                // Case exists - UPDATE it
+                console.log(`Case ${caseNumber} exists, updating to served...`);
+                const updateResult = await client.query(`
+                    UPDATE cases SET
+                        status = 'served',
+                        served_at = COALESCE(served_at, NOW()),
+                        updated_at = NOW(),
+                        tx_hash = $2,
+                        alert_nft_id = $3,
+                        metadata = COALESCE(metadata, '{}'::jsonb) || $4::jsonb
+                    WHERE id = $1
+                    RETURNING id, status
+                `, [
+                    caseNumber,
+                    transactionHash,
+                    alertTokenId,
+                    metadataJson
+                ]);
+                console.log('UPDATE completed successfully');
+                caseId = updateResult.rows[0].id;
+                caseStatus = updateResult.rows[0].status;
+            } else {
+                // Case doesn't exist - INSERT it
+                console.log(`Case ${caseNumber} doesn't exist, creating...`);
+                const insertResult = await client.query(`
+                    INSERT INTO cases (
+                        id,
+                        server_address,
+                        status,
+                        chain,
+                        tx_hash,
+                        alert_nft_id,
+                        created_at,
+                        updated_at,
+                        served_at,
+                        metadata
+                    ) VALUES ($1, $2, 'served', $3, $4, $5, NOW(), NOW(), NOW(), $6)
+                    RETURNING id, status
+                `, [
+                    caseNumber,
+                    serverAddress || req.headers['x-server-address'],
+                    chain || 'tron-mainnet',
+                    transactionHash,
+                    alertTokenId,
+                    metadataJson
+                ]);
+                console.log('INSERT completed successfully');
+                caseId = insertResult.rows[0].id;
+                caseStatus = insertResult.rows[0].status;
+            }
+        } catch (upsertError) {
+            console.error('UPDATE/INSERT failed:', upsertError.message);
+            console.error('Error code:', upsertError.code);
+            console.error('Error detail:', upsertError.detail);
+            throw upsertError;
         }
 
         console.log(`✅ Cases table updated: id=${caseId}, status=${caseStatus}`);
