@@ -32,6 +32,62 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
+/**
+ * Format timestamp with both UTC and local time based on timezone
+ * @param {Date} timestamp - The timestamp to format
+ * @param {string} recipientTimezone - The recipient's timezone (e.g., 'America/New_York')
+ * @returns {object} - Object with utc, local, and timezone info
+ */
+function formatTimestampWithTimezone(timestamp, recipientTimezone = null) {
+    if (!timestamp) return null;
+
+    const date = new Date(timestamp);
+
+    const result = {
+        utc: date.toISOString(),
+        utc_formatted: date.toUTCString(),
+        unix_timestamp: Math.floor(date.getTime() / 1000)
+    };
+
+    // Add recipient local time if timezone is available
+    if (recipientTimezone) {
+        try {
+            result.recipient_local = date.toLocaleString('en-US', {
+                timeZone: recipientTimezone,
+                dateStyle: 'full',
+                timeStyle: 'long'
+            });
+            result.recipient_timezone = recipientTimezone;
+        } catch (e) {
+            // Invalid timezone, skip
+        }
+    }
+
+    // Add server local time (default server timezone)
+    result.server_local = date.toLocaleString('en-US', {
+        dateStyle: 'full',
+        timeStyle: 'long'
+    });
+
+    return result;
+}
+
+/**
+ * Enhance activity records with formatted timestamps
+ * @param {Array} records - Array of database records
+ * @param {string} timestampField - The field containing the timestamp
+ * @returns {Array} - Enhanced records with formatted timestamps
+ */
+function enhanceRecordsWithTimestamps(records, timestampField) {
+    return records.map(record => {
+        const timezone = record.recipient_timezone || record.timezone || null;
+        return {
+            ...record,
+            timestamps: formatTimestampWithTimezone(record[timestampField], timezone)
+        };
+    });
+}
+
 // Create logging tables on startup
 async function initializeLoggingTables() {
     try {
@@ -41,12 +97,25 @@ async function initializeLoggingTables() {
                 id SERIAL PRIMARY KEY,
                 wallet_address VARCHAR(255) NOT NULL,
                 connected_at TIMESTAMP DEFAULT NOW(),
+                connected_at_utc TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'UTC'),
                 ip_address VARCHAR(45),
                 user_agent TEXT,
                 session_id VARCHAR(255),
-                browser_info JSONB
+                browser_info JSONB,
+                recipient_timezone VARCHAR(100)
             )
         `);
+
+        // Add columns if they don't exist (migration for existing tables)
+        await pool.query(`
+            ALTER TABLE recipient_connections
+            ADD COLUMN IF NOT EXISTS connected_at_utc TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'UTC')
+        `).catch(() => {});
+
+        await pool.query(`
+            ALTER TABLE recipient_connections
+            ADD COLUMN IF NOT EXISTS recipient_timezone VARCHAR(100)
+        `).catch(() => {});
         
         // Table for notice views
         await pool.query(`
@@ -55,13 +124,26 @@ async function initializeLoggingTables() {
                 case_number VARCHAR(255) NOT NULL,
                 wallet_address VARCHAR(255) NOT NULL,
                 viewed_at TIMESTAMP DEFAULT NOW(),
+                viewed_at_utc TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'UTC'),
                 view_duration_seconds INTEGER,
                 ip_address VARCHAR(45),
                 user_agent TEXT,
                 action_type VARCHAR(50), -- 'list_view', 'detail_view', 'document_open'
-                session_id VARCHAR(255)
+                session_id VARCHAR(255),
+                recipient_timezone VARCHAR(100)
             )
         `);
+
+        // Add recipient_timezone column if it doesn't exist (migration for existing tables)
+        await pool.query(`
+            ALTER TABLE recipient_notice_views
+            ADD COLUMN IF NOT EXISTS recipient_timezone VARCHAR(100)
+        `).catch(() => {});
+
+        await pool.query(`
+            ALTER TABLE recipient_notice_views
+            ADD COLUMN IF NOT EXISTS viewed_at_utc TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'UTC')
+        `).catch(() => {});
         
         // Table for document downloads/prints
         await pool.query(`
@@ -71,12 +153,25 @@ async function initializeLoggingTables() {
                 wallet_address VARCHAR(255) NOT NULL,
                 action_type VARCHAR(50) NOT NULL, -- 'download', 'print', 'email'
                 action_at TIMESTAMP DEFAULT NOW(),
+                action_at_utc TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'UTC'),
                 ip_address VARCHAR(45),
                 user_agent TEXT,
                 success BOOLEAN DEFAULT true,
-                metadata JSONB
+                metadata JSONB,
+                recipient_timezone VARCHAR(100)
             )
         `);
+
+        // Add recipient_timezone column if it doesn't exist (migration for existing tables)
+        await pool.query(`
+            ALTER TABLE recipient_document_actions
+            ADD COLUMN IF NOT EXISTS recipient_timezone VARCHAR(100)
+        `).catch(() => {});
+
+        await pool.query(`
+            ALTER TABLE recipient_document_actions
+            ADD COLUMN IF NOT EXISTS action_at_utc TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'UTC')
+        `).catch(() => {});
         
         // Enhanced acknowledgments table with more details
         await pool.query(`
@@ -86,14 +181,27 @@ async function initializeLoggingTables() {
                 wallet_address VARCHAR(255) NOT NULL,
                 signature TEXT,
                 acknowledged_at TIMESTAMP DEFAULT NOW(),
+                acknowledged_at_utc TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'UTC'),
                 ip_address VARCHAR(45),
                 user_agent TEXT,
                 geolocation JSONB,
                 device_info JSONB,
                 legally_binding BOOLEAN DEFAULT true,
+                recipient_timezone VARCHAR(100),
                 UNIQUE(case_number, wallet_address)
             )
         `);
+
+        // Add columns if they don't exist (migration for existing tables)
+        await pool.query(`
+            ALTER TABLE recipient_acknowledgments
+            ADD COLUMN IF NOT EXISTS acknowledged_at_utc TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'UTC')
+        `).catch(() => {});
+
+        await pool.query(`
+            ALTER TABLE recipient_acknowledgments
+            ADD COLUMN IF NOT EXISTS recipient_timezone VARCHAR(100)
+        `).catch(() => {});
 
         // Signature events table - tracks all signature-related actions
         await pool.query(`
@@ -103,6 +211,7 @@ async function initializeLoggingTables() {
                 wallet_address VARCHAR(255) NOT NULL,
                 event_type VARCHAR(50) NOT NULL,
                 event_at TIMESTAMP DEFAULT NOW(),
+                event_at_utc TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'UTC'),
                 ip_address VARCHAR(45),
                 user_agent TEXT,
                 timezone VARCHAR(100),
@@ -110,6 +219,12 @@ async function initializeLoggingTables() {
                 details JSONB
             )
         `);
+
+        // Add UTC timestamp column if it doesn't exist (migration for existing tables)
+        await pool.query(`
+            ALTER TABLE recipient_signature_events
+            ADD COLUMN IF NOT EXISTS event_at_utc TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'UTC')
+        `).catch(() => {});
 
         console.log('✅ Logging tables initialized');
     } catch (error) {
@@ -126,7 +241,8 @@ initializeLoggingTables();
  */
 router.post('/connection', async (req, res) => {
     try {
-        const { wallet_address, session_id, browser_info } = req.body;
+        const { wallet_address, session_id, browser_info, timezone } = req.body;
+        const clientTimezone = timezone || req.headers['x-timezone'] || browser_info?.timezone || null;
         
         // Get IP address - use clientIp set by middleware (includes Cloudflare headers)
         const ipAddress = req.clientIp || req.ip || 'unknown';
@@ -178,15 +294,18 @@ router.post('/connection', async (req, res) => {
                 ip_address,
                 user_agent,
                 session_id,
-                browser_info
-            ) VALUES ($1, $2, $3, $4, $5)
-            RETURNING id, connected_at
+                browser_info,
+                recipient_timezone,
+                connected_at_utc
+            ) VALUES ($1, $2, $3, $4, $5, $6, NOW() AT TIME ZONE 'UTC')
+            RETURNING id, connected_at, connected_at_utc
         `, [
             wallet_address,
             cleanIp,
             req.headers['user-agent'],
             session_id,
-            enhancedBrowserInfo
+            enhancedBrowserInfo,
+            clientTimezone
         ]);
         
         console.log(`Wallet connected: ${wallet_address} from ${cleanIp} (${ipGeolocation?.city || 'Unknown'}, ${ipGeolocation?.country || 'Unknown'}) at ${result.rows[0].connected_at}`);
@@ -208,14 +327,17 @@ router.post('/connection', async (req, res) => {
  */
 router.post('/notice-view', async (req, res) => {
     try {
-        const { 
-            case_number, 
-            wallet_address, 
-            action_type, 
+        const {
+            case_number,
+            wallet_address,
+            action_type,
             session_id,
-            view_duration_seconds 
+            view_duration_seconds,
+            timezone
         } = req.body;
-        
+
+        const clientTimezone = timezone || req.clientTimezone || req.headers['x-timezone'] || null;
+
         await pool.query(`
             INSERT INTO recipient_notice_views (
                 case_number,
@@ -224,8 +346,10 @@ router.post('/notice-view', async (req, res) => {
                 view_duration_seconds,
                 ip_address,
                 user_agent,
-                session_id
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+                session_id,
+                recipient_timezone,
+                viewed_at_utc
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW() AT TIME ZONE 'UTC')
         `, [
             case_number,
             wallet_address,
@@ -233,7 +357,8 @@ router.post('/notice-view', async (req, res) => {
             view_duration_seconds,
             req.clientIp || req.ip,
             req.headers['user-agent'],
-            session_id
+            session_id,
+            clientTimezone
         ]);
         
         console.log(`Notice viewed: ${case_number} by ${wallet_address} (${action_type})`);
@@ -251,13 +376,16 @@ router.post('/notice-view', async (req, res) => {
  */
 router.post('/document-action', async (req, res) => {
     try {
-        const { 
-            case_number, 
-            wallet_address, 
+        const {
+            case_number,
+            wallet_address,
             action_type,
-            metadata 
+            timezone,
+            metadata
         } = req.body;
-        
+
+        const clientTimezone = timezone || req.clientTimezone || req.headers['x-timezone'] || null;
+
         await pool.query(`
             INSERT INTO recipient_document_actions (
                 case_number,
@@ -265,15 +393,18 @@ router.post('/document-action', async (req, res) => {
                 action_type,
                 ip_address,
                 user_agent,
-                metadata
-            ) VALUES ($1, $2, $3, $4, $5, $6)
+                recipient_timezone,
+                metadata,
+                action_at_utc
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW() AT TIME ZONE 'UTC')
         `, [
             case_number,
             wallet_address,
             action_type,
             req.clientIp || req.ip,
             req.headers['user-agent'],
-            metadata
+            clientTimezone,
+            metadata ? JSON.stringify(metadata) : null
         ]);
         
         console.log(`Document action: ${action_type} for ${case_number} by ${wallet_address}`);
@@ -291,14 +422,17 @@ router.post('/document-action', async (req, res) => {
  */
 router.post('/acknowledgment', async (req, res) => {
     try {
-        const { 
-            case_number, 
-            wallet_address, 
+        const {
+            case_number,
+            wallet_address,
             signature,
             geolocation,
-            device_info 
+            device_info,
+            timezone
         } = req.body;
-        
+
+        const clientTimezone = timezone || req.headers['x-timezone'] || null;
+
         const result = await pool.query(`
             INSERT INTO recipient_acknowledgments (
                 case_number,
@@ -307,13 +441,17 @@ router.post('/acknowledgment', async (req, res) => {
                 ip_address,
                 user_agent,
                 geolocation,
-                device_info
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-            ON CONFLICT (case_number, wallet_address) 
-            DO UPDATE SET 
+                device_info,
+                recipient_timezone,
+                acknowledged_at_utc
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW() AT TIME ZONE 'UTC')
+            ON CONFLICT (case_number, wallet_address)
+            DO UPDATE SET
                 signature = EXCLUDED.signature,
-                acknowledged_at = NOW()
-            RETURNING acknowledged_at
+                acknowledged_at = NOW(),
+                acknowledged_at_utc = NOW() AT TIME ZONE 'UTC',
+                recipient_timezone = EXCLUDED.recipient_timezone
+            RETURNING acknowledged_at, acknowledged_at_utc
         `, [
             case_number,
             wallet_address,
@@ -321,7 +459,8 @@ router.post('/acknowledgment', async (req, res) => {
             req.clientIp || req.ip,
             req.headers['user-agent'],
             geolocation,
-            device_info
+            device_info,
+            clientTimezone
         ]);
         
         // Also update case_service_records to 'signed' status
@@ -383,9 +522,10 @@ router.post('/signature-event', async (req, res) => {
                 user_agent,
                 timezone,
                 session_id,
-                details
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            RETURNING id, event_at
+                details,
+                event_at_utc
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW() AT TIME ZONE 'UTC')
+            RETURNING id, event_at, event_at_utc
         `, [
             case_number,
             wallet_address,
@@ -487,15 +627,22 @@ router.get('/activity/:wallet', async (req, res) => {
             ORDER BY event_at DESC
         `, [wallet]);
 
+        // Enhance records with formatted timestamps
+        const enhancedConnections = enhanceRecordsWithTimestamps(connections.rows, 'connected_at');
+        const enhancedViews = enhanceRecordsWithTimestamps(views.rows, 'viewed_at');
+        const enhancedActions = enhanceRecordsWithTimestamps(actions.rows, 'action_at');
+        const enhancedAcknowledgments = enhanceRecordsWithTimestamps(acknowledgments.rows, 'acknowledged_at');
+        const enhancedSignatureEvents = enhanceRecordsWithTimestamps(signatureEvents.rows, 'event_at');
+
         res.json({
             success: true,
             wallet_address: wallet,
             activity: {
-                connections: connections.rows,
-                notice_views: views.rows,
-                document_actions: actions.rows,
-                acknowledgments: acknowledgments.rows,
-                signature_events: signatureEvents.rows,
+                connections: enhancedConnections,
+                notice_views: enhancedViews,
+                document_actions: enhancedActions,
+                acknowledgments: enhancedAcknowledgments,
+                signature_events: enhancedSignatureEvents,
                 summary: {
                     total_connections: connections.rows.length,
                     total_views: views.rows.length,
@@ -549,14 +696,20 @@ router.get('/case-activity/:caseNumber', async (req, res) => {
             ORDER BY event_at DESC
         `, [caseNumber]);
 
+        // Enhance records with formatted timestamps
+        const enhancedViews = enhanceRecordsWithTimestamps(views.rows, 'viewed_at');
+        const enhancedActions = enhanceRecordsWithTimestamps(actions.rows, 'action_at');
+        const enhancedAcknowledgments = enhanceRecordsWithTimestamps(acknowledgments.rows, 'acknowledged_at');
+        const enhancedSignatureEvents = enhanceRecordsWithTimestamps(signatureEvents.rows, 'event_at');
+
         res.json({
             success: true,
             case_number: caseNumber,
             activity: {
-                views: views.rows,
-                document_actions: actions.rows,
-                acknowledgments: acknowledgments.rows,
-                signature_events: signatureEvents.rows,
+                views: enhancedViews,
+                document_actions: enhancedActions,
+                acknowledgments: enhancedAcknowledgments,
+                signature_events: enhancedSignatureEvents,
                 summary: {
                     total_views: views.rows.length,
                     unique_viewers: [...new Set(views.rows.map(v => v.wallet_address))].length,

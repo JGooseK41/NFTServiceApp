@@ -1020,6 +1020,15 @@
             }
         }
 
+        // Helper for API calls with common headers (includes timezone)
+        function getApiHeaders(additionalHeaders = {}) {
+            return {
+                'Content-Type': 'application/json',
+                'X-Timezone': getUserTimezone() || '',
+                ...additionalHeaders
+            };
+        }
+
         // State
         let tronWeb = null;
         let currentWallet = null;
@@ -1377,11 +1386,12 @@
                 
                 await fetch(`${BACKEND_URL}/api/recipient-logs/connection`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getApiHeaders(),
                     body: JSON.stringify({
                         wallet_address: walletAddress,
                         session_id: sessionId,
-                        browser_info: browserInfo
+                        browser_info: browserInfo,
+                        timezone: getUserTimezone()
                     })
                 });
                 console.log('Wallet connection logged');
@@ -1611,13 +1621,14 @@
                 
                 await fetch(`${BACKEND_URL}/api/recipient-logs/notice-view`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getApiHeaders(),
                     body: JSON.stringify({
                         case_number: caseNumber,
                         wallet_address: currentWallet,
                         action_type: actionType,
                         session_id: sessionId,
-                        view_duration_seconds: viewDuration
+                        view_duration_seconds: viewDuration,
+                        timezone: getUserTimezone()
                     })
                 });
                 console.log(`Notice view logged: ${caseNumber} - ${actionType}`);
@@ -1945,24 +1956,26 @@
                 // Send enhanced acknowledgment to logging endpoint
                 const logResponse = await fetch(`${BACKEND_URL}/api/recipient-logs/acknowledgment`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getApiHeaders(),
                     body: JSON.stringify({
                         case_number: notice.case_number,
                         wallet_address: currentWallet,
                         signature: signature,
                         geolocation: geolocation,
-                        device_info: deviceInfo
+                        device_info: deviceInfo,
+                        timezone: getUserTimezone()
                     })
                 });
-                
+
                 // Also send to original endpoint for backward compatibility
                 const response = await fetch(`${BACKEND_URL}/api/recipient-cases/${notice.case_number}/acknowledge`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getApiHeaders(),
                     body: JSON.stringify({
                         signature: signature,
                         wallet: currentWallet,
-                        timestamp: new Date().toISOString()
+                        timestamp: new Date().toISOString(),
+                        timezone: getUserTimezone()
                     })
                 });
                 
@@ -2236,14 +2249,16 @@
             try {
                 await fetch(`${BACKEND_URL}/api/recipient-logs/document-action`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getApiHeaders(),
                     body: JSON.stringify({
                         case_number: caseNumber,
                         wallet_address: currentWallet,
                         action_type: actionType,
+                        timezone: getUserTimezone(),
                         metadata: {
                             session_id: sessionId,
-                            timestamp: new Date().toISOString()
+                            timestamp: new Date().toISOString(),
+                            timezone: getUserTimezone()
                         }
                     })
                 });
@@ -2366,19 +2381,21 @@ Transaction Hash: ${currentNotice.transaction_hash}
             }
         }
         
-        // Log document action
+        // Log document action (duplicate definition - uses getApiHeaders for consistency)
         async function logDocumentAction(caseNumber, actionType) {
             try {
                 await fetch(`${BACKEND_URL}/api/recipient-logs/document-action`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getApiHeaders(),
                     body: JSON.stringify({
                         case_number: caseNumber,
                         wallet_address: currentWallet,
                         action_type: actionType,
+                        timezone: getUserTimezone(),
                         metadata: {
                             timestamp: new Date().toISOString(),
-                            sessionId: sessionId
+                            sessionId: sessionId,
+                            timezone: getUserTimezone()
                         }
                     })
                 });
