@@ -1253,6 +1253,47 @@ window.cases = {
         }
     },
 
+    // Parse user agent into readable browser/OS info
+    parseUserAgent(ua) {
+        if (!ua) return { browser: 'Unknown', os: 'Unknown', device: 'Unknown' };
+
+        let browser = 'Unknown', os = 'Unknown', device = 'Desktop';
+
+        // Detect OS
+        if (/Windows NT 10/.test(ua)) os = 'Windows 10/11';
+        else if (/Windows NT/.test(ua)) os = 'Windows';
+        else if (/Mac OS X/.test(ua)) os = 'macOS';
+        else if (/Android/.test(ua)) { os = 'Android'; device = 'Mobile'; }
+        else if (/iPhone|iPad/.test(ua)) { os = 'iOS'; device = /iPad/.test(ua) ? 'Tablet' : 'Mobile'; }
+        else if (/Linux/.test(ua)) os = 'Linux';
+
+        // Detect browser
+        if (/Edg\//.test(ua)) browser = 'Edge';
+        else if (/Chrome\//.test(ua) && !/Chromium/.test(ua)) browser = 'Chrome';
+        else if (/Firefox\//.test(ua)) browser = 'Firefox';
+        else if (/Safari\//.test(ua) && !/Chrome/.test(ua)) browser = 'Safari';
+        else if (/OPR\//.test(ua)) browser = 'Opera';
+
+        return { browser, os, device };
+    },
+
+    // Format forensic details for display
+    formatForensicDetails(event) {
+        const parts = [];
+        if (event.timezone) parts.push(`<i class="bi bi-clock"></i> ${event.timezone}`);
+        if (event.language) {
+            const lang = event.language.split(',')[0].split(';')[0].trim();
+            parts.push(`<i class="bi bi-translate"></i> ${lang}`);
+        }
+        if (event.details) {
+            const d = typeof event.details === 'string' ? JSON.parse(event.details) : event.details;
+            if (d.fingerprint) parts.push(`<i class="bi bi-fingerprint"></i> ${d.fingerprint.substring(0, 8)}...`);
+            if (d.screen_resolution) parts.push(`<i class="bi bi-display"></i> ${d.screen_resolution}`);
+            if (d.visitorId) parts.push(`<i class="bi bi-person-badge"></i> ${d.visitorId.substring(0, 8)}...`);
+        }
+        return parts.length > 0 ? parts.join(' &nbsp; ') : '';
+    },
+
     // Get formatted action badge with tooltip
     getActionBadge(action) {
         const explainer = this.actionExplainers[action] || {
@@ -1337,18 +1378,27 @@ window.cases = {
                                                             <th>Time</th>
                                                             <th>Action</th>
                                                             <th>IP Address</th>
-                                                            <th>Device</th>
+                                                            <th>Browser</th>
+                                                            <th>OS / Device</th>
+                                                            <th>Timezone</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        ${eventsByRecipient[addr].map(event => `
+                                                        ${eventsByRecipient[addr].map(event => {
+                                                            const ua = cases.parseUserAgent(event.userAgent);
+                                                            const forensic = cases.formatForensicDetails(event);
+                                                            return `
                                                             <tr>
-                                                                <td>${new Date(event.timestamp).toLocaleString()}</td>
+                                                                <td><small>${new Date(event.timestamp).toLocaleString()}</small></td>
                                                                 <td>${cases.getActionBadge(event.action)}</td>
-                                                                <td><small>${event.ipAddress || 'N/A'}</small></td>
-                                                                <td><small>${event.userAgent ? event.userAgent.substring(0, 50) + '...' : 'N/A'}</small></td>
+                                                                <td><small><code>${event.ipAddress || 'N/A'}</code></small></td>
+                                                                <td><small>${ua.browser}</small></td>
+                                                                <td><small>${ua.os} (${ua.device})</small></td>
+                                                                <td><small>${event.timezone || 'N/A'}</small></td>
                                                             </tr>
-                                                        `).join('')}
+                                                            ${forensic ? `<tr><td colspan="6" style="border-top: none; padding-top: 0;"><small class="text-muted">${forensic}</small></td></tr>` : ''}
+                                                            `;
+                                                        }).join('')}
                                                     </tbody>
                                                 </table>
                                                 ${eventCountByRecipient[addr] > eventsByRecipient[addr].length ?
