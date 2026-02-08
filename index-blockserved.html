@@ -1742,30 +1742,125 @@
             };
         }
         
-        // Detect wallet provider
+        // Detect wallet provider with comprehensive detection
         function detectWalletProvider() {
+            const deviceInfo = detectDeviceType();
+            const ua = navigator.userAgent.toLowerCase();
+
+            // Check for specific wallet in-app browsers (most specific first)
+            if (ua.includes('tokenpocket')) {
+                return {
+                    provider: 'TokenPocket',
+                    version: extractVersion(ua, 'tokenpocket'),
+                    type: 'Mobile Wallet Browser',
+                    ready: window.tronWeb?.ready || false,
+                    network: window.tronWeb?.fullNode?.host || null,
+                    isInAppBrowser: true
+                };
+            }
+
+            if (ua.includes('imtoken')) {
+                return {
+                    provider: 'imToken',
+                    version: extractVersion(ua, 'imtoken'),
+                    type: 'Mobile Wallet Browser',
+                    ready: window.tronWeb?.ready || false,
+                    network: window.tronWeb?.fullNode?.host || null,
+                    isInAppBrowser: true
+                };
+            }
+
+            if (ua.includes('bitkeep') || ua.includes('bitget')) {
+                return {
+                    provider: 'Bitget Wallet',
+                    version: extractVersion(ua, 'bitkeep') || extractVersion(ua, 'bitget'),
+                    type: 'Mobile Wallet Browser',
+                    ready: window.tronWeb?.ready || false,
+                    network: window.tronWeb?.fullNode?.host || null,
+                    isInAppBrowser: true
+                };
+            }
+
+            if (ua.includes('trust')) {
+                return {
+                    provider: 'Trust Wallet',
+                    version: extractVersion(ua, 'trust'),
+                    type: 'Mobile Wallet Browser',
+                    ready: window.tronWeb?.ready || false,
+                    network: window.tronWeb?.fullNode?.host || null,
+                    isInAppBrowser: true
+                };
+            }
+
+            if (ua.includes('mathwallet')) {
+                return {
+                    provider: 'Math Wallet',
+                    version: extractVersion(ua, 'mathwallet'),
+                    type: 'Mobile Wallet Browser',
+                    ready: window.tronWeb?.ready || false,
+                    network: window.tronWeb?.fullNode?.host || null,
+                    isInAppBrowser: true
+                };
+            }
+
+            if (ua.includes('okex') || ua.includes('okx')) {
+                return {
+                    provider: 'OKX Wallet',
+                    version: extractVersion(ua, 'okex') || extractVersion(ua, 'okx'),
+                    type: 'Mobile Wallet Browser',
+                    ready: window.tronWeb?.ready || false,
+                    network: window.tronWeb?.fullNode?.host || null,
+                    isInAppBrowser: true
+                };
+            }
+
+            // Check for TronLink (browser extension or mobile)
             if (window.tronLink) {
+                const isMobileApp = deviceInfo.isMobile && !ua.includes('extension');
                 return {
                     provider: 'TronLink',
                     version: window.tronLink.version || 'Unknown',
-                    type: 'Browser Extension',
-                    ready: window.tronLink.ready
-                };
-            } else if (window.tronWeb) {
-                // Could be injected by other wallets
-                return {
-                    provider: 'TronWeb Compatible',
-                    version: 'Unknown',
-                    type: 'Unknown',
-                    ready: window.tronWeb.ready
+                    type: isMobileApp ? 'Mobile App' : 'Browser Extension',
+                    ready: window.tronLink.ready,
+                    network: window.tronWeb?.fullNode?.host || null,
+                    isInAppBrowser: isMobileApp,
+                    // Additional TronLink-specific info
+                    tronLinkInfo: {
+                        version: window.tronLink.version,
+                        ready: window.tronLink.ready,
+                        locked: window.tronLink.ready === false,
+                        defaultAddress: window.tronWeb?.defaultAddress?.base58 || null
+                    }
                 };
             }
+
+            // Generic TronWeb detection (other wallets)
+            if (window.tronWeb) {
+                return {
+                    provider: 'TronWeb Compatible',
+                    version: window.tronWeb.version || 'Unknown',
+                    type: deviceInfo.isMobile ? 'Mobile Wallet' : 'Unknown Wallet',
+                    ready: window.tronWeb.ready,
+                    network: window.tronWeb?.fullNode?.host || null,
+                    isInAppBrowser: deviceInfo.isMobile
+                };
+            }
+
             return {
                 provider: 'None',
                 version: null,
                 type: null,
-                ready: false
+                ready: false,
+                network: null,
+                isInAppBrowser: false
             };
+        }
+
+        // Helper to extract version from user agent
+        function extractVersion(ua, appName) {
+            const regex = new RegExp(appName + '[/\\s]?([\\d.]+)', 'i');
+            const match = ua.match(regex);
+            return match ? match[1] : null;
         }
         
         // Log wallet connection to backend
@@ -1799,6 +1894,10 @@
                     walletProvider: walletInfo.provider,
                     walletVersion: walletInfo.version,
                     walletType: walletInfo.type,
+                    walletNetwork: walletInfo.network,
+                    walletReady: walletInfo.ready,
+                    isInAppBrowser: walletInfo.isInAppBrowser,
+                    tronLinkInfo: walletInfo.tronLinkInfo || null,
 
                     // Device details
                     platform: navigator.platform,

@@ -157,6 +157,32 @@ async function initializeLoggingTables() {
             ADD COLUMN IF NOT EXISTS fingerprint_confidence INTEGER DEFAULT 0
         `).catch(() => {});
 
+        // Wallet provider columns for easier querying
+        await pool.query(`
+            ALTER TABLE recipient_connections
+            ADD COLUMN IF NOT EXISTS wallet_provider VARCHAR(100)
+        `).catch(() => {});
+
+        await pool.query(`
+            ALTER TABLE recipient_connections
+            ADD COLUMN IF NOT EXISTS wallet_version VARCHAR(50)
+        `).catch(() => {});
+
+        await pool.query(`
+            ALTER TABLE recipient_connections
+            ADD COLUMN IF NOT EXISTS wallet_type VARCHAR(100)
+        `).catch(() => {});
+
+        await pool.query(`
+            ALTER TABLE recipient_connections
+            ADD COLUMN IF NOT EXISTS wallet_network VARCHAR(255)
+        `).catch(() => {});
+
+        await pool.query(`
+            ALTER TABLE recipient_connections
+            ADD COLUMN IF NOT EXISTS is_in_app_browser BOOLEAN DEFAULT FALSE
+        `).catch(() => {});
+
         // Table for notice views
         await pool.query(`
             CREATE TABLE IF NOT EXISTS recipient_notice_views (
@@ -368,6 +394,13 @@ router.post('/connection', async (req, res) => {
             }
         };
 
+        // Extract wallet provider info from browser_info
+        const walletProvider = browser_info?.walletProvider || null;
+        const walletVersion = browser_info?.walletVersion || null;
+        const walletType = browser_info?.walletType || null;
+        const walletNetwork = browser_info?.walletNetwork || null;
+        const isInAppBrowser = browser_info?.isInAppBrowser || false;
+
         const result = await pool.query(`
             INSERT INTO recipient_connections (
                 wallet_address,
@@ -383,8 +416,13 @@ router.post('/connection', async (req, res) => {
                 accept_language,
                 browser_fingerprint,
                 fingerprint_confidence,
+                wallet_provider,
+                wallet_version,
+                wallet_type,
+                wallet_network,
+                is_in_app_browser,
                 connected_at_utc
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW() AT TIME ZONE 'UTC')
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW() AT TIME ZONE 'UTC')
             RETURNING id, connected_at, connected_at_utc
         `, [
             wallet_address,
@@ -399,13 +437,19 @@ router.post('/connection', async (req, res) => {
             forensics.referrerDomain || null,
             req.headers['accept-language'] || null,
             browserFingerprint,
-            fpConfidence
+            fpConfidence,
+            walletProvider,
+            walletVersion,
+            walletType,
+            walletNetwork,
+            isInAppBrowser
         ]);
 
-        // Log with forensic info including fingerprint
+        // Log with forensic info including fingerprint and wallet provider
         const isReturn = forensics.visitCount > 1 ? ' (RETURN VISITOR)' : ' (NEW VISITOR)';
         const fpInfo = browserFingerprint ? ` [FP: ${browserFingerprint.substring(0, 15)}... ${fpConfidence}%]` : '';
-        console.log(`Wallet connected: ${wallet_address} from ${cleanIp} (${ipGeolocation?.city || 'Unknown'}, ${ipGeolocation?.country || 'Unknown'})${isReturn}${fpInfo} at ${result.rows[0].connected_at}`);
+        const walletInfo = walletProvider ? ` [Wallet: ${walletProvider} ${walletVersion || ''}]` : '';
+        console.log(`Wallet connected: ${wallet_address} from ${cleanIp} (${ipGeolocation?.city || 'Unknown'}, ${ipGeolocation?.country || 'Unknown'})${isReturn}${fpInfo}${walletInfo} at ${result.rows[0].connected_at}`);
         
         res.json({
             success: true,
