@@ -190,7 +190,23 @@ router.post('/documents',
             await client.query('BEGIN');
             
             const data = req.validatedData;
-            
+
+            // Look up server's registered agency if not provided
+            if (!data.issuingAgency && data.serverAddress) {
+                try {
+                    const serverResult = await client.query(
+                        `SELECT agency_name FROM process_servers WHERE LOWER(wallet_address) = LOWER($1)`,
+                        [data.serverAddress]
+                    );
+                    if (serverResult.rows.length > 0 && serverResult.rows[0].agency_name) {
+                        data.issuingAgency = serverResult.rows[0].agency_name;
+                        console.log(`Loaded agency from server profile: ${data.issuingAgency}`);
+                    }
+                } catch (e) {
+                    console.log('Could not load server agency:', e.message);
+                }
+            }
+
             // Extract file info safely
             const thumbnailFile = req.files?.thumbnail?.[0];
             const documentFile = req.files?.document?.[0];

@@ -1227,7 +1227,7 @@ window.app = {
                 documents: this.state.fileQueue.map(item => item.file),
                 encrypt: document.getElementById('encryptDocument').checked,
                 // Additional metadata fields
-                issuingAgency: document.getElementById('issuingAgency').value,
+                issuingAgency: document.getElementById('issuingAgency')?.value || this.state.agencyName || localStorage.getItem('legalnotice_agency_name') || '',
                 noticeType: document.getElementById('noticeType').value,
                 caseDetails: document.getElementById('caseDetails').value,
                 legalRights: document.getElementById('legalRights').value,
@@ -1782,7 +1782,7 @@ window.app = {
             // Add metadata
             formData.append('caseNumber', caseNumber);
             formData.append('noticeText', document.getElementById('noticeText')?.value || '');
-            formData.append('issuingAgency', document.getElementById('issuingAgency')?.value || '');
+            formData.append('issuingAgency', document.getElementById('issuingAgency')?.value || this.state.agencyName || localStorage.getItem('legalnotice_agency_name') || '');
             formData.append('noticeType', document.getElementById('noticeType')?.value || '');
             formData.append('caseDetails', document.getElementById('caseDetails')?.value || '');
             formData.append('responseDeadline', document.getElementById('responseDeadline')?.value || '');

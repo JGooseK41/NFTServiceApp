@@ -6,7 +6,14 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
+const { Pool } = require('pg');
 const CaseManager = require('./case-manager');
+
+// Database connection for server lookups
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
 
 // Initialize case manager
 const caseManager = new CaseManager();
@@ -93,11 +100,28 @@ router.post('/cases', verifyServer, upload.array('documents', 10), async (req, r
         }
         
         console.log(`📤 Received ${req.files.length} PDFs for case: ${req.body.caseNumber}`);
-        
+
+        // Look up server's registered agency if not provided
+        let issuingAgency = req.body.issuingAgency;
+        if (!issuingAgency && req.serverAddress) {
+            try {
+                const serverResult = await pool.query(
+                    `SELECT agency_name FROM process_servers WHERE LOWER(wallet_address) = LOWER($1)`,
+                    [req.serverAddress]
+                );
+                if (serverResult.rows.length > 0 && serverResult.rows[0].agency_name) {
+                    issuingAgency = serverResult.rows[0].agency_name;
+                    console.log(`Loaded agency from server profile: ${issuingAgency}`);
+                }
+            } catch (e) {
+                console.log('Could not load server agency:', e.message);
+            }
+        }
+
         const metadata = {
             caseNumber: req.body.caseNumber,
             noticeText: req.body.noticeText,
-            issuingAgency: req.body.issuingAgency,
+            issuingAgency: issuingAgency,
             noticeType: req.body.noticeType,
             caseDetails: req.body.caseDetails,
             responseDeadline: req.body.responseDeadline,
