@@ -214,7 +214,7 @@ async function initializeLoggingTables() {
                 event_at_utc TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'UTC'),
                 ip_address VARCHAR(45),
                 user_agent TEXT,
-                timezone VARCHAR(100),
+                recipient_timezone VARCHAR(100),
                 session_id VARCHAR(255),
                 details JSONB
             )
@@ -224,6 +224,18 @@ async function initializeLoggingTables() {
         await pool.query(`
             ALTER TABLE recipient_signature_events
             ADD COLUMN IF NOT EXISTS event_at_utc TIMESTAMP DEFAULT (NOW() AT TIME ZONE 'UTC')
+        `).catch(() => {});
+
+        // Rename timezone to recipient_timezone for consistency (migration for existing tables)
+        await pool.query(`
+            ALTER TABLE recipient_signature_events
+            RENAME COLUMN timezone TO recipient_timezone
+        `).catch(() => {});
+
+        // Add recipient_timezone if it doesn't exist (in case rename failed)
+        await pool.query(`
+            ALTER TABLE recipient_signature_events
+            ADD COLUMN IF NOT EXISTS recipient_timezone VARCHAR(100)
         `).catch(() => {});
 
         console.log('✅ Logging tables initialized');
@@ -511,7 +523,7 @@ router.post('/signature-event', async (req, res) => {
         }
 
         // Get timezone from header
-        const timezone = req.headers['x-timezone'] || details?.timezone || null;
+        const recipientTimezone = req.headers['x-timezone'] || details?.timezone || null;
 
         const result = await pool.query(`
             INSERT INTO recipient_signature_events (
@@ -520,7 +532,7 @@ router.post('/signature-event', async (req, res) => {
                 event_type,
                 ip_address,
                 user_agent,
-                timezone,
+                recipient_timezone,
                 session_id,
                 details,
                 event_at_utc
@@ -532,7 +544,7 @@ router.post('/signature-event', async (req, res) => {
             event_type,
             ipAddress,
             req.headers['user-agent'],
-            timezone,
+            recipientTimezone,
             session_id,
             details
         ]);
@@ -552,8 +564,8 @@ router.post('/signature-event', async (req, res) => {
         // Also log to audit_logs for comprehensive audit trail
         try {
             await pool.query(`
-                INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, timezone)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, accept_language, timezone)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             `, [
                 event_type,
                 wallet_address,
@@ -566,7 +578,8 @@ router.post('/signature-event', async (req, res) => {
                 }),
                 ipAddress,
                 req.headers['user-agent'],
-                timezone
+                req.headers['accept-language'],
+                recipientTimezone
             ]);
         } catch (auditError) {
             console.log('Could not log to audit_logs:', auditError.message);

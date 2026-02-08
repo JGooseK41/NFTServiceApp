@@ -464,6 +464,7 @@ router.put('/cases/:caseNumber/service-complete-notx', async (req, res) => {
             transactionHash,
             alertTokenId,
             documentTokenId,
+            alertImage,
             recipients,
             serverAddress,
             chain,
@@ -553,6 +554,25 @@ router.put('/cases/:caseNumber/service-complete-notx', async (req, res) => {
             serverAddress,
             chain || 'tron-nile'
         ]);
+
+        // Store alert image if provided
+        if (alertImage) {
+            try {
+                await pool.query(`
+                    INSERT INTO notice_images (case_number, alert_image, created_at)
+                    VALUES ($1, $2, NOW())
+                    ON CONFLICT (case_number)
+                    DO UPDATE SET alert_image = EXCLUDED.alert_image, created_at = NOW()
+                `, [caseNumber, alertImage]);
+            } catch (imageError) {
+                // Table might not exist - store in cases metadata instead
+                console.log('notice_images table not available, storing in metadata');
+                await pool.query(`
+                    UPDATE cases SET alert_preview = $1, updated_at = NOW()
+                    WHERE case_number = $2 OR id::text = $2
+                `, [alertImage, caseNumber]);
+            }
+        }
 
         res.json({ success: true, message: 'Saved without transaction', caseNumber, recipientCount: normalizedRecipients.length, pageCount });
     } catch (error) {
@@ -1078,9 +1098,13 @@ router.post('/cases/run-migration', async (req, res) => {
                 { name: 'served_at', type: 'TIMESTAMP' },
                 { name: 'viewed_at', type: 'TIMESTAMP' },
                 { name: 'server_address', type: 'VARCHAR(255)' },
+                { name: 'server_name', type: 'VARCHAR(255)' },
+                { name: 'issuing_agency', type: 'VARCHAR(255)' },
                 { name: 'chain', type: "VARCHAR(50) DEFAULT 'tron-mainnet'" },
                 { name: 'explorer_url', type: 'TEXT' },
-                { name: 'status', type: "VARCHAR(50) DEFAULT 'served'" }
+                { name: 'status', type: "VARCHAR(50) DEFAULT 'served'" },
+                { name: 'accepted', type: 'BOOLEAN DEFAULT FALSE' },
+                { name: 'accepted_at', type: 'TIMESTAMP' }
             ];
 
             for (const col of requiredColumns) {
