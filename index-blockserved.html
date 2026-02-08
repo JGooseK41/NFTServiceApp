@@ -6,6 +6,8 @@
     <title>BlockServed - Official Legal Notice Portal</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- QR Code Generator for mobile wallet connection -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -786,6 +788,12 @@
                 <button id="disconnectWallet" class="connect-btn" style="display: none; background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
                     <i class="bi bi-box-arrow-right"></i> Switch Wallet
                 </button>
+                <!-- Mobile wallet option for desktop users -->
+                <div id="mobileWalletOption" class="mobile-wallet-link" style="display: none;">
+                    <a href="#" onclick="showMobileQRModal(); return false;" style="color: var(--secondary-color); font-size: 13px;">
+                        <i class="bi bi-phone"></i> Use mobile wallet instead?
+                    </a>
+                </div>
             </div>
         </div>
     </header>
@@ -842,11 +850,19 @@
             <div style="border-top: 1px solid #e0e0e0; padding-top: 15px; margin-top: 10px;">
                 <p style="text-align: center; color: #666; font-size: 13px; margin-bottom: 10px;">Or use these options:</p>
 
+                <div class="wallet-option" onclick="showQRCode()" style="display: flex; align-items: center; padding: 12px 15px;">
+                    <i class="bi bi-qr-code" style="font-size: 24px; color: #6f42c1; margin-right: 12px;"></i>
+                    <div>
+                        <h5 style="margin: 0; font-size: 14px;">Show QR Code</h5>
+                        <p style="margin: 0; font-size: 12px; color: #666;">Scan with wallet's QR scanner</p>
+                    </div>
+                </div>
+
                 <div class="wallet-option" onclick="copyUrlToClipboard()" style="display: flex; align-items: center; padding: 12px 15px;">
                     <i class="bi bi-clipboard" style="font-size: 24px; color: var(--primary-color); margin-right: 12px;"></i>
                     <div>
                         <h5 style="margin: 0; font-size: 14px;">Copy URL</h5>
-                        <p style="margin: 0; font-size: 12px; color: #666;">Paste in your wallet's browser</p>
+                        <p style="margin: 0; font-size: 12px; color: #666;">Paste in wallet's browser</p>
                     </div>
                 </div>
 
@@ -857,6 +873,22 @@
                         <p style="margin: 0; font-size: 12px; color: #666;">Step-by-step instructions</p>
                     </div>
                 </div>
+            </div>
+
+            <!-- QR Code Section -->
+            <div id="qrCodeSection" style="display: none; background: #f0f8ff; padding: 20px; border-radius: 8px; margin: 15px 0; text-align: center;">
+                <h5 style="color: var(--primary-color); margin-bottom: 15px;">
+                    <i class="bi bi-qr-code-scan"></i> Scan with Your Wallet
+                </h5>
+                <div id="qrCodeContainer" style="display: inline-block; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <canvas id="walletQRCode"></canvas>
+                </div>
+                <p style="font-size: 13px; color: #666; margin-top: 15px;">
+                    Open your wallet app's QR scanner and scan this code to connect
+                </p>
+                <button onclick="hideQRCode()" class="btn btn-sm btn-outline-secondary" style="margin-top: 10px;">
+                    <i class="bi bi-x-lg"></i> Close QR Code
+                </button>
             </div>
 
             <!-- Manual Instructions (hidden by default) -->
@@ -1551,7 +1583,8 @@
 
             checkTronLink();
             setupEventListeners();
-            
+            checkAndShowMobileOption();
+
             // Check if mobile user on first load
             const deviceInfo = detectDeviceType();
             if (deviceInfo.isMobile && !deviceInfo.isWalletBrowser) {
@@ -1746,6 +1779,85 @@
                 instructions.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             } else {
                 instructions.style.display = 'none';
+            }
+        }
+
+        // Generate and show QR code for wallet connection
+        async function showQRCode() {
+            const qrSection = document.getElementById('qrCodeSection');
+            const qrCanvas = document.getElementById('walletQRCode');
+
+            if (!qrCanvas) {
+                console.error('QR Code canvas not found');
+                return;
+            }
+
+            // Generate QR code with current URL
+            const currentUrl = window.location.href;
+
+            try {
+                // Check if QRCode library is loaded
+                if (typeof QRCode === 'undefined') {
+                    showAlert('QR Code library not loaded. Please refresh the page.', 'error');
+                    return;
+                }
+
+                // Generate QR code
+                await QRCode.toCanvas(qrCanvas, currentUrl, {
+                    width: 200,
+                    margin: 2,
+                    color: {
+                        dark: '#2c3e50',
+                        light: '#ffffff'
+                    },
+                    errorCorrectionLevel: 'M'
+                });
+
+                // Show the QR code section
+                qrSection.style.display = 'block';
+                qrSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+                // Track QR code display
+                try {
+                    fetch(`${backendUrl}/api/recipient-logs/qr-displayed`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: currentUrl })
+                    }).catch(() => {});
+                } catch (e) {}
+
+            } catch (error) {
+                console.error('Error generating QR code:', error);
+                showAlert('Could not generate QR code', 'error');
+            }
+        }
+
+        // Hide QR code
+        function hideQRCode() {
+            const qrSection = document.getElementById('qrCodeSection');
+            if (qrSection) {
+                qrSection.style.display = 'none';
+            }
+        }
+
+        // Show mobile QR modal for desktop users
+        function showMobileQRModal() {
+            // Show the mobile wallet modal
+            document.getElementById('mobileWalletModal').classList.add('active');
+            // Automatically show the QR code
+            setTimeout(() => {
+                showQRCode();
+            }, 300);
+        }
+
+        // Check if desktop and show mobile wallet option
+        function checkAndShowMobileOption() {
+            const deviceInfo = detectDeviceType();
+            const mobileOption = document.getElementById('mobileWalletOption');
+
+            if (mobileOption && deviceInfo.isDesktop) {
+                // Show the "Use mobile wallet" option for desktop users
+                mobileOption.style.display = 'block';
             }
         }
         
