@@ -220,8 +220,8 @@ window.notices = {
 
                     for (let attempt = 1; attempt <= retries; attempt++) {
                         try {
-                            // Wait a bit for transaction to be indexed (longer on first attempt)
-                            await new Promise(r => setTimeout(r, attempt * 2000));
+                            // Wait a bit for transaction to be indexed (shorter delays: 1s, 2s, 3s)
+                            await new Promise(r => setTimeout(r, attempt * 1000));
 
                             const url = `${apiBase}/v1/contracts/${contractAddress}/events?event_name=Transfer&limit=10`;
                             console.log(`Token extraction attempt ${attempt}/${retries} from: ${url}`);
@@ -334,6 +334,11 @@ window.notices = {
                     let lastError = null;
                     const maxRetries = 3;
 
+                    console.log('=== SERVICE-COMPLETE CALL STARTING ===');
+                    console.log('Case identifier:', caseIdentifier);
+                    console.log('Token ID:', alertTokenId);
+                    console.log('Transaction:', txResult.alertTx);
+
                     for (let attempt = 1; attempt <= maxRetries && !backendUpdateSuccess; attempt++) {
                         try {
                             console.log(`Backend update attempt ${attempt}/${maxRetries}...`);
@@ -421,7 +426,13 @@ window.notices = {
 
                 } catch (error) {
                     console.error('Failed to update case service data:', error);
-                    // Don't fail the whole transaction, just log the error
+                    // Don't fail the whole transaction, but warn the user
+                    if (window.app && window.app.showWarning) {
+                        window.app.showWarning(
+                            'NFT minted successfully, but case status sync failed: ' + error.message + '. ' +
+                            'Your case may appear as "draft". Please try refreshing.'
+                        );
+                    }
                 }
             } else {
                 console.warn('No case identifier available - service data not saved to backend');
