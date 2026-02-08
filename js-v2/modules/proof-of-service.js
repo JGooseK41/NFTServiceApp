@@ -487,34 +487,21 @@ window.proofOfService = {
                     </div>
 
                     <div class="section">
-                        <div class="section-title">${receipt.alertImage ? 'VII' : 'VI'}. Server Affirmation</div>
+                        <div class="section-title">${receipt.alertImage ? 'VII' : 'VI'}. Server Affirmation & Witness Acknowledgment</div>
                         <div class="affirmation">
-                            <p>
-                                I, the undersigned, hereby declare under penalty of perjury under the laws of the applicable jurisdiction that:
-                            </p>
-                            <p>
-                                On <strong>${servedDateFormatted}</strong>
-                                at <strong>${servedTimeFormatted}</strong>,
-                                I caused the legal documents referenced in Case No. <strong>${receipt.caseNumber}</strong> to be served upon the
-                                recipient(s) listed herein via blockchain technology.
-                            </p>
-                            <p>
-                                Service was effectuated by transferring a Non-Fungible Token (NFT) containing notice of the legal documents to the
-                                recipient's blockchain wallet address using my server wallet address
-                                <strong class="mono" style="font-size: 9pt;">${receipt.serverAddress || '________________________________'}</strong>.
-                            </p>
-                            <p>
-                                This transaction was permanently recorded on the <strong>${receipt.chainName || 'blockchain'}</strong>
-                                ${txHash !== 'N/A' ? `with transaction hash:<br><strong class="mono" style="font-size: 8pt; word-break: break-all;">${txHash}</strong>` : ''}.
-                            </p>
-                            <p>
-                                I declare that the foregoing is true and correct.
+                            <p style="margin-bottom: 10px;">
+                                I, the undersigned, hereby declare under penalty of perjury that on <strong>${servedDateFormatted}</strong>
+                                at <strong>${servedTimeFormatted}</strong>, I caused the legal documents referenced in Case No. <strong>${receipt.caseNumber}</strong>
+                                to be served upon the recipient(s) listed herein via blockchain technology by transferring an NFT to the recipient's
+                                wallet address using server wallet <strong class="mono" style="font-size: 8pt;">${receipt.serverAddress || '________________'}</strong>.
+                                ${txHash !== 'N/A' ? `Transaction hash: <strong class="mono" style="font-size: 7pt;">${txHash}</strong>.` : ''}
+                                I declare the foregoing is true and correct.
                             </p>
 
-                            <div class="sig-row">
+                            <div class="sig-row" style="margin-top: 20px;">
                                 <div class="sig-block">
                                     <div class="sig-line"></div>
-                                    <div class="sig-label">Signature of Process Server</div>
+                                    <div class="sig-label">Server Signature</div>
                                 </div>
                                 <div class="sig-block">
                                     <div class="sig-line"></div>
@@ -522,28 +509,25 @@ window.proofOfService = {
                                 </div>
                             </div>
 
-                            <div class="sig-row">
+                            <div class="sig-row" style="margin-top: 15px;">
                                 <div class="sig-block">
                                     <div class="sig-line"></div>
                                     <div class="sig-label">Printed Name</div>
                                 </div>
                                 <div class="sig-block">
                                     <div class="sig-line"></div>
-                                    <div class="sig-label">License/Registration Number (if applicable)</div>
+                                    <div class="sig-label">License/Registration No.</div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
 
-                    <div class="section">
-                        <div class="section-title">${receipt.alertImage ? 'VIII' : 'VII'}. Witness Acknowledgment</div>
-                        <div class="affirmation">
-                            <p>
-                                Subscribed and sworn to (or affirmed) before me on this _______ day of __________________, 20_____,
-                                by the above-named server, who is personally known to me or has produced valid identification.
-                            </p>
+                            <div style="border-top: 1px solid #ccc; margin: 20px 0 15px 0; padding-top: 15px;">
+                                <p style="margin: 0 0 10px 0; font-size: 9pt;">
+                                    Subscribed and sworn to (or affirmed) before me this _______ day of ______________, 20___,
+                                    by the above-named server, personally known to me or having produced valid identification.
+                                </p>
+                            </div>
 
-                            <div class="sig-row" style="margin-top: 25px;">
+                            <div class="sig-row" style="margin-top: 15px;">
                                 <div class="sig-block">
                                     <div class="sig-line"></div>
                                     <div class="sig-label">Witness/Notary Signature</div>
@@ -554,32 +538,24 @@ window.proofOfService = {
                                 </div>
                             </div>
 
-                            <div class="sig-row">
+                            <div class="sig-row" style="margin-top: 15px;">
                                 <div class="sig-block">
                                     <div class="sig-line"></div>
-                                    <div class="sig-label">Printed Name</div>
+                                    <div class="sig-label">Printed Name / Title</div>
                                 </div>
                                 <div class="sig-block">
-                                    <div class="sig-line"></div>
-                                    <div class="sig-label">Badge / Commission / ID Number</div>
-                                </div>
-                            </div>
-
-                            <div class="sig-row">
-                                <div class="sig-block" style="flex: 2;">
-                                    <div style="border: 2px dashed #999; height: 70px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 9pt;">
-                                        [SEAL/STAMP IF APPLICABLE]
+                                    <div style="border: 1px dashed #999; height: 50px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 8pt;">
+                                        [SEAL/STAMP]
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="seal">
+                    <div class="seal" style="margin-top: 20px; padding: 8px;">
                         OFFICIAL BLOCKCHAIN SERVICE RECORD<br>
-                        <span style="font-size: 10pt; font-weight: normal;">
-                            This document certifies that legal notice was served via ${receipt.chainName || 'blockchain'} technology<br>
-                            and recorded as an immutable transaction on ${servedDateFormatted}
+                        <span style="font-size: 9pt; font-weight: normal;">
+                            Legal notice served via ${receipt.chainName || 'blockchain'} on ${servedDateFormatted}
                         </span>
                     </div>
 
