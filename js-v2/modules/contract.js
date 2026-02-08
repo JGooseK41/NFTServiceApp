@@ -459,36 +459,43 @@ window.contract = {
 
     // Extract token ID from single transaction
     async _extractTokenId(txHash, maxRetries = 5) {
+        console.log('🔍 Extracting token ID from tx:', txHash);
+
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 // Wait with exponential backoff
                 await new Promise(r => setTimeout(r, 2000 * attempt));
 
                 const txInfo = await window.tronWeb.trx.getTransactionInfo(txHash);
+                console.log(`  Attempt ${attempt}: txInfo received, logs:`, txInfo?.log?.length || 0);
 
-                if (txInfo && txInfo.log) {
-                    for (const log of txInfo.log) {
+                if (txInfo && txInfo.log && txInfo.log.length > 0) {
+                    for (let i = 0; i < txInfo.log.length; i++) {
+                        const log = txInfo.log[i];
                         // Transfer event: topics[3] is tokenId
                         if (log.topics && log.topics.length >= 4) {
                             const tokenIdHex = log.topics[3];
                             if (tokenIdHex) {
                                 const tokenId = parseInt(tokenIdHex, 16);
-                                console.log('Extracted token ID:', tokenId);
+                                console.log('✅ Extracted token ID:', tokenId);
                                 return tokenId;
                             }
                         }
                     }
+                    console.log('  Logs found but no Transfer event with tokenId');
+                } else if (txInfo && !txInfo.log) {
+                    console.log('  Transaction confirmed but no logs yet');
                 }
 
                 if (attempt < maxRetries) {
-                    console.log(`Token ID not found yet, retry ${attempt}/${maxRetries}...`);
+                    console.log(`  Token ID not found yet, retry ${attempt}/${maxRetries}...`);
                 }
             } catch (e) {
-                console.log(`Token extraction attempt ${attempt} failed:`, e.message);
+                console.log(`  Token extraction attempt ${attempt} failed:`, e.message);
             }
         }
 
-        console.log('Could not extract token ID after retries');
+        console.log('❌ Could not extract token ID after', maxRetries, 'retries');
         return null;
     },
 

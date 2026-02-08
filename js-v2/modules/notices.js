@@ -199,8 +199,13 @@ window.notices = {
             });
 
             // Step 8.5: Extract token IDs and mark case as served
-            let alertTokenId = txResult.tokenId || null;  // Use token ID from contract result
+            // Handle both single (tokenId) and batch (tokenIds array) results
+            let alertTokenId = txResult.tokenId ||
+                               (txResult.tokenIds && txResult.tokenIds.length > 0 ? txResult.tokenIds[0] : null);
             let documentTokenId = null;
+
+            console.log('Token ID from contract result:', alertTokenId);
+            console.log('Full txResult:', JSON.stringify(txResult, null, 2));
 
             // If we didn't get token ID from contract, try to get from transaction logs
             if (!alertTokenId) {
