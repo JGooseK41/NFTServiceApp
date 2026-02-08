@@ -4,9 +4,11 @@ window.app = {
     state: {
         initialized: false,
         walletConnected: false,
+        isRegisteredServer: false, // Whether wallet is a registered process server
         currentPage: 'welcome',
         userAddress: null,
         serverId: null,
+        agencyName: null,
         contract: null,
         tronWeb: null,
         fileQueue: [], // Store files in order
@@ -31,7 +33,10 @@ window.app = {
             
             // Check for existing wallet connection
             await this.checkWalletConnection();
-            
+
+            // Update UI based on role (handles unconnected/unregistered state)
+            this.updateUIForRole();
+
             // Load saved form data if exists
             this.loadSavedFormData();
             
@@ -320,18 +325,33 @@ window.app = {
     // Navigate to page
     navigate(page) {
         console.log('Navigating to:', page);
-        
+
+        // Check access for restricted pages
+        const restrictedPages = ['serve', 'cases', 'receipts'];
+        if (restrictedPages.includes(page)) {
+            if (!this.state.walletConnected) {
+                this.showError('Please connect your wallet first');
+                this.navigate('welcome');
+                return;
+            }
+            if (!this.state.isRegisteredServer) {
+                this.showError('You must be a registered process server to access this feature. Please register first.');
+                this.navigate('welcome');
+                return;
+            }
+        }
+
         // Hide all pages
         document.querySelectorAll('.page-content').forEach(p => {
             p.style.display = 'none';
         });
-        
+
         // Show requested page
         const pageElement = document.getElementById(page + 'Page');
         if (pageElement) {
             pageElement.style.display = 'block';
             this.state.currentPage = page;
-            
+
             // Load page-specific data
             this.loadPageData(page);
         }
@@ -439,13 +459,6 @@ window.app = {
     // Check if server is registered and load agency info
     async registerServer() {
         try {
-            // First check localStorage for cached agency info
-            const cachedAgency = localStorage.getItem('legalnotice_agency_name');
-            if (cachedAgency) {
-                this.state.agencyName = cachedAgency;
-                console.log('Loaded cached agency name:', cachedAgency);
-            }
-
             // Check if server is already registered on backend
             const checkUrl = `${getConfig('backend.baseUrl')}/api/server/check/${this.state.userAddress}`;
             const checkResponse = await fetch(checkUrl);
@@ -453,6 +466,7 @@ window.app = {
 
             if (checkData.registered) {
                 // Server is registered - store agency info
+                this.state.isRegisteredServer = true;
                 this.state.agencyName = checkData.agency_name;
                 this.state.serverId = this.state.userAddress;
                 localStorage.setItem('legalnotice_agency_name', checkData.agency_name);
@@ -465,16 +479,67 @@ window.app = {
                 }
 
                 console.log('Server registered as:', checkData.agency_name);
-            } else if (!cachedAgency) {
-                // Server not registered and no cached data - show registration modal
-                this.showRegistrationModal();
+            } else {
+                // Server not registered
+                this.state.isRegisteredServer = false;
+                console.log('Wallet not registered as a process server');
             }
+
+            // Update UI based on registration status
+            this.updateUIForRole();
+
         } catch (error) {
             console.error('Failed to check server registration:', error);
-            // Only show registration modal if we have no cached data
-            if (!localStorage.getItem('legalnotice_agency_name')) {
-                this.showRegistrationModal();
+            this.state.isRegisteredServer = false;
+            this.updateUIForRole();
+        }
+    },
+
+    // Update UI elements based on user role
+    updateUIForRole() {
+        const isRegistered = this.state.isRegisteredServer;
+        const isConnected = this.state.walletConnected;
+
+        console.log('Updating UI for role - Connected:', isConnected, 'Registered:', isRegistered);
+
+        // Nav items that require registration
+        const restrictedNavItems = document.querySelectorAll('[data-page="serve"], [data-page="cases"], [data-page="receipts"]');
+        restrictedNavItems.forEach(item => {
+            const parentLi = item.closest('li');
+            if (parentLi) {
+                parentLi.style.display = (isConnected && isRegistered) ? '' : 'none';
             }
+        });
+
+        // Welcome page sections
+        const getStartedSection = document.getElementById('getStartedSection');
+        const registeredServerSection = document.getElementById('registeredServerSection');
+        const connectWalletPrompt = document.getElementById('connectWalletPrompt');
+        const registerPrompt = document.getElementById('registerPrompt');
+        const welcomeAgencyName = document.getElementById('welcomeAgencyName');
+
+        if (getStartedSection) {
+            // Show get started section if not registered
+            getStartedSection.style.display = !isRegistered ? 'block' : 'none';
+        }
+
+        if (connectWalletPrompt) {
+            // Show connect wallet prompt only if not connected
+            connectWalletPrompt.style.display = !isConnected ? 'block' : 'none';
+        }
+
+        if (registerPrompt) {
+            // Show register prompt only if connected but not registered
+            registerPrompt.style.display = (isConnected && !isRegistered) ? 'block' : 'none';
+        }
+
+        if (registeredServerSection) {
+            // Show registered server section only if connected AND registered
+            registeredServerSection.style.display = (isConnected && isRegistered) ? 'block' : 'none';
+        }
+
+        if (welcomeAgencyName && this.state.agencyName) {
+            welcomeAgencyName.textContent = this.state.agencyName;
         }
     },
 
@@ -546,7 +611,8 @@ window.app = {
             const data = await response.json();
 
             if (response.ok && data.success) {
-                // Store agency info
+                // Store agency info and mark as registered
+                this.state.isRegisteredServer = true;
                 this.state.agencyName = agencyName;
                 this.state.serverId = this.state.userAddress;
                 localStorage.setItem('legalnotice_agency_name', agencyName);
@@ -557,6 +623,9 @@ window.app = {
                 if (agencyField) {
                     agencyField.value = agencyName;
                 }
+
+                // Update UI to show registered server options
+                this.updateUIForRole();
 
                 // Close modal
                 const modal = bootstrap.Modal.getInstance(document.getElementById('serverRegistrationModal'));
@@ -2522,7 +2591,9 @@ window.app = {
     disconnectWallet() {
         // Reset app state
         this.state.walletConnected = false;
+        this.state.isRegisteredServer = false;
         this.state.userAddress = null;
+        this.state.agencyName = null;
         this.state.tronWeb = null;
         this.state.contract = null;
 
@@ -2538,6 +2609,9 @@ window.app = {
         if (dropdown) {
             dropdown.style.display = 'none';
         }
+
+        // Update UI for role (in case page doesn't reload)
+        this.updateUIForRole();
     },
 
     // Set up drag and drop

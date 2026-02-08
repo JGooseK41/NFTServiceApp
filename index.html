@@ -85,62 +85,92 @@
                                 <p class="text-muted mb-3">A Product of The Block Audit LLC</p>
                                 <p class="lead mb-4">Blockchain-powered legal document service on TRON</p>
 
-                                <!-- New User Get Started Section -->
-                                <div id="getStartedSection" class="mt-4 p-4 border border-primary rounded bg-light">
-                                    <h3 class="text-primary mb-3">
-                                        <i class="bi bi-rocket-takeoff"></i> New to TheBlockService?
-                                    </h3>
-                                    <p class="mb-3">Get set up in just a few minutes. We'll walk you through everything.</p>
-                                    <button class="btn btn-primary btn-lg" onclick="app.showOnboardingModal()">
-                                        <i class="bi bi-play-circle"></i> Get Started - Register as a Process Server
-                                    </button>
-                                    <p class="text-muted mt-2 mb-0"><small>No crypto experience needed - we'll guide you step by step</small></p>
+                                <!-- New User / Unregistered Section -->
+                                <div id="getStartedSection" class="mt-4">
+                                    <!-- Connect Wallet Prompt (shown when not connected) -->
+                                    <div id="connectWalletPrompt" class="p-4 border border-primary rounded bg-light mb-4">
+                                        <h3 class="text-primary mb-3">
+                                            <i class="bi bi-wallet2"></i> Connect Your Wallet
+                                        </h3>
+                                        <p class="mb-3">Connect your TronLink wallet to get started with blockchain-powered legal document service.</p>
+                                        <button class="btn btn-primary btn-lg" onclick="app.connectWallet()">
+                                            <i class="bi bi-plug"></i> Connect Wallet
+                                        </button>
+                                    </div>
+
+                                    <!-- Get Started / Register (shown when connected but not registered) -->
+                                    <div id="registerPrompt" class="p-4 border border-warning rounded bg-light mb-4" style="display: none;">
+                                        <h3 class="text-warning mb-3">
+                                            <i class="bi bi-person-badge"></i> Registration Required
+                                        </h3>
+                                        <p class="mb-3">Your wallet is connected but not registered as a process server. Register to start serving legal documents.</p>
+                                        <button class="btn btn-warning btn-lg text-white" onclick="app.showOnboardingModal()">
+                                            <i class="bi bi-rocket-takeoff"></i> Register as a Process Server
+                                        </button>
+                                        <p class="text-muted mt-2 mb-0"><small>No crypto experience needed - we'll guide you step by step</small></p>
+                                    </div>
+
+                                    <!-- Legal Professionals Info Section -->
+                                    <div class="p-4 bg-light rounded">
+                                        <h3 class="mb-3">
+                                            <i class="bi bi-briefcase"></i> For Legal Professionals
+                                        </h3>
+                                        <p class="mb-3">
+                                            Are you a process server, detective, or prosecutor struggling with hard-to-serve defendants?
+                                        </p>
+                                        <p class="mb-4">
+                                            Learn how blockchain service can help you meet the burden of diligent effort and progress cases that would otherwise be dead ends.
+                                        </p>
+                                        <a href="legal-professionals-info.html" target="_blank" class="btn btn-outline-primary">
+                                            <i class="bi bi-arrow-right-circle"></i> Learn About Revolutionary Blockchain Service
+                                        </a>
+                                    </div>
                                 </div>
 
-                                <div class="row mt-5">
-                                    <div class="col-md-4 mb-3">
-                                        <div class="card h-100">
-                                            <div class="card-body">
-                                                <h5>Serve Documents</h5>
-                                                <p>Create legally-binding NFT notices</p>
-                                                <button class="btn btn-primary" onclick="app.navigate('serve')">Start</button>
+                                <!-- Registered Server Section (shown when registered) -->
+                                <div id="registeredServerSection" class="mt-4" style="display: none;">
+                                    <div class="alert alert-success mb-4">
+                                        <i class="bi bi-check-circle-fill"></i> <strong>Welcome back!</strong> You are registered as: <span id="welcomeAgencyName"></span>
+                                    </div>
+
+                                    <div id="welcomeActionCards" class="row">
+                                        <div class="col-md-4 mb-3">
+                                            <div class="card h-100 border-primary">
+                                                <div class="card-body text-center">
+                                                    <i class="bi bi-send display-4 text-primary mb-3"></i>
+                                                    <h5>Serve Documents</h5>
+                                                    <p class="text-muted">Create legally-binding NFT notices</p>
+                                                    <button class="btn btn-primary" onclick="app.navigate('serve')">
+                                                        <i class="bi bi-plus-circle"></i> Start New Service
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <div class="card h-100 border-primary">
+                                                <div class="card-body text-center">
+                                                    <i class="bi bi-folder2-open display-4 text-primary mb-3"></i>
+                                                    <h5>Manage Cases</h5>
+                                                    <p class="text-muted">Track and manage your legal cases</p>
+                                                    <button class="btn btn-primary" onclick="app.navigate('cases')">
+                                                        <i class="bi bi-list-ul"></i> View Cases
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <div class="card h-100 border-primary">
+                                                <div class="card-body text-center">
+                                                    <i class="bi bi-file-earmark-text display-4 text-primary mb-3"></i>
+                                                    <h5>View Receipts</h5>
+                                                    <p class="text-muted">Access proof of service receipts</p>
+                                                    <button class="btn btn-primary" onclick="app.navigate('receipts')">
+                                                        <i class="bi bi-download"></i> Browse Receipts
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                    <div class="col-md-4 mb-3">
-                                        <div class="card h-100">
-                                            <div class="card-body">
-                                                <h5>Manage Cases</h5>
-                                                <p>Track and manage your legal cases</p>
-                                                <button class="btn btn-primary" onclick="app.navigate('cases')">View</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4 mb-3">
-                                        <div class="card h-100">
-                                            <div class="card-body">
-                                                <h5>View Receipts</h5>
-                                                <p>Access proof of service receipts</p>
-                                                <button class="btn btn-primary" onclick="app.navigate('receipts')">Browse</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Legal Professionals Section -->
-                                <div class="mt-5 p-4 bg-light rounded">
-                                    <h3 class="mb-3">
-                                        <i class="bi bi-briefcase"></i> Legal Professionals
-                                    </h3>
-                                    <p class="mb-3">
-                                        Are you a process server, detective, or prosecutor struggling with hard-to-serve defendants?
-                                    </p>
-                                    <p class="mb-4">
-                                        Learn how blockchain service can help you meet the burden of diligent effort and progress cases that would otherwise be dead ends.
-                                    </p>
-                                    <a href="legal-professionals-info.html" target="_blank" class="btn btn-outline-primary">
-                                        <i class="bi bi-arrow-right-circle"></i> Learn About Revolutionary Blockchain Service
-                                    </a>
                                 </div>
                             </div>
                         </div>
@@ -1106,6 +1136,6 @@
     <script src="js/streamlined-energy-flow.js"></script>
     
     <!-- Main App -->
-    <script src="js-v2/app.js?v=1.0.9"></script>
+    <script src="js-v2/app.js?v=1.0.10"></script>
 </body>
 </html>
