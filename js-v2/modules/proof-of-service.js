@@ -531,25 +531,62 @@ window.proofOfService = {
                     </div>
 
                     <div class="section">
-                        <div class="section-title">${receipt.alertImage ? 'VIII' : 'VII'}. Notary/Witness Acknowledgment</div>
+                        <div class="section-title">${receipt.alertImage ? 'VIII' : 'VII'}. Witness / Notary Acknowledgment</div>
                         <div class="affirmation">
-                            <p>
-                                <strong>State/Commonwealth of</strong> ________________________________
-                                <strong style="margin-left: 20px;">County/Parish of</strong> ________________________________
+                            <p style="font-size: 9pt; font-style: italic; margin-bottom: 15px;">
+                                Complete Option A (Witness) OR Option B (Notary) as applicable under your jurisdiction.
                             </p>
-                            <p style="margin-top: 15px;">
+
+                            <p style="font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">
+                                OPTION A: Witness Acknowledgment
+                            </p>
+                            <p>
+                                I hereby witness that the above-named Process Server personally appeared before me and swore or affirmed
+                                that the statements contained in this Proof of Service are true and correct to the best of their knowledge.
+                            </p>
+
+                            <div class="sig-row" style="margin-top: 20px;">
+                                <div class="sig-block">
+                                    <div class="sig-line"></div>
+                                    <div class="sig-label">Witness Signature</div>
+                                </div>
+                                <div class="sig-block">
+                                    <div class="sig-line"></div>
+                                    <div class="sig-label">Date</div>
+                                </div>
+                            </div>
+
+                            <div class="sig-row">
+                                <div class="sig-block">
+                                    <div class="sig-line"></div>
+                                    <div class="sig-label">Printed Name</div>
+                                </div>
+                                <div class="sig-block">
+                                    <div class="sig-line"></div>
+                                    <div class="sig-label">Badge / ID Number</div>
+                                </div>
+                            </div>
+
+                            <p style="font-weight: bold; margin-top: 25px; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">
+                                OPTION B: Notary Acknowledgment
+                            </p>
+                            <p>
+                                <strong>State/Commonwealth of</strong> ____________________
+                                <strong style="margin-left: 15px;">County/Parish of</strong> ____________________
+                            </p>
+                            <p style="margin-top: 10px;">
                                 Subscribed and sworn to (or affirmed) before me on this _______ day of __________________, 20_____,
                                 by the above-named Process Server, who is personally known to me or who has produced
                                 ________________________________ as identification.
                             </p>
 
-                            <div class="sig-row" style="margin-top: 25px;">
+                            <div class="sig-row" style="margin-top: 20px;">
                                 <div class="sig-block">
                                     <div class="sig-line"></div>
-                                    <div class="sig-label">Notary Public / Witness Signature</div>
+                                    <div class="sig-label">Notary Public Signature</div>
                                 </div>
                                 <div class="sig-block" style="text-align: center;">
-                                    <div style="border: 2px dashed #999; height: 80px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 10pt;">
+                                    <div style="border: 2px dashed #999; height: 70px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 9pt;">
                                         [NOTARY SEAL/STAMP]
                                     </div>
                                 </div>
@@ -558,22 +595,11 @@ window.proofOfService = {
                             <div class="sig-row">
                                 <div class="sig-block">
                                     <div class="sig-line"></div>
-                                    <div class="sig-label">Printed Name of Notary/Witness</div>
+                                    <div class="sig-label">Printed Name</div>
                                 </div>
                                 <div class="sig-block">
                                     <div class="sig-line"></div>
-                                    <div class="sig-label">Commission/ID Number</div>
-                                </div>
-                            </div>
-
-                            <div class="sig-row">
-                                <div class="sig-block">
-                                    <div class="sig-line"></div>
-                                    <div class="sig-label">My Commission Expires</div>
-                                </div>
-                                <div class="sig-block">
-                                    <div class="sig-line"></div>
-                                    <div class="sig-label">Date</div>
+                                    <div class="sig-label">Commission Number / Expires</div>
                                 </div>
                             </div>
                         </div>
