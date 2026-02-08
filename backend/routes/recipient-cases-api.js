@@ -332,6 +332,7 @@ router.get('/wallet/:address', async (req, res) => {
                 const userAgent = req.clientUserAgent || req.headers['user-agent'];
                 const acceptLanguage = req.clientLanguage || req.headers['accept-language'];
                 const timezone = req.clientTimezone || req.headers['x-timezone'];
+                const walletProvider = req.clientWalletProvider || null;
                 await pool.query(`
                     INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, accept_language, timezone)
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -339,7 +340,7 @@ router.get('/wallet/:address', async (req, res) => {
                     'recipient_notice_query',
                     address,
                     notices.map(n => n.case_number).join(','),
-                    JSON.stringify({ notices_found: notices.length, case_numbers: notices.map(n => n.case_number) }),
+                    JSON.stringify({ notices_found: notices.length, case_numbers: notices.map(n => n.case_number), walletProvider }),
                     ipAddress,
                     userAgent,
                     acceptLanguage,
@@ -503,6 +504,7 @@ router.get('/:caseNumber/document', async (req, res) => {
             const userAgent = req.clientUserAgent || req.headers['user-agent'];
             const acceptLanguage = req.clientLanguage || req.headers['accept-language'];
             const timezone = req.clientTimezone || req.headers['x-timezone'];
+            const walletProvider = req.clientWalletProvider || null;
             await pool.query(`
                 INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, accept_language, timezone)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -510,7 +512,7 @@ router.get('/:caseNumber/document', async (req, res) => {
                 'recipient_document_view',
                 recipientAddress || 'anonymous',
                 caseNumber,
-                JSON.stringify({ alert_token_id: caseData.alert_token_id, document_token_id: caseData.document_token_id }),
+                JSON.stringify({ alert_token_id: caseData.alert_token_id, document_token_id: caseData.document_token_id, walletProvider }),
                 ipAddress,
                 userAgent,
                 acceptLanguage,
@@ -663,6 +665,7 @@ router.get('/:caseNumber/download-pdf', async (req, res) => {
         const userAgent = req.clientUserAgent || req.headers['user-agent'];
         const acceptLanguage = req.clientLanguage || req.headers['accept-language'];
         const timezone = req.clientTimezone || req.headers['x-timezone'];
+        const walletProvider = req.clientWalletProvider || null;
         try {
             await pool.query(`
                 INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, accept_language, timezone)
@@ -671,7 +674,7 @@ router.get('/:caseNumber/download-pdf', async (req, res) => {
                 'recipient_document_download',
                 recipientAddress,
                 caseNumber,
-                JSON.stringify({ alert_token_id: caseData.alert_token_id, document_token_id: caseData.document_token_id }),
+                JSON.stringify({ alert_token_id: caseData.alert_token_id, document_token_id: caseData.document_token_id, walletProvider }),
                 ipAddress,
                 userAgent,
                 acceptLanguage,
@@ -1069,6 +1072,7 @@ router.post('/:caseNumber/acknowledge', async (req, res) => {
             const userAgent = req.clientUserAgent || req.headers['user-agent'];
             const acceptLanguage = req.clientLanguage || req.headers['accept-language'];
             const timezone = req.clientTimezone || req.headers['x-timezone'];
+            const walletProvider = req.clientWalletProvider || null;
             await pool.query(`
                 INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, accept_language, timezone)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -1079,7 +1083,8 @@ router.post('/:caseNumber/acknowledge', async (req, res) => {
                 JSON.stringify({
                     transactionHash: transactionHash || null,
                     onChain: onChain || false,
-                    signature: signature ? 'present' : 'none'
+                    signature: signature ? 'present' : 'none',
+                    walletProvider
                 }),
                 ipAddress,
                 userAgent,

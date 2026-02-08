@@ -87,7 +87,7 @@ window.receipts = {
                         <h6 class="card-title">Receipt: ${escapeHtml(receipt.receiptId)}</h6>
                         <p class="small mb-1"><strong>Case:</strong> ${escapeHtml(receipt.caseNumber)}</p>
                         <p class="small mb-1"><strong>Type:</strong> ${escapeHtml(receipt.type)}</p>
-                        <p class="small mb-1"><strong>Recipient:</strong> ${escapeHtml(this.formatAddress(receipt.recipient))}</p>
+                        <p class="small mb-1"><strong>Recipient${receipt.recipients?.length > 1 ? 's' : ''}:</strong> ${receipt.recipients?.length > 1 ? escapeHtml(receipt.recipients.length + ' recipients') : escapeHtml(this.formatAddress(receipt.recipients?.[0]?.address || receipt.recipients?.[0] || receipt.recipient))}</p>
                         <p class="small mb-1"><strong>Date:</strong> ${new Date(receipt.timestamp).toLocaleString()}</p>
 
                         <div class="mt-3">
@@ -196,11 +196,9 @@ window.receipts = {
     // Generate receipt HTML
     generateReceiptHTML(receipt) {
         // Handle different field name variations
-        const recipient = receipt.recipient ||
-                         (receipt.recipients && receipt.recipients[0]) ||
-                         receipt.recipient_address ||
-                         'N/A';
-        const recipientAddr = typeof recipient === 'object' ? recipient.address : recipient;
+        const recipientList = receipt.recipients ||
+                             (receipt.recipient ? [receipt.recipient] : [receipt.recipient_address || 'N/A']);
+        const recipientAddrs = recipientList.map(r => typeof r === 'object' ? r.address : r);
 
         const txHash = receipt.txId ||
                       receipt.transactionHash ||
@@ -254,9 +252,9 @@ window.receipts = {
                     <table style="width: 100%; font-size: 14px; margin-top: 10px;">
                         <tr>
                             <td style="padding: 5px;">
-                                <strong>Served To:</strong><br>
-                                ${recipientAddr}<br>
-                                <small>(TRON Wallet Address)</small>
+                                <strong>Served To:</strong> ${recipientAddrs.length > 1 ? `(${recipientAddrs.length} recipients)` : ''}<br>
+                                ${recipientAddrs.map((addr, i) => `${addr}${i < recipientAddrs.length - 1 ? '<br>' : ''}`).join('')}
+                                <br><small>(TRON Wallet Address${recipientAddrs.length > 1 ? 'es' : ''})</small>
                             </td>
                         </tr>
                         <tr>
@@ -331,7 +329,7 @@ window.receipts = {
                         <tr style="font-weight: bold; background-color: #f8f9fa;">
                             <td style="padding: 8px;">TOTAL EXPENDITURE</td>
                             <td style="padding: 8px; text-align: right;">
-                                ${receipt.totalCost || receipt.feeBreakdown?.total || 'N/A'} TRX
+                                ${receipt.totalCost || receipt.feeBreakdown?.totalPaymentTRX || 'N/A'} TRX
                             </td>
                         </tr>
                     </table>

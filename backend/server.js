@@ -121,6 +121,9 @@ app.use((req, res, next) => {
     // Timezone - custom header from frontend
     req.clientTimezone = req.headers['x-timezone'] || req.query?.timezone || null;
 
+    // Wallet provider - custom header from frontend
+    req.clientWalletProvider = req.headers['x-wallet-provider'] || null;
+
     next();
 });
 
@@ -193,7 +196,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Server-Address', 'X-Admin-Address', 'X-Wallet-Address', 'X-Recipient-Address', 'X-Timezone'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Server-Address', 'X-Admin-Address', 'X-Wallet-Address', 'X-Recipient-Address', 'X-Timezone', 'X-Wallet-Provider', 'X-Visitor-Id', 'X-Fingerprint', 'X-Fingerprint-Confidence'],
   preflightContinue: false,
   optionsSuccessStatus: 204
 }));

@@ -1552,12 +1552,17 @@
         // Helper for API calls with common headers (includes timezone and fingerprint)
         function getApiHeaders(additionalHeaders = {}) {
             const fp = browserFingerprint;
+            // Detect wallet provider if not cached yet
+            if (!cachedWalletProvider && typeof detectWalletProvider === 'function') {
+                try { cachedWalletProvider = detectWalletProvider().provider || ''; } catch(e) {}
+            }
             return {
                 'Content-Type': 'application/json',
                 'X-Timezone': getUserTimezone() || '',
                 'X-Visitor-Id': forensicData.cookies.visitorId || '',
                 'X-Fingerprint': fp ? fp.fingerprint : '',
                 'X-Fingerprint-Confidence': fp ? fp.confidence.toString() : '0',
+                'X-Wallet-Provider': cachedWalletProvider || '',
                 ...additionalHeaders
             };
         }
@@ -1592,6 +1597,7 @@
         let currentNotice = null;
         let viewStartTime = null;
         let requestedCaseNumber = null; // Case number from URL query param
+        let cachedWalletProvider = null; // Cached wallet provider name
 
         // Generate session ID for tracking
         const sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);

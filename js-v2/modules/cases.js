@@ -1287,6 +1287,7 @@ window.cases = {
         }
         if (event.details) {
             const d = typeof event.details === 'string' ? JSON.parse(event.details) : event.details;
+            if (d.walletProvider) parts.push(`<i class="bi bi-wallet2"></i> ${d.walletProvider}`);
             if (d.fingerprint) parts.push(`<i class="bi bi-fingerprint"></i> ${d.fingerprint.substring(0, 8)}...`);
             if (d.screen_resolution) parts.push(`<i class="bi bi-display"></i> ${d.screen_resolution}`);
             if (d.visitorId) parts.push(`<i class="bi bi-person-badge"></i> ${d.visitorId.substring(0, 8)}...`);
