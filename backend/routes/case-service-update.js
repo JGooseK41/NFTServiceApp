@@ -396,6 +396,106 @@ router.get('/cases/:caseNumber/service-data', async (req, res) => {
 });
 
 /**
+ * GET /api/cases/:caseNumber/diagnose
+ * Diagnostic endpoint to check data flow for receipts
+ */
+router.get('/cases/:caseNumber/diagnose', async (req, res) => {
+    try {
+        const caseNumber = (req.params.caseNumber || '').trim();
+
+        if (!caseNumber) {
+            return res.status(400).json({ error: 'Case number required' });
+        }
+
+        const diagnosis = {
+            caseNumber,
+            timestamp: new Date().toISOString(),
+            casesTable: null,
+            caseServiceRecords: null,
+            joinResult: null
+        };
+
+        // 1. Check cases table
+        const casesResult = await pool.query(`
+            SELECT id, server_address, status, metadata, created_at, served_at
+            FROM cases WHERE id = $1 OR id::text = $1
+        `, [caseNumber]);
+
+        if (casesResult.rows.length > 0) {
+            const row = casesResult.rows[0];
+            const metadata = typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata;
+            diagnosis.casesTable = {
+                found: true,
+                id: row.id,
+                status: row.status,
+                serverAddress: row.server_address,
+                servedAt: row.served_at,
+                metadataTransactionHash: metadata?.transactionHash || null,
+                metadataAlertTokenId: metadata?.alertTokenId || null
+            };
+        } else {
+            diagnosis.casesTable = { found: false };
+        }
+
+        // 2. Check case_service_records
+        const csrResult = await pool.query(`
+            SELECT case_number, transaction_hash, alert_token_id, document_token_id,
+                   ipfs_hash, served_at, server_address, chain, explorer_url
+            FROM case_service_records WHERE case_number = $1
+        `, [caseNumber]);
+
+        if (csrResult.rows.length > 0) {
+            const row = csrResult.rows[0];
+            diagnosis.caseServiceRecords = {
+                found: true,
+                caseNumber: row.case_number,
+                transactionHash: row.transaction_hash,
+                alertTokenId: row.alert_token_id,
+                documentTokenId: row.document_token_id,
+                ipfsHash: row.ipfs_hash,
+                servedAt: row.served_at,
+                serverAddress: row.server_address,
+                chain: row.chain,
+                explorerUrl: row.explorer_url
+            };
+        } else {
+            diagnosis.caseServiceRecords = { found: false };
+        }
+
+        // 3. Check JOIN result
+        const joinResult = await pool.query(`
+            SELECT c.id, c.status, csr.transaction_hash, csr.alert_token_id
+            FROM cases c
+            LEFT JOIN case_service_records csr ON c.id::text = csr.case_number
+            WHERE c.id = $1 OR c.id::text = $1
+        `, [caseNumber]);
+
+        if (joinResult.rows.length > 0) {
+            const row = joinResult.rows[0];
+            diagnosis.joinResult = {
+                found: true,
+                id: row.id,
+                status: row.status,
+                transactionHash: row.transaction_hash,
+                alertTokenId: row.alert_token_id,
+                joinWorking: !!(row.transaction_hash || row.alert_token_id)
+            };
+        } else {
+            diagnosis.joinResult = { found: false };
+        }
+
+        res.json({
+            success: true,
+            diagnosis
+        });
+
+    } catch (error) {
+        console.error('Diagnosis error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+/**
  * Create necessary tables if they don't exist
  */
 async function createTables() {
