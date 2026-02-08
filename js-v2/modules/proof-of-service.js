@@ -534,7 +534,7 @@ window.proofOfService = {
                         <div class="section-title">${receipt.alertImage ? 'VIII' : 'VII'}. Witness Acknowledgment</div>
                         <div class="affirmation">
                             <p>
-                                Subscribed and sworn to (or affirmed) before me on this _______ day of __________________, 20_____,
+                                Signed and sworn to (or affirmed) before me on this _______ day of __________________, 20_____,
                                 by the above-named server, who is personally known to me or has produced valid identification.
                             </p>
 
