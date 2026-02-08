@@ -149,24 +149,56 @@ router.get('/overview', checkAdminAuth, async (req, res) => {
 router.get('/process-servers', checkAdminAuth, async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT 
-                ps.*,
-                COUNT(DISTINCT sn.notice_id) as total_cases,
-                COUNT(DISTINCT CASE WHEN sn.is_signed THEN sn.notice_id END) as signed_cases,
-                COUNT(DISTINCT CASE WHEN sn.served_at > NOW() - INTERVAL '7 days' THEN sn.notice_id END) as recent_cases,
-                MAX(sn.served_at) as last_activity
+            SELECT
+                ps.id,
+                ps.wallet_address,
+                ps.agency_name,
+                ps.contact_email,
+                ps.phone_number,
+                ps.website,
+                ps.license_number,
+                ps.jurisdictions,
+                ps.status,
+                ps.total_notices_served,
+                ps.created_at,
+                ps.updated_at,
+                COUNT(DISTINCT csr.case_number) as total_cases,
+                COUNT(DISTINCT CASE WHEN csr.accepted THEN csr.case_number END) as signed_cases,
+                COUNT(DISTINCT CASE WHEN csr.served_at > NOW() - INTERVAL '7 days' THEN csr.case_number END) as recent_cases,
+                MAX(csr.served_at) as last_activity
             FROM process_servers ps
-            LEFT JOIN served_notices sn ON LOWER(ps.wallet_address) = LOWER(sn.server_address)
+            LEFT JOIN case_service_records csr ON LOWER(ps.wallet_address) = LOWER(csr.server_address)
             GROUP BY ps.id, ps.wallet_address
             ORDER BY ps.created_at DESC
         `);
-        
+
+        // Map to frontend-expected field names
+        const servers = result.rows.map(row => ({
+            id: row.id,
+            wallet_address: row.wallet_address,
+            full_name: row.agency_name || 'Unknown',
+            agency: row.agency_name || 'N/A',
+            email: row.contact_email,
+            phone: row.phone_number,
+            website: row.website,
+            license_number: row.license_number,
+            jurisdictions: row.jurisdictions,
+            status: row.status,
+            is_active: row.status === 'active' || row.status === 'approved',
+            total_cases: parseInt(row.total_cases) || 0,
+            signed_cases: parseInt(row.signed_cases) || 0,
+            recent_cases: parseInt(row.recent_cases) || 0,
+            last_activity: row.last_activity || row.updated_at,
+            created_at: row.created_at,
+            updated_at: row.updated_at
+        }));
+
         res.json({
             success: true,
-            servers: result.rows,
-            total: result.rows.length
+            servers,
+            total: servers.length
         });
-        
+
     } catch (error) {
         console.error('Error getting process servers:', error);
         res.status(500).json({ error: error.message });
