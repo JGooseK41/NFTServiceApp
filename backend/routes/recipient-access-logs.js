@@ -146,7 +146,17 @@ async function initializeLoggingTables() {
             ALTER TABLE recipient_connections
             ADD COLUMN IF NOT EXISTS accept_language TEXT
         `).catch(() => {});
-        
+
+        await pool.query(`
+            ALTER TABLE recipient_connections
+            ADD COLUMN IF NOT EXISTS browser_fingerprint VARCHAR(100)
+        `).catch(() => {});
+
+        await pool.query(`
+            ALTER TABLE recipient_connections
+            ADD COLUMN IF NOT EXISTS fingerprint_confidence INTEGER DEFAULT 0
+        `).catch(() => {});
+
         // Table for notice views
         await pool.query(`
             CREATE TABLE IF NOT EXISTS recipient_notice_views (
@@ -283,13 +293,18 @@ initializeLoggingTables();
  */
 router.post('/connection', async (req, res) => {
     try {
-        const { wallet_address, session_id, browser_info, timezone, visitor_id } = req.body;
+        const { wallet_address, session_id, browser_info, timezone, visitor_id, fingerprint, fingerprint_confidence } = req.body;
         const clientTimezone = timezone || req.headers['x-timezone'] || browser_info?.timezone || null;
         const visitorId = visitor_id || req.headers['x-visitor-id'] || null;
+
+        // Extract fingerprint from request body or headers
+        const browserFingerprint = fingerprint || req.headers['x-fingerprint'] || browser_info?.fingerprint?.hash || null;
+        const fpConfidence = fingerprint_confidence || parseInt(req.headers['x-fingerprint-confidence']) || browser_info?.fingerprint?.confidence || 0;
 
         // Extract forensic data from browser_info
         const forensics = browser_info?.forensics || {};
         const languagePrefs = browser_info?.languagePreferences || {};
+        const fingerprintDetails = browser_info?.fingerprint || {};
         
         // Get IP address - use clientIp set by middleware (includes Cloudflare headers)
         const ipAddress = req.clientIp || req.ip || 'unknown';
@@ -324,7 +339,7 @@ router.post('/connection', async (req, res) => {
             console.log('Could not get IP geolocation:', geoError.message);
         }
         
-        // Enhanced browser info with geolocation and forensics
+        // Enhanced browser info with geolocation, forensics, and fingerprint
         const enhancedBrowserInfo = {
             ...browser_info,
             ipGeolocation: ipGeolocation,
@@ -336,6 +351,9 @@ router.post('/connection', async (req, res) => {
             },
             serverCaptured: {
                 visitorId: visitorId,
+                browserFingerprint: browserFingerprint,
+                fingerprintConfidence: fpConfidence,
+                fingerprintDetails: fingerprintDetails,
                 isReturnVisitor: forensics.isReturnVisitor || false,
                 visitCount: forensics.visitCount || 1,
                 firstVisit: forensics.firstVisit || null,
@@ -363,8 +381,10 @@ router.post('/connection', async (req, res) => {
                 visit_count,
                 referrer_domain,
                 accept_language,
+                browser_fingerprint,
+                fingerprint_confidence,
                 connected_at_utc
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW() AT TIME ZONE 'UTC')
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW() AT TIME ZONE 'UTC')
             RETURNING id, connected_at, connected_at_utc
         `, [
             wallet_address,
@@ -377,12 +397,15 @@ router.post('/connection', async (req, res) => {
             forensics.isReturnVisitor || false,
             forensics.visitCount || 1,
             forensics.referrerDomain || null,
-            req.headers['accept-language'] || null
+            req.headers['accept-language'] || null,
+            browserFingerprint,
+            fpConfidence
         ]);
 
-        // Log with forensic info
+        // Log with forensic info including fingerprint
         const isReturn = forensics.visitCount > 1 ? ' (RETURN VISITOR)' : ' (NEW VISITOR)';
-        console.log(`Wallet connected: ${wallet_address} from ${cleanIp} (${ipGeolocation?.city || 'Unknown'}, ${ipGeolocation?.country || 'Unknown'})${isReturn} at ${result.rows[0].connected_at}`);
+        const fpInfo = browserFingerprint ? ` [FP: ${browserFingerprint.substring(0, 15)}... ${fpConfidence}%]` : '';
+        console.log(`Wallet connected: ${wallet_address} from ${cleanIp} (${ipGeolocation?.city || 'Unknown'}, ${ipGeolocation?.country || 'Unknown'})${isReturn}${fpInfo} at ${result.rows[0].connected_at}`);
         
         res.json({
             success: true,

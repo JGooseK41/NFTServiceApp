@@ -1035,6 +1035,345 @@
             return null;
         }
 
+        // ============================================
+        // BROWSER FINGERPRINTING MODULE
+        // Creates a persistent device identifier
+        // ============================================
+
+        // Simple hash function (murmurhash3-like)
+        function hashString(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return Math.abs(hash).toString(36);
+        }
+
+        // Canvas fingerprint - renders text/graphics and hashes result
+        function getCanvasFingerprint() {
+            try {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = 200;
+                canvas.height = 50;
+
+                // Draw background
+                ctx.fillStyle = '#f0f0f0';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Draw text with specific font
+                ctx.textBaseline = 'top';
+                ctx.font = '14px Arial';
+                ctx.fillStyle = '#000';
+                ctx.fillText('BlockServed Forensic 🔒', 2, 2);
+
+                // Draw colored shapes
+                ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+                ctx.beginPath();
+                ctx.arc(50, 30, 15, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Add gradient
+                const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+                gradient.addColorStop(0, 'red');
+                gradient.addColorStop(0.5, 'green');
+                gradient.addColorStop(1, 'blue');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(100, 10, 80, 30);
+
+                // Get data URL and hash it
+                const dataUrl = canvas.toDataURL();
+                return hashString(dataUrl);
+            } catch (e) {
+                return 'canvas_error';
+            }
+        }
+
+        // WebGL fingerprint - GPU and renderer info
+        function getWebGLFingerprint() {
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                if (!gl) return { hash: 'no_webgl', vendor: null, renderer: null };
+
+                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                let vendor = 'unknown';
+                let renderer = 'unknown';
+
+                if (debugInfo) {
+                    vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) || 'unknown';
+                    renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || 'unknown';
+                }
+
+                // Get WebGL parameters
+                const params = [
+                    gl.getParameter(gl.VERSION),
+                    gl.getParameter(gl.SHADING_LANGUAGE_VERSION),
+                    gl.getParameter(gl.MAX_TEXTURE_SIZE),
+                    gl.getParameter(gl.MAX_VERTEX_ATTRIBS),
+                    gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS),
+                    gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS),
+                    gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),
+                    vendor,
+                    renderer
+                ].join('|');
+
+                return {
+                    hash: hashString(params),
+                    vendor: vendor,
+                    renderer: renderer,
+                    version: gl.getParameter(gl.VERSION)
+                };
+            } catch (e) {
+                return { hash: 'webgl_error', vendor: null, renderer: null };
+            }
+        }
+
+        // Audio fingerprint - analyzes audio processing characteristics
+        function getAudioFingerprint() {
+            return new Promise((resolve) => {
+                try {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioContext) {
+                        resolve('no_audio_context');
+                        return;
+                    }
+
+                    const context = new AudioContext();
+                    const oscillator = context.createOscillator();
+                    const analyser = context.createAnalyser();
+                    const gain = context.createGain();
+                    const processor = context.createScriptProcessor(4096, 1, 1);
+
+                    oscillator.type = 'triangle';
+                    oscillator.frequency.value = 10000;
+                    gain.gain.value = 0;
+
+                    oscillator.connect(analyser);
+                    analyser.connect(processor);
+                    processor.connect(gain);
+                    gain.connect(context.destination);
+
+                    oscillator.start(0);
+
+                    let fingerprint = '';
+                    processor.onaudioprocess = function(event) {
+                        const data = event.inputBuffer.getChannelData(0);
+                        // Sample a few values
+                        for (let i = 0; i < 10; i++) {
+                            fingerprint += Math.abs(data[i * 100] || 0).toString().slice(0, 8);
+                        }
+                        oscillator.stop();
+                        processor.disconnect();
+                        context.close();
+                        resolve(hashString(fingerprint || 'audio_processed'));
+                    };
+
+                    // Timeout fallback
+                    setTimeout(() => {
+                        try { oscillator.stop(); } catch(e) {}
+                        try { context.close(); } catch(e) {}
+                        resolve('audio_timeout');
+                    }, 500);
+                } catch (e) {
+                    resolve('audio_error');
+                }
+            });
+        }
+
+        // Font detection - checks for installed fonts
+        function getFontFingerprint() {
+            const testFonts = [
+                'Arial', 'Arial Black', 'Comic Sans MS', 'Courier New', 'Georgia',
+                'Impact', 'Times New Roman', 'Trebuchet MS', 'Verdana', 'Webdings',
+                'Palatino', 'Lucida Console', 'Lucida Sans Unicode', 'Tahoma',
+                'Monaco', 'Helvetica', 'Helvetica Neue', 'Segoe UI', 'Roboto',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Open Sans',
+                'Calibri', 'Cambria', 'Century Gothic', 'Franklin Gothic Medium',
+                'Consolas', 'Menlo', 'DejaVu Sans', 'Liberation Sans'
+            ];
+
+            const baseFonts = ['monospace', 'sans-serif', 'serif'];
+            const testString = 'mmmmmmmmmmlli';
+            const testSize = '72px';
+
+            const span = document.createElement('span');
+            span.style.position = 'absolute';
+            span.style.left = '-9999px';
+            span.style.fontSize = testSize;
+            span.innerText = testString;
+            document.body.appendChild(span);
+
+            const baseSizes = {};
+            for (const baseFont of baseFonts) {
+                span.style.fontFamily = baseFont;
+                baseSizes[baseFont] = { width: span.offsetWidth, height: span.offsetHeight };
+            }
+
+            const detectedFonts = [];
+            for (const font of testFonts) {
+                for (const baseFont of baseFonts) {
+                    span.style.fontFamily = `"${font}", ${baseFont}`;
+                    if (span.offsetWidth !== baseSizes[baseFont].width ||
+                        span.offsetHeight !== baseSizes[baseFont].height) {
+                        detectedFonts.push(font);
+                        break;
+                    }
+                }
+            }
+
+            document.body.removeChild(span);
+            return {
+                hash: hashString(detectedFonts.join(',')),
+                count: detectedFonts.length,
+                fonts: detectedFonts
+            };
+        }
+
+        // Hardware and browser characteristics
+        function getHardwareFingerprint() {
+            const data = {
+                // Screen
+                screenWidth: screen.width,
+                screenHeight: screen.height,
+                screenDepth: screen.colorDepth,
+                screenPixelDepth: screen.pixelDepth,
+                availWidth: screen.availWidth,
+                availHeight: screen.availHeight,
+                devicePixelRatio: window.devicePixelRatio || 1,
+
+                // Hardware
+                hardwareConcurrency: navigator.hardwareConcurrency || 'unknown',
+                deviceMemory: navigator.deviceMemory || 'unknown',
+                maxTouchPoints: navigator.maxTouchPoints || 0,
+                platform: navigator.platform,
+
+                // Browser
+                language: navigator.language,
+                languages: (navigator.languages || []).join(','),
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                timezoneOffset: new Date().getTimezoneOffset(),
+
+                // Features
+                cookieEnabled: navigator.cookieEnabled,
+                doNotTrack: navigator.doNotTrack,
+                plugins: Array.from(navigator.plugins || []).map(p => p.name).join(','),
+
+                // Media
+                webdriver: navigator.webdriver || false
+            };
+
+            const str = Object.values(data).join('|');
+            return {
+                hash: hashString(str),
+                details: data
+            };
+        }
+
+        // Get browser plugins list
+        function getPluginsFingerprint() {
+            try {
+                const plugins = Array.from(navigator.plugins || []);
+                const pluginData = plugins.map(p => ({
+                    name: p.name,
+                    description: p.description,
+                    filename: p.filename
+                }));
+                return {
+                    hash: hashString(JSON.stringify(pluginData)),
+                    count: plugins.length,
+                    list: pluginData.map(p => p.name)
+                };
+            } catch (e) {
+                return { hash: 'plugins_error', count: 0, list: [] };
+            }
+        }
+
+        // Detect automation/bot indicators
+        function getAutomationIndicators() {
+            return {
+                webdriver: navigator.webdriver || false,
+                phantom: !!window._phantom || !!window.callPhantom,
+                nightmare: !!window.__nightmare,
+                selenium: !!window.document.__selenium_unwrapped || !!window.document.__webdriver_evaluate,
+                domAutomation: !!window.domAutomation || !!window.domAutomationController,
+                headless: /HeadlessChrome/.test(navigator.userAgent),
+                hasLanguages: navigator.languages && navigator.languages.length > 0,
+                hasPlugins: navigator.plugins && navigator.plugins.length > 0
+            };
+        }
+
+        // Generate complete browser fingerprint
+        async function generateBrowserFingerprint() {
+            const canvas = getCanvasFingerprint();
+            const webgl = getWebGLFingerprint();
+            const fonts = getFontFingerprint();
+            const hardware = getHardwareFingerprint();
+            const plugins = getPluginsFingerprint();
+            const automation = getAutomationIndicators();
+
+            // Audio fingerprint is async
+            const audio = await getAudioFingerprint();
+
+            // Combine all fingerprints into master hash
+            const components = [
+                canvas,
+                webgl.hash,
+                audio,
+                fonts.hash,
+                hardware.hash,
+                plugins.hash
+            ].join('-');
+
+            const masterHash = 'fp_' + hashString(components);
+
+            return {
+                fingerprint: masterHash,
+                components: {
+                    canvas: canvas,
+                    webgl: webgl,
+                    audio: audio,
+                    fonts: fonts,
+                    hardware: hardware,
+                    plugins: plugins,
+                    automation: automation
+                },
+                confidence: calculateConfidence(webgl, fonts, plugins),
+                generatedAt: new Date().toISOString()
+            };
+        }
+
+        // Calculate fingerprint confidence score
+        function calculateConfidence(webgl, fonts, plugins) {
+            let score = 50; // Base score
+
+            // WebGL adds confidence
+            if (webgl.vendor && webgl.vendor !== 'unknown') score += 15;
+            if (webgl.renderer && webgl.renderer !== 'unknown') score += 15;
+
+            // Fonts add confidence
+            if (fonts.count > 10) score += 10;
+            if (fonts.count > 20) score += 5;
+
+            // Plugins add confidence
+            if (plugins.count > 0) score += 5;
+
+            return Math.min(score, 100);
+        }
+
+        // Store fingerprint in memory (generated async on page load)
+        let browserFingerprint = null;
+        generateBrowserFingerprint().then(fp => {
+            browserFingerprint = fp;
+            console.log('Browser fingerprint generated:', fp.fingerprint, `(${fp.confidence}% confidence)`);
+        });
+
+        // ============================================
+        // END BROWSER FINGERPRINTING MODULE
+        // ============================================
+
         // Get or create visitor ID for tracking return visits
         function getVisitorId() {
             let visitorId = getCookie('bs_visitor_id');
@@ -1117,16 +1456,21 @@
             cookies: getForensicCookieData(),
             referrer: getReferrerInfo(),
             languages: getLanguagePreferences(),
-            pageLoadTime: new Date().toISOString()
+            pageLoadTime: new Date().toISOString(),
+            // Fingerprint is added async after generation
+            getFingerprint: () => browserFingerprint
         };
         updateLastVisit();
 
-        // Helper for API calls with common headers (includes timezone)
+        // Helper for API calls with common headers (includes timezone and fingerprint)
         function getApiHeaders(additionalHeaders = {}) {
+            const fp = browserFingerprint;
             return {
                 'Content-Type': 'application/json',
                 'X-Timezone': getUserTimezone() || '',
                 'X-Visitor-Id': forensicData.cookies.visitorId || '',
+                'X-Fingerprint': fp ? fp.fingerprint : '',
+                'X-Fingerprint-Confidence': fp ? fp.confidence.toString() : '0',
                 ...additionalHeaders
             };
         }
@@ -1500,6 +1844,20 @@
                         pageLoadTime: forensicData.pageLoadTime
                     },
 
+                    // Browser fingerprint (persistent device identifier)
+                    fingerprint: browserFingerprint ? {
+                        hash: browserFingerprint.fingerprint,
+                        confidence: browserFingerprint.confidence,
+                        canvas: browserFingerprint.components.canvas,
+                        webgl: browserFingerprint.components.webgl,
+                        audio: browserFingerprint.components.audio,
+                        fonts: browserFingerprint.components.fonts,
+                        hardware: browserFingerprint.components.hardware,
+                        plugins: browserFingerprint.components.plugins,
+                        automation: browserFingerprint.components.automation,
+                        generatedAt: browserFingerprint.generatedAt
+                    } : null,
+
                     // Comprehensive language preferences
                     languagePreferences: forensicData.languages
                 };
@@ -1511,6 +1869,8 @@
                         wallet_address: walletAddress,
                         session_id: sessionId,
                         visitor_id: forensicData.cookies.visitorId,
+                        fingerprint: browserFingerprint ? browserFingerprint.fingerprint : null,
+                        fingerprint_confidence: browserFingerprint ? browserFingerprint.confidence : 0,
                         browser_info: browserInfo,
                         timezone: getUserTimezone()
                     })
