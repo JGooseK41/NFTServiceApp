@@ -549,24 +549,33 @@ router.get('/audit-logs', checkAdminAuth, async (req, res) => {
 router.post('/process-servers/:address/toggle', checkAdminAuth, async (req, res) => {
     try {
         const { address } = req.params;
-        
-        const result = await pool.query(`
-            UPDATE process_servers 
-            SET is_active = NOT is_active, updated_at = NOW()
-            WHERE LOWER(wallet_address) = LOWER($1)
-            RETURNING *
-        `, [address]);
-        
-        if (result.rows.length === 0) {
+
+        // Get current status
+        const current = await pool.query(
+            'SELECT status FROM process_servers WHERE LOWER(wallet_address) = LOWER($1)',
+            [address]
+        );
+
+        if (current.rows.length === 0) {
             return res.status(404).json({ error: 'Server not found' });
         }
-        
+
+        const currentStatus = current.rows[0].status;
+        const newStatus = (currentStatus === 'active' || currentStatus === 'approved') ? 'inactive' : 'active';
+
+        const result = await pool.query(`
+            UPDATE process_servers
+            SET status = $1, updated_at = NOW()
+            WHERE LOWER(wallet_address) = LOWER($2)
+            RETURNING *
+        `, [newStatus, address]);
+
         res.json({
             success: true,
             server: result.rows[0],
-            message: `Server ${result.rows[0].is_active ? 'activated' : 'deactivated'}`
+            message: `Server ${newStatus === 'active' ? 'activated' : 'deactivated'}`
         });
-        
+
     } catch (error) {
         console.error('Error toggling server:', error);
         res.status(500).json({ error: error.message });

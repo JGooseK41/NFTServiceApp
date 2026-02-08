@@ -108,7 +108,9 @@ window.adminServerManager = {
     renderServerRow(server) {
         const statusBadge = server.is_active
             ? '<span class="badge bg-success">Active</span>'
-            : '<span class="badge bg-danger">Inactive</span>';
+            : server.status === 'pending'
+                ? '<span class="badge bg-warning text-dark">Pending</span>'
+                : '<span class="badge bg-danger">Inactive</span>';
 
         const lastActive = server.last_activity
             ? new Date(server.last_activity).toLocaleDateString()
