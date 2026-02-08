@@ -343,8 +343,9 @@ window.notices = {
                         try {
                             console.log(`Backend update attempt ${attempt}/${maxRetries}...`);
 
+                            // Use non-transactional endpoint to avoid transaction issues on Render
                             const serviceUpdateResponse = await fetch(
-                                `${backendUrl}/api/cases/${encodeURIComponent(caseIdentifier)}/service-complete`,
+                                `${backendUrl}/api/cases/${encodeURIComponent(caseIdentifier)}/service-complete-notx`,
                                 {
                                     method: 'PUT',
                                     headers: {
@@ -357,16 +358,12 @@ window.notices = {
 
                             if (serviceUpdateResponse.ok) {
                                 const result = await serviceUpdateResponse.json();
-                                // Check for verified flag to ensure data was actually saved
-                                if (result.success && result.verified) {
-                                    console.log('✅ Case service data stored and verified:', result);
-                                    backendUpdateSuccess = true;
-                                } else if (result.success) {
-                                    // Old backend version without verification - accept but log warning
-                                    console.warn('⚠️ Case service data stored (not verified):', result);
+                                // Check for success flag
+                                if (result.success) {
+                                    console.log('✅ Case service data stored:', result);
                                     backendUpdateSuccess = true;
                                 } else {
-                                    // Backend returned 200 but success:false (shouldn't happen but handle it)
+                                    // Backend returned 200 but success:false
                                     lastError = result.error || 'Unknown error';
                                     console.error(`Backend returned success:false:`, result);
                                 }
