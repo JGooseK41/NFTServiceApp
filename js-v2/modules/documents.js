@@ -1,8 +1,8 @@
 // Document Processing Module - Handles PDF consolidation, thumbnails, and encryption
 
-// Helper function for API URLs
-function getApiUrl(endpoint) {
-    const baseUrl = window.location.hostname === 'localhost' 
+// Helper function for document API URLs (local to this module)
+function getDocumentApiUrl(endpoint) {
+    const baseUrl = window.location.hostname === 'localhost'
         ? 'http://localhost:3001'
         : 'https://nftserviceapp.onrender.com';
     return `${baseUrl}/api/${endpoint}`;
@@ -374,7 +374,7 @@ window.documents = {
             formData.append('recipientAddress', options.recipientAddress || '');
             
             // Use encrypted upload endpoint
-            const response = await fetch(getApiUrl('documents/upload-encrypted'), {
+            const response = await fetch(getDocumentApiUrl('documents/upload-encrypted'), {
                 method: 'POST',
                 body: formData,
                 headers: {
@@ -529,7 +529,7 @@ window.documents = {
         formData.append('pinataMetadata', JSON.stringify(metadata));
         
         // Upload via backend proxy (to protect API keys)
-        const response = await fetch(getApiUrl('uploadDocument'), {
+        const response = await fetch(getDocumentApiUrl('uploadDocument'), {
             method: 'POST',
             body: formData
         });
