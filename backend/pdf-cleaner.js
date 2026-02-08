@@ -102,9 +102,19 @@ class PDFCleaner {
      */
     async tryStrategies(strategies, pdfBuffer, index, fileName) {
         for (const strategy of strategies) {
+            // Skip heavy strategies (Puppeteer/browser-based) - too slow for web requests
+            if (strategy.name === 'Print-to-PDF') {
+                console.log(`    Skipping ${strategy.name} (too slow for web requests)`);
+                continue;
+            }
+
             console.log(`    Trying ${strategy.name}...`);
             try {
-                const result = await strategy.fn();
+                // Per-strategy timeout of 10 seconds to prevent hangs
+                const result = await Promise.race([
+                    strategy.fn(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Strategy timed out after 10s')), 10000))
+                ]);
                 if (result && result.success) {
                     console.log(`    ✅ Success with ${strategy.name}: ${result.pageCount} pages`);
                     return {
