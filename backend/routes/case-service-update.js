@@ -1661,4 +1661,121 @@ router.post('/cases/fix-whitespace-cases', async (req, res) => {
     }
 });
 
+/**
+ * POST /api/cases/manual-mark-served
+ * Manually mark a case as served when the automatic service-complete failed
+ * but the NFT was successfully minted on blockchain.
+ * Requires: caseNumber, transactionHash, serverAddress
+ * Optional: alertTokenId, recipients, chain
+ */
+router.post('/cases/manual-mark-served', async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+        const {
+            caseNumber,
+            transactionHash,
+            alertTokenId,
+            serverAddress,
+            recipients,
+            chain = 'tron-nile'
+        } = req.body;
+
+        if (!caseNumber || !transactionHash || !serverAddress) {
+            return res.status(400).json({
+                success: false,
+                error: 'caseNumber, transactionHash, and serverAddress are required'
+            });
+        }
+
+        const trimmedCaseNumber = caseNumber.trim();
+        console.log(`\n========== MANUAL MARK SERVED: ${trimmedCaseNumber} ==========`);
+        console.log(`Transaction: ${transactionHash}`);
+        console.log(`Server: ${serverAddress}`);
+        console.log(`Token ID: ${alertTokenId || 'N/A'}`);
+
+        await client.query('BEGIN');
+
+        // Step 1: Update cases table
+        const casesUpdate = await client.query(`
+            UPDATE cases
+            SET status = 'served',
+                served_at = COALESCE(served_at, NOW()),
+                updated_at = NOW(),
+                tx_hash = $2,
+                alert_nft_id = $3,
+                metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object(
+                    'manuallyMarkedServed', true,
+                    'markedAt', NOW()::text,
+                    'transactionHash', $2,
+                    'alertTokenId', $3
+                )
+            WHERE id = $1
+            RETURNING id, status, served_at
+        `, [trimmedCaseNumber, transactionHash, alertTokenId]);
+
+        if (casesUpdate.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({
+                success: false,
+                error: `Case ${trimmedCaseNumber} not found in cases table`
+            });
+        }
+
+        console.log(`✅ Cases table updated:`, casesUpdate.rows[0]);
+
+        // Step 2: Create/update case_service_records
+        const serviceRecord = await client.query(`
+            INSERT INTO case_service_records (
+                case_number,
+                transaction_hash,
+                alert_token_id,
+                recipients,
+                served_at,
+                server_address,
+                chain,
+                status,
+                created_at
+            ) VALUES ($1, $2, $3, $4, NOW(), $5, $6, 'served', NOW())
+            ON CONFLICT (case_number)
+            DO UPDATE SET
+                transaction_hash = COALESCE(EXCLUDED.transaction_hash, case_service_records.transaction_hash),
+                alert_token_id = COALESCE(EXCLUDED.alert_token_id, case_service_records.alert_token_id),
+                recipients = COALESCE(EXCLUDED.recipients, case_service_records.recipients),
+                served_at = COALESCE(case_service_records.served_at, NOW()),
+                status = 'served',
+                updated_at = NOW()
+            RETURNING id, case_number, transaction_hash
+        `, [
+            trimmedCaseNumber,
+            transactionHash,
+            alertTokenId || null,
+            JSON.stringify(recipients || []),
+            serverAddress,
+            chain
+        ]);
+
+        console.log(`✅ Service record created/updated:`, serviceRecord.rows[0]);
+
+        await client.query('COMMIT');
+
+        res.json({
+            success: true,
+            message: `Case ${trimmedCaseNumber} manually marked as served`,
+            case: casesUpdate.rows[0],
+            serviceRecord: serviceRecord.rows[0]
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Manual mark served error:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    } finally {
+        client.release();
+    }
+});
+
 module.exports = router;
