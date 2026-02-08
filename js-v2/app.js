@@ -1725,44 +1725,51 @@ window.app = {
                 this.showError('Please connect your wallet to save cases');
                 return;
             }
-            
+
             // Validate basic fields
             const caseNumber = document.getElementById('caseNumber')?.value?.trim();
             if (!caseNumber) {
                 this.showError('Please enter a case number before saving');
                 return;
             }
-            
+
             // Check if documents are uploaded
             if (!this.state.fileQueue || this.state.fileQueue.length === 0) {
                 this.showError('Please upload at least one document before saving');
                 return;
             }
-            
+
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
             const serverAddress = window.tronWeb.defaultAddress.base58;
 
             // If we already have a currentCaseId, we're updating an existing case
             const isUpdating = !!this.currentCaseId;
 
-            // Show processing modal immediately (longer timeout for large PDF uploads)
+            // Show processing modal immediately
             this.showProcessing(
                 isUpdating ? 'Updating case...' : 'Saving to Case Manager...',
-                'Cleaning PDFs and preparing for blockchain service',
+                'Uploading documents to server...',
                 120000
             );
+
+            console.log('📋 saveToCase started:', { caseNumber, serverAddress, isUpdating, fileCount: this.state.fileQueue.length });
 
             if (!isUpdating) {
                 // Only check if case exists when creating new (not updating)
 
                 try {
+                    const checkController = new AbortController();
+                    const checkTimeout = setTimeout(() => checkController.abort(), 10000);
                     const checkResponse = await fetch(`${backendUrl}/api/cases/by-number/${caseNumber}?serverAddress=${serverAddress}`, {
                         method: 'GET',
                         headers: {
                             'X-Server-Address': serverAddress
-                        }
-                    });
-                    
+                        },
+                        signal: checkController.signal
+                    }).finally(() => clearTimeout(checkTimeout));
+
+                    console.log('Case check response:', checkResponse.status);
+
                     if (checkResponse.ok) {
                         const existingCase = await checkResponse.json();
                         if (existingCase.success && existingCase.case) {
@@ -1799,13 +1806,13 @@ window.app = {
                         }
                     }
                 } catch (checkError) {
-                    console.log('Case check failed, proceeding with creation:', checkError);
+                    console.log('Case check failed, proceeding with creation:', checkError.message);
                 }
             }
-            
+
             // Create FormData for multipart upload
             const formData = new FormData();
-            
+
             // Add metadata
             formData.append('caseNumber', caseNumber);
             formData.append('noticeText', document.getElementById('noticeText')?.value || '');
@@ -1815,19 +1822,20 @@ window.app = {
             formData.append('responseDeadline', document.getElementById('responseDeadline')?.value || '');
             formData.append('legalRights', document.getElementById('legalRights')?.value || 'View full notice at www.blockserved.com');
             formData.append('serverAddress', window.tronWeb.defaultAddress.base58);
-            
+
             // Add recipients as JSON (includes labels)
             const recipients = this.getRecipients();
             formData.append('recipients', JSON.stringify(recipients));
-            
+
             // Debug: Log what we're sending
             console.log('FormData contents:');
             console.log('- Case number:', caseNumber);
-            console.log('- Recipients:', recipients);
+            console.log('- Recipients:', recipients.length);
             console.log('- File count:', this.state.fileQueue.length);
-            
+
             // Add all PDF files (skip existing backend documents)
             let addedFiles = 0;
+            let totalSize = 0;
             for (let i = 0; i < this.state.fileQueue.length; i++) {
                 const doc = this.state.fileQueue[i];
                 // Skip placeholder/existing documents from backend
@@ -1837,28 +1845,27 @@ window.app = {
                 }
                 formData.append('documents', doc.file, doc.file.name);
                 addedFiles++;
-                console.log(`- Added file ${addedFiles}: ${doc.file.name} (${doc.file.size} bytes)`);
+                totalSize += doc.file.size;
+                console.log(`- Added file ${addedFiles}: ${doc.file.name} (${(doc.file.size / 1024 / 1024).toFixed(2)} MB)`);
             }
-            
+
             // Check if we actually have files to upload
             if (addedFiles === 0) {
+                this.hideProcessing();
                 this.showError('No new documents to upload. Please add PDF files or use existing case.');
                 return;
             }
-            
-            // Skip client-side processing - let server handle PDF cleaning and merging
-            // The server will process these PDFs with the PDFCleaner
-            console.log('📤 Sending PDFs to server for cleaning and consolidation...');
-            
+
+            console.log(`📤 Uploading ${addedFiles} file(s), ${(totalSize / 1024 / 1024).toFixed(2)} MB total...`);
+
             // Save to backend with multipart form data
             const apiUrl = `${backendUrl}/api/cases`;
             console.log('Saving case to:', apiUrl);
-            console.log('Server address:', serverAddress);
-            
+
             // Add timeout to prevent hanging
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout for large PDF uploads
-            
+
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
@@ -1870,6 +1877,8 @@ window.app = {
             }).finally(() => {
                 clearTimeout(timeoutId);
             });
+
+            console.log('✅ Upload complete, processing response...');
             
             console.log('Response received:', response.status, response.statusText);
             console.log('Response headers:', response.headers.get('content-type'));
