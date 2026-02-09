@@ -3208,7 +3208,7 @@
                             ...details,
                             userAgent: navigator.userAgent,
                             language: navigator.language,
-                            timezone: timezone,
+                            timezone: getUserTimezone(),
                             screenSize: `${screen.width}x${screen.height}`
                         }
                     })
@@ -3219,7 +3219,33 @@
             }
         }
 
-        // Sign document (only for Document NFT)
+        // Contract addresses per network
+        const CONTRACT_ADDRESSES = {
+            'https://api.trongrid.io': 'TAWScLCb73qn9FqgwoUZgTt5T3cwYKTWXq',     // Mainnet
+            'https://nile.trongrid.io': 'TPD6Q4ivfk6ibNZHkmWpQq7tkviHCVrJ8V'       // Nile testnet
+        };
+
+        // Minimal ABI for acknowledgeNotice
+        const ACKNOWLEDGE_ABI = [{
+            "inputs": [{ "internalType": "uint256", "name": "alertId", "type": "uint256" }],
+            "name": "acknowledgeNotice",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        }];
+
+        // Get contract address based on connected network
+        function getContractAddress() {
+            const fullNodeHost = window.tronWeb?.fullNode?.host || '';
+            // Match by host prefix
+            for (const [host, addr] of Object.entries(CONTRACT_ADDRESSES)) {
+                if (fullNodeHost.startsWith(host)) return addr;
+            }
+            // Default to mainnet
+            return CONTRACT_ADDRESSES['https://api.trongrid.io'];
+        }
+
+        // Sign document via on-chain acknowledgeNotice smart contract call
         async function signDocument() {
             const notice = currentNotice;
             if (!notice) {
@@ -3259,84 +3285,58 @@
             });
 
             try {
-                // Create signature message - different wording for Lite vs v5
-                const servedDate = notice.served_at ? new Date(notice.served_at).toISOString() : new Date().toISOString();
-                const message = isLiteContract
-                    ? `I acknowledge and accept the legal notice (Token #${signingTokenId}) for Case #${notice.case_number} served on ${servedDate}`
-                    : `I acknowledge and accept the legal document (Document NFT #${signingTokenId}) for Case #${notice.case_number} served on ${servedDate}`;
+                // Call acknowledgeNotice on the smart contract (actual blockchain transaction)
+                const contractAddress = getContractAddress();
+                console.log(`Calling acknowledgeNotice(${signingTokenId}) on contract ${contractAddress}`);
 
-                // Sign with TronLink - use window.tronWeb directly (not cached ref)
-                // Try signMessageV2 first, fall back to tronLink.request API
-                let signature;
-                try {
-                    signature = await window.tronWeb.trx.signMessageV2(message);
-                } catch (signErr) {
-                    console.warn('signMessageV2 failed, trying tronLink.request fallback:', signErr);
-                    // Fallback: use TronLink request API directly
-                    if (window.tronLink && window.tronLink.request) {
-                        const result = await window.tronLink.request({
-                            method: 'tron_signMessageV2',
-                            params: { message: message }
-                        });
-                        signature = result?.signature || result;
-                    } else {
-                        throw signErr; // Re-throw if no fallback available
-                    }
-                }
+                const contract = await window.tronWeb.contract(ACKNOWLEDGE_ABI, contractAddress);
+                const txResult = await contract.acknowledgeNotice(signingTokenId).send({
+                    feeLimit: 100_000_000 // 100 TRX fee limit
+                });
 
-                if (!signature) {
-                    throw new Error('No signature returned from wallet');
+                console.log('acknowledgeNotice transaction result:', txResult);
+
+                // txResult is the transaction hash string
+                const txHash = typeof txResult === 'string' ? txResult : txResult?.txid || txResult?.transaction?.txID;
+                if (!txHash) {
+                    throw new Error('No transaction hash returned from contract call');
                 }
-                
+                console.log('On-chain acknowledgment tx:', txHash);
+
                 // Detect device and wallet for legal record
                 const deviceType = detectDeviceType();
                 const walletInfo = detectWalletProvider();
-                
+
                 // Get comprehensive device info for legal record
                 const deviceInfo = {
-                    // Device identification
                     platform: navigator.platform,
                     userAgent: navigator.userAgent,
                     vendor: navigator.vendor,
-                    
-                    // Device type
                     deviceType: deviceType.type,
                     operatingSystem: deviceType.os,
                     isMobile: deviceType.isMobile,
                     isDesktop: deviceType.isDesktop,
-                    
-                    // Language and locale
                     language: navigator.language,
                     languages: navigator.languages,
                     locale: Intl.DateTimeFormat().resolvedOptions().locale,
-                    
-                    // Time information
                     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                     timezoneOffset: new Date().getTimezoneOffset(),
                     timestamp: new Date().toISOString(),
-                    
-                    // Screen info for forensics
                     screenResolution: `${screen.width}x${screen.height}`,
                     windowSize: `${window.innerWidth}x${window.innerHeight}`,
                     colorDepth: screen.colorDepth,
-                    
-                    // Device capabilities
                     touchPoints: navigator.maxTouchPoints,
                     deviceMemory: navigator.deviceMemory,
                     hardwareConcurrency: navigator.hardwareConcurrency,
-                    
-                    // Browser state
                     cookieEnabled: navigator.cookieEnabled,
                     onLine: navigator.onLine,
                     referrer: document.referrer,
-                    
-                    // Wallet and signature metadata
                     walletProvider: walletInfo.provider,
                     walletVersion: walletInfo.version,
                     walletType: walletInfo.type,
-                    signatureMethod: walletInfo.provider || 'TronLink',
-                    
-                    // Browser identification
+                    signatureMethod: 'on-chain-acknowledgeNotice',
+                    acknowledgeTxHash: txHash,
+                    contractAddress: contractAddress,
                     browserName: (function() {
                         const ua = navigator.userAgent;
                         if (ua.indexOf('Firefox') > -1) return 'Firefox';
@@ -3347,7 +3347,7 @@
                         return 'Unknown';
                     })()
                 };
-                
+
                 // Try to get geolocation (optional)
                 let geolocation = null;
                 try {
@@ -3362,7 +3362,7 @@
                 } catch (e) {
                     // Geolocation not available or denied
                 }
-                
+
                 // Send enhanced acknowledgment to logging endpoint
                 const logResponse = await fetch(`${BACKEND_URL}/api/recipient-logs/acknowledgment`, {
                     method: 'POST',
@@ -3370,7 +3370,9 @@
                     body: JSON.stringify({
                         case_number: notice.case_number,
                         wallet_address: currentWallet,
-                        signature: signature,
+                        signature: txHash,
+                        acknowledgment_tx_hash: txHash,
+                        contract_address: contractAddress,
                         geolocation: geolocation,
                         device_info: deviceInfo,
                         timezone: getUserTimezone()
@@ -3382,31 +3384,33 @@
                     method: 'POST',
                     headers: getApiHeaders(),
                     body: JSON.stringify({
-                        signature: signature,
+                        signature: txHash,
+                        acknowledgment_tx_hash: txHash,
                         wallet: currentWallet,
                         timestamp: new Date().toISOString(),
                         timezone: getUserTimezone()
                     })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
-                    showAlert('Document NFT signed and legally acknowledged!', 'success');
+                    showAlert('Document acknowledged on-chain! Transaction: ' + txHash.substring(0, 16) + '...', 'success');
                     // Update the current notice object
                     notice.accepted = true;
                     notice.accepted_at = new Date().toISOString();
-                    notice.signature = signature;
+                    notice.signature = txHash;
+                    notice.acknowledgment_tx_hash = txHash;
                     // Log document action specifically for Document NFT
                     await logDocumentAction(notice.case_number, 'document_nft_signed');
-                    
+
                     // Show receipt options
                     showSignatureReceipt(notice);
-                    
+
                     // Reload notices to update status
                     loadNotices();
                 } else {
-                    showAlert('Failed to sign Document NFT. Please try again.', 'error');
+                    showAlert('Transaction submitted but backend update failed. TX: ' + txHash.substring(0, 16) + '...', 'error');
                 }
             } catch (error) {
                 console.error('Error signing document:', error);
@@ -3464,9 +3468,6 @@
                     </button>
                     <button onclick="downloadReceiptHTML()" class="btn btn-secondary">
                         <i class="bi bi-download"></i> Download as HTML
-                    </button>
-                    <button onclick="copyIPFSInfo()" class="btn btn-secondary">
-                        <i class="bi bi-clipboard"></i> Copy IPFS Info
                     </button>
                     <button onclick="closeDocumentModal()" class="btn btn-secondary">
                         <i class="bi bi-x-lg"></i> Close
@@ -3630,32 +3631,6 @@
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-        }
-        
-        // Copy IPFS information to clipboard
-        async function copyIPFSInfo() {
-            if (!currentNotice || !currentNotice.ipfs_hash) {
-                showAlert('No IPFS information available', 'error');
-                return;
-            }
-            
-            const ipfsInfo = `IPFS Hash: ${currentNotice.ipfs_hash}\n` +
-                           `${currentNotice.encryption_key ? 'Decryption Key: ' + currentNotice.encryption_key + '\n' : ''}` +
-                           `Access URL: https://ipfs.io/ipfs/${currentNotice.ipfs_hash}`;
-            
-            try {
-                await navigator.clipboard.writeText(ipfsInfo);
-                showAlert('IPFS information copied to clipboard!', 'success');
-            } catch (err) {
-                // Fallback for older browsers
-                const textArea = document.createElement('textarea');
-                textArea.value = ipfsInfo;
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-                showAlert('IPFS information copied to clipboard!', 'success');
-            }
         }
         
         // Log document action to backend
