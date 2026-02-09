@@ -6,6 +6,8 @@
     <title>BlockServed - Official Legal Notice Portal</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- QR Code Generator for mobile wallet connection -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -95,6 +97,221 @@
             display: flex;
             align-items: center;
             gap: 8px;
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+                padding: 15px;
+            }
+            
+            .logo-text h1 {
+                font-size: 20px;
+            }
+            
+            .wallet-section {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .connect-btn {
+                width: 100%;
+                max-width: 300px;
+            }
+            
+            .main-container {
+                padding: 0 15px;
+                margin: 20px auto;
+            }
+            
+            .info-banner {
+                padding: 20px;
+                border-radius: 12px;
+            }
+            
+            .info-banner h1 {
+                font-size: 24px !important;
+            }
+            
+            .info-banner p {
+                font-size: 16px !important;
+            }
+            
+            .steps-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .notice-card {
+                padding: 15px;
+                border-radius: 8px;
+                margin-bottom: 15px;
+            }
+            
+            .notice-card:hover {
+                transform: none;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            }
+            
+            .notice-header {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .notice-title h4 {
+                font-size: 16px;
+            }
+            
+            .notice-details {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .detail-item {
+                font-size: 14px;
+            }
+            
+            .status-badge {
+                font-size: 11px;
+                padding: 3px 8px;
+            }
+            
+            .document-modal {
+                margin: 0;
+                max-height: 100vh;
+                height: 100vh;
+                border-radius: 0;
+            }
+            
+            .modal-header, .modal-body, .modal-footer {
+                padding: 15px;
+            }
+            
+            .table-container {
+                overflow-x: auto;
+            }
+            
+            table {
+                font-size: 14px;
+            }
+            
+            /* Mobile-specific button styles */
+            .btn {
+                padding: 12px 20px;
+                font-size: 16px;
+                touch-action: manipulation;
+            }
+            
+            /* Prevent zoom on input focus */
+            input, select, textarea {
+                font-size: 16px !important;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .info-banner h1 {
+                font-size: 20px !important;
+            }
+            
+            .logo-icon {
+                width: 35px;
+                height: 35px;
+                font-size: 18px;
+            }
+            
+            .notice-card h3 {
+                font-size: 18px;
+            }
+        }
+        
+        /* Mobile Wallet Connection Modal */
+        .mobile-wallet-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 10000;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .mobile-wallet-modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .mobile-wallet-content {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .mobile-wallet-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        
+        .mobile-wallet-header h2 {
+            color: var(--primary-color);
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .wallet-option {
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .wallet-option:hover {
+            border-color: var(--secondary-color);
+            background: #f8f9fa;
+        }
+        
+        .wallet-option h4 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+        
+        .wallet-option p {
+            color: var(--text-light);
+            font-size: 14px;
+            margin: 0;
+        }
+        
+        .mobile-instructions {
+            background: #fff4e5;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        
+        .mobile-instructions h5 {
+            color: #ff9800;
+            margin-bottom: 10px;
+        }
+        
+        .mobile-instructions ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .mobile-instructions li {
+            margin: 8px 0;
+            line-height: 1.5;
         }
 
         .wallet-status.connected {
@@ -253,6 +470,17 @@
             border-left: 4px solid var(--secondary-color);
         }
 
+        .notice-card.highlighted {
+            border: 3px solid var(--secondary-color);
+            box-shadow: 0 4px 20px rgba(52, 152, 219, 0.3);
+            animation: highlightPulse 2s ease-in-out;
+        }
+
+        @keyframes highlightPulse {
+            0%, 100% { box-shadow: 0 4px 20px rgba(52, 152, 219, 0.3); }
+            50% { box-shadow: 0 4px 30px rgba(52, 152, 219, 0.5); }
+        }
+
         .notice-header {
             display: flex;
             justify-content: space-between;
@@ -291,7 +519,7 @@
             text-transform: uppercase;
         }
 
-        .status-delivered {
+        .status-served {
             background: #fff8e1;
             color: #f57c00;
         }
@@ -534,6 +762,142 @@
             color: #b71c1c;
             border-left: 4px solid #f44336;
         }
+
+        /* Footer */
+        .site-footer {
+            background: var(--primary-color);
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            padding: 20px;
+            font-size: 13px;
+            margin-top: 40px;
+        }
+
+        .site-footer a {
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            margin: 0 10px;
+        }
+
+        .site-footer a:hover {
+            color: white;
+            text-decoration: underline;
+        }
+
+        .footer-links {
+            margin-bottom: 8px;
+        }
+
+        /* Privacy Policy Modal */
+        .privacy-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 10001;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .privacy-modal.active {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+        }
+
+        .privacy-modal-content {
+            background: white;
+            border-radius: 16px;
+            max-width: 800px;
+            width: 100%;
+            margin: 20px auto;
+            display: flex;
+            flex-direction: column;
+            max-height: 90vh;
+        }
+
+        .privacy-modal-header {
+            padding: 24px 30px;
+            border-bottom: 1px solid var(--light-bg);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .privacy-modal-header h2 {
+            margin: 0;
+            color: var(--primary-color);
+            font-size: 22px;
+        }
+
+        .privacy-modal-body {
+            padding: 30px;
+            overflow-y: auto;
+            line-height: 1.7;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .privacy-modal-body h3 {
+            color: var(--primary-color);
+            margin: 28px 0 12px 0;
+            font-size: 17px;
+            border-bottom: 2px solid var(--light-bg);
+            padding-bottom: 6px;
+        }
+
+        .privacy-modal-body h3:first-child {
+            margin-top: 0;
+        }
+
+        .privacy-modal-body p {
+            margin: 10px 0;
+        }
+
+        .privacy-modal-body ul, .privacy-modal-body ol {
+            margin: 10px 0;
+            padding-left: 24px;
+        }
+
+        .privacy-modal-body li {
+            margin: 6px 0;
+        }
+
+        .privacy-modal-body strong {
+            color: #1a1a2e;
+        }
+
+        .privacy-modal-body .policy-highlight {
+            background: #f0f4ff;
+            border-left: 4px solid var(--secondary-color);
+            padding: 14px 18px;
+            margin: 16px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .privacy-modal-body .policy-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 14px 0;
+            font-size: 13px;
+        }
+
+        .privacy-modal-body .policy-table th,
+        .privacy-modal-body .policy-table td {
+            border: 1px solid #e0e0e0;
+            padding: 10px 12px;
+            text-align: left;
+        }
+
+        .privacy-modal-body .policy-table th {
+            background: var(--light-bg);
+            font-weight: 600;
+            color: var(--primary-color);
+        }
     </style>
 </head>
 <body>
@@ -557,56 +921,259 @@
                 <button id="connectWallet" class="connect-btn">
                     Connect Wallet
                 </button>
+                <button id="disconnectWallet" class="connect-btn" style="display: none; background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
+                    <i class="bi bi-box-arrow-right"></i> Switch Wallet
+                </button>
+                <!-- Mobile wallet option for desktop users -->
+                <div id="mobileWalletOption" class="mobile-wallet-link" style="display: none;">
+                    <a href="#" onclick="showMobileQRModal(); return false;" style="color: var(--secondary-color); font-size: 13px;">
+                        <i class="bi bi-phone"></i> Use mobile wallet instead?
+                    </a>
+                </div>
             </div>
         </div>
     </header>
 
-    <!-- Main Container -->
-    <div class="main-container">
-        <!-- Information Banner -->
-        <div class="info-banner">
-            <h2>You Have Been Served Legal Documents</h2>
-            <p>
-                This portal allows you to securely view and acknowledge legal notices that have been served to you via blockchain technology. 
-                These notices are legally binding and have been recorded on the TRON blockchain for permanent verification.
-            </p>
-            
-            <div class="alert-message alert-info">
-                <i class="bi bi-info-circle-fill"></i>
-                <div>
-                    <strong>Important:</strong> These are official legal documents. Please review them carefully and take appropriate action as required by law.
+    <!-- Mobile Wallet Connection Modal -->
+    <div id="mobileWalletModal" class="mobile-wallet-modal">
+        <div class="mobile-wallet-content">
+            <div class="mobile-wallet-header">
+                <i class="bi bi-phone" style="font-size: 48px; color: var(--secondary-color); margin-bottom: 15px;"></i>
+                <h2>Connect Your Wallet</h2>
+                <p style="color: var(--text-light);">Choose your wallet app to view your legal documents</p>
+            </div>
+
+            <div class="mobile-instructions">
+                <h5><i class="bi bi-info-circle-fill"></i> How Mobile Wallet Connection Works</h5>
+                <p style="margin-bottom: 10px;">For security, mobile browsers can't connect directly to wallet apps. Choose one of these options:</p>
+            </div>
+
+            <!-- Wallet Selection Grid -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0;">
+                <div class="wallet-option" onclick="openInWallet('tronlink')" style="padding: 15px; text-align: center;">
+                    <img src="https://cdn.jsdelivr.net/gh/niconiahi/if-i-go-content@0.0.1/icons/tronlink.png"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                         style="width: 40px; height: 40px; margin-bottom: 8px;" alt="TronLink">
+                    <i class="bi bi-wallet2" style="font-size: 40px; color: #2e7dd0; display: none;"></i>
+                    <h5 style="margin: 5px 0 0 0; font-size: 14px;">TronLink</h5>
+                </div>
+
+                <div class="wallet-option" onclick="openInWallet('trust')" style="padding: 15px; text-align: center;">
+                    <img src="https://trustwallet.com/assets/images/favicon.png"
+                         onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22><circle cx=%2220%22 cy=%2220%22 r=%2218%22 fill=%22%230500FF%22/><text x=%2220%22 y=%2226%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2216%22>T</text></svg>'"
+                         style="width: 40px; height: 40px; margin-bottom: 8px;" alt="Trust Wallet">
+                    <h5 style="margin: 5px 0 0 0; font-size: 14px;">Trust Wallet</h5>
+                </div>
+
+                <div class="wallet-option" onclick="openInWallet('tokenpocket')" style="padding: 15px; text-align: center;">
+                    <img src="https://tokenpocket.pro/favicon.ico"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                         style="width: 40px; height: 40px; margin-bottom: 8px;" alt="TokenPocket">
+                    <i class="bi bi-wallet-fill" style="font-size: 40px; color: #2980fe; display: none;"></i>
+                    <h5 style="margin: 5px 0 0 0; font-size: 14px;">TokenPocket</h5>
+                </div>
+
+                <div class="wallet-option" onclick="openInWallet('imtoken')" style="padding: 15px; text-align: center;">
+                    <img src="https://token.im/favicon.ico"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+                         style="width: 40px; height: 40px; margin-bottom: 8px;" alt="imToken">
+                    <i class="bi bi-wallet-fill" style="font-size: 40px; color: #11c3d0; display: none;"></i>
+                    <h5 style="margin: 5px 0 0 0; font-size: 14px;">imToken</h5>
                 </div>
             </div>
 
-            <div class="steps-container">
-                <div class="step-card">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <h4>Connect Your Wallet</h4>
-                        <p>Use the wallet that received the notice NFT</p>
+            <!-- Alternative Options -->
+            <div style="border-top: 1px solid #e0e0e0; padding-top: 15px; margin-top: 10px;">
+                <p style="text-align: center; color: #666; font-size: 13px; margin-bottom: 10px;">Or use these options:</p>
+
+                <div class="wallet-option" onclick="showQRCode()" style="display: flex; align-items: center; padding: 12px 15px;">
+                    <i class="bi bi-qr-code" style="font-size: 24px; color: #6f42c1; margin-right: 12px;"></i>
+                    <div>
+                        <h5 style="margin: 0; font-size: 14px;">Show QR Code</h5>
+                        <p style="margin: 0; font-size: 12px; color: #666;">Scan with wallet's QR scanner</p>
                     </div>
                 </div>
-                <div class="step-card">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <h4>View Your Notices</h4>
-                        <p>All served documents will appear automatically</p>
+
+                <div class="wallet-option" onclick="copyUrlToClipboard()" style="display: flex; align-items: center; padding: 12px 15px;">
+                    <i class="bi bi-clipboard" style="font-size: 24px; color: var(--primary-color); margin-right: 12px;"></i>
+                    <div>
+                        <h5 style="margin: 0; font-size: 14px;">Copy URL</h5>
+                        <p style="margin: 0; font-size: 12px; color: #666;">Paste in wallet's browser</p>
                     </div>
                 </div>
-                <div class="step-card">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <h4>Read Documents</h4>
-                        <p>Click to view the full legal documents</p>
+
+                <div class="wallet-option" onclick="showManualInstructions()" style="display: flex; align-items: center; padding: 12px 15px;">
+                    <i class="bi bi-question-circle" style="font-size: 24px; color: var(--secondary-color); margin-right: 12px;"></i>
+                    <div>
+                        <h5 style="margin: 0; font-size: 14px;">Need Help?</h5>
+                        <p style="margin: 0; font-size: 12px; color: #666;">Step-by-step instructions</p>
                     </div>
                 </div>
-                <div class="step-card">
-                    <div class="step-number">4</div>
-                    <div class="step-content">
-                        <h4>Acknowledge Receipt</h4>
-                        <p>Sign to confirm you've received the notice</p>
+            </div>
+
+            <!-- QR Code Section -->
+            <div id="qrCodeSection" style="display: none; background: #f0f8ff; padding: 20px; border-radius: 8px; margin: 15px 0; text-align: center;">
+                <h5 style="color: var(--primary-color); margin-bottom: 15px;">
+                    <i class="bi bi-qr-code-scan"></i> Scan with Your Wallet
+                </h5>
+                <div id="qrCodeContainer" style="display: inline-block; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <canvas id="walletQRCode"></canvas>
+                </div>
+                <p style="font-size: 13px; color: #666; margin-top: 15px;">
+                    Open your wallet app's QR scanner and scan this code to connect
+                </p>
+                <button onclick="hideQRCode()" class="btn btn-sm btn-outline-secondary" style="margin-top: 10px;">
+                    <i class="bi bi-x-lg"></i> Close QR Code
+                </button>
+            </div>
+
+            <!-- Manual Instructions (hidden by default) -->
+            <div id="manualInstructions" style="display: none; background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                <h5 style="color: var(--primary-color); margin-bottom: 10px;">Step-by-Step Instructions</h5>
+                <ol style="margin: 0; padding-left: 20px; font-size: 14px;">
+                    <li style="margin-bottom: 8px;">Open your wallet app (TronLink, Trust Wallet, etc.)</li>
+                    <li style="margin-bottom: 8px;">Find the "Browser" or "DApp" section</li>
+                    <li style="margin-bottom: 8px;">Enter: <strong style="color: var(--primary-color);">blockserved.com</strong></li>
+                    <li style="margin-bottom: 8px;">Your wallet will connect automatically</li>
+                </ol>
+                <div style="background: #fff3cd; padding: 10px; border-radius: 5px; margin-top: 10px;">
+                    <small><i class="bi bi-lightbulb-fill" style="color: #856404;"></i>
+                    <strong>Tip:</strong> Make sure you're using the same wallet that received the legal notice NFT.</small>
+                </div>
+            </div>
+
+            <!-- Download Options -->
+            <div style="background: #e8f4fd; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                <h5 style="color: var(--primary-color); margin-bottom: 10px;">Don't have a TRON wallet?</h5>
+                <p style="font-size: 13px; margin-bottom: 10px;">Download TronLink - the official TRON wallet:</p>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <a href="https://apps.apple.com/app/tronlink/id1453530188" target="_blank" class="btn btn-primary" style="font-size: 13px; padding: 8px 15px;">
+                        <i class="bi bi-apple"></i> iOS
+                    </a>
+                    <a href="https://play.google.com/store/apps/details?id=com.tronlinkpro.wallet" target="_blank" class="btn btn-primary" style="font-size: 13px; padding: 8px 15px;">
+                        <i class="bi bi-google-play"></i> Android
+                    </a>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 15px;">
+                <button onclick="closeMobileWalletModal()" class="btn btn-secondary" style="font-size: 14px;">
+                    <i class="bi bi-x-lg"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Information Banner -->
+        <div class="info-banner" id="mainBanner">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 25px; border-radius: 50px; display: inline-block; margin-bottom: 20px;">
+                    <i class="bi bi-exclamation-triangle-fill" style="font-size: 20px; margin-right: 10px;"></i>
+                    <span style="font-weight: 600; font-size: 18px;">IMPORTANT LEGAL NOTICE</span>
+                </div>
+                <h1 style="font-size: 36px; font-weight: 700; color: var(--primary-color); margin-bottom: 15px;">
+                    You Have Received Official Legal Documents
+                </h1>
+                <p style="font-size: 20px; color: var(--text-dark); max-width: 800px; margin: 0 auto;">
+                    Legal documents have been served to your wallet address through blockchain-verified delivery
+                </p>
+            </div>
+            
+            <div class="alert-message" style="background: #fff4e5; border-left: 4px solid #ff9800; margin: 30px 0;">
+                <i class="bi bi-shield-lock-fill" style="color: #ff9800; font-size: 24px;"></i>
+                <div>
+                    <strong style="font-size: 18px; color: var(--primary-color);">Your Privacy is Protected</strong><br>
+                    <p style="margin: 10px 0; line-height: 1.6;">
+                        Your documents are <strong>completely private</strong> and can only be accessed by connecting the wallet that received the notice.
+                        Your wallet address is your unique identifier - no personal information is stored or displayed publicly.
+                    </p>
+                    <a href="#" onclick="openAboutModal(); return false;" style="color: #1976d2; font-size: 14px; text-decoration: underline;">
+                        Learn more about how BlockServed works
+                    </a>
+                </div>
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 25px; border-radius: 12px; margin: 25px 0;">
+                <h3 style="color: var(--primary-color); margin-bottom: 20px;">Why This is Important</h3>
+                <div style="display: grid; gap: 15px;">
+                    <div style="display: flex; align-items: start; gap: 12px;">
+                        <i class="bi bi-check-circle-fill" style="color: var(--success-color); font-size: 20px; flex-shrink: 0;"></i>
+                        <p style="margin: 0;"><strong>Legal Requirement:</strong> These documents may require your response within a specific timeframe as mandated by law.</p>
+                    </div>
+                    <div style="display: flex; align-items: start; gap: 12px;">
+                        <i class="bi bi-check-circle-fill" style="color: var(--success-color); font-size: 20px; flex-shrink: 0;"></i>
+                        <p style="margin: 0;"><strong>Permanent Record:</strong> Service of these documents has been permanently recorded on the blockchain, creating an immutable proof of delivery.</p>
+                    </div>
+                    <div style="display: flex; align-items: start; gap: 12px;">
+                        <i class="bi bi-check-circle-fill" style="color: var(--success-color); font-size: 20px; flex-shrink: 0;"></i>
+                        <p style="margin: 0;"><strong>Time-Sensitive:</strong> Failure to respond may result in default judgments or other legal consequences.</p>
                     </div>
                 </div>
+            </div>
+
+            <div style="background: #e8f5e9; padding: 25px; border-radius: 12px; margin: 25px 0;">
+                <h3 style="color: var(--primary-color); margin-bottom: 20px;">How to Access Your Documents</h3>
+                <div class="steps-container">
+                    <div class="step-card" style="background: white;">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h4>Connect Your Wallet</h4>
+                            <p>Connect the TRON wallet that received the legal notice. This is your secure identity - only you can access your documents.</p>
+                        </div>
+                    </div>
+                    <div class="step-card" style="background: white;">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h4>View Your Documents</h4>
+                            <p>Once connected, all legal notices served to your wallet will automatically appear. Documents are retrieved from our secure database.</p>
+                        </div>
+                    </div>
+                    <div class="step-card" style="background: white;">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h4>Accept or Decline Service</h4>
+                            <p>You can accept service by signing with your wallet, which will provide you with decryption keys for permanent IPFS access.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px; margin: 25px 0; color: white;">
+                <h3 style="margin-bottom: 20px;"><i class="bi bi-lock-fill"></i> Document Storage & Privacy</h3>
+                <div style="display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
+                    <div>
+                        <h5 style="margin-bottom: 10px;"><i class="bi bi-cloud-arrow-up"></i> Permanent IPFS Storage</h5>
+                        <p style="font-size: 14px; opacity: 0.95;">Your documents are permanently stored on IPFS (InterPlanetary File System), ensuring they can never be deleted or altered.</p>
+                    </div>
+                    <div>
+                        <h5 style="margin-bottom: 10px;"><i class="bi bi-shield-check"></i> Encrypted for Privacy</h5>
+                        <p style="font-size: 14px; opacity: 0.95;">All documents are encrypted. Only recipients who accept service receive the decryption key, ensuring complete privacy.</p>
+                    </div>
+                    <div>
+                        <h5 style="margin-bottom: 10px;"><i class="bi bi-key"></i> Your Keys, Your Access</h5>
+                        <p style="font-size: 14px; opacity: 0.95;">Once you accept service and receive your decryption key, you can access your documents anytime, anywhere, without using this site.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="alert-message alert-warning" style="margin: 25px 0;">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                <div>
+                    <strong>Legal Notice:</strong> If you choose to decline service, you can still view your documents through this portal. 
+                    However, accepting service provides you with permanent, independent access via IPFS decryption keys. 
+                    Please note that declining service does not prevent legal proceedings from continuing.
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <button id="connectWalletMain" class="connect-btn" style="font-size: 18px; padding: 15px 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <i class="bi bi-wallet2"></i> Connect Wallet to View Your Legal Documents
+                </button>
+                <p style="margin-top: 15px; color: var(--text-light); font-size: 14px;">
+                    <i class="bi bi-lock"></i> Secure connection via TronLink • No personal data required • Only your wallet address is used
+                </p>
             </div>
         </div>
 
@@ -641,6 +1208,265 @@
         </div>
     </div>
 
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="footer-links">
+            <a href="#" onclick="openPrivacyPolicy(); return false;">Privacy Policy</a>
+            <span>|</span>
+            <a href="#" onclick="openAboutModal(); return false;">About BlockServed</a>
+            <span>|</span>
+            <a href="mailto:info@theblockaudit.com">Contact Us</a>
+        </div>
+        <div>&copy; 2026 The Block Audit LLC. All rights reserved.</div>
+    </footer>
+
+    <!-- Privacy Policy Modal -->
+    <div id="privacyModal" class="privacy-modal">
+        <div class="privacy-modal-content">
+            <div class="privacy-modal-header">
+                <h2><i class="bi bi-shield-check"></i> Privacy Policy & Data Disclosure</h2>
+                <button class="close-modal" onclick="closePrivacyPolicy()">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="privacy-modal-body">
+                <p><strong>Effective Date:</strong> February 8, 2026<br>
+                <strong>Last Updated:</strong> February 8, 2026<br>
+                <strong>Operator:</strong> The Block Audit LLC<br>
+                <strong>Contact:</strong> <a href="mailto:info@theblockaudit.com">info@theblockaudit.com</a></p>
+
+                <h3>1. Introduction and Scope</h3>
+                <p>This Privacy Policy describes how The Block Audit LLC ("Company," "we," "us," or "our") collects, uses, stores, and discloses information when you access BlockServed.com (the "Portal"), a blockchain-based legal service delivery platform. This Portal facilitates the electronic service of legal process and provides recipients with secure access to legal documents served upon them.</p>
+                <p>By accessing this Portal, connecting a blockchain wallet, or viewing documents served to your wallet address, you acknowledge that you have read and understood this Privacy Policy. This policy applies to all visitors, recipients of legal notices, and any other individuals who access the Portal.</p>
+                <div class="policy-highlight">
+                    <strong>Important:</strong> All information collected through this Portal is gathered for the express purpose of ensuring proper delivery of legal documents, satisfying jurisdictional service requirements, and protecting the legal rights of the noticed party. The data we collect serves as forensic proof that you have been properly notified of legal proceedings, which is a fundamental protection of your due process rights.
+                </div>
+
+                <h3>2. Purpose of Data Collection</h3>
+                <p>The legal system requires that individuals be given adequate notice of legal proceedings that affect their rights. Service of process is a constitutionally protected right under the Due Process Clause, ensuring that all parties receive fair notice and an opportunity to be heard.</p>
+                <p>The data collected through this Portal serves the following critical legal purposes:</p>
+                <ol>
+                    <li><strong>Proof of Proper Delivery:</strong> Documenting that legal notices were successfully delivered to the intended recipient, satisfying legal service requirements under applicable rules of civil procedure.</li>
+                    <li><strong>Jurisdictional Compliance:</strong> Establishing that service was effectuated in compliance with the jurisdictional requirements of the court or legal authority overseeing the matter, including verification of the recipient's geographic location and the time and manner of service.</li>
+                    <li><strong>Protection of the Noticed Party's Rights:</strong> Creating an immutable, verifiable record that the recipient was properly served, which protects the recipient from claims of improper service, default judgments entered without proper notice, and any future disputes regarding whether adequate notice was provided.</li>
+                    <li><strong>Chain of Custody Documentation:</strong> Maintaining a complete forensic chain of custody for legal documents, from the point of service through recipient access, viewing, and acknowledgment.</li>
+                    <li><strong>Fraud Prevention and Integrity:</strong> Ensuring the integrity of the legal service process by verifying that the actual intended recipient accessed the documents, preventing fraudulent claims of non-receipt or unauthorized access.</li>
+                </ol>
+
+                <h3>3. Information We Collect</h3>
+                <p>To fulfill the legal purposes described above, we collect the following categories of information when you access this Portal:</p>
+
+                <h4 style="color: var(--text-dark); margin: 18px 0 8px 0;">3.1 Blockchain Wallet Information</h4>
+                <table class="policy-table">
+                    <tr><th>Data Element</th><th>Purpose</th></tr>
+                    <tr><td>Wallet Address (public key)</td><td>Identifies the recipient of legal service; the address to which the legal notice NFT was delivered</td></tr>
+                    <tr><td>Wallet Provider (e.g., TronLink)</td><td>Documents the method by which the recipient connected to the Portal, establishing the means of access for jurisdictional records</td></tr>
+                    <tr><td>Wallet Connection Timestamp</td><td>Records the precise date and time the recipient connected, establishing when the recipient accessed the service platform</td></tr>
+                </table>
+
+                <h4 style="color: var(--text-dark); margin: 18px 0 8px 0;">3.2 Network and Location Information</h4>
+                <table class="policy-table">
+                    <tr><th>Data Element</th><th>Purpose</th></tr>
+                    <tr><td>IP Address</td><td>Establishes geographic jurisdiction and provides forensic evidence of the network from which the documents were accessed, critical for satisfying jurisdictional service requirements</td></tr>
+                    <tr><td>Timezone</td><td>Corroborates the recipient's geographic location and establishes the local time of access for jurisdictional compliance</td></tr>
+                    <tr><td>Browser Language Preference</td><td>Documents the language settings of the recipient's browser to ensure accessibility requirements are met and to support jurisdictional determinations</td></tr>
+                </table>
+
+                <h4 style="color: var(--text-dark); margin: 18px 0 8px 0;">3.3 Device and Browser Information</h4>
+                <table class="policy-table">
+                    <tr><th>Data Element</th><th>Purpose</th></tr>
+                    <tr><td>User Agent String</td><td>Records the browser type, version, and operating system to document the technical environment in which documents were accessed, ensuring the recipient had a compatible platform to view the served documents</td></tr>
+                    <tr><td>Screen Resolution</td><td>Documents the display capabilities of the recipient's device to confirm the documents could be properly rendered and viewed</td></tr>
+                    <tr><td>Device Type (Desktop/Mobile/Tablet)</td><td>Records the category of device used to access the documents for forensic completeness</td></tr>
+                    <tr><td>Operating System</td><td>Documents the platform environment for forensic chain of custody records</td></tr>
+                </table>
+
+                <h4 style="color: var(--text-dark); margin: 18px 0 8px 0;">3.4 Browser Fingerprint</h4>
+                <p>We generate a composite browser fingerprint to uniquely identify the device used to access served legal documents. This fingerprint is computed locally in your browser and consists of the following components:</p>
+                <table class="policy-table">
+                    <tr><th>Component</th><th>Description</th><th>Purpose</th></tr>
+                    <tr><td>Canvas Fingerprint</td><td>A hash derived from how your browser renders graphics</td><td>Creates a unique device identifier to prevent fraudulent claims of non-access and to ensure the same device is consistently associated with document viewing sessions</td></tr>
+                    <tr><td>WebGL Fingerprint</td><td>A hash derived from your device's graphics processing capabilities</td><td>Adds specificity to the device identification for forensic records</td></tr>
+                    <tr><td>Audio Fingerprint</td><td>A hash derived from how your device processes audio signals</td><td>Provides additional device identification accuracy</td></tr>
+                    <tr><td>Font Fingerprint</td><td>A hash of the fonts available on your system</td><td>Further distinguishes the specific device used</td></tr>
+                    <tr><td>Hardware Fingerprint</td><td>A hash derived from hardware characteristics (processor cores, memory, etc.)</td><td>Establishes hardware-level device identification for evidentiary purposes</td></tr>
+                </table>
+                <div class="policy-highlight">
+                    <strong>Why we use browser fingerprinting:</strong> In legal proceedings, it is essential to establish with a high degree of certainty that the intended recipient personally accessed and viewed the served documents. The browser fingerprint creates a persistent, anonymous device identifier that provides forensic evidence linking a specific device to document access events. This protects the noticed party by creating verifiable proof that service was completed to their device, which can prevent improper default judgments and support challenges to service if the recipient's device was not the one that accessed the documents.
+                </div>
+                <p>The browser fingerprint is computed as a one-way cryptographic hash. We do not collect or store the underlying raw data (such as your installed fonts or specific hardware specifications) &mdash; only the computed hash values. The fingerprint cannot be reverse-engineered to reveal personal information about your device.</p>
+
+                <h4 style="color: var(--text-dark); margin: 18px 0 8px 0;">3.5 Cookies and Session Identifiers</h4>
+                <table class="policy-table">
+                    <tr><th>Cookie/Identifier</th><th>Duration</th><th>Purpose</th></tr>
+                    <tr><td>Visitor ID (<code>bs_visitor_id</code>)</td><td>1 year</td><td>Maintains session continuity across visits so that repeat access to served documents is properly attributed to the same visitor, ensuring accurate forensic records of when and how often the recipient accessed their legal documents</td></tr>
+                    <tr><td>Session ID</td><td>Current session only</td><td>Groups related actions (connecting wallet, viewing documents, downloading) into a single session for audit trail coherence</td></tr>
+                </table>
+                <p>We do not use any advertising cookies, analytics tracking cookies, or third-party cookies. The only cookies placed are strictly necessary for the legal service delivery functionality described in this policy.</p>
+
+                <h4 style="color: var(--text-dark); margin: 18px 0 8px 0;">3.6 Document Interaction Data</h4>
+                <table class="policy-table">
+                    <tr><th>Data Element</th><th>Purpose</th></tr>
+                    <tr><td>Document View Events</td><td>Records each instance when a served legal document is opened, creating a timestamped log that the recipient accessed and had the opportunity to read the document</td></tr>
+                    <tr><td>Document Download Events</td><td>Records when the recipient downloads a copy of the served document, establishing that the recipient obtained a permanent copy</td></tr>
+                    <tr><td>Signature/Acknowledgment Events</td><td>Records when the recipient digitally signs or acknowledges receipt of service, providing cryptographic proof of acceptance</td></tr>
+                </table>
+
+                <h3>4. Legal Basis for Data Collection</h3>
+                <p>We collect and process the above information under the following legal bases:</p>
+                <ul>
+                    <li><strong>Legitimate Interest in Legal Process:</strong> The collection of forensic data is necessary for the legitimate interest of ensuring proper legal service of process, a function recognized and required by courts worldwide. Proper service of process is a fundamental component of due process and protects the rights of all parties involved in legal proceedings.</li>
+                    <li><strong>Compliance with Legal Obligations:</strong> Rules of civil procedure in most jurisdictions require that proof of service be documented and may be presented to the court. The data collected provides the evidentiary basis for such proof.</li>
+                    <li><strong>Protection of the Recipient's Legal Rights:</strong> The forensic record protects the noticed party by establishing a verifiable, tamper-proof record of service. This record can be used by the recipient to demonstrate that service was or was not properly effectuated, protecting against improper default judgments, missed deadlines due to disputed service, and claims that notice was inadequate or defective.</li>
+                    <li><strong>Administration of Justice:</strong> Courts and legal authorities have a recognized interest in the reliable documentation of service of process. The data we collect supports the integrity and reliability of the judicial system's notice requirements.</li>
+                </ul>
+
+                <h3>5. How We Use Your Information</h3>
+                <p>The information we collect is used exclusively for the following purposes:</p>
+                <ol>
+                    <li><strong>Generating Proof of Service:</strong> Creating comprehensive, forensic-grade proof of service records that document when, where, how, and by whom legal documents were accessed.</li>
+                    <li><strong>Providing Audit Trails:</strong> Maintaining detailed audit logs that track the complete lifecycle of a legal notice from service through recipient access, viewing, and acknowledgment.</li>
+                    <li><strong>Supporting Legal Proceedings:</strong> Providing courts, attorneys, process servers, and parties to legal proceedings with verifiable evidence of proper service.</li>
+                    <li><strong>Ensuring Document Delivery:</strong> Verifying that the served documents were properly rendered and accessible on the recipient's device.</li>
+                    <li><strong>Preventing Fraud:</strong> Detecting and documenting any anomalies in the service process that could indicate fraudulent access or impersonation.</li>
+                </ol>
+                <div class="policy-highlight">
+                    <strong>We do not use your information for:</strong> Marketing, advertising, profiling, behavioral analysis, sale to third parties, credit scoring, employment screening, or any purpose unrelated to the legal service of process and protection of your legal rights.
+                </div>
+
+                <h3>6. Information Sharing and Disclosure</h3>
+                <p>We share the collected information only with the following parties and only for the purposes described in this policy:</p>
+                <table class="policy-table">
+                    <tr><th>Recipient of Data</th><th>What Is Shared</th><th>Purpose</th></tr>
+                    <tr><td>Issuing Party (process server, attorney, or agency)</td><td>Full audit trail including IP address, device info, browser fingerprint, timestamps, and document interaction events</td><td>The issuing party requires proof of service to file with the court and to document that service requirements have been satisfied. This is a legal obligation inherent to the service of process.</td></tr>
+                    <tr><td>Courts and Legal Authorities</td><td>Proof of service records as required by applicable rules of procedure</td><td>Courts may require proof that service was properly effectuated before proceedings can advance. The forensic data supports the reliability of such proof.</td></tr>
+                    <tr><td>The Noticed Party (you)</td><td>Your own access records and service documentation</td><td>You have the right to access your own service records, which can be used in your defense or to challenge the adequacy of service.</td></tr>
+                </table>
+                <p><strong>We do not sell, rent, lease, or trade your personal information to any third party.</strong> We do not share your information with data brokers, advertisers, or any entity unrelated to the legal service of process.</p>
+
+                <h3>7. Blockchain Records</h3>
+                <p>When a legal notice is served, a Non-Fungible Token (NFT) is minted on the TRON blockchain and delivered to your wallet address. The following information is permanently recorded on the blockchain:</p>
+                <ul>
+                    <li>Your wallet address (as the NFT recipient)</li>
+                    <li>The transaction hash and timestamp</li>
+                    <li>NFT metadata including case number, issuing agency, and service date</li>
+                    <li>A link to the BlockServed.com portal for document access</li>
+                </ul>
+                <p><strong>Blockchain records are immutable and cannot be deleted or modified</strong> by The Block Audit LLC or any other party. This immutability is a feature that protects both the issuing party and the recipient by creating a tamper-proof record of service that neither party can unilaterally alter.</p>
+
+                <h3>8. Data Retention</h3>
+                <p>Given the legal nature of the information we collect, our retention policies are governed by legal requirements rather than commercial considerations:</p>
+                <ul>
+                    <li><strong>Audit Logs and Forensic Data:</strong> Retained for a minimum of seven (7) years or for the duration of any legal proceedings to which the data is relevant, whichever is longer. This retention period aligns with common statutes of limitation and court record retention requirements.</li>
+                    <li><strong>Blockchain Records:</strong> Permanently stored on the blockchain. These records cannot be deleted due to the immutable nature of blockchain technology.</li>
+                    <li><strong>Document Storage:</strong> Served documents and associated encryption keys are retained for as long as necessary to fulfill legal service requirements and to ensure the recipient's continued access to their documents.</li>
+                    <li><strong>Session Data:</strong> Temporary session identifiers are not retained beyond the active session.</li>
+                </ul>
+
+                <h3>9. Data Security</h3>
+                <p>We implement appropriate technical and organizational measures to protect the information we collect, including:</p>
+                <ul>
+                    <li><strong>Encryption in Transit:</strong> All data transmitted between your browser and our servers is encrypted using TLS (Transport Layer Security).</li>
+                    <li><strong>Document Encryption:</strong> Served legal documents are encrypted using AES-256-GCM encryption. Decryption keys are managed securely and are only provided to authorized recipients.</li>
+                    <li><strong>Blockchain Verification:</strong> The use of blockchain technology provides an additional layer of data integrity, as records cannot be tampered with or altered after they are created.</li>
+                    <li><strong>Access Controls:</strong> Access to audit logs and forensic data is restricted to authorized parties (the issuing party, the recipient, and court authorities as applicable).</li>
+                    <li><strong>IPFS Document Storage:</strong> Documents stored on the InterPlanetary File System (IPFS) are content-addressed, meaning they are identified by their cryptographic hash, ensuring document integrity.</li>
+                </ul>
+
+                <h3>10. Your Rights</h3>
+                <p>Depending on your jurisdiction, you may have certain rights regarding your personal information. However, please note that the legal nature of the data collected may limit the exercise of certain rights:</p>
+                <ul>
+                    <li><strong>Right of Access:</strong> You have the right to request a copy of the personal information we hold about you. Contact us at <a href="mailto:info@theblockaudit.com">info@theblockaudit.com</a> to submit an access request.</li>
+                    <li><strong>Right to Rectification:</strong> You may request correction of inaccurate personal information, subject to the requirement that forensic records maintain their evidentiary integrity.</li>
+                    <li><strong>Right to Erasure (with limitations):</strong> Due to legal retention requirements and the legitimate interest in maintaining proof of service records, requests for deletion may be denied where the data is required for the establishment, exercise, or defense of legal claims, subject to a legal retention obligation, or recorded on the blockchain (which is technically immutable).</li>
+                    <li><strong>Right to Object:</strong> You may object to the processing of your data. However, processing necessary for legal service of process is generally exempt from objection rights due to the overriding legitimate interest in the administration of justice.</li>
+                    <li><strong>Right to Data Portability:</strong> You may request your data in a structured, machine-readable format.</li>
+                </ul>
+                <p>To exercise any of these rights, please contact us at <a href="mailto:info@theblockaudit.com">info@theblockaudit.com</a>. We will respond to all requests within thirty (30) days.</p>
+
+                <h3>11. International Data Transfers</h3>
+                <p>This Portal is operated from the United States. If you access this Portal from outside the United States, your information will be transferred to and processed in the United States. By accessing this Portal, you acknowledge that your data will be processed in the United States, where data protection laws may differ from those in your jurisdiction. The transfer is necessary for the performance of legal service of process, which is in your interest as it ensures you receive proper notice of legal proceedings affecting your rights.</p>
+
+                <h3>12. Children's Privacy</h3>
+                <p>This Portal is not directed at individuals under the age of 18. Legal service of process is directed at adults or legal entities. We do not knowingly collect personal information from children under 18. If you believe a child's information has been collected, please contact us at <a href="mailto:info@theblockaudit.com">info@theblockaudit.com</a>.</p>
+
+                <h3>13. Third-Party Services</h3>
+                <p>This Portal uses the following third-party services in connection with legal service delivery:</p>
+                <ul>
+                    <li><strong>TRON Blockchain Network:</strong> For minting and delivering NFT-based proof of service.</li>
+                    <li><strong>IPFS (via Pinata):</strong> For decentralized, tamper-proof storage of document metadata and thumbnails.</li>
+                    <li><strong>TronLink / Compatible Wallet Providers:</strong> For wallet connection and blockchain interaction (these are controlled by the user and are not our services).</li>
+                </ul>
+                <p>Each third-party service has its own privacy policy, and we encourage you to review them.</p>
+
+                <h3>14. Changes to This Privacy Policy</h3>
+                <p>We may update this Privacy Policy from time to time to reflect changes in our practices, legal requirements, or operational needs. The "Last Updated" date at the top of this policy indicates when the most recent revisions were made. Continued use of the Portal after any changes constitutes acceptance of the updated policy.</p>
+
+                <h3>15. Contact Information</h3>
+                <p>If you have questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us at:</p>
+                <p>
+                    <strong>The Block Audit LLC</strong><br>
+                    Email: <a href="mailto:info@theblockaudit.com">info@theblockaudit.com</a><br>
+                    Website: <a href="https://www.theblockaudit.com" target="_blank">www.theblockaudit.com</a>
+                </p>
+
+                <div class="policy-highlight">
+                    <strong>Reminder:</strong> The data collected through this Portal exists to protect your legal rights. Proper documentation of legal service ensures that you receive adequate notice of proceedings, provides you with evidence to challenge improper service, and creates a verifiable record that can be used in your defense. If you have concerns about how your data is being used, please do not hesitate to contact us.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- About BlockServed Modal -->
+    <div id="aboutModal" class="privacy-modal">
+        <div class="privacy-modal-content">
+            <div class="privacy-modal-header">
+                <h2><i class="bi bi-info-circle"></i> About BlockServed</h2>
+                <button class="close-modal" onclick="closeAboutModal()">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="privacy-modal-body">
+
+                <h3>What You Received</h3>
+                <p>You have been served a legal notice via blockchain technology. The NFT (Non-Fungible Token) delivered to your wallet is proof that a legal document was delivered to you.</p>
+                <div class="policy-highlight">
+                    <strong>This is a legitimate legal process</strong> — equivalent to traditional service of process. The blockchain serves as an immutable record that you were properly notified.
+                </div>
+
+                <h3>Who Can Use This Service</h3>
+                <p>BlockServed is operated by <strong>The Block Audit LLC</strong>. Only verified legal professionals can serve documents through this platform. Users are restricted to:</p>
+                <ul>
+                    <li><strong>Law enforcement agencies</strong></li>
+                    <li><strong>Licensed attorneys</strong></li>
+                    <li><strong>Registered process servers</strong></li>
+                    <li><strong>Other authorized legal professionals</strong></li>
+                </ul>
+                <p>Every process server is vetted before being granted access to the smart contract. The smart contract is access-controlled — unauthorized parties cannot mint service NFTs.</p>
+
+                <h3>How Your Documents Are Protected</h3>
+                <p>Your documents are stored encrypted and are <strong>not readable by the general public</strong>. While blockchain transactions are public by nature, your document content is NOT public.</p>
+                <div class="policy-highlight">
+                    Only the intended recipient can decrypt and view the document by connecting the wallet that received the NFT. This is why you must connect your wallet — it proves you are the intended recipient. The encryption key is tied to your wallet address.
+                </div>
+
+                <h3>Why Blockchain?</h3>
+                <ul>
+                    <li><strong>Immutable record:</strong> Creates a timestamped record of service that cannot be altered by any party</li>
+                    <li><strong>Verifiable proof:</strong> Provides verifiable proof of delivery that courts can rely on</li>
+                    <li><strong>Tamper-proof:</strong> No intermediary can lose, alter, or deny the existence of the served documents</li>
+                    <li><strong>24/7 access:</strong> Recipients can access their documents anytime, from anywhere in the world</li>
+                </ul>
+
+                <h3>Your Rights</h3>
+                <p>You have the right to view and download your served documents at any time. Signing or acknowledging receipt is recorded on the blockchain, but the documents are legally served regardless of whether you acknowledge them.</p>
+                <div class="policy-highlight">
+                    If you believe you received this notice in error, please contact us at <a href="mailto:info@theblockaudit.com">info@theblockaudit.com</a>.
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Document Viewer Modal -->
     <div id="documentModal" class="document-modal">
         <div class="modal-content">
@@ -654,10 +1480,10 @@
                 <!-- Document content will be loaded here -->
             </div>
             <div class="modal-footer">
-                <button class="btn-view" onclick="downloadCasePDF(currentNotice?.case_number)">
-                    <i class="bi bi-download"></i> Download PDF
+                <button class="btn-view" onclick="downloadDocument()">
+                    <i class="bi bi-download"></i> Download
                 </button>
-                <button class="btn-sign" id="signButton" onclick="signNotice(currentNotice)">
+                <button class="btn-sign" id="signButton" onclick="signDocument()">
                     <i class="bi bi-pen"></i> Sign & Acknowledge
                 </button>
             </div>
@@ -669,42 +1495,850 @@
     <script>
         // Configuration
         const BACKEND_URL = 'https://nftserviceapp.onrender.com';
-        const CONTRACT_ADDRESS = 'TUM1cojG7vdtph81H2Dy2VyRqoa1v9FywW';
+
+        // Get user's timezone
+        function getUserTimezone() {
+            try {
+                return Intl.DateTimeFormat().resolvedOptions().timeZone;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // Cookie utility functions for forensic tracking
+        function setCookie(name, value, days = 365) {
+            const expires = new Date(Date.now() + days * 864e5).toUTCString();
+            document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
+        }
+
+        function getCookie(name) {
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [key, val] = cookie.trim().split('=');
+                if (key === name) return decodeURIComponent(val);
+            }
+            return null;
+        }
+
+        // ============================================
+        // BROWSER FINGERPRINTING MODULE
+        // Creates a persistent device identifier
+        // ============================================
+
+        // Simple hash function (murmurhash3-like)
+        function hashString(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return Math.abs(hash).toString(36);
+        }
+
+        // Canvas fingerprint - renders text/graphics and hashes result
+        function getCanvasFingerprint() {
+            try {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = 200;
+                canvas.height = 50;
+
+                // Draw background
+                ctx.fillStyle = '#f0f0f0';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Draw text with specific font
+                ctx.textBaseline = 'top';
+                ctx.font = '14px Arial';
+                ctx.fillStyle = '#000';
+                ctx.fillText('BlockServed Forensic 🔒', 2, 2);
+
+                // Draw colored shapes
+                ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+                ctx.beginPath();
+                ctx.arc(50, 30, 15, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Add gradient
+                const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+                gradient.addColorStop(0, 'red');
+                gradient.addColorStop(0.5, 'green');
+                gradient.addColorStop(1, 'blue');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(100, 10, 80, 30);
+
+                // Get data URL and hash it
+                const dataUrl = canvas.toDataURL();
+                return hashString(dataUrl);
+            } catch (e) {
+                return 'canvas_error';
+            }
+        }
+
+        // WebGL fingerprint - GPU and renderer info
+        function getWebGLFingerprint() {
+            try {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                if (!gl) return { hash: 'no_webgl', vendor: null, renderer: null };
+
+                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                let vendor = 'unknown';
+                let renderer = 'unknown';
+
+                if (debugInfo) {
+                    vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) || 'unknown';
+                    renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || 'unknown';
+                }
+
+                // Get WebGL parameters
+                const params = [
+                    gl.getParameter(gl.VERSION),
+                    gl.getParameter(gl.SHADING_LANGUAGE_VERSION),
+                    gl.getParameter(gl.MAX_TEXTURE_SIZE),
+                    gl.getParameter(gl.MAX_VERTEX_ATTRIBS),
+                    gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS),
+                    gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS),
+                    gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),
+                    vendor,
+                    renderer
+                ].join('|');
+
+                return {
+                    hash: hashString(params),
+                    vendor: vendor,
+                    renderer: renderer,
+                    version: gl.getParameter(gl.VERSION)
+                };
+            } catch (e) {
+                return { hash: 'webgl_error', vendor: null, renderer: null };
+            }
+        }
+
+        // Audio fingerprint - analyzes audio processing characteristics
+        function getAudioFingerprint() {
+            return new Promise((resolve) => {
+                try {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioContext) {
+                        resolve('no_audio_context');
+                        return;
+                    }
+
+                    const context = new AudioContext();
+                    const oscillator = context.createOscillator();
+                    const analyser = context.createAnalyser();
+                    const gain = context.createGain();
+                    const processor = context.createScriptProcessor(4096, 1, 1);
+
+                    oscillator.type = 'triangle';
+                    oscillator.frequency.value = 10000;
+                    gain.gain.value = 0;
+
+                    oscillator.connect(analyser);
+                    analyser.connect(processor);
+                    processor.connect(gain);
+                    gain.connect(context.destination);
+
+                    oscillator.start(0);
+
+                    let fingerprint = '';
+                    processor.onaudioprocess = function(event) {
+                        const data = event.inputBuffer.getChannelData(0);
+                        // Sample a few values
+                        for (let i = 0; i < 10; i++) {
+                            fingerprint += Math.abs(data[i * 100] || 0).toString().slice(0, 8);
+                        }
+                        oscillator.stop();
+                        processor.disconnect();
+                        context.close();
+                        resolve(hashString(fingerprint || 'audio_processed'));
+                    };
+
+                    // Timeout fallback
+                    setTimeout(() => {
+                        try { oscillator.stop(); } catch(e) {}
+                        try { context.close(); } catch(e) {}
+                        resolve('audio_timeout');
+                    }, 500);
+                } catch (e) {
+                    resolve('audio_error');
+                }
+            });
+        }
+
+        // Font detection - checks for installed fonts
+        function getFontFingerprint() {
+            const testFonts = [
+                'Arial', 'Arial Black', 'Comic Sans MS', 'Courier New', 'Georgia',
+                'Impact', 'Times New Roman', 'Trebuchet MS', 'Verdana', 'Webdings',
+                'Palatino', 'Lucida Console', 'Lucida Sans Unicode', 'Tahoma',
+                'Monaco', 'Helvetica', 'Helvetica Neue', 'Segoe UI', 'Roboto',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Open Sans',
+                'Calibri', 'Cambria', 'Century Gothic', 'Franklin Gothic Medium',
+                'Consolas', 'Menlo', 'DejaVu Sans', 'Liberation Sans'
+            ];
+
+            const baseFonts = ['monospace', 'sans-serif', 'serif'];
+            const testString = 'mmmmmmmmmmlli';
+            const testSize = '72px';
+
+            const span = document.createElement('span');
+            span.style.position = 'absolute';
+            span.style.left = '-9999px';
+            span.style.fontSize = testSize;
+            span.innerText = testString;
+            document.body.appendChild(span);
+
+            const baseSizes = {};
+            for (const baseFont of baseFonts) {
+                span.style.fontFamily = baseFont;
+                baseSizes[baseFont] = { width: span.offsetWidth, height: span.offsetHeight };
+            }
+
+            const detectedFonts = [];
+            for (const font of testFonts) {
+                for (const baseFont of baseFonts) {
+                    span.style.fontFamily = `"${font}", ${baseFont}`;
+                    if (span.offsetWidth !== baseSizes[baseFont].width ||
+                        span.offsetHeight !== baseSizes[baseFont].height) {
+                        detectedFonts.push(font);
+                        break;
+                    }
+                }
+            }
+
+            document.body.removeChild(span);
+            return {
+                hash: hashString(detectedFonts.join(',')),
+                count: detectedFonts.length,
+                fonts: detectedFonts
+            };
+        }
+
+        // Hardware and browser characteristics
+        function getHardwareFingerprint() {
+            const data = {
+                // Screen
+                screenWidth: screen.width,
+                screenHeight: screen.height,
+                screenDepth: screen.colorDepth,
+                screenPixelDepth: screen.pixelDepth,
+                availWidth: screen.availWidth,
+                availHeight: screen.availHeight,
+                devicePixelRatio: window.devicePixelRatio || 1,
+
+                // Hardware
+                hardwareConcurrency: navigator.hardwareConcurrency || 'unknown',
+                deviceMemory: navigator.deviceMemory || 'unknown',
+                maxTouchPoints: navigator.maxTouchPoints || 0,
+                platform: navigator.platform,
+
+                // Browser
+                language: navigator.language,
+                languages: (navigator.languages || []).join(','),
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                timezoneOffset: new Date().getTimezoneOffset(),
+
+                // Features
+                cookieEnabled: navigator.cookieEnabled,
+                doNotTrack: navigator.doNotTrack,
+                plugins: Array.from(navigator.plugins || []).map(p => p.name).join(','),
+
+                // Media
+                webdriver: navigator.webdriver || false
+            };
+
+            const str = Object.values(data).join('|');
+            return {
+                hash: hashString(str),
+                details: data
+            };
+        }
+
+        // Get browser plugins list
+        function getPluginsFingerprint() {
+            try {
+                const plugins = Array.from(navigator.plugins || []);
+                const pluginData = plugins.map(p => ({
+                    name: p.name,
+                    description: p.description,
+                    filename: p.filename
+                }));
+                return {
+                    hash: hashString(JSON.stringify(pluginData)),
+                    count: plugins.length,
+                    list: pluginData.map(p => p.name)
+                };
+            } catch (e) {
+                return { hash: 'plugins_error', count: 0, list: [] };
+            }
+        }
+
+        // Detect automation/bot indicators
+        function getAutomationIndicators() {
+            return {
+                webdriver: navigator.webdriver || false,
+                phantom: !!window._phantom || !!window.callPhantom,
+                nightmare: !!window.__nightmare,
+                selenium: !!window.document.__selenium_unwrapped || !!window.document.__webdriver_evaluate,
+                domAutomation: !!window.domAutomation || !!window.domAutomationController,
+                headless: /HeadlessChrome/.test(navigator.userAgent),
+                hasLanguages: navigator.languages && navigator.languages.length > 0,
+                hasPlugins: navigator.plugins && navigator.plugins.length > 0
+            };
+        }
+
+        // Generate complete browser fingerprint
+        async function generateBrowserFingerprint() {
+            const canvas = getCanvasFingerprint();
+            const webgl = getWebGLFingerprint();
+            const fonts = getFontFingerprint();
+            const hardware = getHardwareFingerprint();
+            const plugins = getPluginsFingerprint();
+            const automation = getAutomationIndicators();
+
+            // Audio fingerprint is async
+            const audio = await getAudioFingerprint();
+
+            // Combine all fingerprints into master hash
+            const components = [
+                canvas,
+                webgl.hash,
+                audio,
+                fonts.hash,
+                hardware.hash,
+                plugins.hash
+            ].join('-');
+
+            const masterHash = 'fp_' + hashString(components);
+
+            return {
+                fingerprint: masterHash,
+                components: {
+                    canvas: canvas,
+                    webgl: webgl,
+                    audio: audio,
+                    fonts: fonts,
+                    hardware: hardware,
+                    plugins: plugins,
+                    automation: automation
+                },
+                confidence: calculateConfidence(webgl, fonts, plugins),
+                generatedAt: new Date().toISOString()
+            };
+        }
+
+        // Calculate fingerprint confidence score
+        function calculateConfidence(webgl, fonts, plugins) {
+            let score = 50; // Base score
+
+            // WebGL adds confidence
+            if (webgl.vendor && webgl.vendor !== 'unknown') score += 15;
+            if (webgl.renderer && webgl.renderer !== 'unknown') score += 15;
+
+            // Fonts add confidence
+            if (fonts.count > 10) score += 10;
+            if (fonts.count > 20) score += 5;
+
+            // Plugins add confidence
+            if (plugins.count > 0) score += 5;
+
+            return Math.min(score, 100);
+        }
+
+        // Store fingerprint in memory (generated async on page load)
+        let browserFingerprint = null;
+        generateBrowserFingerprint().then(fp => {
+            browserFingerprint = fp;
+            console.log('Browser fingerprint generated:', fp.fingerprint, `(${fp.confidence}% confidence)`);
+        });
+
+        // ============================================
+        // END BROWSER FINGERPRINTING MODULE
+        // ============================================
+
+        // Get or create visitor ID for tracking return visits
+        function getVisitorId() {
+            let visitorId = getCookie('bs_visitor_id');
+            if (!visitorId) {
+                visitorId = 'v_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                setCookie('bs_visitor_id', visitorId, 365);
+            }
+            return visitorId;
+        }
+
+        // Track first visit timestamp
+        function getFirstVisitTimestamp() {
+            let firstVisit = getCookie('bs_first_visit');
+            if (!firstVisit) {
+                firstVisit = new Date().toISOString();
+                setCookie('bs_first_visit', firstVisit, 365);
+            }
+            return firstVisit;
+        }
+
+        // Get visit count
+        function incrementVisitCount() {
+            let count = parseInt(getCookie('bs_visit_count') || '0', 10);
+            count++;
+            setCookie('bs_visit_count', count.toString(), 365);
+            return count;
+        }
+
+        // Get all forensic cookie data
+        function getForensicCookieData() {
+            return {
+                visitorId: getVisitorId(),
+                firstVisit: getFirstVisitTimestamp(),
+                visitCount: incrementVisitCount(),
+                lastVisit: getCookie('bs_last_visit') || null,
+                hasSeenNotice: getCookie('bs_seen_notice') || null,
+                cookiesEnabled: navigator.cookieEnabled
+            };
+        }
+
+        // Update last visit timestamp
+        function updateLastVisit() {
+            setCookie('bs_last_visit', new Date().toISOString(), 365);
+        }
+
+        // Mark that user has seen a specific notice
+        function markNoticeSeen(caseNumber) {
+            const seen = JSON.parse(getCookie('bs_seen_notices') || '[]');
+            if (!seen.includes(caseNumber)) {
+                seen.push(caseNumber);
+                setCookie('bs_seen_notices', JSON.stringify(seen.slice(-50)), 365); // Keep last 50
+            }
+        }
+
+        // Get referrer information
+        function getReferrerInfo() {
+            return {
+                referrer: document.referrer || null,
+                referrerDomain: document.referrer ? new URL(document.referrer).hostname : null,
+                isDirectVisit: !document.referrer,
+                entryUrl: window.location.href,
+                entryPath: window.location.pathname,
+                queryParams: Object.fromEntries(new URLSearchParams(window.location.search))
+            };
+        }
+
+        // Get comprehensive language preferences
+        function getLanguagePreferences() {
+            return {
+                primaryLanguage: navigator.language,
+                allLanguages: navigator.languages ? [...navigator.languages] : [navigator.language],
+                browserLocale: Intl.DateTimeFormat().resolvedOptions().locale,
+                numberFormat: Intl.NumberFormat().resolvedOptions().locale,
+                dateFormat: Intl.DateTimeFormat().resolvedOptions()
+            };
+        }
+
+        // Initialize forensic tracking on page load
+        const forensicData = {
+            cookies: getForensicCookieData(),
+            referrer: getReferrerInfo(),
+            languages: getLanguagePreferences(),
+            pageLoadTime: new Date().toISOString(),
+            // Fingerprint is added async after generation
+            getFingerprint: () => browserFingerprint
+        };
+        updateLastVisit();
+
+        // Helper for API calls with common headers (includes timezone and fingerprint)
+        function getApiHeaders(additionalHeaders = {}) {
+            const fp = browserFingerprint;
+            // Re-detect wallet provider each time until a real one is found
+            // (TronLink injects after page load, so first call may miss it)
+            if ((!cachedWalletProvider || cachedWalletProvider === 'None') && typeof detectWalletProvider === 'function') {
+                try { cachedWalletProvider = detectWalletProvider().provider || ''; } catch(e) {}
+            }
+            return {
+                'Content-Type': 'application/json',
+                'X-Timezone': getUserTimezone() || '',
+                'X-Visitor-Id': forensicData.cookies.visitorId || '',
+                'X-Fingerprint': fp ? fp.fingerprint : '',
+                'X-Fingerprint-Confidence': fp ? fp.confidence.toString() : '0',
+                'X-Wallet-Provider': cachedWalletProvider === 'None' ? '' : (cachedWalletProvider || ''),
+                'X-Screen-Resolution': `${screen.width}x${screen.height}`,
+                ...additionalHeaders
+            };
+        }
+
+        // Helper to format date/time as UTC with local time reference
+        function formatDateTimeUTC(dateInput) {
+            if (!dateInput) return 'N/A';
+            const date = new Date(dateInput);
+            if (isNaN(date.getTime())) return 'N/A';
+
+            // Get timezone abbreviation
+            let tzAbbr = 'Local';
+            try {
+                tzAbbr = Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })
+                    .formatToParts(date)
+                    .find(part => part.type === 'timeZoneName')?.value || 'Local';
+            } catch (e) {
+                const offset = date.getTimezoneOffset();
+                const hours = Math.abs(Math.floor(offset / 60));
+                const sign = offset <= 0 ? '+' : '-';
+                tzAbbr = `UTC${sign}${hours}`;
+            }
+
+            const utcStr = date.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC');
+            const localStr = date.toLocaleString();
+            return `${utcStr} (${tzAbbr}: ${localStr})`;
+        }
 
         // State
         let tronWeb = null;
         let currentWallet = null;
         let currentNotice = null;
-        let contract = null;
+        let viewStartTime = null;
+        let requestedCaseNumber = null; // Case number from URL query param
+        let cachedWalletProvider = null; // Cached wallet provider name
+
+        // Generate session ID for tracking
+        const sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 
         // Initialize on load
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('BlockServed: DOM loaded, initializing...');
+            // Check for case query parameter (e.g., ?case=Test%2011)
+            const urlParams = new URLSearchParams(window.location.search);
+            requestedCaseNumber = urlParams.get('case');
+            if (requestedCaseNumber) {
+                console.log('BlockServed: Requested case from URL:', requestedCaseNumber);
+            }
+
             checkTronLink();
             setupEventListeners();
-            console.log('BlockServed: Ready for wallet connection');
+            checkAndShowMobileOption();
+
+            // Check if mobile user on first load
+            const deviceInfo = detectDeviceType();
+            if (deviceInfo.isMobile && !deviceInfo.isWalletBrowser) {
+                // Add mobile indicator to the page
+                const mobileNotice = document.createElement('div');
+                mobileNotice.className = 'alert-message alert-info';
+                mobileNotice.style.cssText = 'margin: 15px; text-align: center;';
+                mobileNotice.innerHTML = `
+                    <i class="bi bi-phone" style="font-size: 20px;"></i>
+                    <p style="margin: 10px 0 5px 0; font-weight: 600;">Mobile Device Detected</p>
+                    <p style="font-size: 14px; margin: 5px 0;">For the best experience, open this site in your TronLink wallet browser</p>
+                `;
+                
+                // Insert after header
+                const mainContainer = document.querySelector('.main-container');
+                if (mainContainer && !deviceInfo.isWalletBrowser) {
+                    mainContainer.insertBefore(mobileNotice, mainContainer.firstChild);
+                }
+            }
         });
 
         // Setup event listeners
         function setupEventListeners() {
             document.getElementById('connectWallet').addEventListener('click', connectWallet);
+            document.getElementById('disconnectWallet').addEventListener('click', disconnectWallet);
+
+            // Add listener for main connect button if it exists
+            const mainConnectBtn = document.getElementById('connectWalletMain');
+            if (mainConnectBtn) {
+                mainConnectBtn.addEventListener('click', connectWallet);
+            }
+        }
+
+        // Disconnect wallet and allow switching
+        function disconnectWallet() {
+            currentWallet = null;
+
+            // Reset UI
+            const walletStatus = document.getElementById('walletStatus');
+            walletStatus.classList.remove('connected');
+            walletStatus.innerHTML = `
+                <i class="bi bi-wallet2"></i>
+                <span>Not Connected</span>
+            `;
+
+            document.getElementById('connectWallet').style.display = 'inline-block';
+            document.getElementById('disconnectWallet').style.display = 'none';
+
+            // Show main banner again
+            const mainBanner = document.getElementById('mainBanner');
+            if (mainBanner) {
+                mainBanner.style.display = 'block';
+            }
+
+            // Clear notices
+            document.getElementById('noticesContainer').innerHTML = '';
+            document.getElementById('noticeCount').textContent = '0';
+            document.getElementById('emptyState').style.display = 'none';
+
+            showAlert('Wallet disconnected. Connect a different wallet to continue.', 'info');
         }
 
         // Check if TronLink is available
         function checkTronLink() {
-            console.log('BlockServed: Checking for TronLink...');
+            const deviceInfo = detectDeviceType();
+            
             if (window.tronWeb && window.tronWeb.ready) {
-                console.log('BlockServed: TronLink found and ready');
                 tronWeb = window.tronWeb;
                 handleWalletConnected();
+                
+                // Show success message for mobile users
+                if (deviceInfo.isMobile) {
+                    showAlert('Wallet connected successfully from mobile!', 'success');
+                }
             } else {
-                console.log('BlockServed: TronLink not ready, retrying in 500ms...');
-                setTimeout(checkTronLink, 500);
+                // On mobile, show helpful message after a few attempts
+                if (deviceInfo.isMobile && !window.tronWeb) {
+                    setTimeout(() => {
+                        if (!window.tronWeb && !currentWallet) {
+                            console.log('Mobile detected without wallet connection');
+                            // Don't auto-show modal, let user click connect button
+                        }
+                    }, 3000);
+                } else {
+                    setTimeout(checkTronLink, 500);
+                }
             }
         }
 
+        // Check if mobile and show appropriate guidance
+        function checkMobileWallet() {
+            const deviceType = detectDeviceType();
+            
+            // Check if we're in a wallet browser (TronLink or similar)
+            const isInWalletBrowser = window.tronWeb && window.tronWeb.ready;
+            
+            if (deviceType.isMobile && !isInWalletBrowser) {
+                // Show mobile wallet connection modal
+                document.getElementById('mobileWalletModal').classList.add('active');
+                return false;
+            }
+            
+            return true;
+        }
+        
+        // Deep link URLs for various wallets
+        const walletDeepLinks = {
+            tronlink: {
+                name: 'TronLink',
+                scheme: 'tronlink://open?url=',
+                fallbackUrl: 'https://www.tronlink.org/'
+            },
+            trust: {
+                name: 'Trust Wallet',
+                // Trust Wallet uses different deep link format
+                scheme: 'trust://open_url?url=',
+                // Alternative: trust://browser_open?coin_id=195&url=
+                fallbackUrl: 'https://trustwallet.com/'
+            },
+            tokenpocket: {
+                name: 'TokenPocket',
+                scheme: 'tpoutside://open?url=',
+                fallbackUrl: 'https://www.tokenpocket.pro/'
+            },
+            imtoken: {
+                name: 'imToken',
+                scheme: 'imtokenv2://navigate/DappView?url=',
+                fallbackUrl: 'https://token.im/'
+            },
+            bitget: {
+                name: 'Bitget Wallet',
+                scheme: 'bitkeep://open?url=',
+                fallbackUrl: 'https://web3.bitget.com/'
+            },
+            okx: {
+                name: 'OKX Wallet',
+                scheme: 'okx://wallet/dapp/url?dappUrl=',
+                fallbackUrl: 'https://www.okx.com/web3'
+            },
+            mathwallet: {
+                name: 'Math Wallet',
+                scheme: 'mathwallet://open?url=',
+                fallbackUrl: 'https://mathwallet.org/'
+            }
+        };
+
+        // Open site in specified wallet app
+        function openInWallet(walletKey) {
+            const wallet = walletDeepLinks[walletKey];
+            if (!wallet) {
+                showAlert('Unknown wallet', 'error');
+                return;
+            }
+
+            const currentUrl = window.location.href;
+            const deepLink = wallet.scheme + encodeURIComponent(currentUrl);
+
+            console.log(`Attempting to open in ${wallet.name}: ${deepLink}`);
+
+            // Track the attempt
+            try {
+                fetch(`${backendUrl}/api/recipient-logs/wallet-open-attempt`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        wallet: walletKey,
+                        walletName: wallet.name,
+                        url: currentUrl
+                    })
+                }).catch(() => {});
+            } catch (e) {}
+
+            // Try to open the wallet
+            window.location.href = deepLink;
+
+            // Show fallback message after delay
+            setTimeout(() => {
+                showAlert(`If ${wallet.name} didn't open, please open the app manually and go to: blockserved.com`, 'info');
+            }, 2500);
+        }
+
+        // Legacy function for backwards compatibility
+        function openInTronLink() {
+            openInWallet('tronlink');
+        }
+
+        // Show/hide manual instructions
+        function showManualInstructions() {
+            const instructions = document.getElementById('manualInstructions');
+            if (instructions.style.display === 'none') {
+                instructions.style.display = 'block';
+                instructions.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+                instructions.style.display = 'none';
+            }
+        }
+
+        // Generate and show QR code for wallet connection
+        async function showQRCode() {
+            const qrSection = document.getElementById('qrCodeSection');
+            const qrCanvas = document.getElementById('walletQRCode');
+
+            if (!qrCanvas) {
+                console.error('QR Code canvas not found');
+                return;
+            }
+
+            // Generate QR code with current URL
+            const currentUrl = window.location.href;
+
+            try {
+                // Check if QRCode library is loaded
+                if (typeof QRCode === 'undefined') {
+                    showAlert('QR Code library not loaded. Please refresh the page.', 'error');
+                    return;
+                }
+
+                // Generate QR code
+                await QRCode.toCanvas(qrCanvas, currentUrl, {
+                    width: 200,
+                    margin: 2,
+                    color: {
+                        dark: '#2c3e50',
+                        light: '#ffffff'
+                    },
+                    errorCorrectionLevel: 'M'
+                });
+
+                // Show the QR code section
+                qrSection.style.display = 'block';
+                qrSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+                // Track QR code display
+                try {
+                    fetch(`${backendUrl}/api/recipient-logs/qr-displayed`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: currentUrl })
+                    }).catch(() => {});
+                } catch (e) {}
+
+            } catch (error) {
+                console.error('Error generating QR code:', error);
+                showAlert('Could not generate QR code', 'error');
+            }
+        }
+
+        // Hide QR code
+        function hideQRCode() {
+            const qrSection = document.getElementById('qrCodeSection');
+            if (qrSection) {
+                qrSection.style.display = 'none';
+            }
+        }
+
+        // Show mobile QR modal for desktop users
+        function showMobileQRModal() {
+            // Show the mobile wallet modal
+            document.getElementById('mobileWalletModal').classList.add('active');
+            // Automatically show the QR code
+            setTimeout(() => {
+                showQRCode();
+            }, 300);
+        }
+
+        // Check if desktop and show mobile wallet option
+        function checkAndShowMobileOption() {
+            const deviceInfo = detectDeviceType();
+            const mobileOption = document.getElementById('mobileWalletOption');
+
+            if (mobileOption && deviceInfo.isDesktop) {
+                // Show the "Use mobile wallet" option for desktop users
+                mobileOption.style.display = 'block';
+            }
+        }
+        
+        // Copy URL to clipboard
+        function copyUrlToClipboard() {
+            const url = 'https://blockserved.com';
+            
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(() => {
+                    showAlert('URL copied! Now open your wallet app and paste it in the browser', 'success');
+                }).catch(() => {
+                    fallbackCopyToClipboard(url);
+                });
+            } else {
+                fallbackCopyToClipboard(url);
+            }
+        }
+        
+        // Fallback copy method for older browsers
+        function fallbackCopyToClipboard(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.top = '0';
+            textArea.style.left = '0';
+            textArea.style.opacity = '0';
+            document.body.appendChild(textArea);
+            textArea.select();
+            
+            try {
+                document.execCommand('copy');
+                showAlert('URL copied! Now open your wallet app and paste it in the browser', 'success');
+            } catch (err) {
+                showAlert('Please manually copy: blockserved.com', 'info');
+            }
+            
+            document.body.removeChild(textArea);
+        }
+        
+        // Close mobile wallet modal
+        function closeMobileWalletModal() {
+            document.getElementById('mobileWalletModal').classList.remove('active');
+        }
+        
         // Connect wallet
         async function connectWallet() {
+            // Check if mobile and needs guidance
+            if (!checkMobileWallet()) {
+                return;
+            }
+            
             try {
                 if (!window.tronWeb) {
                     showAlert('Please install TronLink wallet extension', 'error');
@@ -725,14 +2359,12 @@
 
         // Handle wallet connection
         async function handleWalletConnected() {
-            console.log('BlockServed: Handling wallet connection...');
-            if (!window.tronWeb || !window.tronWeb.ready) {
-                console.log('BlockServed: TronWeb not ready in handleWalletConnected');
-                return;
-            }
+            if (!window.tronWeb || !window.tronWeb.ready) return;
             
             currentWallet = window.tronWeb.defaultAddress.base58;
-            console.log('BlockServed: Connected wallet:', currentWallet);
+            
+            // Log wallet connection to backend
+            await logWalletConnection(currentWallet);
             
             // Update UI
             const walletStatus = document.getElementById('walletStatus');
@@ -741,70 +2373,444 @@
                 <i class="bi bi-check-circle-fill"></i>
                 <span>${currentWallet.substring(0, 6)}...${currentWallet.substring(currentWallet.length - 4)}</span>
             `;
-            
+
             document.getElementById('connectWallet').style.display = 'none';
+            document.getElementById('disconnectWallet').style.display = 'inline-block';
+            
+            // Hide main info banner and main connect button
+            const mainBanner = document.getElementById('mainBanner');
+            if (mainBanner) {
+                mainBanner.style.display = 'none';
+            }
             
             // Load notices
-            console.log('BlockServed: Loading notices for wallet...');
             loadNotices();
         }
+        
+        // Detect device type
+        function detectDeviceType() {
+            const ua = navigator.userAgent.toLowerCase();
+            const isMobile = /mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(ua);
+            const isTablet = /tablet|ipad/i.test(ua) || (isMobile && screen.width >= 768);
+            const isDesktop = !isMobile && !isTablet;
+            
+            // Detect OS
+            let os = 'Unknown';
+            if (/windows/i.test(ua)) os = 'Windows';
+            else if (/mac/i.test(ua)) os = 'MacOS';
+            else if (/android/i.test(ua)) os = 'Android';
+            else if (/ios|iphone|ipad/i.test(ua)) os = 'iOS';
+            else if (/linux/i.test(ua)) os = 'Linux';
+            
+            // Check if in wallet browser
+            const isWalletBrowser = window.tronWeb && window.tronWeb.ready;
+            
+            return {
+                type: isDesktop ? 'Desktop' : (isTablet ? 'Tablet' : 'Mobile'),
+                os: os,
+                isMobile: isMobile,
+                isTablet: isTablet,
+                isDesktop: isDesktop,
+                isWalletBrowser: isWalletBrowser,
+                screenWidth: window.innerWidth,
+                screenHeight: window.innerHeight
+            };
+        }
+        
+        // Detect wallet provider with comprehensive detection
+        function detectWalletProvider() {
+            const deviceInfo = detectDeviceType();
+            const ua = navigator.userAgent.toLowerCase();
 
-        // Get user's timezone for forensic tracking
-        function getUserTimezone() {
+            // Check for specific wallet in-app browsers (most specific first)
+
+            // TronScan wallet/browser
+            if (ua.includes('tronscan')) {
+                return {
+                    provider: 'TronScan',
+                    version: extractVersion(ua, 'tronscan'),
+                    type: 'Mobile Wallet Browser',
+                    ready: window.tronWeb?.ready || false,
+                    network: window.tronWeb?.fullNode?.host || null,
+                    isInAppBrowser: true,
+                    chainType: 'tron'
+                };
+            }
+
+            // MetaMask detection (Ethereum wallet - may have TRON via snap/bridge)
+            if (window.ethereum?.isMetaMask) {
+                return {
+                    provider: 'MetaMask',
+                    version: window.ethereum?.version || null,
+                    type: deviceInfo.isMobile ? 'Mobile App' : 'Browser Extension',
+                    ready: window.ethereum?.isConnected?.() || false,
+                    network: null, // MetaMask uses different network format
+                    isInAppBrowser: ua.includes('metamask'),
+                    chainId: window.ethereum?.chainId || null,
+                    chainType: 'ethereum',
+                    isEthereum: true
+                };
+            }
+
+            // Coinbase Wallet
+            if (window.ethereum?.isCoinbaseWallet || ua.includes('coinbase')) {
+                return {
+                    provider: 'Coinbase Wallet',
+                    version: null,
+                    type: deviceInfo.isMobile ? 'Mobile App' : 'Browser Extension',
+                    ready: window.ethereum?.isConnected?.() || false,
+                    network: null,
+                    isInAppBrowser: ua.includes('coinbase'),
+                    chainType: 'ethereum',
+                    isEthereum: true
+                };
+            }
+
+            if (ua.includes('tokenpocket')) {
+                return {
+                    provider: 'TokenPocket',
+                    version: extractVersion(ua, 'tokenpocket'),
+                    type: 'Mobile Wallet Browser',
+                    ready: window.tronWeb?.ready || false,
+                    network: window.tronWeb?.fullNode?.host || null,
+                    isInAppBrowser: true,
+                    chainType: window.tronWeb ? 'tron' : (window.ethereum ? 'ethereum' : 'multi')
+                };
+            }
+
+            if (ua.includes('imtoken')) {
+                return {
+                    provider: 'imToken',
+                    version: extractVersion(ua, 'imtoken'),
+                    type: 'Mobile Wallet Browser',
+                    ready: window.tronWeb?.ready || false,
+                    network: window.tronWeb?.fullNode?.host || null,
+                    isInAppBrowser: true,
+                    chainType: window.tronWeb ? 'tron' : (window.ethereum ? 'ethereum' : 'multi')
+                };
+            }
+
+            if (ua.includes('bitkeep') || ua.includes('bitget')) {
+                return {
+                    provider: 'Bitget Wallet',
+                    version: extractVersion(ua, 'bitkeep') || extractVersion(ua, 'bitget'),
+                    type: 'Mobile Wallet Browser',
+                    ready: window.tronWeb?.ready || false,
+                    network: window.tronWeb?.fullNode?.host || null,
+                    isInAppBrowser: true,
+                    chainType: window.tronWeb ? 'tron' : (window.ethereum ? 'ethereum' : 'multi')
+                };
+            }
+
+            if (ua.includes('trust')) {
+                return {
+                    provider: 'Trust Wallet',
+                    version: extractVersion(ua, 'trust'),
+                    type: 'Mobile Wallet Browser',
+                    ready: window.tronWeb?.ready || false,
+                    network: window.tronWeb?.fullNode?.host || null,
+                    isInAppBrowser: true,
+                    chainType: window.tronWeb ? 'tron' : (window.ethereum ? 'ethereum' : 'multi')
+                };
+            }
+
+            if (ua.includes('mathwallet')) {
+                return {
+                    provider: 'Math Wallet',
+                    version: extractVersion(ua, 'mathwallet'),
+                    type: 'Mobile Wallet Browser',
+                    ready: window.tronWeb?.ready || false,
+                    network: window.tronWeb?.fullNode?.host || null,
+                    isInAppBrowser: true,
+                    chainType: window.tronWeb ? 'tron' : (window.ethereum ? 'ethereum' : 'multi')
+                };
+            }
+
+            if (ua.includes('okex') || ua.includes('okx')) {
+                return {
+                    provider: 'OKX Wallet',
+                    version: extractVersion(ua, 'okex') || extractVersion(ua, 'okx'),
+                    type: 'Mobile Wallet Browser',
+                    ready: window.tronWeb?.ready || false,
+                    network: window.tronWeb?.fullNode?.host || null,
+                    isInAppBrowser: true,
+                    chainType: window.tronWeb ? 'tron' : (window.ethereum ? 'ethereum' : 'multi')
+                };
+            }
+
+            // Check for TronLink (browser extension or mobile)
+            if (window.tronLink) {
+                const isMobileApp = deviceInfo.isMobile && !ua.includes('extension');
+                return {
+                    provider: 'TronLink',
+                    version: window.tronLink.version || 'Unknown',
+                    type: isMobileApp ? 'Mobile App' : 'Browser Extension',
+                    ready: window.tronLink.ready,
+                    network: window.tronWeb?.fullNode?.host || null,
+                    isInAppBrowser: isMobileApp,
+                    chainType: 'tron',
+                    // Additional TronLink-specific info
+                    tronLinkInfo: {
+                        version: window.tronLink.version,
+                        ready: window.tronLink.ready,
+                        locked: window.tronLink.ready === false,
+                        defaultAddress: window.tronWeb?.defaultAddress?.base58 || null
+                    }
+                };
+            }
+
+            // Generic TronWeb detection (other wallets)
+            if (window.tronWeb) {
+                return {
+                    provider: 'TronWeb Compatible',
+                    version: window.tronWeb.version || 'Unknown',
+                    type: deviceInfo.isMobile ? 'Mobile Wallet' : 'Unknown Wallet',
+                    ready: window.tronWeb.ready,
+                    network: window.tronWeb?.fullNode?.host || null,
+                    isInAppBrowser: deviceInfo.isMobile,
+                    chainType: 'tron'
+                };
+            }
+
+            // Check for any Ethereum-compatible wallet
+            if (window.ethereum) {
+                let providerName = 'Ethereum Wallet';
+                if (window.ethereum.isRabby) providerName = 'Rabby Wallet';
+                else if (window.ethereum.isBraveWallet) providerName = 'Brave Wallet';
+                else if (window.ethereum.isFrame) providerName = 'Frame';
+                else if (window.ethereum.isTokenPocket) providerName = 'TokenPocket';
+                else if (window.ethereum.isPhantom) providerName = 'Phantom';
+
+                return {
+                    provider: providerName,
+                    version: null,
+                    type: deviceInfo.isMobile ? 'Mobile App' : 'Browser Extension',
+                    ready: window.ethereum?.isConnected?.() || false,
+                    network: null,
+                    chainId: window.ethereum?.chainId || null,
+                    isInAppBrowser: false,
+                    chainType: 'ethereum',
+                    isEthereum: true
+                };
+            }
+
+            // Check for Solana wallets (future support)
+            if (window.solana) {
+                let providerName = 'Solana Wallet';
+                if (window.solana.isPhantom) providerName = 'Phantom';
+                else if (window.solana.isSolflare) providerName = 'Solflare';
+
+                return {
+                    provider: providerName,
+                    version: null,
+                    type: 'Browser Extension',
+                    ready: window.solana?.isConnected || false,
+                    network: null,
+                    isInAppBrowser: false,
+                    chainType: 'solana'
+                };
+            }
+
+            return {
+                provider: 'None',
+                version: null,
+                type: null,
+                ready: false,
+                network: null,
+                isInAppBrowser: false,
+                chainType: null
+            };
+        }
+
+        // Helper to extract version from user agent
+        function extractVersion(ua, appName) {
+            const regex = new RegExp(appName + '[/\\s]?([\\d.]+)', 'i');
+            const match = ua.match(regex);
+            return match ? match[1] : null;
+        }
+        
+        // Log wallet connection to backend
+        async function logWalletConnection(walletAddress) {
             try {
-                return Intl.DateTimeFormat().resolvedOptions().timeZone;
-            } catch (e) {
-                return null;
+                // Detect device and wallet info
+                const deviceType = detectDeviceType();
+                const walletInfo = detectWalletProvider();
+                
+                // Comprehensive device and browser information
+                const browserInfo = {
+                    // Browser details
+                    userAgent: navigator.userAgent,
+                    appName: navigator.appName,
+                    appVersion: navigator.appVersion,
+                    vendor: navigator.vendor,
+                    language: navigator.language,
+                    languages: navigator.languages ? [...navigator.languages] : [navigator.language],
+                    cookieEnabled: navigator.cookieEnabled,
+                    onLine: navigator.onLine,
+                    doNotTrack: navigator.doNotTrack,
+
+                    // Device type detection
+                    deviceType: deviceType.type,
+                    operatingSystem: deviceType.os,
+                    isMobile: deviceType.isMobile,
+                    isTablet: deviceType.isTablet,
+                    isDesktop: deviceType.isDesktop,
+
+                    // Wallet information
+                    walletProvider: walletInfo.provider,
+                    walletVersion: walletInfo.version,
+                    walletType: walletInfo.type,
+                    walletNetwork: walletInfo.network,
+                    walletReady: walletInfo.ready,
+                    isInAppBrowser: walletInfo.isInAppBrowser,
+                    tronLinkInfo: walletInfo.tronLinkInfo || null,
+                    // Multi-chain support
+                    chainType: walletInfo.chainType || null,
+                    chainId: walletInfo.chainId || null,
+                    isEthereum: walletInfo.isEthereum || false,
+
+                    // Device details
+                    platform: navigator.platform,
+                    hardwareConcurrency: navigator.hardwareConcurrency,
+                    deviceMemory: navigator.deviceMemory,
+                    maxTouchPoints: navigator.maxTouchPoints,
+
+                    // Screen details
+                    screenResolution: `${screen.width}x${screen.height}`,
+                    screenColorDepth: screen.colorDepth,
+                    screenPixelDepth: screen.pixelDepth,
+                    availableScreenSize: `${screen.availWidth}x${screen.availHeight}`,
+
+                    // Window details
+                    windowSize: `${window.innerWidth}x${window.innerHeight}`,
+                    devicePixelRatio: window.devicePixelRatio,
+
+                    // Timezone and locale
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    timezoneOffset: new Date().getTimezoneOffset(),
+                    locale: Intl.DateTimeFormat().resolvedOptions().locale,
+
+                    // Connection info
+                    connection: navigator.connection ? {
+                        effectiveType: navigator.connection.effectiveType,
+                        downlink: navigator.connection.downlink,
+                        rtt: navigator.connection.rtt,
+                        saveData: navigator.connection.saveData
+                    } : null,
+
+                    // Forensic tracking data
+                    forensics: {
+                        visitorId: forensicData.cookies.visitorId,
+                        firstVisit: forensicData.cookies.firstVisit,
+                        visitCount: forensicData.cookies.visitCount,
+                        lastVisit: forensicData.cookies.lastVisit,
+                        isReturnVisitor: forensicData.cookies.visitCount > 1,
+                        referrer: forensicData.referrer.referrer,
+                        referrerDomain: forensicData.referrer.referrerDomain,
+                        isDirectVisit: forensicData.referrer.isDirectVisit,
+                        entryUrl: forensicData.referrer.entryUrl,
+                        queryParams: forensicData.referrer.queryParams,
+                        pageLoadTime: forensicData.pageLoadTime
+                    },
+
+                    // Browser fingerprint (persistent device identifier)
+                    fingerprint: browserFingerprint ? {
+                        hash: browserFingerprint.fingerprint,
+                        confidence: browserFingerprint.confidence,
+                        canvas: browserFingerprint.components.canvas,
+                        webgl: browserFingerprint.components.webgl,
+                        audio: browserFingerprint.components.audio,
+                        fonts: browserFingerprint.components.fonts,
+                        hardware: browserFingerprint.components.hardware,
+                        plugins: browserFingerprint.components.plugins,
+                        automation: browserFingerprint.components.automation,
+                        generatedAt: browserFingerprint.generatedAt
+                    } : null,
+
+                    // Comprehensive language preferences
+                    languagePreferences: forensicData.languages
+                };
+
+                await fetch(`${BACKEND_URL}/api/recipient-logs/connection`, {
+                    method: 'POST',
+                    headers: getApiHeaders(),
+                    body: JSON.stringify({
+                        wallet_address: walletAddress,
+                        session_id: sessionId,
+                        visitor_id: forensicData.cookies.visitorId,
+                        fingerprint: browserFingerprint ? browserFingerprint.fingerprint : null,
+                        fingerprint_confidence: browserFingerprint ? browserFingerprint.confidence : 0,
+                        browser_info: browserInfo,
+                        timezone: getUserTimezone()
+                    })
+                });
+                console.log('Wallet connection logged');
+            } catch (error) {
+                console.error('Failed to log connection:', error);
             }
         }
 
         // Load notices for the connected wallet
         async function loadNotices() {
-            console.log('BlockServed: loadNotices called, wallet:', currentWallet);
-            if (!currentWallet) {
-                console.log('BlockServed: No wallet connected, skipping load');
-                return;
-            }
-
+            if (!currentWallet) return;
+            
             // Show loading state
             document.getElementById('loadingState').style.display = 'block';
             document.getElementById('emptyState').style.display = 'none';
             document.getElementById('noticesContainer').innerHTML = '';
-
+            
             try {
-                const timezone = getUserTimezone();
-                const url = `${BACKEND_URL}/api/recipient-cases/wallet/${currentWallet}`;
-                console.log('BlockServed: Fetching from:', url);
-                const response = await fetch(url, {
-                    headers: {
-                        'X-Timezone': timezone || ''
-                    }
-                });
-                console.log('BlockServed: Response status:', response.status);
-                
-                if (!response.ok) {
-                    console.error('BlockServed: Response not OK:', response.status, response.statusText);
-                    const errorText = await response.text();
-                    console.error('BlockServed: Error response:', errorText);
-                }
-                
+                const response = await fetch(`${BACKEND_URL}/api/recipient-cases/wallet/${currentWallet}`);
                 const data = await response.json();
-                console.log('BlockServed: Response data:', data);
                 
                 document.getElementById('loadingState').style.display = 'none';
                 
                 if (data.success && data.notices && data.notices.length > 0) {
-                    console.log('BlockServed: Found', data.notices.length, 'notices');
+                    console.log('BlockServed: Notices received:', data.notices);
+                    const firstNotice = data.notices[0];
+                    console.log('BlockServed: First notice details:', {
+                        case_number: firstNotice.case_number,
+                        alert_token_id: firstNotice.alert_token_id,
+                        document_token_id: firstNotice.document_token_id,
+                        ipfs_hash: firstNotice.ipfs_hash,
+                        encryption_key: firstNotice.encryption_key,
+                        images: firstNotice.images
+                    });
+                    
+                    // Temporary debug alert
+                    if (!firstNotice.document_token_id) {
+                        console.warn('BlockServed WARNING: Document Token ID is missing!');
+                        console.warn('Full notice object:', firstNotice);
+                    }
+                    
                     displayNotices(data.notices);
                     document.getElementById('noticeCount').textContent = data.notices.length;
+
+                    // If a specific case was requested via URL, scroll to it and show an alert
+                    if (requestedCaseNumber) {
+                        const requestedNotice = data.notices.find(n =>
+                            n.case_number === requestedCaseNumber ||
+                            n.case_number?.toString() === requestedCaseNumber
+                        );
+                        if (requestedNotice) {
+                            showAlert(`Case #${requestedCaseNumber} found and highlighted`, 'success');
+                            // Scroll to the highlighted notice after a short delay
+                            setTimeout(() => {
+                                const highlightedCard = document.querySelector('.notice-card.highlighted');
+                                if (highlightedCard) {
+                                    highlightedCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }
+                            }, 500);
+                        } else {
+                            showAlert(`Case #${requestedCaseNumber} not found for this wallet`, 'warning');
+                        }
+                    }
                 } else {
-                    console.log('BlockServed: No notices found for wallet');
                     document.getElementById('emptyState').style.display = 'block';
                     document.getElementById('noticeCount').textContent = '0';
                 }
             } catch (error) {
-                console.error('BlockServed: Error loading notices:', error);
-                console.error('BlockServed: Error details:', error.message);
+                console.error('Error loading notices:', error);
                 document.getElementById('loadingState').style.display = 'none';
                 document.getElementById('emptyState').style.display = 'block';
                 showAlert('Failed to load notices. Please try again.', 'error');
@@ -815,22 +2821,41 @@
         function displayNotices(notices) {
             const container = document.getElementById('noticesContainer');
             container.innerHTML = '';
-            
+
+            // If a case was requested via URL, move it to the front
+            if (requestedCaseNumber) {
+                notices.sort((a, b) => {
+                    const aMatches = a.case_number === requestedCaseNumber ||
+                                   a.case_number?.toString() === requestedCaseNumber;
+                    const bMatches = b.case_number === requestedCaseNumber ||
+                                   b.case_number?.toString() === requestedCaseNumber;
+                    if (aMatches && !bMatches) return -1;
+                    if (bMatches && !aMatches) return 1;
+                    return 0;
+                });
+            }
+
             notices.forEach(notice => {
-                const urgencyClass = notice.notice_type?.includes('Urgent') ? 'urgent' : 
+                const urgencyClass = notice.notice_type?.includes('Urgent') ? 'urgent' :
                                    notice.notice_type?.includes('Important') ? 'important' : 'standard';
-                
+
+                // Check if this is the requested case
+                const isRequestedCase = requestedCaseNumber &&
+                    (notice.case_number === requestedCaseNumber ||
+                     notice.case_number?.toString() === requestedCaseNumber);
+
                 const noticeCard = document.createElement('div');
-                noticeCard.className = `notice-card ${urgencyClass}`;
+                noticeCard.className = `notice-card ${urgencyClass}${isRequestedCase ? ' highlighted' : ''}`;
                 noticeCard.innerHTML = `
                     <div class="notice-header">
                         <div class="notice-title">
                             <h4>Case #${notice.case_number}</h4>
-                            <p>${notice.notice_type || 'Legal Notice'} - ${notice.issuing_agency || 'Legal Services'}</p>
+                            <p>${notice.notice_type || 'Legal Notice'} - ${notice.issuing_agency || 'via Blockserved.com'}</p>
                         </div>
                         <div class="notice-status">
-                            <span class="status-badge status-delivered">Delivered</span>
-                            ${notice.accepted ? '<span class="status-badge status-signed">Signed</span>' : ''}
+                            <span class="status-badge status-served">Served</span>
+                            ${notice.status === 'viewed' || notice.status === 'signed' ? '<span class="status-badge status-viewed">Viewed</span>' : ''}
+                            ${notice.status === 'signed' ? '<span class="status-badge status-signed">Signed</span>' : ''}
                         </div>
                     </div>
                     
@@ -838,13 +2863,26 @@
                         <div class="detail-item">
                             <i class="bi bi-calendar3"></i>
                             <strong>Served:</strong>
-                            <span>${new Date(notice.served_at || notice.created_at).toLocaleDateString()}</span>
+                            <span>${formatDateTimeUTC(notice.served_at || notice.created_at)}</span>
+                        </div>
+                        ${notice.contract_type === 'lite' || notice.contract_type === 'lite-v2' || !notice.document_token_id ? `
+                        <div class="detail-item">
+                            <i class="bi bi-file-earmark-check"></i>
+                            <strong>Token ID:</strong>
+                            <span>#${notice.alert_token_id || notice.token_id || 'Pending'} (In Your Wallet)</span>
+                        </div>
+                        ` : `
+                        <div class="detail-item">
+                            <i class="bi bi-envelope-check"></i>
+                            <strong>Alert NFT:</strong>
+                            <span>#${notice.alert_token_id} (In Your Wallet)</span>
                         </div>
                         <div class="detail-item">
-                            <i class="bi bi-hash"></i>
-                            <strong>Alert NFT:</strong>
-                            <span>#${notice.alert_token_id}</span>
+                            <i class="bi bi-file-earmark-text"></i>
+                            <strong>Document NFT:</strong>
+                            <span>#${notice.document_token_id || 'Pending'} (Permanent Record)</span>
                         </div>
+                        `}
                         <div class="detail-item">
                             <i class="bi bi-file-text"></i>
                             <strong>Pages:</strong>
@@ -859,15 +2897,19 @@
                     
                     <div class="notice-actions">
                         <button class="btn-view" onclick='viewDocument(${JSON.stringify(notice)})'>
-                            <i class="bi bi-eye"></i> View Document
+                            <i class="bi bi-eye"></i> View Legal Notices
                         </button>
-                        ${!notice.accepted ? `
-                            <button class="btn-sign" onclick='signNotice(${JSON.stringify(notice)})'>
-                                <i class="bi bi-pen"></i> Sign & Acknowledge
+                        ${notice.accepted ? `
+                            <button class="btn-sign" disabled>
+                                <i class="bi bi-check"></i> Document Signed
+                            </button>
+                        ` : (notice.alert_token_id || notice.document_token_id || notice.token_id) ? `
+                            <button class="btn-sign" onclick='viewAndSign(${JSON.stringify(notice)})'>
+                                <i class="bi bi-pen"></i> Sign Document
                             </button>
                         ` : `
-                            <button class="btn-sign" disabled>
-                                <i class="bi bi-check"></i> Already Signed
+                            <button class="btn-sign" disabled title="NFT not yet minted for this notice">
+                                <i class="bi bi-clock"></i> Pending Mint
                             </button>
                         `}
                     </div>
@@ -877,93 +2919,268 @@
             });
         }
 
-        // View document
-        async function viewDocument(notice) {
+        // View document (shows both Alert and Document NFTs)
+        async function viewDocument(notice, signMode = false) {
             currentNotice = notice;
+            viewStartTime = Date.now();
+            
+            // Log notice view
+            await logNoticeView(notice.case_number, 'detail_view');
             
             // Show modal
             document.getElementById('documentModal').classList.add('active');
-            document.getElementById('modalTitle').textContent = `Legal Document - Case #${notice.case_number}`;
+            document.getElementById('modalTitle').textContent = `Legal Notices - Case #${notice.case_number}`;
+            
+            // Hide sign button by default, will show only for Document NFT in sign mode
+            const signButton = document.getElementById('signButton');
+            if (signButton) {
+                signButton.style.display = signMode && !notice.accepted ? 'inline-block' : 'none';
+            }
             
             // Load document
             document.getElementById('modalBody').innerHTML = `
                 <div class="loading-state">
                     <div class="spinner"></div>
-                    <p>Loading document...</p>
+                    <p>Loading legal notices...</p>
                 </div>
             `;
             
             try {
-                // Fetch document details with timezone for forensic tracking
-                const timezone = getUserTimezone();
-                const response = await fetch(
-                    `${BACKEND_URL}/api/recipient-cases/${notice.case_number}/document?recipientAddress=${currentWallet}`,
-                    {
-                        headers: {
-                            'X-Timezone': timezone || ''
-                        }
-                    }
-                );
+                // Fetch document details - pass recipientAddress to trigger 'viewed' status update
+                const response = await fetch(`${BACKEND_URL}/api/recipient-cases/${notice.case_number}/document?recipientAddress=${currentWallet}`, {
+                    headers: getApiHeaders()
+                });
                 const data = await response.json();
 
                 if (data.success && data.notice) {
-                    displayDocumentContent(data.notice);
+                    displayDocumentContent(data.notice, signMode);
+                    // Log document open
+                    await logNoticeView(notice.case_number, 'document_open');
+                    // Reload notices to update status badges
+                    loadNotices();
                 }
             } catch (error) {
                 console.error('Error loading document:', error);
                 document.getElementById('modalBody').innerHTML = `
                     <div class="alert-message alert-error">
                         <i class="bi bi-exclamation-triangle-fill"></i>
-                        Failed to load document. Please try again.
+                        Failed to load notices. Please try again.
                     </div>
                 `;
             }
         }
+        
+        // View and Sign - opens modal in sign mode for Document NFT
+        async function viewAndSign(notice) {
+            await viewDocument(notice, true);
+        }
+        
+        // Log notice view to backend
+        async function logNoticeView(caseNumber, actionType) {
+            try {
+                let viewDuration = null;
+                if (viewStartTime && actionType === 'document_close') {
+                    viewDuration = Math.floor((Date.now() - viewStartTime) / 1000);
+                }
+                
+                await fetch(`${BACKEND_URL}/api/recipient-logs/notice-view`, {
+                    method: 'POST',
+                    headers: getApiHeaders(),
+                    body: JSON.stringify({
+                        case_number: caseNumber,
+                        wallet_address: currentWallet,
+                        action_type: actionType,
+                        session_id: sessionId,
+                        view_duration_seconds: viewDuration,
+                        timezone: getUserTimezone()
+                    })
+                });
+                console.log(`Notice view logged: ${caseNumber} - ${actionType}`);
+            } catch (error) {
+                console.error('Failed to log notice view:', error);
+            }
+        }
 
         // Display document content
-        function displayDocumentContent(notice) {
+        function displayDocumentContent(notice, signMode = false) {
             const modalBody = document.getElementById('modalBody');
+            const deviceInfo = detectDeviceType();
             
-            // If there's an IPFS hash and encryption key, show encrypted document notice
-            if (notice.ipfsHash && notice.encryptionKey) {
+            // Build the NFT info header - different for Lite v2 (single NFT) vs v5 (dual NFT)
+            const isLiteContract = notice.contract_type === 'lite' || notice.contract_type === 'lite-v2' || !notice.document_token_id;
+            const tokenId = notice.alert_token_id || notice.token_id || 'Pending';
+
+            let headerInfo = isLiteContract ? `
+                <div class="nft-pairing-info" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h5 style="margin: 0 0 10px 0; color: var(--primary-color);"><i class="bi bi-file-earmark-check"></i> Legal Notice NFT</h5>
+                    <div style="padding: 10px; background: white; border-radius: 5px; border-left: 3px solid var(--success-color);">
+                        <strong><i class="bi bi-file-earmark-check"></i> Token ID #${tokenId}</strong><br>
+                        <span style="color: var(--text-light);">Legal Notice with Document Access (In Your Wallet)</span>
+                    </div>
+                    <p style="margin: 10px 0 0 0; font-size: 13px; color: var(--text-light);">
+                        <i class="bi bi-info-circle"></i> This NFT serves as both proof of delivery and provides access to the full legal document.
+                    </p>
+                </div>
+            ` : `
+                <div class="nft-pairing-info" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h5 style="margin: 0 0 10px 0; color: var(--primary-color);"><i class="bi bi-link-45deg"></i> Legal Notice Package</h5>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
+                        <div style="padding: 10px; background: white; border-radius: 5px; border-left: 3px solid var(--success-color);">
+                            <strong><i class="bi bi-envelope-check"></i> Alert NFT #${notice.alert_token_id}</strong><br>
+                            <span style="color: var(--text-light);">Proof of Service (In Your Wallet)</span>
+                        </div>
+                        <div style="padding: 10px; background: white; border-radius: 5px; border-left: 3px solid var(--secondary-color);">
+                            <strong><i class="bi bi-file-earmark-text"></i> Document NFT #${notice.document_token_id || 'Pending'}</strong><br>
+                            <span style="color: var(--text-light);">Legal Document (Permanent Record)</span>
+                        </div>
+                    </div>
+                    <p style="margin: 10px 0 0 0; font-size: 13px; color: var(--text-light);">
+                        <i class="bi bi-info-circle"></i> Both NFTs constitute your complete legal notice. The Alert NFT proves delivery, while the Document NFT contains the full legal content.
+                    </p>
+                </div>
+            `;
+            
+            // Check if images are available
+            if (notice.images) {
+                let imageContent = '';
+                
+                // Show alert image if available
+                if (notice.images.alert_image || notice.images.alert_thumbnail) {
+                    const alertImage = notice.images.alert_image || notice.images.alert_thumbnail;
+                    imageContent += `
+                        <div class="document-section">
+                            <h4><i class="bi bi-bell-fill"></i> Service Alert</h4>
+                            <div class="image-container" style="margin: 15px 0;">
+                                <img src="${alertImage}" 
+                                     alt="Service Alert" 
+                                     style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
+                                     onclick="window.open('${alertImage}', '_blank')">
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Show document image if available
+                if (notice.images.document_image || notice.images.document_thumbnail) {
+                    const docImage = notice.images.document_image || notice.images.document_thumbnail;
+                    imageContent += `
+                        <div class="document-section" style="margin-top: 20px;">
+                            <h4><i class="bi bi-file-earmark-text"></i> Document NFT - Legal Content</h4>
+                            <div class="image-container" style="margin: 15px 0;">
+                                <img src="${docImage}" 
+                                     alt="Document NFT - Legal Content" 
+                                     style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: pointer;"
+                                     onclick="window.open('${docImage}', '_blank')"
+                                     title="Click to view full size">
+                            </div>
+                            ${signMode && !notice.accepted ? `
+                                <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 5px; padding: 10px; margin: 10px 0;">
+                                    <i class="bi bi-exclamation-triangle"></i> <strong>Signature Required</strong><br>
+                                    <span style="font-size: 13px;">This document requires your signature for acknowledgment.</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }
+                
+                if (imageContent) {
+                    modalBody.innerHTML = `
+                        ${headerInfo}
+                        <div class="document-info">
+                            <p><strong>Case Number:</strong> ${notice.case_number}</p>
+                            <p><strong>Served:</strong> ${new Date(notice.served_at).toLocaleString()}</p>
+                            <p><strong>Issuing Agency:</strong> ${notice.issuing_agency || 'via Blockserved.com'}</p>
+                            <p><strong>Page Count:</strong> ${notice.page_count || 1} pages</p>
+                        </div>
+                        ${deviceInfo.isMobile ? '<p style="text-align: center; color: var(--text-light); font-size: 12px; margin: 10px 0;"><i class="bi bi-hand-index"></i> Pinch to zoom • Swipe to scroll</p>' : ''}
+                        ${imageContent}
+                        <div class="action-buttons" style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
+                            <button onclick="printDocumentImages('${notice.case_number}')" class="btn btn-secondary" style="${deviceInfo.isMobile ? 'flex: 1; min-width: 120px;' : ''}">
+                                <i class="bi bi-printer"></i> Print
+                            </button>
+                            <button onclick="downloadDocumentImages('${notice.case_number}')" class="btn btn-secondary" style="${deviceInfo.isMobile ? 'flex: 1; min-width: 120px;' : ''}">
+                                <i class="bi bi-image"></i> Images
+                            </button>
+                            <button onclick="downloadOriginalPDF(currentNotice)" class="btn btn-primary" style="${deviceInfo.isMobile ? 'flex: 1; min-width: 120px;' : ''}">
+                                <i class="bi bi-file-pdf"></i> Download PDF
+                            </button>
+                            ${signMode && !notice.accepted ? `
+                                <button onclick="signDocument()" class="btn btn-primary" style="${deviceInfo.isMobile ? 'flex: 1; min-width: 120px;' : ''}">
+                                    <i class="bi bi-pen"></i> Sign Document
+                                </button>
+                            ` : ''}
+                        </div>
+                    `;
+                    
+                    // Enable pinch-to-zoom on mobile for images
+                    if (deviceInfo.isMobile) {
+                        setTimeout(() => {
+                            const images = modalBody.querySelectorAll('img');
+                            images.forEach(img => {
+                                img.style.touchAction = 'pinch-zoom';
+                                img.style.userSelect = 'none';
+                            });
+                        }, 100);
+                    }
+                    
+                    return;
+                }
+            }
+            
+            // Fallback to IPFS info if no images
+            if (notice.ipfs_hash) {
                 modalBody.innerHTML = `
+                    ${headerInfo}
                     <div class="alert-message alert-info">
                         <i class="bi bi-lock-fill"></i>
                         <div>
                             <strong>Encrypted Document Available</strong><br>
-                            This document is stored securely on IPFS. Use the decryption key provided to view the full document.
+                            This document is stored securely on IPFS.
                         </div>
                     </div>
                     
                     <div class="document-info">
                         <h4>Document Information</h4>
-                        <p><strong>IPFS Hash:</strong> <code>${notice.ipfsHash}</code></p>
-                        <p><strong>Encryption Key:</strong> <code>${notice.encryptionKey}</code></p>
-                        <p><strong>Page Count:</strong> ${notice.pageCount} pages</p>
+                        <p><strong>Case Number:</strong> ${notice.case_number}</p>
+                        <p><strong>IPFS Hash:</strong> <code>${notice.ipfs_hash}</code></p>
+                        <p><strong>Page Count:</strong> ${notice.page_count || 1} pages</p>
+                        <p><strong>Served:</strong> ${new Date(notice.served_at).toLocaleString()}</p>
                     </div>
-                    
-                    ${notice.documentPreview ? `
-                        <div class="document-preview">
-                            <h4>Document Preview</h4>
-                            <img src="${notice.documentPreview}" style="max-width: 100%; border: 1px solid #ddd; border-radius: 8px;">
+                    ${signMode && !notice.accepted ? `
+                        <div class="action-buttons" style="margin-top: 20px; text-align: center;">
+                            <button onclick="signDocument()" class="btn btn-primary">
+                                <i class="bi bi-pen"></i> Sign Document
+                            </button>
                         </div>
                     ` : ''}
                 `;
             } else {
-                // No IPFS data, but PDF may be available on backend
+                // No preview images, but PDF may still be available on backend
                 modalBody.innerHTML = `
+                    ${headerInfo}
                     <div class="document-info" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                        <h4>Legal Notice - Case #${notice.case_number}</h4>
-                        <p><strong>Alert NFT:</strong> #${notice.alert_token_id || 'N/A'}</p>
+                        <p><strong>Case Number:</strong> ${notice.case_number}</p>
+                        ${isLiteContract ? `
+                        <p><strong>Token ID:</strong> #${tokenId}</p>
+                        ` : `
+                        <p><strong>Alert NFT:</strong> #${notice.alert_token_id}</p>
                         <p><strong>Document NFT:</strong> #${notice.document_token_id || 'Pending'}</p>
-                        <p><strong>Served:</strong> ${new Date(notice.served_at).toLocaleString()}</p>
+                        `}
+                        <p><strong>Served:</strong> ${formatDateTimeUTC(notice.served_at)}</p>
                         <p><strong>Status:</strong> ${notice.status || 'Served'}</p>
                     </div>
                     <div style="text-align: center; margin: 20px 0;">
-                        <button onclick="downloadCasePDF('${notice.case_number}')" class="btn btn-primary" style="padding: 12px 24px;">
+                        <button onclick="downloadCasePDF('${notice.case_number}')" class="btn btn-primary" style="margin: 5px;">
                             <i class="bi bi-file-earmark-pdf"></i> View/Download Legal Document
                         </button>
                     </div>
+                    ${signMode && !notice.accepted ? `
+                        <div class="action-buttons" style="margin-top: 20px; text-align: center;">
+                            <button onclick="signDocument()" class="btn btn-success">
+                                <i class="bi bi-pen"></i> Sign Document
+                            </button>
+                        </div>
+                    ` : ''}
                 `;
             }
             
@@ -978,17 +3195,14 @@
         // Log signature event to backend for audit trail
         async function logSignatureEvent(caseNumber, eventType, details = {}) {
             try {
-                const timezone = getUserTimezone();
                 await fetch(`${BACKEND_URL}/api/recipient-logs/signature-event`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Timezone': timezone || ''
-                    },
+                    headers: getApiHeaders(),
                     body: JSON.stringify({
                         case_number: caseNumber,
                         wallet_address: currentWallet,
                         event_type: eventType,
+                        session_id: sessionId,
                         timestamp: new Date().toISOString(),
                         details: {
                             ...details,
@@ -1005,72 +3219,194 @@
             }
         }
 
-        // Sign notice - records acknowledgment ON THE BLOCKCHAIN
-        async function signNotice(notice) {
+        // Sign document (only for Document NFT)
+        async function signDocument() {
+            const notice = currentNotice;
+            if (!notice) {
+                showAlert('No document selected', 'error');
+                return;
+            }
+
             if (!currentWallet) {
                 showAlert('Please connect your wallet first', 'error');
                 return;
             }
 
-            if (!notice.alert_token_id) {
-                showAlert('Cannot sign: missing token ID', 'error');
+            // Ensure we have a fresh tronWeb reference
+            if (!window.tronWeb || !window.tronWeb.ready) {
+                showAlert('Wallet not connected. Please reconnect TronLink.', 'error');
+                return;
+            }
+
+            // Check for token ID - Lite v2 uses single NFT (alert_token_id), v5 uses document_token_id
+            const isLiteContract = notice.contract_type === 'lite' || notice.contract_type === 'lite-v2' || !notice.document_token_id;
+            const signingTokenId = isLiteContract ? (notice.alert_token_id || notice.token_id) : notice.document_token_id;
+
+            if (!signingTokenId) {
+                showAlert('NFT not available for signing', 'error');
+                return;
+            }
+
+            if (notice.accepted) {
+                showAlert('Document already signed', 'info');
                 return;
             }
 
             // Log signature initiated - user clicked sign button
             await logSignatureEvent(notice.case_number, 'signature_initiated', {
-                alert_token_id: notice.alert_token_id,
-                document_token_id: notice.document_token_id
+                token_id: signingTokenId,
+                contract_type: notice.contract_type || (isLiteContract ? 'lite-v2' : 'v5')
             });
 
             try {
-                showAlert('Signing on blockchain... Please confirm in TronLink', 'info');
+                // Create signature message - different wording for Lite vs v5
+                const servedDate = notice.served_at ? new Date(notice.served_at).toISOString() : new Date().toISOString();
+                const message = isLiteContract
+                    ? `I acknowledge and accept the legal notice (Token #${signingTokenId}) for Case #${notice.case_number} served on ${servedDate}`
+                    : `I acknowledge and accept the legal document (Document NFT #${signingTokenId}) for Case #${notice.case_number} served on ${servedDate}`;
 
-                // Get contract instance
-                const contract = await tronWeb.contract().at(CONTRACT_ADDRESS);
+                // Sign with TronLink - use window.tronWeb directly (not cached ref)
+                // Try signMessageV2 first, fall back to tronLink.request API
+                let signature;
+                try {
+                    signature = await window.tronWeb.trx.signMessageV2(message);
+                } catch (signErr) {
+                    console.warn('signMessageV2 failed, trying tronLink.request fallback:', signErr);
+                    // Fallback: use TronLink request API directly
+                    if (window.tronLink && window.tronLink.request) {
+                        const result = await window.tronLink.request({
+                            method: 'tron_signMessageV2',
+                            params: { message: message }
+                        });
+                        signature = result?.signature || result;
+                    } else {
+                        throw signErr; // Re-throw if no fallback available
+                    }
+                }
 
-                // Call acknowledgeNotice on the blockchain
-                // This creates a permanent, immutable record
-                const alertId = parseInt(notice.alert_token_id);
-                console.log('Calling acknowledgeNotice for token:', alertId);
-
-                const tx = await contract.acknowledgeNotice(alertId).send({
-                    feeLimit: 100000000, // 100 TRX max fee
-                    callValue: 0
-                });
-
-                console.log('Blockchain transaction:', tx);
-                const txHash = tx;
-
-                showAlert('Blockchain signature recorded! Saving to database...', 'info');
-
-                // Also record in backend with the transaction hash
-                const timezone = getUserTimezone();
-                const response = await fetch(`${BACKEND_URL}/api/recipient-cases/${notice.case_number}/acknowledge`, {
+                if (!signature) {
+                    throw new Error('No signature returned from wallet');
+                }
+                
+                // Detect device and wallet for legal record
+                const deviceType = detectDeviceType();
+                const walletInfo = detectWalletProvider();
+                
+                // Get comprehensive device info for legal record
+                const deviceInfo = {
+                    // Device identification
+                    platform: navigator.platform,
+                    userAgent: navigator.userAgent,
+                    vendor: navigator.vendor,
+                    
+                    // Device type
+                    deviceType: deviceType.type,
+                    operatingSystem: deviceType.os,
+                    isMobile: deviceType.isMobile,
+                    isDesktop: deviceType.isDesktop,
+                    
+                    // Language and locale
+                    language: navigator.language,
+                    languages: navigator.languages,
+                    locale: Intl.DateTimeFormat().resolvedOptions().locale,
+                    
+                    // Time information
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    timezoneOffset: new Date().getTimezoneOffset(),
+                    timestamp: new Date().toISOString(),
+                    
+                    // Screen info for forensics
+                    screenResolution: `${screen.width}x${screen.height}`,
+                    windowSize: `${window.innerWidth}x${window.innerHeight}`,
+                    colorDepth: screen.colorDepth,
+                    
+                    // Device capabilities
+                    touchPoints: navigator.maxTouchPoints,
+                    deviceMemory: navigator.deviceMemory,
+                    hardwareConcurrency: navigator.hardwareConcurrency,
+                    
+                    // Browser state
+                    cookieEnabled: navigator.cookieEnabled,
+                    onLine: navigator.onLine,
+                    referrer: document.referrer,
+                    
+                    // Wallet and signature metadata
+                    walletProvider: walletInfo.provider,
+                    walletVersion: walletInfo.version,
+                    walletType: walletInfo.type,
+                    signatureMethod: walletInfo.provider || 'TronLink',
+                    
+                    // Browser identification
+                    browserName: (function() {
+                        const ua = navigator.userAgent;
+                        if (ua.indexOf('Firefox') > -1) return 'Firefox';
+                        if (ua.indexOf('Chrome') > -1) return 'Chrome';
+                        if (ua.indexOf('Safari') > -1) return 'Safari';
+                        if (ua.indexOf('Edge') > -1) return 'Edge';
+                        if (ua.indexOf('Opera') > -1) return 'Opera';
+                        return 'Unknown';
+                    })()
+                };
+                
+                // Try to get geolocation (optional)
+                let geolocation = null;
+                try {
+                    const position = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+                    });
+                    geolocation = {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                        accuracy: position.coords.accuracy
+                    };
+                } catch (e) {
+                    // Geolocation not available or denied
+                }
+                
+                // Send enhanced acknowledgment to logging endpoint
+                const logResponse = await fetch(`${BACKEND_URL}/api/recipient-logs/acknowledgment`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Timezone': timezone || ''
-                    },
+                    headers: getApiHeaders(),
                     body: JSON.stringify({
-                        wallet: currentWallet,
-                        signature: txHash,
-                        transactionHash: txHash,
-                        timestamp: new Date().toISOString(),
-                        onChain: true
+                        case_number: notice.case_number,
+                        wallet_address: currentWallet,
+                        signature: signature,
+                        geolocation: geolocation,
+                        device_info: deviceInfo,
+                        timezone: getUserTimezone()
                     })
                 });
 
+                // Also send to original endpoint for backward compatibility
+                const response = await fetch(`${BACKEND_URL}/api/recipient-cases/${notice.case_number}/acknowledge`, {
+                    method: 'POST',
+                    headers: getApiHeaders(),
+                    body: JSON.stringify({
+                        signature: signature,
+                        wallet: currentWallet,
+                        timestamp: new Date().toISOString(),
+                        timezone: getUserTimezone()
+                    })
+                });
+                
                 const data = await response.json();
-
-                if (data.success || txHash) {
-                    showAlert(`Document signed on blockchain! TX: ${txHash.substring(0, 16)}...`, 'success');
+                
+                if (data.success) {
+                    showAlert('Document NFT signed and legally acknowledged!', 'success');
+                    // Update the current notice object
+                    notice.accepted = true;
+                    notice.accepted_at = new Date().toISOString();
+                    notice.signature = signature;
+                    // Log document action specifically for Document NFT
+                    await logDocumentAction(notice.case_number, 'document_nft_signed');
+                    
+                    // Show receipt options
+                    showSignatureReceipt(notice);
+                    
                     // Reload notices to update status
                     loadNotices();
-                    closeDocumentModal();
                 } else {
-                    // Even if backend fails, blockchain record exists
-                    showAlert(`Signed on chain (TX: ${txHash.substring(0, 16)}...) but backend update failed`, 'warning');
+                    showAlert('Failed to sign Document NFT. Please try again.', 'error');
                 }
             } catch (error) {
                 console.error('Error signing document:', error);
@@ -1078,7 +3414,7 @@
                 // Determine the type of failure and log appropriately
                 const errorMessage = error.message || error.toString();
                 let eventType = 'signature_failed';
-                let userMessage = 'Failed to sign. Please try again.';
+                let userMessage = 'Failed to sign document. Please try again.';
 
                 if (errorMessage.includes('declined') || errorMessage.includes('reject') || errorMessage.includes('cancel') || errorMessage.includes('denied')) {
                     eventType = 'signature_declined';
@@ -1086,12 +3422,6 @@
                 } else if (errorMessage.includes('insufficient') || errorMessage.includes('balance') || errorMessage.includes('energy') || errorMessage.includes('bandwidth')) {
                     eventType = 'signature_failed_no_funds';
                     userMessage = 'Insufficient TRX/Energy for transaction. Please add funds to your wallet.';
-                } else if (errorMessage.includes('Already acknowledged')) {
-                    eventType = 'signature_already_done';
-                    userMessage = 'This notice has already been signed on the blockchain.';
-                } else if (errorMessage.includes('Not recipient')) {
-                    eventType = 'signature_wrong_wallet';
-                    userMessage = 'Only the recipient can sign this notice.';
                 }
 
                 // Log the failure/decline event
@@ -1102,14 +3432,254 @@
                     error_type: error.name || 'Unknown'
                 });
 
-                showAlert(userMessage, eventType.includes('already') ? 'info' : 'error');
+                showAlert(userMessage, 'error');
             }
         }
 
         // Close document modal
-        function closeDocumentModal() {
+        async function closeDocumentModal() {
+            // Log view duration if viewing a document
+            if (currentNotice && viewStartTime) {
+                await logNoticeView(currentNotice.case_number, 'document_close');
+            }
+            
             document.getElementById('documentModal').classList.remove('active');
             currentNotice = null;
+            viewStartTime = null;
+        }
+        
+        // Show signature receipt with permanent access instructions
+        function showSignatureReceipt(notice) {
+            const receiptHTML = generateReceipt(notice);
+            
+            // Update modal to show receipt
+            document.getElementById('modalTitle').textContent = 'Legal Notice Receipt - Save for Your Records';
+            document.getElementById('modalBody').innerHTML = `
+                <div class="receipt-container" id="receiptContent">
+                    ${receiptHTML}
+                </div>
+                <div class="receipt-actions" style="margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                    <button onclick="printReceipt()" class="btn btn-primary">
+                        <i class="bi bi-printer"></i> Print Receipt
+                    </button>
+                    <button onclick="downloadReceiptHTML()" class="btn btn-secondary">
+                        <i class="bi bi-download"></i> Download as HTML
+                    </button>
+                    <button onclick="copyIPFSInfo()" class="btn btn-secondary">
+                        <i class="bi bi-clipboard"></i> Copy IPFS Info
+                    </button>
+                    <button onclick="closeDocumentModal()" class="btn btn-secondary">
+                        <i class="bi bi-x-lg"></i> Close
+                    </button>
+                </div>
+            `;
+        }
+        
+        // Generate receipt HTML
+        function generateReceipt(notice) {
+            const signatureDate = new Date(notice.accepted_at || new Date());
+            const ipfsGateways = [
+                'https://ipfs.io/ipfs/',
+                'https://gateway.pinata.cloud/ipfs/',
+                'https://cloudflare-ipfs.com/ipfs/',
+                'https://gateway.ipfs.io/ipfs/'
+            ];
+            
+            return `
+                <div style="font-family: 'Arial', sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; border: 2px solid #2c3e50; border-radius: 10px; background: white;">
+                    <div style="text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 20px; margin-bottom: 20px;">
+                        <h2 style="color: #2c3e50; margin: 0;">LEGAL NOTICE RECEIPT</h2>
+                        <p style="color: #666; margin: 10px 0 0 0;">BlockServed - Blockchain Verified Legal Service</p>
+                    </div>
+                    
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                        <h3 style="color: #2c3e50; margin: 0 0 10px 0;">Notice Information</h3>
+                        <table style="width: 100%; font-size: 14px;">
+                            <tr><td style="padding: 5px 0;"><strong>Case Number:</strong></td><td>${notice.case_number}</td></tr>
+                            <tr><td style="padding: 5px 0;"><strong>Issuing Agency:</strong></td><td>${notice.issuing_agency || 'via Blockserved.com'}</td></tr>
+                            <tr><td style="padding: 5px 0;"><strong>Served Date:</strong></td><td>${formatDateTimeUTC(notice.served_at)}</td></tr>
+                            <tr><td style="padding: 5px 0;"><strong>Signed Date:</strong></td><td>${formatDateTimeUTC(signatureDate)}</td></tr>
+                            ${(notice.contract_type === 'lite' || notice.contract_type === 'lite-v2' || !notice.document_token_id) ? `
+                            <tr><td style="padding: 5px 0;"><strong>Token ID:</strong></td><td>#${notice.alert_token_id || notice.token_id}</td></tr>
+                            ` : `
+                            <tr><td style="padding: 5px 0;"><strong>Alert NFT ID:</strong></td><td>#${notice.alert_token_id}</td></tr>
+                            <tr><td style="padding: 5px 0;"><strong>Document NFT ID:</strong></td><td>#${notice.document_token_id}</td></tr>
+                            `}
+                            <tr><td style="padding: 5px 0;"><strong>Recipient Wallet:</strong></td><td style="word-break: break-all;">${currentWallet}</td></tr>
+                        </table>
+                    </div>
+                    
+                    ${notice.ipfs_hash ? `
+                    <div style="background: #e8f4fd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #3498db;">
+                        <h3 style="color: #2c3e50; margin: 0 0 10px 0;"><i class="bi bi-key-fill"></i> Permanent Document Access</h3>
+                        <p style="margin: 5px 0; font-size: 14px;"><strong>IPFS Hash:</strong></p>
+                        <div style="background: white; padding: 10px; border-radius: 5px; word-break: break-all; font-family: monospace; font-size: 12px; margin-bottom: 10px;">
+                            ${notice.ipfs_hash}
+                        </div>
+                        
+                        ${notice.encryption_key ? `
+                        <p style="margin: 10px 0 5px 0; font-size: 14px;"><strong>Decryption Key:</strong></p>
+                        <div style="background: #fff3cd; padding: 10px; border-radius: 5px; word-break: break-all; font-family: monospace; font-size: 12px; border: 1px solid #ffc107;">
+                            ${notice.encryption_key}
+                        </div>
+                        <p style="margin: 10px 0 0 0; font-size: 12px; color: #856404;">
+                            <i class="bi bi-exclamation-triangle-fill"></i> <strong>Important:</strong> Keep this decryption key safe. You'll need it to decrypt your document.
+                        </p>
+                        ` : ''}
+                    </div>
+                    
+                    <div style="background: #f0f8ff; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                        <h3 style="color: #2c3e50; margin: 0 0 10px 0;"><i class="bi bi-globe"></i> How to Access Your Document on IPFS</h3>
+                        <ol style="margin: 10px 0; padding-left: 20px; font-size: 14px;">
+                            <li style="margin: 5px 0;">Use any IPFS gateway by combining the gateway URL with your IPFS hash:</li>
+                        </ol>
+                        <div style="background: white; padding: 10px; border-radius: 5px; margin: 10px 0;">
+                            ${ipfsGateways.map(gateway => `
+                                <div style="margin: 5px 0; font-size: 12px;">
+                                    <code style="background: #f5f5f5; padding: 5px; border-radius: 3px; display: block; overflow-x: auto;">
+                                        ${gateway}${notice.ipfs_hash}
+                                    </code>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <ol start="2" style="margin: 10px 0; padding-left: 20px; font-size: 14px;">
+                            <li style="margin: 5px 0;">Download the encrypted file from any gateway above</li>
+                            ${notice.encryption_key ? '<li style="margin: 5px 0;">Use the decryption key above to decrypt the document</li>' : ''}
+                            <li style="margin: 5px 0;">Your document is permanently stored and will always be accessible</li>
+                        </ol>
+                    </div>
+                    ` : ''}
+                    
+                    <div style="background: #fff9e6; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ffc107;">
+                        <h3 style="color: #2c3e50; margin: 0 0 10px 0;"><i class="bi bi-shield-check"></i> Blockchain Verification</h3>
+                        <p style="margin: 5px 0; font-size: 14px;">Your legal notice is permanently recorded on the TRON blockchain:</p>
+                        <ul style="margin: 10px 0; padding-left: 20px; font-size: 13px;">
+                            <li>Transaction Hash: <code>${notice.transaction_hash || 'Pending confirmation'}</code></li>
+                            <li>Contract Address: <code>TXYZMnBGkXe2V9AyqufvPCqBsaUvLWYhsb</code></li>
+                            <li>Network: TRON Mainnet</li>
+                        </ul>
+                        <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">
+                            View on TronScan: <a href="https://tronscan.org/#/token721/TXYZMnBGkXe2V9AyqufvPCqBsaUvLWYhsb" target="_blank" style="color: #3498db;">Contract Explorer</a>
+                        </p>
+                    </div>
+                    
+                    <div style="border-top: 2px solid #2c3e50; padding-top: 20px; margin-top: 20px; text-align: center;">
+                        <p style="margin: 5px 0; font-size: 12px; color: #666;">
+                            <strong>Digital Signature:</strong> ${notice.signature ? notice.signature.substring(0, 20) + '...' : 'Not available'}
+                        </p>
+                        <p style="margin: 10px 0 0 0; font-size: 11px; color: #999;">
+                            Generated on ${new Date().toLocaleString()} • Keep this receipt for your records
+                        </p>
+                        <p style="margin: 5px 0 0 0; font-size: 11px; color: #999;">
+                            This receipt confirms your legal acknowledgment of the served documents.
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Print receipt
+        function printReceipt() {
+            const printWindow = window.open('', '_blank');
+            const receiptContent = document.getElementById('receiptContent').innerHTML;
+            
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Legal Notice Receipt - Case #${currentNotice.case_number}</title>
+                    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+                    <style>
+                        @media print {
+                            body { margin: 0; }
+                            .no-print { display: none; }
+                        }
+                    </style>
+                </head>
+                <body onload="window.print(); window.close();">
+                    ${receiptContent}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+        }
+        
+        // Download receipt as HTML
+        function downloadReceiptHTML() {
+            const receiptContent = document.getElementById('receiptContent').innerHTML;
+            const htmlContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Legal Notice Receipt - Case #${currentNotice.case_number}</title>
+                    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+                </head>
+                <body>
+                    ${receiptContent}
+                </body>
+                </html>
+            `;
+            
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `BlockServed_Receipt_${currentNotice.case_number}_${Date.now()}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        // Copy IPFS information to clipboard
+        async function copyIPFSInfo() {
+            if (!currentNotice || !currentNotice.ipfs_hash) {
+                showAlert('No IPFS information available', 'error');
+                return;
+            }
+            
+            const ipfsInfo = `IPFS Hash: ${currentNotice.ipfs_hash}\n` +
+                           `${currentNotice.encryption_key ? 'Decryption Key: ' + currentNotice.encryption_key + '\n' : ''}` +
+                           `Access URL: https://ipfs.io/ipfs/${currentNotice.ipfs_hash}`;
+            
+            try {
+                await navigator.clipboard.writeText(ipfsInfo);
+                showAlert('IPFS information copied to clipboard!', 'success');
+            } catch (err) {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = ipfsInfo;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showAlert('IPFS information copied to clipboard!', 'success');
+            }
+        }
+        
+        // Log document action to backend
+        async function logDocumentAction(caseNumber, actionType) {
+            try {
+                await fetch(`${BACKEND_URL}/api/recipient-logs/document-action`, {
+                    method: 'POST',
+                    headers: getApiHeaders(),
+                    body: JSON.stringify({
+                        case_number: caseNumber,
+                        wallet_address: currentWallet,
+                        action_type: actionType,
+                        timezone: getUserTimezone(),
+                        metadata: {
+                            session_id: sessionId,
+                            timestamp: new Date().toISOString(),
+                            timezone: getUserTimezone()
+                        }
+                    })
+                });
+                console.log(`Document action logged: ${caseNumber} - ${actionType}`);
+            } catch (error) {
+                console.error('Failed to log document action:', error);
+            }
         }
 
         // Download document
@@ -1117,14 +3687,18 @@
             if (!currentNotice) return;
             
             // Create a text file with document information
+            const isLite = currentNotice.contract_type === 'lite' || currentNotice.contract_type === 'lite-v2' || !currentNotice.document_token_id;
+            const tokenInfo = isLite
+                ? `Token ID: #${currentNotice.alert_token_id || currentNotice.token_id}`
+                : `Alert NFT ID: #${currentNotice.alert_token_id}\nDocument NFT ID: #${currentNotice.document_token_id || 'N/A'}`;
+
             const content = `
 Legal Notice - Case #${currentNotice.case_number}
 ========================================
 Notice Type: ${currentNotice.notice_type}
 Issuing Agency: ${currentNotice.issuing_agency}
-Served Date: ${new Date(currentNotice.served_at).toLocaleDateString()}
-Alert NFT ID: #${currentNotice.alert_token_id}
-Document NFT ID: #${currentNotice.document_token_id || 'N/A'}
+Served Date: ${formatDateTimeUTC(currentNotice.served_at)}
+${tokenInfo}
 
 IPFS Document Hash: ${currentNotice.ipfs_document || 'N/A'}
 Encryption Key: ${currentNotice.encryption_key || 'N/A'}
@@ -1144,20 +3718,122 @@ Transaction Hash: ${currentNotice.transaction_hash}
             URL.revokeObjectURL(url);
         }
 
-        // Show alert message
-        // Download PDF by case number from backend
+        // Print document images
+        async function printDocumentImages(caseNumber) {
+            try {
+                // Log document action
+                await logDocumentAction(caseNumber, 'print');
+                
+                // Create a new window for printing
+                const printWindow = window.open('', '_blank');
+                printWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>Legal Notice - Case #${caseNumber}</title>
+                        <style>
+                            @media print {
+                                body { margin: 0; }
+                                img { max-width: 100%; page-break-inside: avoid; }
+                                .page-break { page-break-after: always; }
+                            }
+                            body { font-family: Arial, sans-serif; }
+                            h1 { text-align: center; }
+                            .document-section { margin: 20px 0; }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>Legal Notice - Case #${caseNumber}</h1>
+                        <p>Printed: ${new Date().toLocaleString()}</p>
+                `);
+                
+                // Get the images from the current modal
+                const images = document.querySelectorAll('#modalBody img');
+                images.forEach((img, index) => {
+                    if (index > 0) {
+                        printWindow.document.write('<div class="page-break"></div>');
+                    }
+                    printWindow.document.write(`
+                        <div class="document-section">
+                            <img src="${img.src}" alt="${img.alt}" style="width: 100%;">
+                        </div>
+                    `);
+                });
+                
+                printWindow.document.write('</body></html>');
+                printWindow.document.close();
+                
+                setTimeout(() => {
+                    printWindow.print();
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error printing document:', error);
+                showAlert('Failed to print document', 'error');
+            }
+        }
+        
+        // Download document images
+        async function downloadDocumentImages(caseNumber) {
+            try {
+                // Log document action
+                await logDocumentAction(caseNumber, 'download');
+                
+                // Get images from the modal
+                const images = document.querySelectorAll('#modalBody img');
+                
+                images.forEach((img, index) => {
+                    const link = document.createElement('a');
+                    link.href = img.src;
+                    link.download = `legal-notice-${caseNumber}-${index + 1}.png`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                });
+                
+                showAlert('Documents downloaded successfully', 'success');
+                
+            } catch (error) {
+                console.error('Error downloading document:', error);
+                showAlert('Failed to download document', 'error');
+            }
+        }
+        
+        // Log document action (duplicate definition - uses getApiHeaders for consistency)
+        async function logDocumentAction(caseNumber, actionType) {
+            try {
+                await fetch(`${BACKEND_URL}/api/recipient-logs/document-action`, {
+                    method: 'POST',
+                    headers: getApiHeaders(),
+                    body: JSON.stringify({
+                        case_number: caseNumber,
+                        wallet_address: currentWallet,
+                        action_type: actionType,
+                        timezone: getUserTimezone(),
+                        metadata: {
+                            timestamp: new Date().toISOString(),
+                            sessionId: sessionId,
+                            timezone: getUserTimezone()
+                        }
+                    })
+                });
+                console.log(`Document action logged: ${caseNumber} - ${actionType}`);
+            } catch (error) {
+                console.error('Failed to log document action:', error);
+            }
+        }
+
+        // Download PDF by case number (wrapper for when images aren't available)
         async function downloadCasePDF(caseNumber) {
             try {
                 showAlert('Downloading document...', 'info');
 
-                const timezone = getUserTimezone();
+                // Log the download attempt
+                await logDocumentAction(caseNumber, 'download');
+
                 const response = await fetch(
                     `${BACKEND_URL}/api/recipient-cases/${encodeURIComponent(caseNumber)}/download-pdf?recipientAddress=${currentWallet}`,
-                    {
-                        headers: {
-                            'X-Timezone': timezone || ''
-                        }
-                    }
+                    { headers: getApiHeaders() }
                 );
 
                 if (response.ok) {
@@ -1188,6 +3864,142 @@ Transaction Hash: ${currentNotice.transaction_hash}
             }
         }
 
+        // Load CryptoJS for document decryption
+        async function loadCryptoJS() {
+            return new Promise((resolve) => {
+                if (window.CryptoJS) {
+                    resolve();
+                    return;
+                }
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js';
+                script.onload = resolve;
+                script.onerror = () => {
+                    console.error('Failed to load CryptoJS');
+                    resolve();
+                };
+                document.head.appendChild(script);
+            });
+        }
+
+        // Download the actual PDF from backend (decrypted)
+        async function downloadOriginalPDF(notice) {
+            try {
+                showAlert('Downloading document...', 'info');
+
+                // First try to download from backend (preferred method)
+                const response = await fetch(
+                    `${BACKEND_URL}/api/recipient-cases/${notice.case_number}/download-pdf?recipientAddress=${currentWallet}`,
+                    { headers: getApiHeaders() }
+                );
+
+                if (response.ok) {
+                    const contentType = response.headers.get('content-type');
+
+                    if (contentType && contentType.includes('application/pdf')) {
+                        // Direct PDF download from backend
+                        const blob = await response.blob();
+                        const downloadUrl = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = downloadUrl;
+                        a.download = `legal_document_case_${notice.case_number}.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(downloadUrl);
+                        showAlert('Document downloaded successfully', 'success');
+                        return;
+                    }
+
+                    // Backend returned IPFS info for client-side decryption
+                    const data = await response.json();
+                    if (data.success && data.method === 'ipfs') {
+                        await downloadFromIPFS(data.ipfsHash, data.encryptionKey, notice.case_number);
+                        return;
+                    }
+                }
+
+                // Fallback to IPFS if notice has hash and key
+                if (notice.ipfs_hash && notice.encryption_key) {
+                    await downloadFromIPFS(notice.ipfs_hash, notice.encryption_key, notice.case_number);
+                    return;
+                }
+
+                throw new Error('Document not available for download');
+
+            } catch (error) {
+                console.error('Error downloading PDF:', error);
+                showAlert('Failed to download document: ' + error.message, 'error');
+            }
+        }
+
+        // Download and decrypt from IPFS (fallback method)
+        async function downloadFromIPFS(ipfsHash, encryptionKey, caseNumber) {
+            // Log the download action
+            await logDocumentAction(caseNumber, 'download_pdf_ipfs');
+
+            // Load CryptoJS if needed
+            await loadCryptoJS();
+
+            if (!window.CryptoJS) {
+                throw new Error('Failed to load decryption library');
+            }
+
+            // Fetch encrypted document from IPFS
+            const ipfsGateway = 'https://gateway.pinata.cloud/ipfs/';
+            const response = await fetch(`${ipfsGateway}${ipfsHash}`);
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch document from IPFS');
+            }
+
+            const encryptedData = await response.arrayBuffer();
+            console.log('Downloaded encrypted data, size:', encryptedData.byteLength);
+
+            // Convert to string for CryptoJS
+            const uint8Array = new Uint8Array(encryptedData);
+            let encryptedString = '';
+            for (let i = 0; i < uint8Array.length; i++) {
+                encryptedString += String.fromCharCode(uint8Array[i]);
+            }
+
+            // Decrypt using CryptoJS AES
+            const decrypted = CryptoJS.AES.decrypt(encryptedString, encryptionKey);
+
+            if (!decrypted || decrypted.sigBytes <= 0) {
+                throw new Error('Decryption failed - invalid encryption key');
+            }
+
+            // Convert WordArray to Uint8Array
+            const decryptedWords = decrypted.words;
+            const sigBytes = decrypted.sigBytes;
+            const decryptedArray = new Uint8Array(sigBytes);
+
+            for (let i = 0; i < sigBytes; i++) {
+                decryptedArray[i] = (decryptedWords[i >>> 2] >>> (24 - (i % 4) * 8)) & 0xff;
+            }
+
+            // Verify it's a PDF
+            const pdfHeader = new TextDecoder().decode(decryptedArray.slice(0, 5));
+            if (pdfHeader !== '%PDF-') {
+                console.warn('Decrypted content may not be a valid PDF, header:', pdfHeader);
+            }
+
+            // Create blob and download
+            const blob = new Blob([decryptedArray], { type: 'application/pdf' });
+            const downloadUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = `legal_document_case_${caseNumber}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(downloadUrl);
+
+            showAlert('Document downloaded successfully', 'success');
+        }
+
+        // Show alert message
         function showAlert(message, type = 'info') {
             const alertDiv = document.createElement('div');
             alertDiv.className = `alert-message alert-${type}`;
@@ -1211,6 +4023,38 @@ Transaction Hash: ${currentNotice.transaction_hash}
                 alertDiv.remove();
             }, 5000);
         }
+
+        // Privacy Policy modal controls
+        function openPrivacyPolicy() {
+            document.getElementById('privacyModal').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closePrivacyPolicy() {
+            document.getElementById('privacyModal').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Close privacy modal on background click
+        document.getElementById('privacyModal').addEventListener('click', function(e) {
+            if (e.target === this) closePrivacyPolicy();
+        });
+
+        // About BlockServed modal controls
+        function openAboutModal() {
+            document.getElementById('aboutModal').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeAboutModal() {
+            document.getElementById('aboutModal').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Close about modal on background click
+        document.getElementById('aboutModal').addEventListener('click', function(e) {
+            if (e.target === this) closeAboutModal();
+        });
     </script>
 </body>
 </html>
