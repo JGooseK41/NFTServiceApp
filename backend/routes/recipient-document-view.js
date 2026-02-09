@@ -25,7 +25,7 @@ const corsOptions = {
     ],
     credentials: true,
     methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Recipient-Address']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Recipient-Address', 'X-Wallet-Provider', 'X-Visitor-Id', 'X-Fingerprint', 'X-Fingerprint-Confidence', 'X-Screen-Resolution']
 };
 
 router.use(cors(corsOptions));

@@ -15,6 +15,17 @@ const pool = new Pool({
         : false
 });
 
+// Build forensic details from request headers (extracted by middleware in server.js)
+function buildForensicDetails(req, extraDetails = {}) {
+    const forensic = { ...extraDetails };
+    if (req.clientWalletProvider) forensic.walletProvider = req.clientWalletProvider;
+    if (req.clientVisitorId) forensic.visitorId = req.clientVisitorId;
+    if (req.clientFingerprint) forensic.fingerprint = req.clientFingerprint;
+    if (req.clientFingerprintConfidence) forensic.fingerprintConfidence = req.clientFingerprintConfidence;
+    if (req.clientScreenResolution) forensic.screen_resolution = req.clientScreenResolution;
+    return forensic;
+}
+
 // Get notice details for recipient
 router.get('/recipient/:address/notices', async (req, res) => {
     try {
@@ -24,8 +35,10 @@ router.get('/recipient/:address/notices', async (req, res) => {
         
         // Log recipient access to audit_logs
         const ipAddress = req.clientIp || req.ip;
-        const userAgent = req.headers['user-agent'];
-        
+        const userAgent = req.clientUserAgent || req.headers['user-agent'];
+        const acceptLanguage = req.clientLanguage || req.headers['accept-language'];
+        const timezone = req.clientTimezone || req.headers['x-timezone'];
+
         await pool.query(`
             INSERT INTO audit_logs (
                 action_type,
@@ -33,19 +46,23 @@ router.get('/recipient/:address/notices', async (req, res) => {
                 details,
                 ip_address,
                 user_agent,
+                accept_language,
+                timezone,
                 created_at
-            ) VALUES ($1, $2, $3, $4, $5, NOW())
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
         `, [
             'recipient_notice_query',
             address,
-            JSON.stringify({
+            JSON.stringify(buildForensicDetails(req, {
                 endpoint: 'recipient_notices',
                 page: 'blockserved',
                 referer: req.headers.referer,
                 timestamp: new Date().toISOString()
-            }),
+            })),
             ipAddress,
-            userAgent
+            userAgent,
+            acceptLanguage,
+            timezone
         ]);
         
         // Query case_service_records where this address is in the recipients array
@@ -129,8 +146,10 @@ router.get('/recipient/:address/notice/:alertId/document', async (req, res) => {
         
         // Log document access to audit_logs
         const ipAddress = req.clientIp || req.ip;
-        const userAgent = req.headers['user-agent'];
-        
+        const userAgent = req.clientUserAgent || req.headers['user-agent'];
+        const acceptLanguage = req.clientLanguage || req.headers['accept-language'];
+        const timezone = req.clientTimezone || req.headers['x-timezone'];
+
         await pool.query(`
             INSERT INTO audit_logs (
                 action_type,
@@ -139,20 +158,24 @@ router.get('/recipient/:address/notice/:alertId/document', async (req, res) => {
                 details,
                 ip_address,
                 user_agent,
+                accept_language,
+                timezone,
                 created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
         `, [
             'recipient_document_view',
             address,
             alertId,
-            JSON.stringify({
+            JSON.stringify(buildForensicDetails(req, {
                 endpoint: 'recipient_document',
                 page: 'blockserved',
                 referer: req.headers.referer,
                 timestamp: new Date().toISOString()
-            }),
+            })),
             ipAddress,
-            userAgent
+            userAgent,
+            acceptLanguage,
+            timezone
         ]);
         
         // Get the document from case_service_records

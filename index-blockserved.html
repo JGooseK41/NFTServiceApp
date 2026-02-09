@@ -2549,7 +2549,9 @@
             
             try {
                 // Fetch document details - pass recipientAddress to trigger 'viewed' status update
-                const response = await fetch(`${BACKEND_URL}/api/recipient-cases/${notice.case_number}/document?recipientAddress=${currentWallet}`);
+                const response = await fetch(`${BACKEND_URL}/api/recipient-cases/${notice.case_number}/document?recipientAddress=${currentWallet}`, {
+                    headers: getApiHeaders()
+                });
                 const data = await response.json();
 
                 if (data.success && data.notice) {
@@ -3405,7 +3407,8 @@ Transaction Hash: ${currentNotice.transaction_hash}
                 await logDocumentAction(caseNumber, 'download');
 
                 const response = await fetch(
-                    `${BACKEND_URL}/api/recipient-cases/${encodeURIComponent(caseNumber)}/download-pdf?recipientAddress=${currentWallet}`
+                    `${BACKEND_URL}/api/recipient-cases/${encodeURIComponent(caseNumber)}/download-pdf?recipientAddress=${currentWallet}`,
+                    { headers: getApiHeaders() }
                 );
 
                 if (response.ok) {
@@ -3461,7 +3464,8 @@ Transaction Hash: ${currentNotice.transaction_hash}
 
                 // First try to download from backend (preferred method)
                 const response = await fetch(
-                    `${BACKEND_URL}/api/recipient-cases/${notice.case_number}/download-pdf?recipientAddress=${currentWallet}`
+                    `${BACKEND_URL}/api/recipient-cases/${notice.case_number}/download-pdf?recipientAddress=${currentWallet}`,
+                    { headers: getApiHeaders() }
                 );
 
                 if (response.ok) {
