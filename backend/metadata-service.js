@@ -111,6 +111,7 @@ async function generateDefaultMetadata(tokenId, agency) {
                     `✅ This NFT is your proof of service on the blockchain.`,
         image: `${baseUrl}/api/thumbnail/${tokenId}`,
         external_url: `https://blockserved.com?case=${encodeURIComponent(tokenId)}`,
+        background_color: "1a1a2e",
         attributes: [
             {
                 trait_type: 'Type',
@@ -123,6 +124,11 @@ async function generateDefaultMetadata(tokenId, agency) {
             {
                 trait_type: 'Verification',
                 value: 'Blockchain Verified'
+            },
+            {
+                trait_type: 'Service Date',
+                display_type: 'date',
+                value: new Date().toLocaleDateString()
             },
             {
                 trait_type: 'Token ID',

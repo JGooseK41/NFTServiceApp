@@ -270,21 +270,43 @@ window.contract = {
             const metadata = {
                 name: `Legal Notice - Case #${data.caseNumber}`,
                 description: this._buildNoticeDescription(data),
-                image: data.thumbnailUrl || data.thumbnail,
+                image: this._toGatewayUrl(data.thumbnailUrl || data.thumbnail),
                 external_url: `https://blockserved.com?case=${encodeURIComponent(data.caseNumber)}`,
+                background_color: "1a1a2e",
                 attributes: [
                     { trait_type: "Notice Type", value: "Legal Service" },
                     { trait_type: "Case Number", value: data.caseNumber },
                     { trait_type: "Status", value: "Delivered" },
-                    { trait_type: "Service Date", value: new Date().toLocaleDateString() },
+                    { trait_type: "Service Date", display_type: "date", value: new Date().toLocaleDateString() },
                     { trait_type: "Agency", value: data.agency || "via Blockserved.com" },
                     { trait_type: "Portal", value: "blockserved.com" }
                 ]
             };
 
-            // Encode metadata as base64 data URI
-            const metadataUri = 'data:application/json;base64,' +
-                btoa(unescape(encodeURIComponent(JSON.stringify(metadata))));
+            // Try uploading metadata to IPFS for wallet compatibility
+            let metadataUri = '';
+            if (window.documents?.uploadToIPFS) {
+                try {
+                    const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
+                    const ipfsHash = await window.documents.uploadToIPFS(metadataBlob, {
+                        caseNumber: data.caseNumber,
+                        type: 'nft_metadata',
+                        encrypt: false
+                    });
+                    if (ipfsHash) {
+                        metadataUri = `ipfs://${ipfsHash}`;
+                        console.log('Metadata uploaded to IPFS:', metadataUri);
+                    }
+                } catch (e) {
+                    console.log('IPFS metadata upload failed, using inline fallback');
+                }
+            }
+
+            // Fallback to base64 data URI
+            if (!metadataUri) {
+                metadataUri = 'data:application/json;base64,' +
+                    btoa(unescape(encodeURIComponent(JSON.stringify(metadata))));
+            }
 
             // Validate recipient
             if (!data.recipient) {
@@ -379,15 +401,16 @@ window.contract = {
             const metadata = {
                 name: `${data.agency || 'Legal Notice'} - Case #${data.caseNumber}`,
                 description: this._buildNoticeDescription(data),
-                image: data.thumbnailUrl || 'https://blockserved.com/images/legal-notice-thumb.png',
+                image: this._toGatewayUrl(data.thumbnailUrl) || 'https://blockserved.com/images/legal-notice-thumb.png',
                 external_url: `https://blockserved.com?case=${encodeURIComponent(data.caseNumber)}`,
+                background_color: "1a1a2e",
                 attributes: [
                     { trait_type: "Case Number", value: data.caseNumber },
                     { trait_type: "Recipients", value: String(data.recipients.length) },
                     { trait_type: "Notice Type", value: data.noticeType || "Legal Notice" },
                     { trait_type: "Status", value: "Delivered" },
                     { trait_type: "Agency", value: data.agency || "via Blockserved.com" },
-                    { trait_type: "Service Date", value: new Date().toLocaleDateString() },
+                    { trait_type: "Service Date", display_type: "date", value: new Date().toLocaleDateString() },
                     { trait_type: "Portal", value: "blockserved.com" }
                 ],
                 properties: {
@@ -599,6 +622,14 @@ window.contract = {
     // ====================
     // HELPER FUNCTIONS
     // ====================
+
+    // Convert ipfs:// URL to HTTPS gateway URL for wallet compatibility
+    _toGatewayUrl(url) {
+        if (url && url.startsWith('ipfs://')) {
+            return 'https://gateway.pinata.cloud/ipfs/' + url.slice(7);
+        }
+        return url;
+    },
 
     // Build notice description for metadata
     _buildNoticeDescription(data) {
