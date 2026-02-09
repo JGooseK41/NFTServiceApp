@@ -373,18 +373,27 @@ window.cases = {
             
             // Get recipient count from all possible sources
             let recipientCount = 0;
-            if (c.recipients) {
-                recipientCount = Array.isArray(c.recipients) ? c.recipients.length : 
-                                 (typeof c.recipients === 'string' ? JSON.parse(c.recipients).length : 0);
-            } else if (c.recipient_count) {
-                recipientCount = c.recipient_count;
-            } else if (c.recipientCount) {
-                recipientCount = c.recipientCount;
-            } else if (c.metadata) {
-                const metadata = typeof c.metadata === 'string' ? JSON.parse(c.metadata) : c.metadata;
-                if (metadata.recipients) {
-                    recipientCount = Array.isArray(metadata.recipients) ? metadata.recipients.length : 0;
+            // Helper to parse a recipients value (could be array, JSON string, or single address)
+            const parseRecipients = (val) => {
+                if (!val) return 0;
+                if (Array.isArray(val)) return val.length;
+                if (typeof val === 'string') {
+                    try {
+                        const parsed = JSON.parse(val);
+                        return Array.isArray(parsed) ? parsed.length : (parsed ? 1 : 0);
+                    } catch {
+                        // Single address string
+                        return val.trim() ? 1 : 0;
+                    }
                 }
+                return 0;
+            };
+            recipientCount = parseRecipients(c.recipients)
+                || parseRecipients(c.recipient_address)
+                || c.recipient_count || c.recipientCount || 0;
+            if (!recipientCount && c.metadata) {
+                const metadata = typeof c.metadata === 'string' ? JSON.parse(c.metadata) : c.metadata;
+                recipientCount = parseRecipients(metadata.recipients);
             }
             
             const status = c.status || 'Active';
@@ -424,7 +433,7 @@ window.cases = {
                             ${escapeHtml(caseId)}
                         </a>
                     </td>
-                    <td>${new Date(createdDate).toLocaleDateString()}</td>
+                    <td><small>${new Date(createdDate).toLocaleDateString()}<br><span class="text-muted">${new Date(createdDate).toISOString().replace('T', ' ').substring(0, 19)} UTC</span></small></td>
                     <td>
                         ${pageCount} pages<br>
                         <small class="text-muted">${recipientCount} recipient${recipientCount !== 1 ? 's' : ''}</small>

@@ -356,7 +356,7 @@ class CaseManager {
                         created_at as served_at,
                         page_count::text as page_count,
                         NULL as file_size,
-                        recipients::text as recipient_address,
+                        COALESCE(recipients::text, '[]') as recipient_address,
                         ipfs_hash,
                         alert_token_id as alert_nft_id,
                         transaction_hash,
