@@ -1086,9 +1086,12 @@
                 <div>
                     <strong style="font-size: 18px; color: var(--primary-color);">Your Privacy is Protected</strong><br>
                     <p style="margin: 10px 0; line-height: 1.6;">
-                        Your documents are <strong>completely private</strong> and can only be accessed by connecting the wallet that received the notice. 
+                        Your documents are <strong>completely private</strong> and can only be accessed by connecting the wallet that received the notice.
                         Your wallet address is your unique identifier - no personal information is stored or displayed publicly.
                     </p>
+                    <a href="#" onclick="openAboutModal(); return false;" style="color: #1976d2; font-size: 14px; text-decoration: underline;">
+                        Learn more about how BlockServed works
+                    </a>
                 </div>
             </div>
             
@@ -1209,6 +1212,8 @@
     <footer class="site-footer">
         <div class="footer-links">
             <a href="#" onclick="openPrivacyPolicy(); return false;">Privacy Policy</a>
+            <span>|</span>
+            <a href="#" onclick="openAboutModal(); return false;">About BlockServed</a>
             <span>|</span>
             <a href="mailto:info@theblockaudit.com">Contact Us</a>
         </div>
@@ -1407,6 +1412,56 @@
 
                 <div class="policy-highlight">
                     <strong>Reminder:</strong> The data collected through this Portal exists to protect your legal rights. Proper documentation of legal service ensures that you receive adequate notice of proceedings, provides you with evidence to challenge improper service, and creates a verifiable record that can be used in your defense. If you have concerns about how your data is being used, please do not hesitate to contact us.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- About BlockServed Modal -->
+    <div id="aboutModal" class="privacy-modal">
+        <div class="privacy-modal-content">
+            <div class="privacy-modal-header">
+                <h2><i class="bi bi-info-circle"></i> About BlockServed</h2>
+                <button class="close-modal" onclick="closeAboutModal()">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="privacy-modal-body">
+
+                <h3>What You Received</h3>
+                <p>You have been served a legal notice via blockchain technology. The NFT (Non-Fungible Token) delivered to your wallet is proof that a legal document was delivered to you.</p>
+                <div class="policy-highlight">
+                    <strong>This is a legitimate legal process</strong> — equivalent to traditional service of process. The blockchain serves as an immutable record that you were properly notified.
+                </div>
+
+                <h3>Who Can Use This Service</h3>
+                <p>BlockServed is operated by <strong>The Block Audit LLC</strong>. Only verified legal professionals can serve documents through this platform. Users are restricted to:</p>
+                <ul>
+                    <li><strong>Law enforcement agencies</strong></li>
+                    <li><strong>Licensed attorneys</strong></li>
+                    <li><strong>Registered process servers</strong></li>
+                    <li><strong>Other authorized legal professionals</strong></li>
+                </ul>
+                <p>Every process server is vetted before being granted access to the smart contract. The smart contract is access-controlled — unauthorized parties cannot mint service NFTs.</p>
+
+                <h3>How Your Documents Are Protected</h3>
+                <p>Your documents are stored encrypted and are <strong>not readable by the general public</strong>. While blockchain transactions are public by nature, your document content is NOT public.</p>
+                <div class="policy-highlight">
+                    Only the intended recipient can decrypt and view the document by connecting the wallet that received the NFT. This is why you must connect your wallet — it proves you are the intended recipient. The encryption key is tied to your wallet address.
+                </div>
+
+                <h3>Why Blockchain?</h3>
+                <ul>
+                    <li><strong>Immutable record:</strong> Creates a timestamped record of service that cannot be altered by any party</li>
+                    <li><strong>Verifiable proof:</strong> Provides verifiable proof of delivery that courts can rely on</li>
+                    <li><strong>Tamper-proof:</strong> No intermediary can lose, alter, or deny the existence of the served documents</li>
+                    <li><strong>24/7 access:</strong> Recipients can access their documents anytime, from anywhere in the world</li>
+                </ul>
+
+                <h3>Your Rights</h3>
+                <p>You have the right to view and download your served documents at any time. Signing or acknowledging receipt is recorded on the blockchain, but the documents are legally served regardless of whether you acknowledge them.</p>
+                <div class="policy-highlight">
+                    If you believe you received this notice in error, please contact us at <a href="mailto:info@theblockaudit.com">info@theblockaudit.com</a>.
                 </div>
             </div>
         </div>
@@ -3983,6 +4038,22 @@ Transaction Hash: ${currentNotice.transaction_hash}
         // Close privacy modal on background click
         document.getElementById('privacyModal').addEventListener('click', function(e) {
             if (e.target === this) closePrivacyPolicy();
+        });
+
+        // About BlockServed modal controls
+        function openAboutModal() {
+            document.getElementById('aboutModal').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeAboutModal() {
+            document.getElementById('aboutModal').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Close about modal on background click
+        document.getElementById('aboutModal').addEventListener('click', function(e) {
+            if (e.target === this) closeAboutModal();
         });
     </script>
 </body>
