@@ -2132,7 +2132,9 @@
         const walletDeepLinks = {
             tronlink: {
                 name: 'TronLink',
-                scheme: 'tronlink://open?url=',
+                // TronLink v4.10+ uses tronlinkoutside://pull.activity?param=<encoded-json>
+                useJsonParam: true,
+                scheme: 'tronlinkoutside://pull.activity?param=',
                 fallbackUrl: 'https://www.tronlink.org/'
             },
             trust: {
@@ -2178,7 +2180,19 @@
             }
 
             const currentUrl = window.location.href;
-            const deepLink = wallet.scheme + encodeURIComponent(currentUrl);
+            let deepLink;
+            if (wallet.useJsonParam) {
+                // TronLink v4.10+ format: JSON param with url, action, protocol, version
+                const paramJson = JSON.stringify({
+                    url: currentUrl,
+                    action: 'open',
+                    protocol: 'tronlink',
+                    version: '1.0'
+                });
+                deepLink = wallet.scheme + encodeURIComponent(paramJson);
+            } else {
+                deepLink = wallet.scheme + encodeURIComponent(currentUrl);
+            }
 
             console.log(`Attempting to open in ${wallet.name}: ${deepLink}`);
 
