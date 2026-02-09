@@ -997,10 +997,10 @@
                 <p style="text-align: center; color: #666; font-size: 13px; margin-bottom: 10px;">Or use these options:</p>
 
                 <div class="wallet-option" onclick="showQRCode()" style="display: flex; align-items: center; padding: 12px 15px;">
-                    <i class="bi bi-qr-code" style="font-size: 24px; color: #6f42c1; margin-right: 12px;"></i>
+                    <i class="bi bi-qr-code" style="font-size: 24px; color: var(--secondary-color); margin-right: 12px;"></i>
                     <div>
                         <h5 style="margin: 0; font-size: 14px;">Show QR Code</h5>
-                        <p style="margin: 0; font-size: 12px; color: #666;">Scan with wallet's QR scanner</p>
+                        <p style="margin: 0; font-size: 12px; color: #666;">Scan with TronLink's QR scanner</p>
                     </div>
                 </div>
 
@@ -1024,14 +1024,22 @@
             <!-- QR Code Section -->
             <div id="qrCodeSection" style="display: none; background: #f0f8ff; padding: 20px; border-radius: 8px; margin: 15px 0; text-align: center;">
                 <h5 style="color: var(--primary-color); margin-bottom: 15px;">
-                    <i class="bi bi-qr-code-scan"></i> Scan with Your Wallet
+                    <i class="bi bi-qr-code-scan"></i> Scan with TronLink
                 </h5>
                 <div id="qrCodeContainer" style="display: inline-block; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
                     <canvas id="walletQRCode"></canvas>
                 </div>
-                <p style="font-size: 13px; color: #666; margin-top: 15px;">
-                    Open your wallet app's QR scanner and scan this code to connect
-                </p>
+                <div style="text-align: left; max-width: 280px; margin: 15px auto 0;">
+                    <p style="font-size: 13px; color: var(--text-dark); font-weight: 600; margin-bottom: 8px;">How to scan:</p>
+                    <ol style="font-size: 13px; color: #666; margin: 0; padding-left: 20px;">
+                        <li style="margin-bottom: 4px;">Open <strong>TronLink</strong> on your phone</li>
+                        <li style="margin-bottom: 4px;">Tap the <strong>scan icon</strong> (top right)</li>
+                        <li style="margin-bottom: 4px;">Scan this QR code</li>
+                    </ol>
+                    <p style="font-size: 12px; color: #999; margin-top: 8px;">
+                        <i class="bi bi-info-circle"></i> Do not scan with your phone camera — use TronLink's built-in scanner so the site opens with your wallet connected.
+                    </p>
+                </div>
                 <button onclick="hideQRCode()" class="btn btn-sm btn-outline-secondary" style="margin-top: 10px;">
                     <i class="bi bi-x-lg"></i> Close QR Code
                 </button>
