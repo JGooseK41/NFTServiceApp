@@ -619,10 +619,6 @@ window.notices = {
             throw new Error('Case number is required');
         }
         
-        if (!data.noticeText) {
-            throw new Error('Notice description is required');
-        }
-        
         if (!data.documents || data.documents.length === 0) {
             throw new Error('At least one PDF document is required');
         }
@@ -756,30 +752,32 @@ window.notices = {
         ctx.fillText(formatUTCTime(new Date()), 200, y);
         y += lineHeight * 2;
         
-        // Notice text (wrapped)
-        ctx.font = 'bold 20px Arial';
-        ctx.fillText('Notice:', 50, y);
-        y += lineHeight;
-        
-        ctx.font = '18px Arial';
-        const words = data.noticeText.split(' ');
-        let line = '';
-        const maxWidth = canvas.width - 100;
-        
-        for (let n = 0; n < words.length; n++) {
-            const testLine = line + words[n] + ' ';
-            const metrics = ctx.measureText(testLine);
-            const testWidth = metrics.width;
-            
-            if (testWidth > maxWidth && n > 0) {
-                ctx.fillText(line, 50, y);
-                line = words[n] + ' ';
-                y += lineHeight;
-            } else {
-                line = testLine;
+        // Notice text (wrapped) - optional field
+        if (data.noticeText) {
+            ctx.font = 'bold 20px Arial';
+            ctx.fillText('Notice:', 50, y);
+            y += lineHeight;
+
+            ctx.font = '18px Arial';
+            const words = data.noticeText.split(' ');
+            let line = '';
+            const maxWidth = canvas.width - 100;
+
+            for (let n = 0; n < words.length; n++) {
+                const testLine = line + words[n] + ' ';
+                const metrics = ctx.measureText(testLine);
+                const testWidth = metrics.width;
+
+                if (testWidth > maxWidth && n > 0) {
+                    ctx.fillText(line, 50, y);
+                    line = words[n] + ' ';
+                    y += lineHeight;
+                } else {
+                    line = testLine;
+                }
             }
+            ctx.fillText(line, 50, y);
         }
-        ctx.fillText(line, 50, y);
         
         // Footer with access instructions
         ctx.fillStyle = '#f8f9fa';
@@ -972,7 +970,7 @@ window.notices = {
                                     <p><strong>Type:</strong> ${notice.type}</p>
                                     <p><strong>Case:</strong> ${notice.caseNumber}</p>
                                     <p><strong>Served:</strong> ${formatUTC(notice.timestamp)}</p>
-                                    <p><strong>Description:</strong> ${notice.noticeText}</p>
+                                    ${notice.noticeText ? `<p><strong>Description:</strong> ${notice.noticeText}</p>` : ''}
                                 </div>
                                 <div class="col-md-6">
                                     <h6>Preview</h6>

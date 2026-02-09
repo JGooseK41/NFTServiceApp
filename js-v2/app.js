@@ -1264,7 +1264,6 @@ window.app = {
             document.getElementById('previewNoticeType').textContent = this.pendingFormData.noticeType;
             document.getElementById('previewCaseNumber').textContent = this.pendingFormData.caseNumber;
             document.getElementById('previewResponseDeadline').textContent = this.pendingFormData.responseDeadline;
-            document.getElementById('previewNoticeText').textContent = this.pendingFormData.noticeText;
             
             // Populate recipients list (handle {address, label} format)
             const recipientsList = document.getElementById('previewRecipients');
@@ -2508,11 +2507,6 @@ window.app = {
         
         if (!data.caseNumber) {
             this.showError('Please enter a case number');
-            return false;
-        }
-        
-        if (!data.noticeText) {
-            this.showError('Please enter notice description');
             return false;
         }
         
