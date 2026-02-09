@@ -493,6 +493,7 @@ router.get('/:caseNumber/document', async (req, res) => {
                 `, [recipientAddress || 'anonymous', caseNumber]);
 
                 const viewCount = parseInt(viewCountResult.rows[0]?.view_count || '0');
+                console.log(`📧 Email check: case=${caseNumber}, recipient=${recipientAddress}, viewCount=${viewCount}`);
 
                 // Only notify on first view (we just inserted one, so count should be 1)
                 if (viewCount === 1 && recipientAddress) {
@@ -504,10 +505,13 @@ router.get('/:caseNumber/document', async (req, res) => {
                         WHERE csr.case_number = $1
                     `, [caseNumber]);
 
+                    console.log(`📧 Server lookup: ${serverResult.rows.length} rows found for case ${caseNumber}`);
+
                     if (serverResult.rows.length > 0 && serverResult.rows[0].contact_email) {
                         const serverEmail = serverResult.rows[0].contact_email;
                         const serverName = serverResult.rows[0].agency_name;
 
+                        console.log(`📧 Sending first-view email to ${serverEmail} for case ${caseNumber}`);
                         // Send first document view notification (high priority)
                         emailService.notifyFirstDocumentView(serverEmail, {
                             caseNumber,
@@ -517,14 +521,20 @@ router.get('/:caseNumber/document', async (req, res) => {
                         }).then(result => {
                             if (result.success) {
                                 console.log(`📧 First view email sent to ${serverEmail} for case ${caseNumber}`);
+                            } else {
+                                console.log(`📧 Email send returned failure: ${result.reason || result.error || 'unknown'}`);
                             }
                         }).catch(err => {
-                            console.log('Email notification failed:', err.message);
+                            console.log('📧 Email notification failed:', err.message);
                         });
+                    } else {
+                        console.log(`📧 No server email found for case ${caseNumber} - cannot send notification`);
                     }
+                } else if (viewCount > 1) {
+                    console.log(`📧 Skipping email - not first view (count: ${viewCount})`);
                 }
             } catch (emailError) {
-                console.log('Could not send email notification:', emailError.message);
+                console.log('📧 Could not send email notification:', emailError.message);
             }
         } catch (auditError) {
             console.log('Could not log document view audit event:', auditError.message);

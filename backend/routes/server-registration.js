@@ -214,22 +214,28 @@ const handleServerRegistration = async (req, res) => {
             };
 
             // Notify admin of new registration
+            console.log(`📧 Sending admin notification to ${emailService.ADMIN_EMAIL}`);
             emailService.notifyNewServerRegistration(serverData)
                 .then(result => {
                     if (result.success) {
-                        console.log('Admin notified of new server registration');
+                        console.log('📧 Admin notified of new server registration');
+                    } else {
+                        console.log(`📧 Admin notification failed: ${result.reason || result.error || 'unknown'}`);
                     }
                 })
-                .catch(err => console.log('Failed to notify admin:', err.message));
+                .catch(err => console.log('📧 Failed to notify admin:', err.message));
 
             // Send welcome email to server
+            console.log(`📧 Sending welcome email to ${serverData.contact_email}`);
             emailService.sendServerWelcomeEmail(serverData)
                 .then(result => {
                     if (result.success) {
-                        console.log('Welcome email sent to server');
+                        console.log('📧 Welcome email sent to server');
+                    } else {
+                        console.log(`📧 Welcome email failed: ${result.reason || result.error || 'unknown'}`);
                     }
                 })
-                .catch(err => console.log('Failed to send welcome email:', err.message));
+                .catch(err => console.log('📧 Failed to send welcome email:', err.message));
         }
 
         res.status(201).json({
