@@ -192,35 +192,27 @@ router.put('/cases/:caseNumber/service-complete', async (req, res) => {
 
         console.log(`✅ Cases table updated: id=${caseId}, status=${caseStatus}`);
 
-        // Store alert image if provided
+        // Store alert image in the images table (queried by recipient portal)
         if (alertImage) {
-            // Try to store in notice_images table (may not exist in all deployments)
-            // Use SAVEPOINT to allow recovery if the table doesn't exist
+            const noticeId = alertTokenId ? alertTokenId.toString() : caseNumber;
+            const recipientAddr = normalizedRecipients[0] || '';
             try {
-                await client.query('SAVEPOINT notice_images_insert');
+                await client.query('SAVEPOINT images_insert');
                 await client.query(`
-                    INSERT INTO notice_images (
-                        case_number,
-                        alert_image,
-                        created_at
-                    ) VALUES ($1, $2, NOW())
-                    ON CONFLICT (case_number)
+                    INSERT INTO images (
+                        notice_id, server_address, recipient_address,
+                        alert_image, case_number, transaction_hash
+                    ) VALUES ($1, $2, $3, $4, $5, $6)
+                    ON CONFLICT (notice_id)
                     DO UPDATE SET
                         alert_image = EXCLUDED.alert_image,
-                        created_at = NOW()
-                `, [caseNumber, alertImage]);
-                await client.query('RELEASE SAVEPOINT notice_images_insert');
-            } catch (imageError) {
-                // Rollback to savepoint to keep transaction valid
-                await client.query('ROLLBACK TO SAVEPOINT notice_images_insert');
-                // Table might not exist - store in cases metadata instead
-                console.log('notice_images table not available, storing in metadata');
-                await client.query(`
-                    UPDATE cases
-                    SET alert_preview = $1,
+                        case_number = EXCLUDED.case_number,
                         updated_at = NOW()
-                    WHERE case_number = $2 OR id::text = $2
-                `, [alertImage, caseNumber]);
+                `, [noticeId, serverAddress || '', recipientAddr, alertImage, caseNumber, transactionHash]);
+                await client.query('RELEASE SAVEPOINT images_insert');
+            } catch (imageError) {
+                await client.query('ROLLBACK TO SAVEPOINT images_insert');
+                console.log('images table insert failed:', imageError.message);
             }
         }
 
@@ -555,22 +547,24 @@ router.put('/cases/:caseNumber/service-complete-notx', async (req, res) => {
             chain || 'tron-nile'
         ]);
 
-        // Store alert image if provided
+        // Store alert image in the images table (queried by recipient portal)
         if (alertImage) {
+            const noticeId = alertTokenId ? alertTokenId.toString() : caseNumber;
+            const recipientAddr = normalizedRecipients[0] || '';
             try {
                 await pool.query(`
-                    INSERT INTO notice_images (case_number, alert_image, created_at)
-                    VALUES ($1, $2, NOW())
-                    ON CONFLICT (case_number)
-                    DO UPDATE SET alert_image = EXCLUDED.alert_image, created_at = NOW()
-                `, [caseNumber, alertImage]);
+                    INSERT INTO images (
+                        notice_id, server_address, recipient_address,
+                        alert_image, case_number, transaction_hash
+                    ) VALUES ($1, $2, $3, $4, $5, $6)
+                    ON CONFLICT (notice_id)
+                    DO UPDATE SET
+                        alert_image = EXCLUDED.alert_image,
+                        case_number = EXCLUDED.case_number,
+                        updated_at = NOW()
+                `, [noticeId, serverAddress || '', recipientAddr, alertImage, caseNumber, transactionHash]);
             } catch (imageError) {
-                // Table might not exist - store in cases metadata instead
-                console.log('notice_images table not available, storing in metadata');
-                await pool.query(`
-                    UPDATE cases SET alert_preview = $1, updated_at = NOW()
-                    WHERE case_number = $2 OR id::text = $2
-                `, [alertImage, caseNumber]);
+                console.log('images table insert failed:', imageError.message);
             }
         }
 

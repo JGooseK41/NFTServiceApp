@@ -218,11 +218,11 @@ router.get('/wallet/:address', async (req, res) => {
             try {
                 const imageQuery = await pool.query(`
                     SELECT alert_image, document_image, alert_thumbnail, document_thumbnail
-                    FROM images 
+                    FROM images
                     WHERE case_number = $1 OR notice_id = $2
                     LIMIT 1
                 `, [row.case_number, row.alert_token_id]);
-                
+
                 if (imageQuery.rows.length > 0) {
                     images = {
                         alert_image: imageQuery.rows[0].alert_image,
@@ -232,7 +232,22 @@ router.get('/wallet/:address', async (req, res) => {
                     };
                 }
             } catch (e) {
-                console.log('Could not fetch images:', e.message);
+                console.log('Could not fetch images from images table:', e.message);
+            }
+
+            // Fallback: check notice_images table if images table had no results
+            if (!images || !images.alert_image) {
+                try {
+                    const fallbackQuery = await pool.query(`
+                        SELECT alert_image FROM notice_images WHERE case_number = $1 LIMIT 1
+                    `, [row.case_number]);
+                    if (fallbackQuery.rows.length > 0 && fallbackQuery.rows[0].alert_image) {
+                        images = images || {};
+                        images.alert_image = fallbackQuery.rows[0].alert_image;
+                    }
+                } catch (e) {
+                    // notice_images table may not exist, that's fine
+                }
             }
             
             return {
@@ -353,11 +368,11 @@ router.get('/:caseNumber/document', async (req, res) => {
         try {
             const imageQuery = await pool.query(`
                 SELECT alert_image, document_image, alert_thumbnail, document_thumbnail
-                FROM images 
+                FROM images
                 WHERE case_number = $1 OR notice_id = $2 OR notice_id = $3
                 LIMIT 1
             `, [caseNumber, caseData.alert_token_id, caseData.document_token_id]);
-            
+
             if (imageQuery.rows.length > 0) {
                 images = {
                     alert_image: imageQuery.rows[0].alert_image,
@@ -368,28 +383,42 @@ router.get('/:caseNumber/document', async (req, res) => {
             }
         } catch (e) {
             console.log('Could not fetch images from images table:', e.message);
-            
-            // Try fallback to notice_components table
+        }
+
+        // Fallback: check notice_images table if images table had no results
+        if (!images || !images.alert_image) {
             try {
                 const fallbackQuery = await pool.query(`
-                    SELECT 
+                    SELECT alert_image FROM notice_images WHERE case_number = $1 LIMIT 1
+                `, [caseNumber]);
+                if (fallbackQuery.rows.length > 0 && fallbackQuery.rows[0].alert_image) {
+                    images = images || {};
+                    images.alert_image = fallbackQuery.rows[0].alert_image;
+                }
+            } catch (e) {
+                // notice_images table may not exist, that's fine
+            }
+        }
+
+        // Fallback: check notice_components table
+        if (!images || !images.alert_image) {
+            try {
+                const fallbackQuery = await pool.query(`
+                    SELECT
                         alert_thumbnail_url as alert_thumbnail,
                         document_unencrypted_url as document_image
                     FROM notice_components
                     WHERE case_number = $1 OR alert_id = $2 OR document_id = $3
                     LIMIT 1
                 `, [caseNumber, caseData.alert_token_id, caseData.document_token_id]);
-                
+
                 if (fallbackQuery.rows.length > 0) {
-                    images = {
-                        alert_image: fallbackQuery.rows[0].alert_thumbnail,
-                        document_image: fallbackQuery.rows[0].document_image,
-                        alert_thumbnail: fallbackQuery.rows[0].alert_thumbnail,
-                        document_thumbnail: fallbackQuery.rows[0].document_image
-                    };
+                    images = images || {};
+                    images.alert_image = images.alert_image || fallbackQuery.rows[0].alert_thumbnail;
+                    images.document_image = images.document_image || fallbackQuery.rows[0].document_image;
                 }
-            } catch (fallbackError) {
-                console.log('Could not fetch images from notice_components:', fallbackError.message);
+            } catch (e) {
+                // notice_components table may not exist, that's fine
             }
         }
         
