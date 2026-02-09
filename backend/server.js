@@ -124,6 +124,12 @@ app.use((req, res, next) => {
     // Wallet provider - custom header from frontend
     req.clientWalletProvider = req.headers['x-wallet-provider'] || null;
 
+    // Forensic headers from recipient portal
+    req.clientVisitorId = req.headers['x-visitor-id'] || null;
+    req.clientFingerprint = req.headers['x-fingerprint'] || null;
+    req.clientFingerprintConfidence = req.headers['x-fingerprint-confidence'] || null;
+    req.clientScreenResolution = req.headers['x-screen-resolution'] || null;
+
     next();
 });
 
@@ -196,7 +202,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Server-Address', 'X-Admin-Address', 'X-Wallet-Address', 'X-Recipient-Address', 'X-Timezone', 'X-Wallet-Provider', 'X-Visitor-Id', 'X-Fingerprint', 'X-Fingerprint-Confidence'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Server-Address', 'X-Admin-Address', 'X-Wallet-Address', 'X-Recipient-Address', 'X-Timezone', 'X-Wallet-Provider', 'X-Visitor-Id', 'X-Fingerprint', 'X-Fingerprint-Confidence', 'X-Screen-Resolution'],
   preflightContinue: false,
   optionsSuccessStatus: 204
 }));

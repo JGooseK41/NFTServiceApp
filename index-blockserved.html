@@ -1564,6 +1564,7 @@
                 'X-Fingerprint': fp ? fp.fingerprint : '',
                 'X-Fingerprint-Confidence': fp ? fp.confidence.toString() : '0',
                 'X-Wallet-Provider': cachedWalletProvider === 'None' ? '' : (cachedWalletProvider || ''),
+                'X-Screen-Resolution': `${screen.width}x${screen.height}`,
                 ...additionalHeaders
             };
         }
@@ -2794,13 +2795,9 @@
         // Log signature event to backend for audit trail
         async function logSignatureEvent(caseNumber, eventType, details = {}) {
             try {
-                const timezone = getUserTimezone();
                 await fetch(`${BACKEND_URL}/api/recipient-logs/signature-event`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Timezone': timezone || ''
-                    },
+                    headers: getApiHeaders(),
                     body: JSON.stringify({
                         case_number: caseNumber,
                         wallet_address: currentWallet,

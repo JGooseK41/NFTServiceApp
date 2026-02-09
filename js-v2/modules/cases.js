@@ -1350,9 +1350,12 @@ window.cases = {
         if (event.details) {
             const d = typeof event.details === 'string' ? JSON.parse(event.details) : event.details;
             if (d.walletProvider) parts.push(`<i class="bi bi-wallet2"></i> ${d.walletProvider}`);
-            if (d.fingerprint) parts.push(`<i class="bi bi-fingerprint"></i> ${d.fingerprint.substring(0, 8)}...`);
+            if (d.fingerprint) {
+                const conf = d.fingerprintConfidence ? ` (${d.fingerprintConfidence}%)` : '';
+                parts.push(`<i class="bi bi-fingerprint"></i> ${d.fingerprint.substring(0, 12)}...${conf}`);
+            }
             if (d.screen_resolution) parts.push(`<i class="bi bi-display"></i> ${d.screen_resolution}`);
-            if (d.visitorId) parts.push(`<i class="bi bi-person-badge"></i> ${d.visitorId.substring(0, 8)}...`);
+            if (d.visitorId) parts.push(`<i class="bi bi-person-badge"></i> ${d.visitorId}`);
         }
         return parts.length > 0 ? parts.join(' &nbsp; ') : '';
     },
@@ -1375,6 +1378,9 @@ window.cases = {
 
     // Show audit log modal
     showAuditLogModal(caseNumber, auditData) {
+        // Stash raw data for full-detail export
+        this._lastAuditExport = { caseNumber, auditData };
+
         const { recipients, events } = auditData;
         const maxEventsPerRecipient = 50; // Limit to prevent browser hang
 
@@ -1442,24 +1448,31 @@ window.cases = {
                                                             <th>Action</th>
                                                             <th>IP Address</th>
                                                             <th>Browser</th>
-                                                            <th>OS / Device</th>
+                                                            <th>Language</th>
                                                             <th>Timezone</th>
+                                                            <th>Wallet</th>
+                                                            <th style="cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" title="A unique device identifier generated from canvas rendering, GPU info (WebGL), audio processing, installed fonts, hardware specs, and browser plugins. The same device produces the same fingerprint across sessions — even without cookies.">Fingerprint <i class="bi bi-info-circle" style="font-size: 0.75rem;"></i></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
                                                         ${eventsByRecipient[addr].map(event => {
                                                             const ua = cases.parseUserAgent(event.userAgent);
-                                                            const forensic = cases.formatForensicDetails(event);
+                                                            const d = event.details ? (typeof event.details === 'string' ? JSON.parse(event.details) : event.details) : {};
+                                                            const lang = event.language ? event.language.split(',')[0].split(';')[0].trim() : 'N/A';
+                                                            const fpShort = d.fingerprint ? d.fingerprint.substring(0, 12) + '...' : 'N/A';
+                                                            const fpConf = d.fingerprintConfidence ? d.fingerprintConfidence + '% confidence' : '';
+                                                            const fpTooltip = d.fingerprint ? 'Derived from: canvas, WebGL (GPU), audio, fonts, hardware, plugins' + (fpConf ? ' — ' + fpConf : '') : '';
                                                             return `
                                                             <tr>
                                                                 <td><small>${new Date(event.timestamp).toLocaleString()}</small></td>
                                                                 <td>${cases.getActionBadge(event.action)}</td>
                                                                 <td><small><code>${event.ipAddress || 'N/A'}</code></small></td>
-                                                                <td><small>${ua.browser}</small></td>
-                                                                <td><small>${ua.os} (${ua.device})</small></td>
+                                                                <td><small>${ua.browser} / ${ua.os}</small></td>
+                                                                <td><small>${lang}</small></td>
                                                                 <td><small>${event.timezone || 'N/A'}</small></td>
+                                                                <td><small>${d.walletProvider || 'N/A'}</small></td>
+                                                                <td><small><code ${fpTooltip ? `style="cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" title="${fpTooltip}"` : ''}>${fpShort}</code></small></td>
                                                             </tr>
-                                                            ${forensic ? `<tr><td colspan="6" style="border-top: none; padding-top: 0;"><small class="text-muted">${forensic}</small></td></tr>` : ''}
                                                             `;
                                                         }).join('')}
                                                     </tbody>
@@ -1507,15 +1520,23 @@ window.cases = {
             new bootstrap.Popover(el, { html: true });
         });
 
+        // Initialize tooltips
+        const tooltipTriggerList = modalElement.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
+
         // Show modal
         const modal = new bootstrap.Modal(modalElement);
         modal.show();
 
-        // Clean up on close (dispose popovers first)
+        // Clean up on close (dispose popovers and tooltips)
         modalElement.addEventListener('hidden.bs.modal', function() {
             popoverTriggerList.forEach(el => {
                 const popover = bootstrap.Popover.getInstance(el);
                 if (popover) popover.dispose();
+            });
+            tooltipTriggerList.forEach(el => {
+                const tooltip = bootstrap.Tooltip.getInstance(el);
+                if (tooltip) tooltip.dispose();
             });
             this.remove();
         });
@@ -1881,38 +1902,73 @@ window.cases = {
         }
     },
     
-    // Export audit log as CSV
+    // Export audit log as CSV with full forensic data
     exportAuditLog(caseNumber) {
-        // Get the audit data from the modal
-        const modal = document.getElementById('auditLogModal');
-        if (!modal) return;
-        
-        // Extract data from the modal tables
-        const rows = [];
-        rows.push(['Case Number', 'Recipient', 'Timestamp', 'Action', 'IP Address', 'User Agent']);
-        
-        modal.querySelectorAll('.card').forEach(card => {
-            const recipient = card.querySelector('code')?.textContent || '';
-            card.querySelectorAll('tbody tr').forEach(row => {
-                const cells = row.querySelectorAll('td');
-                if (cells.length >= 4) {
-                    rows.push([
-                        caseNumber,
-                        recipient,
-                        cells[0].textContent,
-                        cells[1].textContent.trim(),
-                        cells[2].textContent,
-                        cells[3].textContent
-                    ]);
-                }
-            });
+        const stashed = this._lastAuditExport;
+        if (!stashed || !stashed.auditData) {
+            window.app?.showError('No audit data available. Please open the audit log first.');
+            return;
+        }
+
+        const { auditData } = stashed;
+        const { recipients, events } = auditData;
+
+        // Build recipient lookup
+        const recipientLabels = {};
+        (recipients || []).forEach(r => {
+            const addr = this.getRecipientAddress(r);
+            const label = this.getRecipientLabel(r);
+            if (label) recipientLabels[addr] = label;
         });
-        
-        // Convert to CSV
-        const csv = rows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-        
+
+        // CSV headers — full forensic detail
+        const headers = [
+            'Case Number', 'Recipient', 'Recipient Label', 'Timestamp (UTC)', 'Timestamp (Local)',
+            'Action', 'IP Address', 'Browser', 'OS', 'Device',
+            'Language', 'Timezone', 'Wallet Provider',
+            'Fingerprint ID', 'Fingerprint Confidence',
+            'Screen Resolution', 'Visitor ID',
+            'Full User Agent'
+        ];
+
+        const rows = [headers];
+
+        events.forEach(event => {
+            const ua = this.parseUserAgent(event.userAgent);
+            const d = event.details ? (typeof event.details === 'string' ? JSON.parse(event.details) : event.details) : {};
+            const lang = event.language ? event.language.split(',')[0].split(';')[0].trim() : '';
+            const wallet = event.recipientWallet || event.wallet || '';
+            const label = recipientLabels[wallet] || '';
+
+            rows.push([
+                caseNumber,
+                wallet,
+                label,
+                event.timestamp ? new Date(event.timestamp).toISOString() : '',
+                event.timestamp ? new Date(event.timestamp).toLocaleString() : '',
+                event.action || '',
+                event.ipAddress || '',
+                ua.browser || '',
+                ua.os || '',
+                ua.device || '',
+                lang,
+                event.timezone || '',
+                d.walletProvider || '',
+                d.fingerprint || '',
+                d.fingerprintConfidence || '',
+                d.screen_resolution || '',
+                d.visitorId || '',
+                event.userAgent || ''
+            ]);
+        });
+
+        // Convert to CSV (escape quotes)
+        const csv = rows.map(row =>
+            row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+        ).join('\n');
+
         // Download
-        const blob = new Blob([csv], { type: 'text/csv' });
+        const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;

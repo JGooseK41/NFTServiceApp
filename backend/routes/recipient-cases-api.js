@@ -36,6 +36,17 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
+// Build forensic details object from request headers (middleware-extracted)
+function buildForensicDetails(req, extraDetails = {}) {
+    const forensic = { ...extraDetails };
+    if (req.clientWalletProvider) forensic.walletProvider = req.clientWalletProvider;
+    if (req.clientVisitorId) forensic.visitorId = req.clientVisitorId;
+    if (req.clientFingerprint) forensic.fingerprint = req.clientFingerprint;
+    if (req.clientFingerprintConfidence) forensic.fingerprintConfidence = req.clientFingerprintConfidence;
+    if (req.clientScreenResolution) forensic.screen_resolution = req.clientScreenResolution;
+    return forensic;
+}
+
 // Ensure required columns exist on startup
 async function ensureColumns() {
     try {
@@ -255,7 +266,6 @@ router.get('/wallet/:address', async (req, res) => {
                 const userAgent = req.clientUserAgent || req.headers['user-agent'];
                 const acceptLanguage = req.clientLanguage || req.headers['accept-language'];
                 const timezone = req.clientTimezone || req.headers['x-timezone'];
-                const walletProvider = req.clientWalletProvider || null;
                 await pool.query(`
                     INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, accept_language, timezone)
                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -263,7 +273,7 @@ router.get('/wallet/:address', async (req, res) => {
                     'recipient_notice_query',
                     address,
                     notices.map(n => n.case_number).join(','),
-                    JSON.stringify({ notices_found: notices.length, case_numbers: notices.map(n => n.case_number), walletProvider }),
+                    JSON.stringify(buildForensicDetails(req, { notices_found: notices.length, case_numbers: notices.map(n => n.case_number) })),
                     ipAddress,
                     userAgent,
                     acceptLanguage,
@@ -427,7 +437,6 @@ router.get('/:caseNumber/document', async (req, res) => {
             const userAgent = req.clientUserAgent || req.headers['user-agent'];
             const acceptLanguage = req.clientLanguage || req.headers['accept-language'];
             const timezone = req.clientTimezone || req.headers['x-timezone'];
-            const walletProvider = req.clientWalletProvider || null;
             await pool.query(`
                 INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, accept_language, timezone)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -435,7 +444,7 @@ router.get('/:caseNumber/document', async (req, res) => {
                 'recipient_document_view',
                 recipientAddress || 'anonymous',
                 caseNumber,
-                JSON.stringify({ alert_token_id: caseData.alert_token_id, document_token_id: caseData.document_token_id, walletProvider }),
+                JSON.stringify(buildForensicDetails(req, { alert_token_id: caseData.alert_token_id, document_token_id: caseData.document_token_id })),
                 ipAddress,
                 userAgent,
                 acceptLanguage,
@@ -588,7 +597,6 @@ router.get('/:caseNumber/download-pdf', async (req, res) => {
         const userAgent = req.clientUserAgent || req.headers['user-agent'];
         const acceptLanguage = req.clientLanguage || req.headers['accept-language'];
         const timezone = req.clientTimezone || req.headers['x-timezone'];
-        const walletProvider = req.clientWalletProvider || null;
         try {
             await pool.query(`
                 INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, accept_language, timezone)
@@ -597,7 +605,7 @@ router.get('/:caseNumber/download-pdf', async (req, res) => {
                 'recipient_document_download',
                 recipientAddress,
                 caseNumber,
-                JSON.stringify({ alert_token_id: caseData.alert_token_id, document_token_id: caseData.document_token_id, walletProvider }),
+                JSON.stringify(buildForensicDetails(req, { alert_token_id: caseData.alert_token_id, document_token_id: caseData.document_token_id })),
                 ipAddress,
                 userAgent,
                 acceptLanguage,
@@ -929,7 +937,6 @@ router.post('/:caseNumber/acknowledge', async (req, res) => {
             const userAgent = req.clientUserAgent || req.headers['user-agent'];
             const acceptLanguage = req.clientLanguage || req.headers['accept-language'];
             const timezone = req.clientTimezone || req.headers['x-timezone'];
-            const walletProvider = req.clientWalletProvider || null;
             await pool.query(`
                 INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, accept_language, timezone)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -937,12 +944,11 @@ router.post('/:caseNumber/acknowledge', async (req, res) => {
                 'document_signed',
                 wallet,
                 caseNumber,
-                JSON.stringify({
+                JSON.stringify(buildForensicDetails(req, {
                     transactionHash: transactionHash || null,
                     onChain: onChain || false,
-                    signature: signature ? 'present' : 'none',
-                    walletProvider
-                }),
+                    signature: signature ? 'present' : 'none'
+                })),
                 ipAddress,
                 userAgent,
                 acceptLanguage,
