@@ -762,6 +762,142 @@
             color: #b71c1c;
             border-left: 4px solid #f44336;
         }
+
+        /* Footer */
+        .site-footer {
+            background: var(--primary-color);
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            padding: 20px;
+            font-size: 13px;
+            margin-top: 40px;
+        }
+
+        .site-footer a {
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            margin: 0 10px;
+        }
+
+        .site-footer a:hover {
+            color: white;
+            text-decoration: underline;
+        }
+
+        .footer-links {
+            margin-bottom: 8px;
+        }
+
+        /* Privacy Policy Modal */
+        .privacy-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 10001;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .privacy-modal.active {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+        }
+
+        .privacy-modal-content {
+            background: white;
+            border-radius: 16px;
+            max-width: 800px;
+            width: 100%;
+            margin: 20px auto;
+            display: flex;
+            flex-direction: column;
+            max-height: 90vh;
+        }
+
+        .privacy-modal-header {
+            padding: 24px 30px;
+            border-bottom: 1px solid var(--light-bg);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .privacy-modal-header h2 {
+            margin: 0;
+            color: var(--primary-color);
+            font-size: 22px;
+        }
+
+        .privacy-modal-body {
+            padding: 30px;
+            overflow-y: auto;
+            line-height: 1.7;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .privacy-modal-body h3 {
+            color: var(--primary-color);
+            margin: 28px 0 12px 0;
+            font-size: 17px;
+            border-bottom: 2px solid var(--light-bg);
+            padding-bottom: 6px;
+        }
+
+        .privacy-modal-body h3:first-child {
+            margin-top: 0;
+        }
+
+        .privacy-modal-body p {
+            margin: 10px 0;
+        }
+
+        .privacy-modal-body ul, .privacy-modal-body ol {
+            margin: 10px 0;
+            padding-left: 24px;
+        }
+
+        .privacy-modal-body li {
+            margin: 6px 0;
+        }
+
+        .privacy-modal-body strong {
+            color: #1a1a2e;
+        }
+
+        .privacy-modal-body .policy-highlight {
+            background: #f0f4ff;
+            border-left: 4px solid var(--secondary-color);
+            padding: 14px 18px;
+            margin: 16px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .privacy-modal-body .policy-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 14px 0;
+            font-size: 13px;
+        }
+
+        .privacy-modal-body .policy-table th,
+        .privacy-modal-body .policy-table td {
+            border: 1px solid #e0e0e0;
+            padding: 10px 12px;
+            text-align: left;
+        }
+
+        .privacy-modal-body .policy-table th {
+            background: var(--light-bg);
+            font-weight: 600;
+            color: var(--primary-color);
+        }
     </style>
 </head>
 <body>
@@ -1065,6 +1201,213 @@
             <!-- Notices Container -->
             <div id="noticesContainer">
                 <!-- Notices will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="footer-links">
+            <a href="#" onclick="openPrivacyPolicy(); return false;">Privacy Policy</a>
+            <span>|</span>
+            <a href="mailto:info@theblockaudit.com">Contact Us</a>
+        </div>
+        <div>&copy; 2026 The Block Audit LLC. All rights reserved.</div>
+    </footer>
+
+    <!-- Privacy Policy Modal -->
+    <div id="privacyModal" class="privacy-modal">
+        <div class="privacy-modal-content">
+            <div class="privacy-modal-header">
+                <h2><i class="bi bi-shield-check"></i> Privacy Policy & Data Disclosure</h2>
+                <button class="close-modal" onclick="closePrivacyPolicy()">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="privacy-modal-body">
+                <p><strong>Effective Date:</strong> February 8, 2026<br>
+                <strong>Last Updated:</strong> February 8, 2026<br>
+                <strong>Operator:</strong> The Block Audit LLC<br>
+                <strong>Contact:</strong> <a href="mailto:info@theblockaudit.com">info@theblockaudit.com</a></p>
+
+                <h3>1. Introduction and Scope</h3>
+                <p>This Privacy Policy describes how The Block Audit LLC ("Company," "we," "us," or "our") collects, uses, stores, and discloses information when you access BlockServed.com (the "Portal"), a blockchain-based legal service delivery platform. This Portal facilitates the electronic service of legal process and provides recipients with secure access to legal documents served upon them.</p>
+                <p>By accessing this Portal, connecting a blockchain wallet, or viewing documents served to your wallet address, you acknowledge that you have read and understood this Privacy Policy. This policy applies to all visitors, recipients of legal notices, and any other individuals who access the Portal.</p>
+                <div class="policy-highlight">
+                    <strong>Important:</strong> All information collected through this Portal is gathered for the express purpose of ensuring proper delivery of legal documents, satisfying jurisdictional service requirements, and protecting the legal rights of the noticed party. The data we collect serves as forensic proof that you have been properly notified of legal proceedings, which is a fundamental protection of your due process rights.
+                </div>
+
+                <h3>2. Purpose of Data Collection</h3>
+                <p>The legal system requires that individuals be given adequate notice of legal proceedings that affect their rights. Service of process is a constitutionally protected right under the Due Process Clause, ensuring that all parties receive fair notice and an opportunity to be heard.</p>
+                <p>The data collected through this Portal serves the following critical legal purposes:</p>
+                <ol>
+                    <li><strong>Proof of Proper Delivery:</strong> Documenting that legal notices were successfully delivered to the intended recipient, satisfying legal service requirements under applicable rules of civil procedure.</li>
+                    <li><strong>Jurisdictional Compliance:</strong> Establishing that service was effectuated in compliance with the jurisdictional requirements of the court or legal authority overseeing the matter, including verification of the recipient's geographic location and the time and manner of service.</li>
+                    <li><strong>Protection of the Noticed Party's Rights:</strong> Creating an immutable, verifiable record that the recipient was properly served, which protects the recipient from claims of improper service, default judgments entered without proper notice, and any future disputes regarding whether adequate notice was provided.</li>
+                    <li><strong>Chain of Custody Documentation:</strong> Maintaining a complete forensic chain of custody for legal documents, from the point of service through recipient access, viewing, and acknowledgment.</li>
+                    <li><strong>Fraud Prevention and Integrity:</strong> Ensuring the integrity of the legal service process by verifying that the actual intended recipient accessed the documents, preventing fraudulent claims of non-receipt or unauthorized access.</li>
+                </ol>
+
+                <h3>3. Information We Collect</h3>
+                <p>To fulfill the legal purposes described above, we collect the following categories of information when you access this Portal:</p>
+
+                <h4 style="color: var(--text-dark); margin: 18px 0 8px 0;">3.1 Blockchain Wallet Information</h4>
+                <table class="policy-table">
+                    <tr><th>Data Element</th><th>Purpose</th></tr>
+                    <tr><td>Wallet Address (public key)</td><td>Identifies the recipient of legal service; the address to which the legal notice NFT was delivered</td></tr>
+                    <tr><td>Wallet Provider (e.g., TronLink)</td><td>Documents the method by which the recipient connected to the Portal, establishing the means of access for jurisdictional records</td></tr>
+                    <tr><td>Wallet Connection Timestamp</td><td>Records the precise date and time the recipient connected, establishing when the recipient accessed the service platform</td></tr>
+                </table>
+
+                <h4 style="color: var(--text-dark); margin: 18px 0 8px 0;">3.2 Network and Location Information</h4>
+                <table class="policy-table">
+                    <tr><th>Data Element</th><th>Purpose</th></tr>
+                    <tr><td>IP Address</td><td>Establishes geographic jurisdiction and provides forensic evidence of the network from which the documents were accessed, critical for satisfying jurisdictional service requirements</td></tr>
+                    <tr><td>Timezone</td><td>Corroborates the recipient's geographic location and establishes the local time of access for jurisdictional compliance</td></tr>
+                    <tr><td>Browser Language Preference</td><td>Documents the language settings of the recipient's browser to ensure accessibility requirements are met and to support jurisdictional determinations</td></tr>
+                </table>
+
+                <h4 style="color: var(--text-dark); margin: 18px 0 8px 0;">3.3 Device and Browser Information</h4>
+                <table class="policy-table">
+                    <tr><th>Data Element</th><th>Purpose</th></tr>
+                    <tr><td>User Agent String</td><td>Records the browser type, version, and operating system to document the technical environment in which documents were accessed, ensuring the recipient had a compatible platform to view the served documents</td></tr>
+                    <tr><td>Screen Resolution</td><td>Documents the display capabilities of the recipient's device to confirm the documents could be properly rendered and viewed</td></tr>
+                    <tr><td>Device Type (Desktop/Mobile/Tablet)</td><td>Records the category of device used to access the documents for forensic completeness</td></tr>
+                    <tr><td>Operating System</td><td>Documents the platform environment for forensic chain of custody records</td></tr>
+                </table>
+
+                <h4 style="color: var(--text-dark); margin: 18px 0 8px 0;">3.4 Browser Fingerprint</h4>
+                <p>We generate a composite browser fingerprint to uniquely identify the device used to access served legal documents. This fingerprint is computed locally in your browser and consists of the following components:</p>
+                <table class="policy-table">
+                    <tr><th>Component</th><th>Description</th><th>Purpose</th></tr>
+                    <tr><td>Canvas Fingerprint</td><td>A hash derived from how your browser renders graphics</td><td>Creates a unique device identifier to prevent fraudulent claims of non-access and to ensure the same device is consistently associated with document viewing sessions</td></tr>
+                    <tr><td>WebGL Fingerprint</td><td>A hash derived from your device's graphics processing capabilities</td><td>Adds specificity to the device identification for forensic records</td></tr>
+                    <tr><td>Audio Fingerprint</td><td>A hash derived from how your device processes audio signals</td><td>Provides additional device identification accuracy</td></tr>
+                    <tr><td>Font Fingerprint</td><td>A hash of the fonts available on your system</td><td>Further distinguishes the specific device used</td></tr>
+                    <tr><td>Hardware Fingerprint</td><td>A hash derived from hardware characteristics (processor cores, memory, etc.)</td><td>Establishes hardware-level device identification for evidentiary purposes</td></tr>
+                </table>
+                <div class="policy-highlight">
+                    <strong>Why we use browser fingerprinting:</strong> In legal proceedings, it is essential to establish with a high degree of certainty that the intended recipient personally accessed and viewed the served documents. The browser fingerprint creates a persistent, anonymous device identifier that provides forensic evidence linking a specific device to document access events. This protects the noticed party by creating verifiable proof that service was completed to their device, which can prevent improper default judgments and support challenges to service if the recipient's device was not the one that accessed the documents.
+                </div>
+                <p>The browser fingerprint is computed as a one-way cryptographic hash. We do not collect or store the underlying raw data (such as your installed fonts or specific hardware specifications) &mdash; only the computed hash values. The fingerprint cannot be reverse-engineered to reveal personal information about your device.</p>
+
+                <h4 style="color: var(--text-dark); margin: 18px 0 8px 0;">3.5 Cookies and Session Identifiers</h4>
+                <table class="policy-table">
+                    <tr><th>Cookie/Identifier</th><th>Duration</th><th>Purpose</th></tr>
+                    <tr><td>Visitor ID (<code>bs_visitor_id</code>)</td><td>1 year</td><td>Maintains session continuity across visits so that repeat access to served documents is properly attributed to the same visitor, ensuring accurate forensic records of when and how often the recipient accessed their legal documents</td></tr>
+                    <tr><td>Session ID</td><td>Current session only</td><td>Groups related actions (connecting wallet, viewing documents, downloading) into a single session for audit trail coherence</td></tr>
+                </table>
+                <p>We do not use any advertising cookies, analytics tracking cookies, or third-party cookies. The only cookies placed are strictly necessary for the legal service delivery functionality described in this policy.</p>
+
+                <h4 style="color: var(--text-dark); margin: 18px 0 8px 0;">3.6 Document Interaction Data</h4>
+                <table class="policy-table">
+                    <tr><th>Data Element</th><th>Purpose</th></tr>
+                    <tr><td>Document View Events</td><td>Records each instance when a served legal document is opened, creating a timestamped log that the recipient accessed and had the opportunity to read the document</td></tr>
+                    <tr><td>Document Download Events</td><td>Records when the recipient downloads a copy of the served document, establishing that the recipient obtained a permanent copy</td></tr>
+                    <tr><td>Signature/Acknowledgment Events</td><td>Records when the recipient digitally signs or acknowledges receipt of service, providing cryptographic proof of acceptance</td></tr>
+                </table>
+
+                <h3>4. Legal Basis for Data Collection</h3>
+                <p>We collect and process the above information under the following legal bases:</p>
+                <ul>
+                    <li><strong>Legitimate Interest in Legal Process:</strong> The collection of forensic data is necessary for the legitimate interest of ensuring proper legal service of process, a function recognized and required by courts worldwide. Proper service of process is a fundamental component of due process and protects the rights of all parties involved in legal proceedings.</li>
+                    <li><strong>Compliance with Legal Obligations:</strong> Rules of civil procedure in most jurisdictions require that proof of service be documented and may be presented to the court. The data collected provides the evidentiary basis for such proof.</li>
+                    <li><strong>Protection of the Recipient's Legal Rights:</strong> The forensic record protects the noticed party by establishing a verifiable, tamper-proof record of service. This record can be used by the recipient to demonstrate that service was or was not properly effectuated, protecting against improper default judgments, missed deadlines due to disputed service, and claims that notice was inadequate or defective.</li>
+                    <li><strong>Administration of Justice:</strong> Courts and legal authorities have a recognized interest in the reliable documentation of service of process. The data we collect supports the integrity and reliability of the judicial system's notice requirements.</li>
+                </ul>
+
+                <h3>5. How We Use Your Information</h3>
+                <p>The information we collect is used exclusively for the following purposes:</p>
+                <ol>
+                    <li><strong>Generating Proof of Service:</strong> Creating comprehensive, forensic-grade proof of service records that document when, where, how, and by whom legal documents were accessed.</li>
+                    <li><strong>Providing Audit Trails:</strong> Maintaining detailed audit logs that track the complete lifecycle of a legal notice from service through recipient access, viewing, and acknowledgment.</li>
+                    <li><strong>Supporting Legal Proceedings:</strong> Providing courts, attorneys, process servers, and parties to legal proceedings with verifiable evidence of proper service.</li>
+                    <li><strong>Ensuring Document Delivery:</strong> Verifying that the served documents were properly rendered and accessible on the recipient's device.</li>
+                    <li><strong>Preventing Fraud:</strong> Detecting and documenting any anomalies in the service process that could indicate fraudulent access or impersonation.</li>
+                </ol>
+                <div class="policy-highlight">
+                    <strong>We do not use your information for:</strong> Marketing, advertising, profiling, behavioral analysis, sale to third parties, credit scoring, employment screening, or any purpose unrelated to the legal service of process and protection of your legal rights.
+                </div>
+
+                <h3>6. Information Sharing and Disclosure</h3>
+                <p>We share the collected information only with the following parties and only for the purposes described in this policy:</p>
+                <table class="policy-table">
+                    <tr><th>Recipient of Data</th><th>What Is Shared</th><th>Purpose</th></tr>
+                    <tr><td>Issuing Party (process server, attorney, or agency)</td><td>Full audit trail including IP address, device info, browser fingerprint, timestamps, and document interaction events</td><td>The issuing party requires proof of service to file with the court and to document that service requirements have been satisfied. This is a legal obligation inherent to the service of process.</td></tr>
+                    <tr><td>Courts and Legal Authorities</td><td>Proof of service records as required by applicable rules of procedure</td><td>Courts may require proof that service was properly effectuated before proceedings can advance. The forensic data supports the reliability of such proof.</td></tr>
+                    <tr><td>The Noticed Party (you)</td><td>Your own access records and service documentation</td><td>You have the right to access your own service records, which can be used in your defense or to challenge the adequacy of service.</td></tr>
+                </table>
+                <p><strong>We do not sell, rent, lease, or trade your personal information to any third party.</strong> We do not share your information with data brokers, advertisers, or any entity unrelated to the legal service of process.</p>
+
+                <h3>7. Blockchain Records</h3>
+                <p>When a legal notice is served, a Non-Fungible Token (NFT) is minted on the TRON blockchain and delivered to your wallet address. The following information is permanently recorded on the blockchain:</p>
+                <ul>
+                    <li>Your wallet address (as the NFT recipient)</li>
+                    <li>The transaction hash and timestamp</li>
+                    <li>NFT metadata including case number, issuing agency, and service date</li>
+                    <li>A link to the BlockServed.com portal for document access</li>
+                </ul>
+                <p><strong>Blockchain records are immutable and cannot be deleted or modified</strong> by The Block Audit LLC or any other party. This immutability is a feature that protects both the issuing party and the recipient by creating a tamper-proof record of service that neither party can unilaterally alter.</p>
+
+                <h3>8. Data Retention</h3>
+                <p>Given the legal nature of the information we collect, our retention policies are governed by legal requirements rather than commercial considerations:</p>
+                <ul>
+                    <li><strong>Audit Logs and Forensic Data:</strong> Retained for a minimum of seven (7) years or for the duration of any legal proceedings to which the data is relevant, whichever is longer. This retention period aligns with common statutes of limitation and court record retention requirements.</li>
+                    <li><strong>Blockchain Records:</strong> Permanently stored on the blockchain. These records cannot be deleted due to the immutable nature of blockchain technology.</li>
+                    <li><strong>Document Storage:</strong> Served documents and associated encryption keys are retained for as long as necessary to fulfill legal service requirements and to ensure the recipient's continued access to their documents.</li>
+                    <li><strong>Session Data:</strong> Temporary session identifiers are not retained beyond the active session.</li>
+                </ul>
+
+                <h3>9. Data Security</h3>
+                <p>We implement appropriate technical and organizational measures to protect the information we collect, including:</p>
+                <ul>
+                    <li><strong>Encryption in Transit:</strong> All data transmitted between your browser and our servers is encrypted using TLS (Transport Layer Security).</li>
+                    <li><strong>Document Encryption:</strong> Served legal documents are encrypted using AES-256-GCM encryption. Decryption keys are managed securely and are only provided to authorized recipients.</li>
+                    <li><strong>Blockchain Verification:</strong> The use of blockchain technology provides an additional layer of data integrity, as records cannot be tampered with or altered after they are created.</li>
+                    <li><strong>Access Controls:</strong> Access to audit logs and forensic data is restricted to authorized parties (the issuing party, the recipient, and court authorities as applicable).</li>
+                    <li><strong>IPFS Document Storage:</strong> Documents stored on the InterPlanetary File System (IPFS) are content-addressed, meaning they are identified by their cryptographic hash, ensuring document integrity.</li>
+                </ul>
+
+                <h3>10. Your Rights</h3>
+                <p>Depending on your jurisdiction, you may have certain rights regarding your personal information. However, please note that the legal nature of the data collected may limit the exercise of certain rights:</p>
+                <ul>
+                    <li><strong>Right of Access:</strong> You have the right to request a copy of the personal information we hold about you. Contact us at <a href="mailto:info@theblockaudit.com">info@theblockaudit.com</a> to submit an access request.</li>
+                    <li><strong>Right to Rectification:</strong> You may request correction of inaccurate personal information, subject to the requirement that forensic records maintain their evidentiary integrity.</li>
+                    <li><strong>Right to Erasure (with limitations):</strong> Due to legal retention requirements and the legitimate interest in maintaining proof of service records, requests for deletion may be denied where the data is required for the establishment, exercise, or defense of legal claims, subject to a legal retention obligation, or recorded on the blockchain (which is technically immutable).</li>
+                    <li><strong>Right to Object:</strong> You may object to the processing of your data. However, processing necessary for legal service of process is generally exempt from objection rights due to the overriding legitimate interest in the administration of justice.</li>
+                    <li><strong>Right to Data Portability:</strong> You may request your data in a structured, machine-readable format.</li>
+                </ul>
+                <p>To exercise any of these rights, please contact us at <a href="mailto:info@theblockaudit.com">info@theblockaudit.com</a>. We will respond to all requests within thirty (30) days.</p>
+
+                <h3>11. International Data Transfers</h3>
+                <p>This Portal is operated from the United States. If you access this Portal from outside the United States, your information will be transferred to and processed in the United States. By accessing this Portal, you acknowledge that your data will be processed in the United States, where data protection laws may differ from those in your jurisdiction. The transfer is necessary for the performance of legal service of process, which is in your interest as it ensures you receive proper notice of legal proceedings affecting your rights.</p>
+
+                <h3>12. Children's Privacy</h3>
+                <p>This Portal is not directed at individuals under the age of 18. Legal service of process is directed at adults or legal entities. We do not knowingly collect personal information from children under 18. If you believe a child's information has been collected, please contact us at <a href="mailto:info@theblockaudit.com">info@theblockaudit.com</a>.</p>
+
+                <h3>13. Third-Party Services</h3>
+                <p>This Portal uses the following third-party services in connection with legal service delivery:</p>
+                <ul>
+                    <li><strong>TRON Blockchain Network:</strong> For minting and delivering NFT-based proof of service.</li>
+                    <li><strong>IPFS (via Pinata):</strong> For decentralized, tamper-proof storage of document metadata and thumbnails.</li>
+                    <li><strong>TronLink / Compatible Wallet Providers:</strong> For wallet connection and blockchain interaction (these are controlled by the user and are not our services).</li>
+                </ul>
+                <p>Each third-party service has its own privacy policy, and we encourage you to review them.</p>
+
+                <h3>14. Changes to This Privacy Policy</h3>
+                <p>We may update this Privacy Policy from time to time to reflect changes in our practices, legal requirements, or operational needs. The "Last Updated" date at the top of this policy indicates when the most recent revisions were made. Continued use of the Portal after any changes constitutes acceptance of the updated policy.</p>
+
+                <h3>15. Contact Information</h3>
+                <p>If you have questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us at:</p>
+                <p>
+                    <strong>The Block Audit LLC</strong><br>
+                    Email: <a href="mailto:info@theblockaudit.com">info@theblockaudit.com</a><br>
+                    Website: <a href="https://www.theblockaudit.com" target="_blank">www.theblockaudit.com</a>
+                </p>
+
+                <div class="policy-highlight">
+                    <strong>Reminder:</strong> The data collected through this Portal exists to protect your legal rights. Proper documentation of legal service ensures that you receive adequate notice of proceedings, provides you with evidence to challenge improper service, and creates a verifiable record that can be used in your defense. If you have concerns about how your data is being used, please do not hesitate to contact us.
+                </div>
             </div>
         </div>
     </div>
@@ -3598,6 +3941,22 @@ Transaction Hash: ${currentNotice.transaction_hash}
                 alertDiv.remove();
             }, 5000);
         }
+
+        // Privacy Policy modal controls
+        function openPrivacyPolicy() {
+            document.getElementById('privacyModal').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closePrivacyPolicy() {
+            document.getElementById('privacyModal').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Close privacy modal on background click
+        document.getElementById('privacyModal').addEventListener('click', function(e) {
+            if (e.target === this) closePrivacyPolicy();
+        });
     </script>
 </body>
 </html>
