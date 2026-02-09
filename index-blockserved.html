@@ -10,14 +10,14 @@
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <style>
         :root {
-            --primary-color: #2c3e50;
-            --secondary-color: #3498db;
-            --success-color: #27ae60;
-            --warning-color: #f39c12;
-            --danger-color: #e74c3c;
-            --light-bg: #ecf0f1;
-            --text-dark: #2c3e50;
-            --text-light: #7f8c8d;
+            --primary-color: #343a40;
+            --secondary-color: #007bff;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --light-bg: #f8f9fa;
+            --text-dark: #343a40;
+            --text-light: #6c757d;
         }
 
         * {
@@ -27,16 +27,16 @@
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f5f5f5;
             min-height: 100vh;
             color: var(--text-dark);
         }
 
         /* Professional Header */
         .header-section {
-            background: white;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            background: var(--primary-color);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
             position: sticky;
             top: 0;
             z-index: 100;
@@ -60,7 +60,7 @@
         .logo-icon {
             width: 45px;
             height: 45px;
-            background: var(--primary-color);
+            background: var(--secondary-color);
             border-radius: 10px;
             display: flex;
             align-items: center;
@@ -73,12 +73,12 @@
             font-size: 24px;
             font-weight: 700;
             margin: 0;
-            color: var(--primary-color);
+            color: white;
         }
 
         .logo-text p {
             font-size: 12px;
-            color: var(--text-light);
+            color: rgba(255, 255, 255, 0.7);
             margin: 0;
         }
 
@@ -91,7 +91,8 @@
 
         .wallet-status {
             padding: 8px 16px;
-            background: var(--light-bg);
+            background: rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.8);
             border-radius: 8px;
             font-size: 14px;
             display: flex;
@@ -151,7 +152,7 @@
             
             .notice-card:hover {
                 transform: none;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
             }
             
             .notice-header {
@@ -247,7 +248,7 @@
         
         .mobile-wallet-content {
             background: white;
-            border-radius: 16px;
+            border-radius: 8px;
             padding: 30px;
             max-width: 500px;
             width: 100%;
@@ -315,8 +316,8 @@
         }
 
         .wallet-status.connected {
-            background: #d4f1e4;
-            color: var(--success-color);
+            background: rgba(40, 167, 69, 0.2);
+            color: #90ee90;
         }
 
         .connect-btn {
@@ -331,8 +332,9 @@
         }
 
         .connect-btn:hover {
-            background: #2980b9;
-            transform: translateY(-2px);
+            background: #0069d9;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
 
         /* Main Content */
@@ -345,10 +347,11 @@
         /* Information Banner */
         .info-banner {
             background: white;
-            border-radius: 16px;
+            border-radius: 8px;
             padding: 30px;
             margin-bottom: 30px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
         }
 
         .info-banner h2 {
@@ -375,7 +378,7 @@
         .step-card {
             background: var(--light-bg);
             padding: 20px;
-            border-radius: 12px;
+            border-radius: 8px;
             display: flex;
             align-items: start;
             gap: 15px;
@@ -409,9 +412,10 @@
         /* Notices Section */
         .notices-section {
             background: white;
-            border-radius: 16px;
+            border-radius: 8px;
             padding: 30px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border: none;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
         }
 
         .section-header {
@@ -443,19 +447,19 @@
         /* Notice Cards */
         .notice-card {
             background: white;
-            border: 2px solid #e8ecef;
-            border-radius: 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
             padding: 20px;
             margin-bottom: 20px;
-            transition: all 0.3s ease;
+            transition: transform 0.3s, box-shadow 0.3s;
             cursor: pointer;
             position: relative;
         }
 
         .notice-card:hover {
             border-color: var(--secondary-color);
-            transform: translateX(5px);
-            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
         }
 
         .notice-card.urgent {
@@ -471,14 +475,14 @@
         }
 
         .notice-card.highlighted {
-            border: 3px solid var(--secondary-color);
-            box-shadow: 0 4px 20px rgba(52, 152, 219, 0.3);
+            border: 2px solid var(--secondary-color);
+            box-shadow: 0 0.5rem 1rem rgba(0,123,255,0.2);
             animation: highlightPulse 2s ease-in-out;
         }
 
         @keyframes highlightPulse {
-            0%, 100% { box-shadow: 0 4px 20px rgba(52, 152, 219, 0.3); }
-            50% { box-shadow: 0 4px 30px rgba(52, 152, 219, 0.5); }
+            0%, 100% { box-shadow: 0 0.5rem 1rem rgba(0,123,255,0.2); }
+            50% { box-shadow: 0 0.5rem 1.5rem rgba(0,123,255,0.35); }
         }
 
         .notice-header {
@@ -575,14 +579,16 @@
             background: var(--secondary-color);
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.3s;
         }
 
         .btn-view:hover {
-            background: #2980b9;
+            background: #0069d9;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
 
         .btn-sign {
@@ -591,19 +597,23 @@
             background: var(--success-color);
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.3s;
         }
 
         .btn-sign:hover {
-            background: #229954;
+            background: #218838;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
 
         .btn-sign:disabled {
-            background: #95a5a6;
+            background: #6c757d;
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
 
         /* Empty State */
@@ -670,7 +680,7 @@
 
         .modal-content {
             background: white;
-            border-radius: 16px;
+            border-radius: 8px;
             max-width: 900px;
             width: 100%;
             max-height: 90vh;
@@ -765,7 +775,7 @@
 
         /* Footer */
         .site-footer {
-            background: var(--primary-color);
+            background: #343a40;
             color: rgba(255, 255, 255, 0.7);
             text-align: center;
             padding: 20px;
@@ -810,7 +820,7 @@
 
         .privacy-modal-content {
             background: white;
-            border-radius: 16px;
+            border-radius: 8px;
             max-width: 800px;
             width: 100%;
             margin: 20px auto;
@@ -1095,7 +1105,7 @@
                 </div>
             </div>
             
-            <div style="background: #f8f9fa; padding: 25px; border-radius: 12px; margin: 25px 0;">
+            <div style="background: #f8f9fa; padding: 25px; border-radius: 8px; margin: 25px 0;">
                 <h3 style="color: var(--primary-color); margin-bottom: 20px;">Why This is Important</h3>
                 <div style="display: grid; gap: 15px;">
                     <div style="display: flex; align-items: start; gap: 12px;">
@@ -1113,7 +1123,7 @@
                 </div>
             </div>
 
-            <div style="background: #e8f5e9; padding: 25px; border-radius: 12px; margin: 25px 0;">
+            <div style="background: #e8f5e9; padding: 25px; border-radius: 8px; margin: 25px 0;">
                 <h3 style="color: var(--primary-color); margin-bottom: 20px;">How to Access Your Documents</h3>
                 <div class="steps-container">
                     <div class="step-card" style="background: white;">
@@ -1133,27 +1143,27 @@
                     <div class="step-card" style="background: white;">
                         <div class="step-number">3</div>
                         <div class="step-content">
-                            <h4>Accept or Decline Service</h4>
-                            <p>You can accept service by signing with your wallet, which will provide you with decryption keys for permanent IPFS access.</p>
+                            <h4>Acknowledge Service</h4>
+                            <p>You can acknowledge service by signing a blockchain transaction with your wallet, creating a permanent on-chain record of acceptance.</p>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px; margin: 25px 0; color: white;">
+            <div style="background: #343a40; padding: 30px; border-radius: 8px; margin: 25px 0; color: white;">
                 <h3 style="margin-bottom: 20px;"><i class="bi bi-lock-fill"></i> Document Storage & Privacy</h3>
                 <div style="display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
                     <div>
-                        <h5 style="margin-bottom: 10px;"><i class="bi bi-cloud-arrow-up"></i> Permanent IPFS Storage</h5>
-                        <p style="font-size: 14px; opacity: 0.95;">Your documents are permanently stored on IPFS (InterPlanetary File System), ensuring they can never be deleted or altered.</p>
+                        <h5 style="margin-bottom: 10px;"><i class="bi bi-server"></i> Secure Server Storage</h5>
+                        <p style="font-size: 14px; opacity: 0.95;">Your documents are stored securely on our servers with access controls. Only authorized recipients can view their documents through this portal.</p>
                     </div>
                     <div>
-                        <h5 style="margin-bottom: 10px;"><i class="bi bi-shield-check"></i> Encrypted for Privacy</h5>
-                        <p style="font-size: 14px; opacity: 0.95;">All documents are encrypted. Only recipients who accept service receive the decryption key, ensuring complete privacy.</p>
+                        <h5 style="margin-bottom: 10px;"><i class="bi bi-shield-check"></i> Blockchain-Verified Delivery</h5>
+                        <p style="font-size: 14px; opacity: 0.95;">Each serve creates an NFT on the TRON blockchain, providing tamper-proof proof of delivery with an immutable timestamp.</p>
                     </div>
                     <div>
-                        <h5 style="margin-bottom: 10px;"><i class="bi bi-key"></i> Your Keys, Your Access</h5>
-                        <p style="font-size: 14px; opacity: 0.95;">Once you accept service and receive your decryption key, you can access your documents anytime, anywhere, without using this site.</p>
+                        <h5 style="margin-bottom: 10px;"><i class="bi bi-wallet2"></i> Wallet-Based Access</h5>
+                        <p style="font-size: 14px; opacity: 0.95;">Your wallet address is your secure key. Only the wallet that received the NFT can access the associated legal documents through this portal.</p>
                     </div>
                 </div>
             </div>
@@ -1161,14 +1171,14 @@
             <div class="alert-message alert-warning" style="margin: 25px 0;">
                 <i class="bi bi-exclamation-triangle-fill"></i>
                 <div>
-                    <strong>Legal Notice:</strong> If you choose to decline service, you can still view your documents through this portal. 
-                    However, accepting service provides you with permanent, independent access via IPFS decryption keys. 
-                    Please note that declining service does not prevent legal proceedings from continuing.
+                    <strong>Legal Notice:</strong> Whether or not you acknowledge service, you can view your documents through this portal by connecting your wallet.
+                    Acknowledging service creates a permanent on-chain record of acceptance.
+                    Please note that declining to acknowledge does not prevent legal proceedings from continuing.
                 </div>
             </div>
             
             <div style="text-align: center; margin-top: 30px;">
-                <button id="connectWalletMain" class="connect-btn" style="font-size: 18px; padding: 15px 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <button id="connectWalletMain" class="connect-btn" style="font-size: 18px; padding: 15px 40px;">
                     <i class="bi bi-wallet2"></i> Connect Wallet to View Your Legal Documents
                 </button>
                 <p style="margin-top: 15px; color: var(--text-light); font-size: 14px;">
@@ -1359,7 +1369,7 @@
                 <ul>
                     <li><strong>Audit Logs and Forensic Data:</strong> Retained for a minimum of seven (7) years or for the duration of any legal proceedings to which the data is relevant, whichever is longer. This retention period aligns with common statutes of limitation and court record retention requirements.</li>
                     <li><strong>Blockchain Records:</strong> Permanently stored on the blockchain. These records cannot be deleted due to the immutable nature of blockchain technology.</li>
-                    <li><strong>Document Storage:</strong> Served documents and associated encryption keys are retained for as long as necessary to fulfill legal service requirements and to ensure the recipient's continued access to their documents.</li>
+                    <li><strong>Document Storage:</strong> Served documents are retained on our secure servers for as long as necessary to fulfill legal service requirements and to ensure the recipient's continued access to their documents.</li>
                     <li><strong>Session Data:</strong> Temporary session identifiers are not retained beyond the active session.</li>
                 </ul>
 
@@ -1367,10 +1377,9 @@
                 <p>We implement appropriate technical and organizational measures to protect the information we collect, including:</p>
                 <ul>
                     <li><strong>Encryption in Transit:</strong> All data transmitted between your browser and our servers is encrypted using TLS (Transport Layer Security).</li>
-                    <li><strong>Document Encryption:</strong> Served legal documents are encrypted using AES-256-GCM encryption. Decryption keys are managed securely and are only provided to authorized recipients.</li>
-                    <li><strong>Blockchain Verification:</strong> The use of blockchain technology provides an additional layer of data integrity, as records cannot be tampered with or altered after they are created.</li>
+                    <li><strong>Secure Document Storage:</strong> Served legal documents are stored on secure, access-controlled servers. Documents are only accessible to authorized recipients who connect the wallet that received the service NFT.</li>
+                    <li><strong>Blockchain Verification:</strong> The use of blockchain technology provides an additional layer of data integrity, as service records cannot be tampered with or altered after they are created.</li>
                     <li><strong>Access Controls:</strong> Access to audit logs and forensic data is restricted to authorized parties (the issuing party, the recipient, and court authorities as applicable).</li>
-                    <li><strong>IPFS Document Storage:</strong> Documents stored on the InterPlanetary File System (IPFS) are content-addressed, meaning they are identified by their cryptographic hash, ensuring document integrity.</li>
                 </ul>
 
                 <h3>10. Your Rights</h3>
@@ -1394,7 +1403,6 @@
                 <p>This Portal uses the following third-party services in connection with legal service delivery:</p>
                 <ul>
                     <li><strong>TRON Blockchain Network:</strong> For minting and delivering NFT-based proof of service.</li>
-                    <li><strong>IPFS (via Pinata):</strong> For decentralized, tamper-proof storage of document metadata and thumbnails.</li>
                     <li><strong>TronLink / Compatible Wallet Providers:</strong> For wallet connection and blockchain interaction (these are controlled by the user and are not our services).</li>
                 </ul>
                 <p>Each third-party service has its own privacy policy, and we encourage you to review them.</p>
@@ -1445,9 +1453,9 @@
                 <p>Every process server is vetted before being granted access to the smart contract. The smart contract is access-controlled — unauthorized parties cannot mint service NFTs.</p>
 
                 <h3>How Your Documents Are Protected</h3>
-                <p>Your documents are stored encrypted and are <strong>not readable by the general public</strong>. While blockchain transactions are public by nature, your document content is NOT public.</p>
+                <p>Your documents are stored securely on our servers and are <strong>not readable by the general public</strong>. While blockchain transactions are public by nature, your document content is NOT public.</p>
                 <div class="policy-highlight">
-                    Only the intended recipient can decrypt and view the document by connecting the wallet that received the NFT. This is why you must connect your wallet — it proves you are the intended recipient. The encryption key is tied to your wallet address.
+                    Only the intended recipient can view the document by connecting the wallet that received the NFT. This is why you must connect your wallet — it proves you are the intended recipient. Document access is controlled by wallet ownership.
                 </div>
 
                 <h3>Why Blockchain?</h3>
@@ -1480,8 +1488,8 @@
                 <!-- Document content will be loaded here -->
             </div>
             <div class="modal-footer">
-                <button class="btn-view" onclick="downloadDocument()">
-                    <i class="bi bi-download"></i> Download
+                <button class="btn-view" onclick="downloadOriginalPDF(currentNotice)">
+                    <i class="bi bi-file-pdf"></i> Download PDF
                 </button>
                 <button class="btn-sign" id="signButton" onclick="signDocument()">
                     <i class="bi bi-pen"></i> Sign & Acknowledge
@@ -3657,41 +3665,6 @@
             }
         }
 
-        // Download document
-        function downloadDocument() {
-            if (!currentNotice) return;
-            
-            // Create a text file with document information
-            const isLite = currentNotice.contract_type === 'lite' || currentNotice.contract_type === 'lite-v2' || !currentNotice.document_token_id;
-            const tokenInfo = isLite
-                ? `Token ID: #${currentNotice.alert_token_id || currentNotice.token_id}`
-                : `Alert NFT ID: #${currentNotice.alert_token_id}\nDocument NFT ID: #${currentNotice.document_token_id || 'N/A'}`;
-
-            const content = `
-Legal Notice - Case #${currentNotice.case_number}
-========================================
-Notice Type: ${currentNotice.notice_type}
-Issuing Agency: ${currentNotice.issuing_agency}
-Served Date: ${formatDateTimeUTC(currentNotice.served_at)}
-${tokenInfo}
-
-IPFS Document Hash: ${currentNotice.ipfs_document || 'N/A'}
-Encryption Key: ${currentNotice.encryption_key || 'N/A'}
-
-To view the full document, use the IPFS hash and encryption key provided above.
-
-This notice was served via blockchain technology and is legally binding.
-Transaction Hash: ${currentNotice.transaction_hash}
-            `;
-            
-            const blob = new Blob([content], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `legal_notice_${currentNotice.case_number}.txt`;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
 
         // Print document images
         async function printDocumentImages(caseNumber) {
