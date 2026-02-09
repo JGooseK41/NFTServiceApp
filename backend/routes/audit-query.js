@@ -106,12 +106,18 @@ router.get('/recipient/:address', async (req, res) => {
 router.get('/case/:caseNumber', async (req, res) => {
     try {
         const { caseNumber } = req.params;
+        const serverAddress = req.headers['x-server-address'] || req.query.serverAddress;
 
         // First get case data including recipients and token IDs
-        const caseResult = await pool.query(`
-            SELECT recipients, alert_token_id, document_token_id
-            FROM case_service_records WHERE case_number = $1
-        `, [caseNumber]);
+        // If server address provided, verify ownership
+        const hasWalletFilter = serverAddress && /^T[A-Za-z0-9]{33}$/.test(serverAddress);
+        const caseQuery = hasWalletFilter
+            ? `SELECT recipients, alert_token_id, document_token_id, server_address
+               FROM case_service_records WHERE case_number = $1 AND LOWER(server_address) = LOWER($2)`
+            : `SELECT recipients, alert_token_id, document_token_id, server_address
+               FROM case_service_records WHERE case_number = $1`;
+        const caseParams = hasWalletFilter ? [caseNumber, serverAddress] : [caseNumber];
+        const caseResult = await pool.query(caseQuery, caseParams);
 
         if (caseResult.rows.length === 0) {
             return res.status(404).json({

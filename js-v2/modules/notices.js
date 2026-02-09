@@ -81,6 +81,9 @@ window.notices = {
             
             // Step 4: Process documents (always required now)
             console.log('Processing and consolidating PDFs...');
+            if (window.app?.updateProcessing) {
+                window.app.updateProcessing('Processing documents...', 'Encrypting and uploading your PDFs');
+            }
             
             // Process multiple PDFs into ONE consolidated document (shared by all recipients)
             // Document stored encrypted on backend, only thumbnail goes to IPFS
@@ -114,7 +117,10 @@ window.notices = {
             
             // Step 7: Create NFTs for all recipients (batch or individual)
             let txResults = [];
-            
+            if (window.app?.updateProcessing) {
+                window.app.updateProcessing('Minting NFT on blockchain...', 'Please confirm the transaction in your wallet');
+            }
+
             // Check if we should use batch (multiple recipients)
             if (data.recipients.length > 1) {
                 console.log(`Creating batch notices for ${data.recipients.length} recipients...`);
@@ -135,7 +141,6 @@ window.notices = {
                     recipients: recipientAddresses,
                     noticeId,
                     caseNumber: data.caseNumber,
-                    noticeText: data.noticeText,
                     serverId,
                     serverTimestamp: Math.floor(Date.now() / 1000),
                     thumbnail: null, // Don't send base64 data
@@ -150,8 +155,7 @@ window.notices = {
                     noticeEmail: data.noticeEmail || '',  // Case-specific contact email
                     noticePhone: data.noticePhone || '',  // Case-specific contact phone
                     legalRights: 'View full document at www.BlockServed.com for info on your rights and next steps',  // Hardcoded
-                    sponsorFees: false,
-                    caseDetails: data.caseDetails || data.noticeText
+                    sponsorFees: false
                 });
                 
                 txResults.push(batchResult);
@@ -164,7 +168,6 @@ window.notices = {
                     noticeId,
                     recipient: recipientAddresses[0],
                     caseNumber: data.caseNumber,
-                    noticeText: data.noticeText,
                     serverId,
                     serverTimestamp: Math.floor(Date.now() / 1000),
                     thumbnail: null,
@@ -194,6 +197,9 @@ window.notices = {
             const txResult = txResults[0]; // For now, use first result
 
             // Step 8: Update backend with transaction info (Lite: single transaction)
+            if (window.app?.updateProcessing) {
+                window.app.updateProcessing('Confirming transaction...', 'Waiting for blockchain confirmation — this may take a moment');
+            }
             await this.updateNoticeWithTransaction(noticeId, {
                 alertTx: txResult.alertTx
             });
@@ -292,6 +298,9 @@ window.notices = {
 
             // Always save service data to backend using the case number from form
             // Trim whitespace to prevent URL encoding issues (e.g., "test 5 " -> "test%205%20")
+            if (window.app?.updateProcessing) {
+                window.app.updateProcessing('Saving service record...', 'Storing proof of service to the database');
+            }
             const caseIdentifier = (data.caseNumber || window.app?.currentCaseId || '').trim();
             if (caseIdentifier) {
                 try {
@@ -321,8 +330,6 @@ window.notices = {
                         explorerUrl: window.getExplorerTxUrl ? window.getExplorerTxUrl(txResult.alertTx) : null,
                         contractType: 'lite', // Indicate Lite contract
                         metadata: {
-                            noticeText: data.noticeText,
-                            caseDetails: data.caseDetails,
                             deadline: data.deadline || '',
                             thumbnailUrl: documentData.thumbnailUrl,
                             diskUrl: documentData.diskUrl
@@ -450,6 +457,9 @@ window.notices = {
             }
             
             // Step 9: Generate receipt with fee breakdown
+            if (window.app?.updateProcessing) {
+                window.app.updateProcessing('Generating service receipt...', 'Almost done!');
+            }
             let receipt = null;
             try {
                 // Get payment details from transaction result (exact amounts)
@@ -472,6 +482,7 @@ window.notices = {
                     caseNumber: data.caseNumber,
                     timestamp: new Date().toISOString(),
                     serverId,
+                    serverAddress: window.wallet?.address || '',
                     thumbnail,
                     ipfsHash: documentData.ipfsHash,
                     contractType: 'lite',

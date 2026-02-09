@@ -42,7 +42,8 @@ window.adminServerManager = {
                 throw new Error(data.error || 'Failed to load servers');
             }
 
-            this.renderServerList(data.servers || []);
+            this.servers = data.servers || [];
+            this.renderServerList(this.servers);
 
         } catch (error) {
             console.error('Error loading process servers:', error);
@@ -119,7 +120,9 @@ window.adminServerManager = {
         return `
             <tr data-wallet="${server.wallet_address}" data-name="${(server.full_name || '').toLowerCase()}" data-agency="${(server.agency || '').toLowerCase()}">
                 <td>
-                    <strong>${server.full_name || 'Unknown'}</strong>
+                    <a href="#" onclick="adminServerManager.viewServerDetails('${server.wallet_address}'); return false;" class="text-decoration-none">
+                        <strong>${server.full_name || 'Unknown'}</strong>
+                    </a>
                     ${server.license_number ? `<br><small class="text-muted">License: ${server.license_number}</small>` : ''}
                 </td>
                 <td>${server.agency || 'N/A'}</td>
@@ -149,6 +152,268 @@ window.adminServerManager = {
                 </td>
             </tr>
         `;
+    },
+
+    // View server details in a modal
+    viewServerDetails(walletAddress) {
+        const server = (this.servers || []).find(s => s.wallet_address === walletAddress);
+        if (!server) {
+            alert('Server not found');
+            return;
+        }
+
+        const modalId = 'serverDetailsModal';
+        let modal = document.getElementById(modalId);
+        if (modal) modal.remove();
+
+        const statusBadge = server.is_active
+            ? '<span class="badge bg-success">Active</span>'
+            : server.status === 'pending'
+                ? '<span class="badge bg-warning text-dark">Pending</span>'
+                : `<span class="badge bg-danger">${server.status || 'Inactive'}</span>`;
+
+        const registeredDate = server.created_at
+            ? new Date(server.created_at).toLocaleDateString()
+            : 'N/A';
+
+        const lastActive = server.last_activity
+            ? new Date(server.last_activity).toLocaleDateString()
+            : 'Never';
+
+        // Show Approve if pending, Suspend if active/approved
+        const isPending = server.status === 'pending';
+        const isActive = server.is_active;
+
+        modal = document.createElement('div');
+        modal.id = modalId;
+        modal.className = 'modal fade';
+        modal.innerHTML = `
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">
+                            <i class="bi bi-person-badge"></i> ${server.full_name || 'Unknown'} ${statusBadge}
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="serverDetailsForm">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Agency Name</label>
+                                    <input type="text" class="form-control" id="sd_agency_name" value="${this.escapeHtml(server.agency || '')}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Contact Email</label>
+                                    <input type="email" class="form-control" id="sd_contact_email" value="${this.escapeHtml(server.email || '')}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Phone Number</label>
+                                    <input type="tel" class="form-control" id="sd_phone_number" value="${this.escapeHtml(server.phone || '')}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Website</label>
+                                    <input type="url" class="form-control" id="sd_website" value="${this.escapeHtml(server.website || '')}" placeholder="https://">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">License Number</label>
+                                    <input type="text" class="form-control" id="sd_license_number" value="${this.escapeHtml(server.license_number || '')}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Jurisdictions</label>
+                                    <input type="text" class="form-control" id="sd_jurisdictions" value="${this.escapeHtml(server.jurisdictions || '')}">
+                                </div>
+                            </div>
+                        </form>
+
+                        <hr>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6><i class="bi bi-wallet2"></i> Wallet Address</h6>
+                                <div class="d-flex align-items-center">
+                                    <code class="small me-2">${server.wallet_address}</code>
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="navigator.clipboard.writeText('${server.wallet_address}')" title="Copy">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6><i class="bi bi-calendar"></i> Registered</h6>
+                                <p class="mb-0">${registeredDate}</p>
+                            </div>
+                        </div>
+
+                        <div class="row mt-3">
+                            <div class="col-md-4">
+                                <div class="card text-center">
+                                    <div class="card-body py-2">
+                                        <h4 class="mb-0">${server.total_cases || 0}</h4>
+                                        <small class="text-muted">Total Cases</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card text-center">
+                                    <div class="card-body py-2">
+                                        <h4 class="mb-0">${server.signed_cases || 0}</h4>
+                                        <small class="text-muted">Signed</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card text-center">
+                                    <div class="card-body py-2">
+                                        <h6 class="mb-0">${lastActive}</h6>
+                                        <small class="text-muted">Last Active</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer d-flex justify-content-between">
+                        <div>
+                            <button class="btn btn-danger" onclick="adminServerManager.deleteServer('${server.wallet_address}')">
+                                <i class="bi bi-trash"></i> Delete
+                            </button>
+                            ${isPending ? `
+                                <button class="btn btn-success ms-2" onclick="adminServerManager.setServerStatus('${server.wallet_address}', 'active')">
+                                    <i class="bi bi-check-circle"></i> Approve
+                                </button>
+                            ` : ''}
+                            ${isActive ? `
+                                <button class="btn btn-warning ms-2" onclick="adminServerManager.setServerStatus('${server.wallet_address}', 'suspended')">
+                                    <i class="bi bi-pause-circle"></i> Suspend
+                                </button>
+                            ` : ''}
+                            ${!isActive && !isPending ? `
+                                <button class="btn btn-success ms-2" onclick="adminServerManager.setServerStatus('${server.wallet_address}', 'active')">
+                                    <i class="bi bi-check-circle"></i> Activate
+                                </button>
+                            ` : ''}
+                        </div>
+                        <div>
+                            <button class="btn btn-primary" onclick="adminServerManager.saveServerDetails('${server.wallet_address}')">
+                                <i class="bi bi-save"></i> Save Changes
+                            </button>
+                            <button type="button" class="btn btn-secondary ms-2" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        new bootstrap.Modal(modal).show();
+    },
+
+    // Save edited server details
+    async saveServerDetails(walletAddress) {
+        const data = {
+            wallet_address: walletAddress,
+            agency_name: document.getElementById('sd_agency_name')?.value || null,
+            contact_email: document.getElementById('sd_contact_email')?.value || null,
+            phone_number: document.getElementById('sd_phone_number')?.value || null,
+            website: document.getElementById('sd_website')?.value || null,
+            license_number: document.getElementById('sd_license_number')?.value || null,
+            jurisdictions: document.getElementById('sd_jurisdictions')?.value || null
+        };
+
+        try {
+            const response = await fetch(`${this.baseUrl}/api/admin/process-servers/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Admin-Address': this.adminAddress || ''
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const result = await response.json();
+            if (!result.success) throw new Error(result.error || 'Update failed');
+
+            // Close modal and reload
+            const modal = document.getElementById('serverDetailsModal');
+            if (modal) bootstrap.Modal.getInstance(modal)?.hide();
+            await this.loadProcessServers();
+
+        } catch (error) {
+            console.error('Error saving server details:', error);
+            alert('Error saving: ' + error.message);
+        }
+    },
+
+    // Delete a server
+    async deleteServer(walletAddress) {
+        if (!confirm('Are you sure you want to permanently delete this process server? This cannot be undone.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`${this.baseUrl}/api/admin/process-servers/delete`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Admin-Address': this.adminAddress || ''
+                },
+                body: JSON.stringify({ wallet_address: walletAddress })
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const result = await response.json();
+            if (!result.success) throw new Error(result.error || 'Delete failed');
+
+            // Close modal and reload
+            const modal = document.getElementById('serverDetailsModal');
+            if (modal) bootstrap.Modal.getInstance(modal)?.hide();
+            await this.loadProcessServers();
+
+        } catch (error) {
+            console.error('Error deleting server:', error);
+            alert('Error deleting: ' + error.message);
+        }
+    },
+
+    // Set server status (active, suspended, etc.)
+    async setServerStatus(walletAddress, newStatus) {
+        const label = newStatus === 'active' ? 'approve/activate' : newStatus;
+        if (!confirm(`Are you sure you want to ${label} this process server?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`${this.baseUrl}/api/admin/process-servers/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Admin-Address': this.adminAddress || ''
+                },
+                body: JSON.stringify({
+                    wallet_address: walletAddress,
+                    status: newStatus
+                })
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const result = await response.json();
+            if (!result.success) throw new Error(result.error || 'Status update failed');
+
+            // Close modal and reload
+            const modal = document.getElementById('serverDetailsModal');
+            if (modal) bootstrap.Modal.getInstance(modal)?.hide();
+            await this.loadProcessServers();
+
+        } catch (error) {
+            console.error('Error updating server status:', error);
+            alert('Error updating status: ' + error.message);
+        }
+    },
+
+    // Helper: Escape HTML to prevent XSS in form values
+    escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
     },
 
     // Filter servers based on search input

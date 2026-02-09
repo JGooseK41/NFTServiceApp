@@ -95,86 +95,9 @@ ensureColumns().catch(err => {
     // Don't crash the server, but log the warning
 });
 
-/**
- * GET /api/recipient-cases/debug
- * Debug endpoint to see all case_service_records and cases
- */
-router.get('/debug', async (req, res) => {
-    try {
-        // First check what columns exist
-        const columnsResult = await pool.query(`
-            SELECT column_name FROM information_schema.columns
-            WHERE table_name = 'case_service_records'
-            ORDER BY column_name
-        `);
-        const existingColumns = columnsResult.rows.map(r => r.column_name);
-
-        // Build query dynamically based on existing columns
-        const wantedColumns = ['case_number', 'recipients', 'transaction_hash', 'alert_token_id', 'served_at', 'server_address'];
-        const availableColumns = wantedColumns.filter(c => existingColumns.includes(c));
-
-        if (availableColumns.length === 0) {
-            return res.json({
-                success: false,
-                existingColumns,
-                error: 'No expected columns found in case_service_records'
-            });
-        }
-
-        // Get case_service_records with available columns
-        const csrResult = await pool.query(`
-            SELECT ${availableColumns.join(', ')}
-            FROM case_service_records
-            ORDER BY ${existingColumns.includes('served_at') ? 'served_at' : 'id'} DESC
-            LIMIT 20
-        `);
-
-        // Also get recent cases from cases table
-        const casesResult = await pool.query(`
-            SELECT
-                id,
-                case_number,
-                status,
-                server_address,
-                metadata,
-                created_at
-            FROM cases
-            ORDER BY created_at DESC
-            LIMIT 20
-        `);
-
-        res.json({
-            success: true,
-            case_service_records: {
-                count: csrResult.rows.length,
-                records: csrResult.rows.map(row => ({
-                    case_number: row.case_number,
-                    recipients: row.recipients,
-                    recipients_type: typeof row.recipients,
-                    transaction_hash: row.transaction_hash,
-                    alert_token_id: row.alert_token_id,
-                    served_at: row.served_at,
-                    server_address: row.server_address
-                }))
-            },
-            cases_table: {
-                count: casesResult.rows.length,
-                records: casesResult.rows.map(row => ({
-                    id: row.id,
-                    case_number: row.case_number,
-                    status: row.status,
-                    server_address: row.server_address,
-                    has_metadata: !!row.metadata,
-                    recipients_in_metadata: row.metadata?.recipients || null,
-                    tx_in_metadata: row.metadata?.transactionHash || null,
-                    created_at: row.created_at
-                }))
-            }
-        });
-    } catch (error) {
-        console.error('Debug query error:', error);
-        res.status(500).json({ error: error.message });
-    }
+// Debug endpoint removed for security - was exposing all case data without authentication
+router.get('/debug', (req, res) => {
+    res.status(403).json({ success: false, error: 'Debug endpoint disabled' });
 });
 
 /**
@@ -800,75 +723,9 @@ router.get('/:caseNumber/download-pdf', async (req, res) => {
     }
 });
 
-/**
- * GET /api/recipient-cases/debug/:address
- * Debug endpoint to check all notices for a wallet
- */
-router.get('/debug/:address', async (req, res) => {
-    try {
-        const { address } = req.params;
-        const alertTokenIds = ['1', '17', '29', '37']; // Known Alert NFTs for this wallet
-        
-        // Check case_service_records
-        const serviceQuery = `
-            SELECT 
-                case_number,
-                alert_token_id,
-                document_token_id,
-                recipients,
-                served_at,
-                transaction_hash
-            FROM case_service_records 
-            WHERE alert_token_id = ANY($1::text[])
-               OR recipients::text ILIKE $2
-            ORDER BY alert_token_id::int
-        `;
-        
-        const serviceResult = await pool.query(serviceQuery, [alertTokenIds, `%${address}%`]);
-        
-        // Check cases table
-        const casesQuery = `
-            SELECT 
-                id,
-                case_number,
-                token_id,
-                alert_token_id,
-                document_token_id,
-                recipient_address,
-                status
-            FROM cases 
-            WHERE recipient_address = $1
-               OR token_id = ANY($2::text[])
-               OR alert_token_id = ANY($2::text[])
-            LIMIT 20
-        `;
-        
-        const casesResult = await pool.query(casesQuery, [address, alertTokenIds]);
-        
-        const foundAlertIds = serviceResult.rows.map(r => r.alert_token_id);
-        const missingAlertIds = alertTokenIds.filter(id => !foundAlertIds.includes(id));
-        
-        res.json({
-            success: true,
-            wallet: address,
-            expected_alerts: alertTokenIds,
-            found_in_service_records: serviceResult.rows,
-            found_in_cases: casesResult.rows,
-            missing_alerts: missingAlertIds,
-            summary: {
-                expected: alertTokenIds.length,
-                found: foundAlertIds.length,
-                missing: missingAlertIds.length
-            }
-        });
-        
-    } catch (error) {
-        console.error('Debug error:', error);
-        res.status(500).json({ 
-            error: error.message,
-            success: false 
-        });
-    }
+// Debug endpoint removed for security
+router.get('/debug/:address', (req, res) => {
+    res.status(403).json({ success: false, error: 'Debug endpoint disabled' });
 });
 
 /**
@@ -3059,105 +2916,9 @@ router.post('/create-admin-logs-table', async (req, res) => {
     }
 });
 
-/**
- * GET /api/recipient-cases/debug/v1-document-storage
- * Check v1 document storage patterns
- */
-router.get('/debug/v1-document-storage', async (req, res) => {
-    try {
-        const results = {};
-        
-        // Check notice_components for document data
-        const componentsQuery = `
-            SELECT 
-                notice_id,
-                alert_id,
-                document_id,
-                document_data IS NOT NULL as has_document_data,
-                document_ipfs_hash,
-                ipfs_hash,
-                OCTET_LENGTH(document_data) as data_size,
-                created_at
-            FROM notice_components
-            WHERE alert_id IN ('1', '3', '5', '7', '9', '11', '13', '15', '17', '19', 
-                              '21', '23', '25', '27', '29', '31', '33', '35', '37', '39')
-            ORDER BY alert_id::int
-            LIMIT 20
-        `;
-        
-        const components = await pool.query(componentsQuery);
-        results.notice_components = components.rows;
-        
-        // Check simple_images table
-        const imagesQuery = `
-            SELECT 
-                notice_id,
-                image_type,
-                OCTET_LENGTH(image_data) as data_size,
-                metadata,
-                created_at
-            FROM simple_images
-            WHERE notice_id IN (
-                SELECT DISTINCT notice_id FROM notice_components 
-                WHERE alert_id IN ('1', '3', '5', '7', '9', '11', '13', '15', '17', '19')
-                AND notice_id IS NOT NULL
-            )
-            ORDER BY notice_id, image_type
-            LIMIT 50
-        `;
-        
-        const images = await pool.query(imagesQuery);
-        
-        // Group images by notice_id
-        const imagesByNotice = {};
-        images.rows.forEach(row => {
-            if (!imagesByNotice[row.notice_id]) {
-                imagesByNotice[row.notice_id] = [];
-            }
-            imagesByNotice[row.notice_id].push({
-                type: row.image_type,
-                size: row.data_size,
-                metadata: row.metadata,
-                created: row.created_at
-            });
-        });
-        results.simple_images = imagesByNotice;
-        
-        // Summary statistics
-        const summaryQuery = `
-            SELECT 
-                'notice_components' as table_name,
-                COUNT(*) as total_records,
-                COUNT(CASE WHEN document_data IS NOT NULL THEN 1 END) as with_data,
-                COUNT(CASE WHEN ipfs_hash IS NOT NULL OR document_ipfs_hash IS NOT NULL THEN 1 END) as with_ipfs
-            FROM notice_components
-            WHERE alert_id IS NOT NULL
-            
-            UNION ALL
-            
-            SELECT 
-                'simple_images' as table_name,
-                COUNT(DISTINCT notice_id) as total_records,
-                COUNT(DISTINCT notice_id) as with_data,
-                0 as with_ipfs
-            FROM simple_images
-        `;
-        
-        const summary = await pool.query(summaryQuery);
-        results.summary = summary.rows;
-        
-        res.json({
-            success: true,
-            ...results
-        });
-        
-    } catch (error) {
-        console.error('Error checking v1 document storage:', error);
-        res.status(500).json({ 
-            error: 'Failed to check v1 document storage',
-            details: error.message
-        });
-    }
+// Debug endpoint removed for security
+router.get('/debug/v1-document-storage', (req, res) => {
+    res.status(403).json({ success: false, error: 'Debug endpoint disabled' });
 });
 
 /**

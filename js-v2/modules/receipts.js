@@ -58,9 +58,16 @@ window.receipts = {
         }
     },
 
-    // Load and display receipts
+    // Load and display receipts (filtered by connected wallet)
     async loadReceipts() {
-        const receipts = window.storage.getReceipts();
+        const allReceipts = window.storage.getReceipts();
+        const connectedWallet = window.wallet?.address?.toLowerCase() || '';
+        const receipts = connectedWallet
+            ? allReceipts.filter(r => {
+                const w = (r.serverAddress || r.server_address || '').toLowerCase();
+                return w === connectedWallet;
+            })
+            : [];
         this.displayReceipts(receipts);
     },
     

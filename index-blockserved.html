@@ -2862,7 +2862,7 @@
                     : `I acknowledge and accept the legal document (Document NFT #${signingTokenId}) for Case #${notice.case_number} served on ${new Date(notice.served_at).toISOString()}`;
 
                 // Sign with TronLink - user may decline at this point
-                const signature = await tronWeb.trx.sign(tronWeb.toHex(message));
+                const signature = await tronWeb.trx.signMessageV2(message);
                 
                 // Detect device and wallet for legal record
                 const deviceType = detectDeviceType();

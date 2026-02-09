@@ -42,7 +42,7 @@ router.get('/:walletAddress/all-notices', async (req, res) => {
         
         // 1. Get ALL from case_service_records (most complete source)
         const serviceQuery = `
-            SELECT 
+            SELECT
                 case_number,
                 alert_token_id,
                 document_token_id,
@@ -55,17 +55,11 @@ router.get('/:walletAddress/all-notices', async (req, res) => {
                 page_count,
                 status
             FROM case_service_records
-            WHERE server_address = $1
-               OR server_address LIKE $2
-               OR server_address LIKE $3
+            WHERE LOWER(server_address) = LOWER($1)
             ORDER BY created_at DESC
         `;
-        
-        const serviceResult = await pool.query(serviceQuery, [
-            walletAddress,
-            `${walletAddress}%`,
-            `%${walletAddress.substring(0, 10)}%` // Partial match for variations
-        ]);
+
+        const serviceResult = await pool.query(serviceQuery, [walletAddress]);
         
         console.log(`Found ${serviceResult.rows.length} records in case_service_records`);
         
@@ -126,15 +120,11 @@ router.get('/:walletAddress/all-notices', async (req, res) => {
                 document_nft_id,
                 metadata
             FROM cases
-            WHERE server_address = $1
-               OR server_address LIKE $2
+            WHERE LOWER(server_address) = LOWER($1)
             ORDER BY created_at DESC
         `;
-        
-        const casesResult = await pool.query(casesQuery, [
-            walletAddress,
-            `${walletAddress}%`
-        ]);
+
+        const casesResult = await pool.query(casesQuery, [walletAddress]);
         
         console.log(`Found ${casesResult.rows.length} records in cases table`);
         
@@ -300,9 +290,9 @@ router.get('/:walletAddress/case/:caseNumber', async (req, res) => {
         const ownershipCheck = await pool.query(`
             SELECT COUNT(*) as count
             FROM case_service_records
-            WHERE case_number = $1 
-            AND (server_address = $2 OR server_address LIKE $3)
-        `, [caseNumber, walletAddress, `${walletAddress}%`]);
+            WHERE case_number = $1
+            AND LOWER(server_address) = LOWER($2)
+        `, [caseNumber, walletAddress]);
         
         if (ownershipCheck.rows[0].count === 0) {
             // Check cases table too

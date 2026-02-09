@@ -339,7 +339,7 @@ class CaseManager {
             console.log(`Listing cases for server wallet: ${serverAddress}, chain filter: ${chain || 'all'}`);
 
             // Build chain filter clause using parameterized query
-            const chainFilter = chain ? `AND COALESCE(chain, 'tron-mainnet') = $3` : '';
+            const chainFilter = chain ? `AND COALESCE(chain, 'tron-mainnet') = $2` : '';
 
             // COMPREHENSIVE QUERY: Get everything for this wallet
             // Hierarchy: Wallet -> Cases -> Notices/Recipients
@@ -364,8 +364,7 @@ class CaseManager {
                         'case_service_records' as source,
                         1 as priority
                     FROM case_service_records
-                    WHERE (server_address = $1
-                       OR server_address LIKE $2)
+                    WHERE LOWER(server_address) = LOWER($1)
                        ${chainFilter}
 
                     UNION ALL
@@ -386,8 +385,7 @@ class CaseManager {
                         'cases' as source,
                         CASE WHEN status = 'served' THEN 1 ELSE 2 END as priority
                     FROM cases
-                    WHERE (server_address = $1
-                       OR server_address LIKE $2)
+                    WHERE LOWER(server_address) = LOWER($1)
                        ${chainFilter}
                 )
                 SELECT DISTINCT ON (id) * FROM all_cases
@@ -395,7 +393,7 @@ class CaseManager {
                 LIMIT 100
             `;
             
-            const params = [serverAddress, `${serverAddress}%`];
+            const params = [serverAddress];
             if (chain) params.push(chain);
             const result = await this.db.query(query, params);
 

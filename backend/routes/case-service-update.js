@@ -589,6 +589,7 @@ router.get('/cases/:caseNumber/service-data', async (req, res) => {
     try {
         // Trim case number to prevent issues with trailing whitespace
         const caseNumber = (req.params.caseNumber || '').trim();
+        const serverAddress = req.headers['x-server-address'] || req.query.serverAddress;
 
         if (!caseNumber) {
             return res.status(400).json({
@@ -597,10 +598,11 @@ router.get('/cases/:caseNumber/service-data', async (req, res) => {
             });
         }
 
-        console.log(`Fetching service data for case ${caseNumber}`);
+        console.log(`Fetching service data for case ${caseNumber}, server: ${serverAddress || 'none'}`);
 
-        // Get case data with all service information
-        const result = await pool.query(`
+        // Build query with optional wallet filter
+        const hasWalletFilter = serverAddress && /^T[A-Za-z0-9]{33}$/.test(serverAddress);
+        const query = `
             SELECT
                 c.id,
                 c.case_number,
@@ -624,8 +626,13 @@ router.get('/cases/:caseNumber/service-data', async (req, res) => {
             FROM cases c
             LEFT JOIN case_service_records csr ON (c.case_number = csr.case_number OR c.id::text = csr.case_number)
             LEFT JOIN notice_images ni ON (c.case_number = ni.case_number OR c.id::text = ni.case_number)
-            WHERE c.case_number = $1 OR c.id = $1
-        `, [caseNumber]);
+            WHERE (c.case_number = $1 OR c.id = $1)
+            ${hasWalletFilter ? 'AND LOWER(c.server_address) = LOWER($2)' : ''}
+        `;
+        const params = hasWalletFilter ? [caseNumber, serverAddress] : [caseNumber];
+
+        // Get case data with all service information
+        const result = await pool.query(query, params);
 
         if (result.rows.length === 0) {
             return res.status(404).json({

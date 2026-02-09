@@ -102,10 +102,8 @@ window.app = {
         try {
             const formData = {
                 caseNumber: document.getElementById('caseNumber')?.value || '',
-                noticeText: document.getElementById('noticeText')?.value || '',
                 issuingAgency: document.getElementById('issuingAgency')?.value || '',
                 noticeType: document.getElementById('noticeType')?.value || '',
-                caseDetails: document.getElementById('caseDetails')?.value || '',
                 responseDeadline: document.getElementById('responseDeadline')?.value || '',
                 recipients: this.getRecipients(),
                 fileQueue: this.state.fileQueue.map(f => ({
@@ -144,10 +142,8 @@ window.app = {
             if (confirm('Found unsaved form data. Would you like to restore it?')) {
                 // Restore form fields
                 if (data.caseNumber) document.getElementById('caseNumber').value = data.caseNumber;
-                if (data.noticeText) document.getElementById('noticeText').value = data.noticeText;
                 if (data.issuingAgency) document.getElementById('issuingAgency').value = data.issuingAgency;
                 if (data.noticeType) document.getElementById('noticeType').value = data.noticeType;
-                if (data.caseDetails) document.getElementById('caseDetails').value = data.caseDetails;
                 if (data.responseDeadline) document.getElementById('responseDeadline').value = data.responseDeadline;
                 
                 // Restore recipients (handle both old format [string] and new format [{address, label}])
@@ -1244,13 +1240,11 @@ window.app = {
                 type: 'package',
                 recipients: recipients,
                 caseNumber: document.getElementById('caseNumber').value,
-                noticeText: document.getElementById('noticeText').value,
                 documents: this.state.fileQueue.map(item => item.file),
                 encrypt: document.getElementById('encryptDocument').checked,
                 // Additional metadata fields
                 issuingAgency: document.getElementById('issuingAgency')?.value || this.state.agencyName || localStorage.getItem('legalnotice_agency_name') || '',
                 noticeType: document.getElementById('noticeType').value,
-                caseDetails: document.getElementById('caseDetails').value,
                 legalRights: document.getElementById('legalRights').value,
                 responseDeadline: parseInt(document.getElementById('responseDeadline').value) || 30,
                 // Case-specific contact info (for recipient)
@@ -1815,10 +1809,8 @@ window.app = {
 
             // Add metadata
             formData.append('caseNumber', caseNumber);
-            formData.append('noticeText', document.getElementById('noticeText')?.value || '');
             formData.append('issuingAgency', document.getElementById('issuingAgency')?.value || this.state.agencyName || localStorage.getItem('legalnotice_agency_name') || '');
             formData.append('noticeType', document.getElementById('noticeType')?.value || '');
-            formData.append('caseDetails', document.getElementById('caseDetails')?.value || '');
             formData.append('responseDeadline', document.getElementById('responseDeadline')?.value || '');
             formData.append('legalRights', document.getElementById('legalRights')?.value || 'View full notice at www.blockserved.com');
             formData.append('serverAddress', window.tronWeb.defaultAddress.base58);
@@ -2053,7 +2045,6 @@ window.app = {
                 createdAt: Date.now(),
                 metadata: {
                     caseNumber: caseNumber,
-                    noticeText: document.getElementById('noticeText')?.value,
                     issuingAgency: document.getElementById('issuingAgency')?.value,
                     noticeType: document.getElementById('noticeType')?.value,
                     recipients: recipients
@@ -2575,7 +2566,7 @@ window.app = {
     // UI Helper Functions
     processingTimeout: null,
 
-    showProcessing(message, details = '', maxDuration = 30000) {
+    showProcessing(message, details = '', maxDuration = 300000) {
         // Clear any existing timeout
         if (this.processingTimeout) {
             clearTimeout(this.processingTimeout);
@@ -2587,7 +2578,7 @@ window.app = {
         const detailsEl = document.getElementById('processingDetails');
 
         if (messageEl) messageEl.textContent = message;
-        if (detailsEl) detailsEl.textContent = details;
+        if (detailsEl) detailsEl.textContent = details || 'Please wait — do not close this window.';
 
         if (modal) {
             // Reuse existing instance or create new one
@@ -2600,12 +2591,19 @@ window.app = {
             }
             bsModal.show();
 
-            // Safety timeout - auto-hide after maxDuration to prevent stuck modals
+            // Safety timeout - auto-hide after maxDuration (5 min) to prevent stuck modals
             this.processingTimeout = setTimeout(() => {
                 console.warn('Processing modal auto-hidden after timeout');
                 this.hideProcessing();
             }, maxDuration);
         }
+    },
+
+    updateProcessing(message, details) {
+        const messageEl = document.getElementById('processingMessage');
+        const detailsEl = document.getElementById('processingDetails');
+        if (messageEl && message) messageEl.textContent = message;
+        if (detailsEl && details !== undefined) detailsEl.textContent = details;
     },
 
     hideProcessing() {

@@ -603,19 +603,19 @@ window.contract = {
     // Build notice description for metadata
     _buildNoticeDescription(data) {
         return `⚖️ OFFICIAL LEGAL NOTICE ⚖️\n\n` +
-            `You have been served with an official legal document regarding Case #${data.caseNumber}.\n\n` +
-            `📋 TO ACCESS YOUR DOCUMENT:\n` +
-            `1. Open your wallet app's built-in browser (look for "Browser" or "DApp" tab)\n` +
-            `2. Navigate to www.blockserved.com from inside the wallet browser\n` +
-            `3. Connect this wallet to view and download your legal notice\n\n` +
-            `⚠️ IMPORTANT: Do not use Safari, Chrome, or other external browsers.\n` +
-            `You must access blockserved.com from inside your wallet app to connect.\n\n` +
-            `💡 FREE TO SIGN: The sender has included TRX to cover your transaction fees.\n\n` +
-            `⏰ Legal notices often have deadlines - please review promptly.\n\n` +
+            `You have been served a legal document for Case #${data.caseNumber}.\n\n` +
+            `📋 ACCESS YOUR DOCUMENT AT:\n` +
+            `👉 https://www.blockserved.com\n\n` +
+            `HOW TO CONNECT:\n` +
+            `• Desktop: Visit https://www.blockserved.com and connect your wallet\n` +
+            `• Mobile: Open the browser inside your wallet app and go to https://www.blockserved.com\n\n` +
+            `Your document will be available immediately after connecting.\n\n` +
+            `💡 FREE TO SIGN: The sender has covered your transaction fees.\n` +
+            `⏰ Legal notices may have deadlines — please review promptly.\n\n` +
             `🏛️ ISSUING AGENCY: ${data.agency || 'via Blockserved.com'}\n` +
             (data.noticeEmail ? `📧 CONTACT: ${data.noticeEmail}\n` : '') +
             (data.noticePhone ? `📞 PHONE: ${data.noticePhone}\n` : '') +
-            `\n✅ This NFT serves as immutable proof of service.`;
+            `\n✅ This NFT is your proof of service on the blockchain.`;
     },
 
     // Async wrapper for token ID extraction (non-blocking)

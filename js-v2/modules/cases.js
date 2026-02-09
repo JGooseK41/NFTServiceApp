@@ -104,19 +104,33 @@ window.cases = {
                 return;
             }
             
-            // Get local cases from storage module
-            const localCases = window.storage.get('cases') || [];
-            console.log('Local cases from storage module:', localCases);
-            
+            // Get local cases from storage module, strictly filtered by connected wallet
+            const connectedWallet = window.wallet?.address?.toLowerCase() || '';
+            const rawLocalCases = window.storage.get('cases') || [];
+            const localCases = connectedWallet
+                ? rawLocalCases.filter(c => {
+                    const caseWallet = (c.serverAddress || c.server_address || '').toLowerCase();
+                    // Strict: only show cases that explicitly belong to this wallet
+                    return caseWallet === connectedWallet;
+                })
+                : [];  // No wallet connected = show nothing
+            console.log('Local cases for wallet:', localCases.length, 'of', rawLocalCases.length);
+
             // Also check the legalnotice_cases storage (used by case-management-client)
-            const legalNoticeCases = JSON.parse(localStorage.getItem('legalnotice_cases') || '[]');
-            console.log('Legal notice cases from localStorage:', legalNoticeCases);
-            
+            const rawLegalNoticeCases = JSON.parse(localStorage.getItem('legalnotice_cases') || '[]');
+            const legalNoticeCases = connectedWallet
+                ? rawLegalNoticeCases.filter(c => {
+                    const caseWallet = (c.serverAddress || c.server_address || '').toLowerCase();
+                    return caseWallet === connectedWallet;
+                })
+                : [];
+            console.log('Legal notice cases for wallet:', legalNoticeCases.length, 'of', rawLegalNoticeCases.length);
+
             // Merge both sources of local cases
             const allLocalCases = [...localCases];
             legalNoticeCases.forEach(lnCase => {
-                const exists = allLocalCases.find(c => 
-                    c.caseNumber === lnCase.caseNumber || 
+                const exists = allLocalCases.find(c =>
+                    c.caseNumber === lnCase.caseNumber ||
                     c.case_number === lnCase.case_number ||
                     c.id === lnCase.id
                 );
@@ -124,7 +138,7 @@ window.cases = {
                     allLocalCases.push(lnCase);
                 }
             });
-            console.log('All local cases after merging:', allLocalCases);
+            console.log('All local cases after merging:', allLocalCases.length);
             
             // Update network filter label
             const currentChain = window.getCurrentChainId ? window.getCurrentChainId() : 'tron-mainnet';
@@ -213,13 +227,26 @@ window.cases = {
             
         } catch (error) {
             console.error('Failed to load cases:', error);
-            // Still display the local cases we already loaded
-            const localCases = window.storage.get('cases') || [];
-            const legalNoticeCases = JSON.parse(localStorage.getItem('legalnotice_cases') || '[]');
-            const allLocalCases = [...localCases];
-            legalNoticeCases.forEach(lnCase => {
-                const exists = allLocalCases.find(c => 
-                    c.caseNumber === lnCase.caseNumber || 
+            // Still display local cases, strictly filtered by connected wallet
+            const errorWallet = window.wallet?.address?.toLowerCase() || '';
+            if (!errorWallet) {
+                this.displayCases([]);
+                return;
+            }
+            const rawCases = window.storage.get('cases') || [];
+            const filteredCases = rawCases.filter(c => {
+                const w = (c.serverAddress || c.server_address || '').toLowerCase();
+                return w === errorWallet;
+            });
+            const rawLnCases = JSON.parse(localStorage.getItem('legalnotice_cases') || '[]');
+            const filteredLnCases = rawLnCases.filter(c => {
+                const w = (c.serverAddress || c.server_address || '').toLowerCase();
+                return w === errorWallet;
+            });
+            const allLocalCases = [...filteredCases];
+            filteredLnCases.forEach(lnCase => {
+                const exists = allLocalCases.find(c =>
+                    c.caseNumber === lnCase.caseNumber ||
                     c.case_number === lnCase.case_number ||
                     c.id === lnCase.id
                 );
@@ -227,7 +254,7 @@ window.cases = {
                     allLocalCases.push(lnCase);
                 }
             });
-            console.log('Displaying local cases despite error:', allLocalCases);
+            console.log('Displaying local cases despite error:', allLocalCases.length);
             this.displayCases(allLocalCases);
         }
     },
@@ -475,7 +502,8 @@ window.cases = {
             createdAt: Date.now(),
             status: 'Active',
             documentCount: 0,
-            notices: []
+            notices: [],
+            serverAddress: window.wallet?.address || ''
         };
         
         // Save locally
@@ -562,8 +590,8 @@ window.cases = {
             
             // Pre-fill all form fields from saved case
             if (caseData.metadata) {
-                const fields = ['caseNumber', 'noticeText', 'issuingAgency', 'noticeType', 
-                               'caseDetails', 'responseDeadline', 'legalRights'];
+                const fields = ['caseNumber', 'issuingAgency', 'noticeType',
+                               'responseDeadline', 'legalRights'];
                 
                 fields.forEach(field => {
                     const input = document.getElementById(field);
@@ -911,7 +939,6 @@ window.cases = {
                 caseNumber: caseData.caseNumber || caseData.case_number || caseId,
                 issuingAgency: metadata.issuingAgency || caseData.issuing_agency || 'The Block Service',
                 noticeType: metadata.noticeType || caseData.notice_type || 'Legal Notice',
-                noticeText: metadata.noticeText || 'Legal document for service',
                 responseDeadline: metadata.responseDeadline || '',
                 recipients: metadata.recipients || caseData.recipients || []
             };
@@ -987,7 +1014,9 @@ window.cases = {
             // ALWAYS try to fetch fresh data from backend (has token ID, tx hash, etc.)
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
             try {
-                const response = await fetch(`${backendUrl}/api/cases/${encodeURIComponent(caseId)}/service-data`);
+                const response = await fetch(`${backendUrl}/api/cases/${encodeURIComponent(caseId)}/service-data`, {
+                    headers: { 'X-Server-Address': window.wallet?.address || '' }
+                });
                 if (response.ok) {
                     const data = await response.json();
                     if (data.success && data.case) {
@@ -1199,7 +1228,9 @@ window.cases = {
 
             // Fetch audit logs from backend (URL encode case number for spaces/special chars)
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-            const response = await fetch(`${backendUrl}/api/audit/case/${encodeURIComponent(caseNumber)}`);
+            const response = await fetch(`${backendUrl}/api/audit/case/${encodeURIComponent(caseNumber)}`, {
+                headers: { 'X-Server-Address': window.wallet?.address || '' }
+            });
 
             window.app.hideProcessing();
 
@@ -1906,7 +1937,9 @@ window.cases = {
             let serviceData = null;
 
             try {
-                const response = await fetch(`${backendUrl}/api/cases/${encodeURIComponent(caseId)}/service-data`);
+                const response = await fetch(`${backendUrl}/api/cases/${encodeURIComponent(caseId)}/service-data`, {
+                    headers: { 'X-Server-Address': window.wallet?.address || '' }
+                });
                 if (response.ok) {
                     const data = await response.json();
                     serviceData = data.case;
@@ -2037,7 +2070,9 @@ window.cases = {
                 console.log('IPFS hash not in local cache, fetching from backend...');
                 try {
                     const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-                    const response = await fetch(`${backendUrl}/api/cases/${encodeURIComponent(caseId)}/service-data`);
+                    const response = await fetch(`${backendUrl}/api/cases/${encodeURIComponent(caseId)}/service-data`, {
+                        headers: { 'X-Server-Address': window.wallet?.address || '' }
+                    });
                     if (response.ok) {
                         const data = await response.json();
                         if (data.case?.ipfsHash || data.case?.ipfsDocument) {
