@@ -196,6 +196,8 @@ router.get('/case/:caseNumber', async (req, res) => {
             success: true,
             caseNumber: caseNumber,
             recipients: recipients,
+            alertTokenId: alertTokenId || null,
+            documentTokenId: documentTokenId || null,
             totalEvents: auditEntries.length,
             events: auditEntries
         });

@@ -1385,12 +1385,51 @@ window.cases = {
                       data-bs-content="${explainer.description}">${explainer.label}</span>`;
     },
 
+    // Check if an audit event belongs to a specific case
+    _eventMatchesCase(event, caseNumber, alertTokenId, documentTokenId) {
+        const tid = event.targetId;
+        if (!tid) return false;
+        const tidStr = String(tid);
+        if (tidStr === String(caseNumber)) return true;
+        if (alertTokenId && tidStr === String(alertTokenId)) return true;
+        if (documentTokenId && tidStr === String(documentTokenId)) return true;
+        // "Checked Notices" events can list comma-separated case numbers
+        if (tidStr.includes(',') && tidStr.split(',').map(s => s.trim()).includes(String(caseNumber))) return true;
+        return false;
+    },
+
+    // Toggle audit log filter between "This Case Only" and "All Wallet Activity"
+    _toggleAuditFilter(addr, showAll) {
+        const tableWrapper = document.querySelector(`[data-audit-recipient="${addr}"]`);
+        if (!tableWrapper) return;
+        const cardBody = tableWrapper.closest('.card-body');
+        const rows = tableWrapper.querySelectorAll('tbody tr[data-case-match]');
+        let visibleCount = 0;
+        rows.forEach(tr => {
+            if (showAll || tr.dataset.caseMatch === 'true') {
+                tr.style.display = '';
+                visibleCount++;
+            } else {
+                tr.style.display = 'none';
+            }
+        });
+        const countEl = cardBody ? cardBody.querySelector('.audit-visible-count') : null;
+        const totalCount = rows.length;
+        if (countEl) {
+            countEl.textContent = showAll
+                ? `Showing all ${totalCount} events`
+                : `Showing ${visibleCount} of ${totalCount} events (this case only)`;
+        }
+    },
+
     // Show audit log modal
     showAuditLogModal(caseNumber, auditData) {
         // Stash raw data for full-detail export
         this._lastAuditExport = { caseNumber, auditData };
 
         const { recipients, events } = auditData;
+        const alertTokenId = auditData.alertTokenId;
+        const documentTokenId = auditData.documentTokenId;
         const maxEventsPerRecipient = 50; // Limit to prevent browser hang
 
         // Group events by recipient address (handle both string and object formats)
@@ -1449,12 +1488,20 @@ window.cases = {
                                         ${eventsByRecipient[addr].length === 0 ?
                                             '<p class="text-muted mb-0"><i class="bi bi-clock"></i> This recipient has not accessed their notice yet</p>'
                                         : `
-                                            <div class="table-responsive">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span class="text-muted small audit-visible-count"></span>
+                                                <div class="form-check form-switch mb-0">
+                                                    <input class="form-check-input" type="checkbox" id="auditToggle_${addr}" onchange="cases._toggleAuditFilter('${addr}', this.checked)">
+                                                    <label class="form-check-label small" for="auditToggle_${addr}">All Wallet Activity</label>
+                                                </div>
+                                            </div>
+                                            <div class="table-responsive" data-audit-recipient="${addr}">
                                                 <table class="table table-sm">
                                                     <thead>
                                                         <tr>
                                                             <th>Time</th>
                                                             <th>Action</th>
+                                                            <th>Notice</th>
                                                             <th>IP Address</th>
                                                             <th>Browser</th>
                                                             <th>Language</th>
@@ -1471,10 +1518,12 @@ window.cases = {
                                                             const fpShort = d.fingerprint ? d.fingerprint.substring(0, 12) + '...' : 'N/A';
                                                             const fpConf = d.fingerprintConfidence ? d.fingerprintConfidence + '% confidence' : '';
                                                             const fpTooltip = d.fingerprint ? 'Derived from: canvas, WebGL (GPU), audio, fonts, hardware, plugins' + (fpConf ? ' — ' + fpConf : '') : '';
+                                                            const matchesCase = cases._eventMatchesCase(event, caseNumber, alertTokenId, documentTokenId);
                                                             return `
-                                                            <tr>
+                                                            <tr data-case-match="${matchesCase}" ${!matchesCase ? 'style="display:none;"' : ''}>
                                                                 <td><small>${new Date(event.timestamp).toLocaleString()}</small></td>
                                                                 <td>${cases.getActionBadge(event.action)}</td>
+                                                                <td><small>${event.targetId || '<span class="text-muted">—</span>'}</small></td>
                                                                 <td><small><code>${event.ipAddress || 'N/A'}</code></small></td>
                                                                 <td><small>${ua.browser} / ${ua.os}</small></td>
                                                                 <td><small>${lang}</small></td>
@@ -1532,6 +1581,12 @@ window.cases = {
         // Initialize tooltips
         const tooltipTriggerList = modalElement.querySelectorAll('[data-bs-toggle="tooltip"]');
         tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
+
+        // Initialize audit filter counts (default: "This Case Only")
+        recipients.forEach(r => {
+            const addr = this.getRecipientAddress(r);
+            this._toggleAuditFilter(addr, false);
+        });
 
         // Show modal
         const modal = new bootstrap.Modal(modalElement);
@@ -1932,7 +1987,7 @@ window.cases = {
 
         // CSV headers — full forensic detail
         const headers = [
-            'Case Number', 'Recipient', 'Recipient Label', 'Timestamp (UTC)', 'Timestamp (Local)',
+            'Case Number', 'Notice/Case ID', 'Recipient', 'Recipient Label', 'Timestamp (UTC)', 'Timestamp (Local)',
             'Action', 'IP Address', 'Browser', 'OS', 'Device',
             'Language', 'Timezone', 'Wallet Provider',
             'Fingerprint ID', 'Fingerprint Confidence',
@@ -1951,6 +2006,7 @@ window.cases = {
 
             rows.push([
                 caseNumber,
+                event.targetId || '',
                 wallet,
                 label,
                 event.timestamp ? new Date(event.timestamp).toISOString() : '',

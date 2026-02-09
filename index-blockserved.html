@@ -3177,6 +3177,12 @@
                 return;
             }
 
+            // Ensure we have a fresh tronWeb reference
+            if (!window.tronWeb || !window.tronWeb.ready) {
+                showAlert('Wallet not connected. Please reconnect TronLink.', 'error');
+                return;
+            }
+
             // Check for token ID - Lite v2 uses single NFT (alert_token_id), v5 uses document_token_id
             const isLiteContract = notice.contract_type === 'lite' || notice.contract_type === 'lite-v2' || !notice.document_token_id;
             const signingTokenId = isLiteContract ? (notice.alert_token_id || notice.token_id) : notice.document_token_id;
@@ -3199,12 +3205,33 @@
 
             try {
                 // Create signature message - different wording for Lite vs v5
+                const servedDate = notice.served_at ? new Date(notice.served_at).toISOString() : new Date().toISOString();
                 const message = isLiteContract
-                    ? `I acknowledge and accept the legal notice (Token #${signingTokenId}) for Case #${notice.case_number} served on ${new Date(notice.served_at).toISOString()}`
-                    : `I acknowledge and accept the legal document (Document NFT #${signingTokenId}) for Case #${notice.case_number} served on ${new Date(notice.served_at).toISOString()}`;
+                    ? `I acknowledge and accept the legal notice (Token #${signingTokenId}) for Case #${notice.case_number} served on ${servedDate}`
+                    : `I acknowledge and accept the legal document (Document NFT #${signingTokenId}) for Case #${notice.case_number} served on ${servedDate}`;
 
-                // Sign with TronLink - user may decline at this point
-                const signature = await tronWeb.trx.signMessageV2(message);
+                // Sign with TronLink - use window.tronWeb directly (not cached ref)
+                // Try signMessageV2 first, fall back to tronLink.request API
+                let signature;
+                try {
+                    signature = await window.tronWeb.trx.signMessageV2(message);
+                } catch (signErr) {
+                    console.warn('signMessageV2 failed, trying tronLink.request fallback:', signErr);
+                    // Fallback: use TronLink request API directly
+                    if (window.tronLink && window.tronLink.request) {
+                        const result = await window.tronLink.request({
+                            method: 'tron_signMessageV2',
+                            params: { message: message }
+                        });
+                        signature = result?.signature || result;
+                    } else {
+                        throw signErr; // Re-throw if no fallback available
+                    }
+                }
+
+                if (!signature) {
+                    throw new Error('No signature returned from wallet');
+                }
                 
                 // Detect device and wallet for legal record
                 const deviceType = detectDeviceType();
