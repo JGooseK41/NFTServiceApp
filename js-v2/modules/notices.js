@@ -455,7 +455,39 @@ window.notices = {
             } else {
                 console.warn('No case identifier available - service data not saved to backend');
             }
-            
+
+            // Step 8.5: Send TRX notification transfer with memo to each recipient
+            // This makes the serve visible in TronLink's main transaction feed
+            try {
+                const recipientAddresses = getRecipientAddresses(data.recipients);
+                if (recipientAddresses.length > 0 && window.contract?.sendNotificationTransfer) {
+                    const memo = `Legal Notice: ${data.noticeType || 'Legal Document'} - Visit www.blockserved.com to view notice. Reference: ${data.issuingAgency || 'N/A'}, Case #${data.caseNumber || 'N/A'}`;
+
+                    if (window.app?.updateProcessing) {
+                        window.app.updateProcessing('Sending notification to recipients...', `0 of ${recipientAddresses.length} notifications sent`);
+                    }
+
+                    for (let i = 0; i < recipientAddresses.length; i++) {
+                        if (window.app?.updateProcessing) {
+                            window.app.updateProcessing('Sending notification to recipients...', `${i} of ${recipientAddresses.length} notifications sent`);
+                        }
+                        const result = await window.contract.sendNotificationTransfer(recipientAddresses[i], memo);
+                        if (!result.success) {
+                            console.warn(`Notification transfer failed for ${recipientAddresses[i]}:`, result.error);
+                            // If user rejected the TronLink popup, skip remaining
+                            if (result.error && (result.error.includes('Confirmation declined') || result.error.includes('reject'))) {
+                                console.log('User rejected notification transfer, skipping remaining');
+                                break;
+                            }
+                        } else {
+                            console.log(`Notification sent to ${recipientAddresses[i]}: ${result.txId}`);
+                        }
+                    }
+                }
+            } catch (notifyError) {
+                console.warn('Notification transfers failed (non-blocking):', notifyError);
+            }
+
             // Step 9: Generate receipt with fee breakdown
             if (window.app?.updateProcessing) {
                 window.app.updateProcessing('Generating service receipt...', 'Almost done!');

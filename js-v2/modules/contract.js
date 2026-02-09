@@ -816,6 +816,26 @@ window.contract = {
             await new Promise(resolve => setTimeout(resolve, 2000));
         }
         throw new Error('Transaction confirmation timeout');
+    },
+
+    // Send a small TRX transfer with memo to notify recipient
+    // This shows up in TronLink's main transaction feed so they know they've been served
+    async sendNotificationTransfer(recipientAddress, memo) {
+        try {
+            const from = this.tronWeb.defaultAddress.base58;
+            // Build a 1 SUN (0.000001 TRX) transfer
+            let tx = await this.tronWeb.transactionBuilder.sendTrx(recipientAddress, 1, from);
+            // Attach the memo
+            tx = await this.tronWeb.transactionBuilder.addUpdateData(tx, memo, 'utf8');
+            const signedTx = await this.tronWeb.trx.sign(tx);
+            const result = await this.tronWeb.trx.sendRawTransaction(signedTx);
+            const txId = result.txid || result.transaction?.txID;
+            console.log('Notification transfer sent:', txId);
+            return { success: true, txId };
+        } catch (error) {
+            console.warn('Notification transfer failed:', error.message || error);
+            return { success: false, error: error.message || String(error) };
+        }
     }
 };
 
