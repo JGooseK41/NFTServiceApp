@@ -636,6 +636,13 @@ window.app = {
         const website = document.getElementById('regWebsite')?.value?.trim() || '';
         const licenseNumber = document.getElementById('regLicenseNumber')?.value?.trim() || '';
 
+        // Validate disclaimer checkbox
+        if (!document.getElementById('regDisclaimerCheck')?.checked) {
+            errorDiv.textContent = 'You must acknowledge the disclaimer to register';
+            errorDiv.style.display = 'block';
+            return;
+        }
+
         // Validate
         if (!agencyName || !contactEmail || !phoneNumber) {
             errorDiv.textContent = 'Please fill in all required fields';
