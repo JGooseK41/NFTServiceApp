@@ -7,12 +7,12 @@ const sgMail = require('@sendgrid/mail');
 
 // Initialize SendGrid with API key
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
-const FROM_EMAIL = process.env.FROM_EMAIL || 'noreply@theblockaudit.com';
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@theblockaudit.com';
+const FROM_EMAIL = process.env.FROM_EMAIL || process.env.SENDGRID_FROM_EMAIL || 'noreply@theblockaudit.com';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || process.env.SENDGRID_ADMIN_EMAIL || 'admin@theblockaudit.com';
 
 if (SENDGRID_API_KEY) {
     sgMail.setApiKey(SENDGRID_API_KEY);
-    console.log('✅ SendGrid email service initialized');
+    console.log(`✅ SendGrid email service initialized (from: ${FROM_EMAIL}, admin: ${ADMIN_EMAIL})`);
 } else {
     console.warn('⚠️ SENDGRID_API_KEY not set - email notifications disabled');
 }
