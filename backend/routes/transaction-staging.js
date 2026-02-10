@@ -10,7 +10,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const crypto = require('crypto');
-const { Pool } = require('pg');
+const pool = require('../db');
 
 // Test endpoint to verify CORS
 router.get('/test', (req, res) => {
@@ -38,12 +38,6 @@ router.get('/test', (req, res) => {
         origin: origin,
         allowed: allowedOrigins.includes(origin)
     });
-});
-
-// Database connection
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgresql://nftservice:nftservice123@localhost:5432/nftservice_db',
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
 // Configure multer for file uploads

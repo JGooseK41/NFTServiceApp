@@ -44,7 +44,7 @@ window.adminAccess = {
             }
             
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-            const response = await fetch(`${backendUrl}/api/admin-auth/check/${window.wallet.address}`);
+            const response = await fetchWithTimeout(`${backendUrl}/api/admin-auth/check/${window.wallet.address}`);
             
             if (!response.ok) {
                 throw new Error('Failed to check admin status');
@@ -189,7 +189,7 @@ window.adminAccess = {
         
         try {
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-            const response = await fetch(`${backendUrl}/api/admin-auth/add`, {
+            const response = await fetchWithTimeout(`${backendUrl}/api/admin-auth/add`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -222,7 +222,7 @@ window.adminAccess = {
         
         try {
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-            const response = await fetch(`${backendUrl}/api/admin-auth/remove`, {
+            const response = await fetchWithTimeout(`${backendUrl}/api/admin-auth/remove`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -255,7 +255,7 @@ window.adminAccess = {
         
         try {
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-            const response = await fetch(`${backendUrl}/api/admin-auth/list`, {
+            const response = await fetchWithTimeout(`${backendUrl}/api/admin-auth/list`, {
                 headers: {
                     'adminWallet': window.wallet.address
                 }
@@ -286,7 +286,7 @@ window.adminAccess = {
             window.app.showProcessing('Syncing with blockchain...');
             
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-            const response = await fetch(`${backendUrl}/api/admin-auth/sync-blockchain`, {
+            const response = await fetchWithTimeout(`${backendUrl}/api/admin-auth/sync-blockchain`, {
                 method: 'POST',
                 headers: {
                     'adminWallet': window.wallet.address

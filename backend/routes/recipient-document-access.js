@@ -5,15 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
-
-// Create pool instance
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('render.com') 
-        ? { rejectUnauthorized: false }
-        : false
-});
+const pool = require('../db');
 
 // Build forensic details from request headers (extracted by middleware in server.js)
 function buildForensicDetails(req, extraDetails = {}) {

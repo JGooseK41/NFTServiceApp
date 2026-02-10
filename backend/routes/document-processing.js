@@ -8,18 +8,10 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
-const { Pool } = require('pg');
+const pool = require('../db');
 const PDFDocument = require('pdfkit');
 const sharp = require('sharp');
 const { PDFDocument: PDFLib } = require('pdf-lib');
-
-// Database connection
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('render.com') 
-        ? { rejectUnauthorized: false }
-        : false
-});
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage();

@@ -157,7 +157,7 @@ window.cases = {
                 console.log('Fetching cases from:', url);
                 console.log('Using server address:', window.wallet.address);
 
-                const response = await fetch(url, {
+                const response = await fetchWithTimeout(url, {
                     headers: {
                         'X-Server-Address': window.wallet.address
                     }
@@ -190,7 +190,7 @@ window.cases = {
                         // If case is served, fetch complete service data
                         if (caseData.status === 'served' || caseData.transaction_hash || caseData.transactionHash) {
                             try {
-                                const serviceResponse = await fetch(`${backendUrl}/api/cases/${encodeURIComponent(caseNumber)}/service-data`, {
+                                const serviceResponse = await fetchWithTimeout(`${backendUrl}/api/cases/${encodeURIComponent(caseNumber)}/service-data`, {
                                     headers: {
                                         'X-Server-Address': window.wallet.address
                                     }
@@ -522,7 +522,7 @@ window.cases = {
         if (window.wallet && window.wallet.connected) {
             try {
                 const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-                await fetch(`${backendUrl}/api/cases`, {
+                await fetchWithTimeout(`${backendUrl}/api/cases`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -557,12 +557,12 @@ window.cases = {
             if (window.wallet && window.wallet.connected) {
                 try {
                     const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-                    const response = await fetch(`${backendUrl}/api/cases/${caseNumber}`, {
+                    const response = await fetchWithTimeout(`${backendUrl}/api/cases/${caseNumber}`, {
                         headers: {
                             'X-Server-Address': window.wallet.address
                         }
                     });
-                    
+
                     if (response.ok) {
                         const result = await response.json();
                         caseData = result.case;
@@ -678,7 +678,7 @@ window.cases = {
             // Now fetch the actual PDF from backend to populate the file queue
             if (caseData.pdf_path) {
                 try {
-                    const response = await fetch(`${backendUrl}/api/cases/${caseId}/pdf`, {
+                    const response = await fetchWithTimeout(`${backendUrl}/api/cases/${caseId}/pdf`, {
                         headers: {
                             'X-Server-Address': window.wallet.address
                         }
@@ -737,7 +737,7 @@ window.cases = {
         if (!caseData && window.wallet && window.wallet.connected) {
             try {
                 const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-                const response = await fetch(`${backendUrl}/api/cases/by-number/${caseNumber}?serverAddress=${window.wallet.address}`, {
+                const response = await fetchWithTimeout(`${backendUrl}/api/cases/by-number/${caseNumber}?serverAddress=${window.wallet.address}`, {
                     headers: {
                         'X-Server-Address': window.wallet.address
                     }
@@ -920,12 +920,12 @@ window.cases = {
             // If not found, fetch from backend
             if (!caseData) {
                 const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-                const response = await fetch(`${backendUrl}/api/cases/${caseId}`, {
+                const response = await fetchWithTimeout(`${backendUrl}/api/cases/${caseId}`, {
                     headers: {
                         'X-Server-Address': window.wallet.address
                     }
                 });
-                
+
                 if (response.ok) {
                     const result = await response.json();
                     caseData = result.case;
@@ -978,7 +978,7 @@ window.cases = {
         
         try {
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-            const response = await fetch(`${backendUrl}/api/cases/${caseNumber}`, {
+            const response = await fetchWithTimeout(`${backendUrl}/api/cases/${caseNumber}`, {
                 method: 'DELETE',
                 headers: {
                     'X-Server-Address': serverAddress || window.wallet.address
@@ -1023,7 +1023,7 @@ window.cases = {
             // ALWAYS try to fetch fresh data from backend (has token ID, tx hash, etc.)
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
             try {
-                const response = await fetch(`${backendUrl}/api/cases/${encodeURIComponent(caseId)}/service-data`, {
+                const response = await fetchWithTimeout(`${backendUrl}/api/cases/${encodeURIComponent(caseId)}/service-data`, {
                     headers: { 'X-Server-Address': window.wallet?.address || '' }
                 });
                 if (response.ok) {
@@ -1237,7 +1237,7 @@ window.cases = {
 
             // Fetch audit logs from backend (URL encode case number for spaces/special chars)
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-            const response = await fetch(`${backendUrl}/api/audit/case/${encodeURIComponent(caseNumber)}`, {
+            const response = await fetchWithTimeout(`${backendUrl}/api/audit/case/${encodeURIComponent(caseNumber)}`, {
                 headers: { 'X-Server-Address': window.wallet?.address || '' }
             });
 
@@ -1626,7 +1626,7 @@ window.cases = {
 
             console.log('fetchRecipientStatus: Fetching status for case:', caseNumber);
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-            const response = await fetch(`${backendUrl}/api/server/${walletAddress}/case/${encodeURIComponent(caseNumber)}/recipient-status?detailed=true`);
+            const response = await fetchWithTimeout(`${backendUrl}/api/server/${walletAddress}/case/${encodeURIComponent(caseNumber)}/recipient-status?detailed=true`);
 
             if (!response.ok) {
                 console.error('Failed to fetch recipient status:', response.status);
@@ -2058,7 +2058,7 @@ window.cases = {
             let serviceData = null;
 
             try {
-                const response = await fetch(`${backendUrl}/api/cases/${encodeURIComponent(caseId)}/service-data`, {
+                const response = await fetchWithTimeout(`${backendUrl}/api/cases/${encodeURIComponent(caseId)}/service-data`, {
                     headers: { 'X-Server-Address': window.wallet?.address || '' }
                 });
                 if (response.ok) {
@@ -2191,7 +2191,7 @@ window.cases = {
                 console.log('IPFS hash not in local cache, fetching from backend...');
                 try {
                     const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-                    const response = await fetch(`${backendUrl}/api/cases/${encodeURIComponent(caseId)}/service-data`, {
+                    const response = await fetchWithTimeout(`${backendUrl}/api/cases/${encodeURIComponent(caseId)}/service-data`, {
                         headers: { 'X-Server-Address': window.wallet?.address || '' }
                     });
                     if (response.ok) {
@@ -2422,7 +2422,7 @@ window.cases = {
             // First try to fetch from backend
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
             try {
-                const response = await fetch(`${backendUrl}/api/cases/${encodeURIComponent(caseNumber)}/service-data`, {
+                const response = await fetchWithTimeout(`${backendUrl}/api/cases/${encodeURIComponent(caseNumber)}/service-data`, {
                     headers: {
                         'X-Server-Address': window.wallet?.address || ''
                     }

@@ -14,7 +14,7 @@ window.documentViewer = {
             const url = `${baseUrl}/api/documents/encrypted/${documentId}`;
             
             // Fetch with authentication
-            const response = await fetch(url, {
+            const response = await fetchWithTimeout(url, {
                 headers: {
                     'X-Wallet-Address': viewerAddress || window.wallet?.address || '',
                     'X-Server-Address': viewerAddress || window.wallet?.address || ''
@@ -59,7 +59,7 @@ window.documentViewer = {
             
             const url = `${baseUrl}/api/documents/encrypted/${documentId}/metadata`;
             
-            const response = await fetch(url);
+            const response = await fetchWithTimeout(url);
             
             if (!response.ok) {
                 throw new Error('Failed to get document metadata');

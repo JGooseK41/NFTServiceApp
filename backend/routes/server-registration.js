@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
+const pool = require('../db');
 
 // Email service for notifications
 let emailService;
@@ -9,12 +9,6 @@ try {
 } catch (err) {
     console.log('Email service not available:', err.message);
 }
-
-// Database connection
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgresql://nftservice:nftservice123@localhost:5432/nftservice_db',
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
-});
 
 /**
  * Ensure process_servers table exists with all required columns
@@ -492,9 +486,28 @@ router.post('/api/server/approve', async (req, res) => {
     try {
         const { wallet_address, admin_key } = req.body;
 
-        // Simple admin key validation (you may want to enhance this)
-        const ADMIN_KEY = process.env.ADMIN_API_KEY || 'default-admin-key';
-        if (admin_key !== ADMIN_KEY) {
+        // Admin key validation - fails closed if not configured
+        const ADMIN_KEY = process.env.ADMIN_API_KEY;
+        if (!ADMIN_KEY) {
+            return res.status(503).json({
+                success: false,
+                error: 'Admin endpoint not configured. Set ADMIN_API_KEY environment variable.'
+            });
+        }
+
+        // Constant-time comparison to prevent timing attacks
+        const crypto = require('crypto');
+        try {
+            const keyBuffer = Buffer.from(ADMIN_KEY, 'utf8');
+            const providedBuffer = Buffer.from(String(admin_key || ''), 'utf8');
+            if (keyBuffer.length !== providedBuffer.length ||
+                !crypto.timingSafeEqual(keyBuffer, providedBuffer)) {
+                return res.status(403).json({
+                    success: false,
+                    error: 'Invalid admin key'
+                });
+            }
+        } catch (e) {
             return res.status(403).json({
                 success: false,
                 error: 'Invalid admin key'

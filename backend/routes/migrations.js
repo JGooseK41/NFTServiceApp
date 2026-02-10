@@ -7,12 +7,30 @@ const path = require('path');
 router.post('/run', async (req, res) => {
     const { migrationKey } = req.body;
     
-    // Check migration key for security
-    const validKey = process.env.MIGRATION_KEY || 'your-secret-migration-key';
-    if (migrationKey !== validKey) {
-        return res.status(403).json({ 
-            success: false, 
-            error: 'Invalid migration key' 
+    // Check migration key - fails closed if not configured
+    const validKey = process.env.MIGRATION_KEY;
+    if (!validKey) {
+        return res.status(503).json({
+            success: false,
+            error: 'Migration endpoint not configured. Set MIGRATION_KEY environment variable.'
+        });
+    }
+
+    const crypto = require('crypto');
+    try {
+        const keyBuffer = Buffer.from(validKey, 'utf8');
+        const providedBuffer = Buffer.from(String(migrationKey || ''), 'utf8');
+        if (keyBuffer.length !== providedBuffer.length ||
+            !crypto.timingSafeEqual(keyBuffer, providedBuffer)) {
+            return res.status(403).json({
+                success: false,
+                error: 'Invalid migration key'
+            });
+        }
+    } catch (e) {
+        return res.status(403).json({
+            success: false,
+            error: 'Invalid migration key'
         });
     }
     

@@ -5,7 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
+const pool = require('../db');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
@@ -16,11 +16,6 @@ const upload = multer({
     limits: {
         fileSize: 50 * 1024 * 1024 // 50MB limit
     }
-});
-
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
 /**

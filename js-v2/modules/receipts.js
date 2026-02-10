@@ -419,7 +419,7 @@ window.receipts = {
         try {
             // Fetch case data
             const backendUrl = window.app.getBackendUrl();
-            const response = await fetch(`${backendUrl}/api/cases/${caseNumber}/service-data`);
+            const response = await fetchWithTimeout(`${backendUrl}/api/cases/${caseNumber}/service-data`);
             
             let caseData;
             if (response.ok) {

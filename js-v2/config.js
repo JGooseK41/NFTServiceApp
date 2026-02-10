@@ -291,6 +291,28 @@ window.getApiUrl = function(endpoint, params = {}) {
     return baseUrl + url;
 };
 
+/**
+ * Fetch with timeout - wraps native fetch with AbortController timeout.
+ * @param {string} url - The URL to fetch
+ * @param {object} options - Fetch options (headers, method, body, etc.)
+ * @param {number} timeoutMs - Timeout in milliseconds (default: 15000)
+ * @returns {Promise<Response>}
+ */
+window.fetchWithTimeout = function(url, options = {}, timeoutMs = 15000) {
+    const controller = new AbortController();
+    const existingSignal = options.signal;
+
+    // If caller already provided a signal, don't override it
+    if (existingSignal) {
+        return fetch(url, options);
+    }
+
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    return fetch(url, { ...options, signal: controller.signal }).finally(() => {
+        clearTimeout(timeoutId);
+    });
+};
+
 // Initialize configuration
 console.log('LegalNotice v2 Config Loaded');
 console.log('Network:', window.AppConfig.network.current);

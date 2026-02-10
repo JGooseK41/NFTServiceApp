@@ -1,20 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
-
-// Database connection with proper pooling and error handling
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgresql://nftservice:nftservice123@localhost:5432/nftservice_db',
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
-    max: 20, // Maximum number of clients in the pool
-    idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-    connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection cannot be established
-});
-
-// Handle pool errors
-pool.on('error', (err, client) => {
-    console.error('Unexpected error on idle database client', err);
-});
+const pool = require('../db');
 
 /**
  * Simple endpoint to get cases without joins

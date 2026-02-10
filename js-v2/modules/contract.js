@@ -29,7 +29,7 @@ window.contract = {
             }
 
             // Try v2 ABI first (with recipient funding support)
-            let response = await fetch(basePath + 'lite-contract-abi-v2.json');
+            let response = await fetchWithTimeout(basePath + 'lite-contract-abi-v2.json');
 
             if (response.ok) {
                 this.abi = await response.json();
@@ -37,7 +37,7 @@ window.contract = {
                 console.log('Lite Contract ABI v2 loaded (with recipient funding)');
             } else {
                 // Fall back to v1 ABI
-                response = await fetch(basePath + 'lite-contract-abi.json');
+                response = await fetchWithTimeout(basePath + 'lite-contract-abi.json');
                 if (response.ok) {
                     this.abi = await response.json();
                     this.contractVersion = 1;
@@ -716,7 +716,7 @@ window.contract = {
             const eventsUrl = `${baseUrl}/v1/contracts/${contractAddress}/events?transaction_id=${txHash}`;
             console.log('  Querying events API:', eventsUrl);
 
-            const response = await fetch(eventsUrl, {
+            const response = await fetchWithTimeout(eventsUrl, {
                 headers: {
                     'TRON-PRO-API-KEY': window.TRONGRID_API_KEY || ''
                 }

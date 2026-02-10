@@ -9,13 +9,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const crypto = require('crypto');
-const { Pool } = require('pg');
-
-// Database connection
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgresql://nftservice:nftservice123@localhost:5432/nftservice_db',
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
-});
+const pool = require('../db');
 
 // Use Render mounted disk path
 const DISK_MOUNT_PATH = process.env.DISK_MOUNT_PATH || '/var/data';

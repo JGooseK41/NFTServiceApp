@@ -34,7 +34,7 @@ async function debugCaseDisplay() {
     
     try {
         // Try to get from list endpoint
-        const listResponse = await fetch(`${backendUrl}/api/cases/list?serverAddress=${window.wallet?.address || 'unknown'}`);
+        const listResponse = await fetchWithTimeout(`${backendUrl}/api/cases/list?serverAddress=${window.wallet?.address || 'unknown'}`);
         const listData = await listResponse.json();
         console.log('List endpoint response:', listData);
         
@@ -44,12 +44,12 @@ async function debugCaseDisplay() {
         }
         
         // Try to get specific case
-        const caseResponse = await fetch(`${backendUrl}/api/cases/${caseNumber}`);
+        const caseResponse = await fetchWithTimeout(`${backendUrl}/api/cases/${caseNumber}`);
         const caseData = await caseResponse.json();
         console.log('Specific case endpoint:', caseData);
         
         // Try to get service data
-        const serviceResponse = await fetch(`${backendUrl}/api/cases/${caseNumber}/service-data`);
+        const serviceResponse = await fetchWithTimeout(`${backendUrl}/api/cases/${caseNumber}/service-data`);
         const serviceData = await serviceResponse.json();
         console.log('Service data endpoint:', serviceData);
         

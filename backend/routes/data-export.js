@@ -5,14 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
-
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('render.com') 
-        ? { rejectUnauthorized: false }
-        : false
-});
+const pool = require('../db');
 
 // Middleware to check admin access
 async function requireAdmin(req, res, next) {

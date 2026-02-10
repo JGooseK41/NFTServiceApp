@@ -4,12 +4,11 @@
 
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
+const pool = require('../db');
+const requireAdminKey = require('../middleware/admin-key-auth');
 
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgresql://nftservice:nftservice123@localhost:5432/nftservice_db',
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
-});
+// Require admin authentication for all migration routes
+router.use(requireAdminKey);
 
 router.get('/run', async (req, res) => {
     let client;

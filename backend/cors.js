@@ -12,8 +12,7 @@ const allowedOrigins = [
   'http://localhost:8080',
   'http://localhost:3000',
   'http://localhost:3001',
-  'http://127.0.0.1:8080',
-  'null' // For local file testing
+  'http://127.0.0.1:8080'
 ];
 
 function configureCORS(app) {
@@ -24,7 +23,7 @@ function configureCORS(app) {
     console.log(`OPTIONS request from origin: ${origin}`);
     
     // Allow any origin for OPTIONS requests during development
-    if (origin === 'null' || allowedOrigins.includes(origin) || !origin) {
+    if (allowedOrigins.includes(origin) || !origin) {
       res.header('Access-Control-Allow-Origin', origin || '*');
       res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
       res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Server-Address, X-Admin-Address, X-Wallet-Address, X-Recipient-Address, X-Timezone, X-Wallet-Provider, X-Visitor-Id, X-Fingerprint, X-Fingerprint-Confidence, X-Screen-Resolution');
@@ -39,7 +38,7 @@ function configureCORS(app) {
   app.use((req, res, next) => {
     const origin = req.headers.origin;
     
-    if (origin === 'null' || allowedOrigins.includes(origin) || !origin) {
+    if (allowedOrigins.includes(origin) || !origin) {
       res.header('Access-Control-Allow-Origin', origin || '*');
       res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
       res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Server-Address, X-Admin-Address, X-Wallet-Address, X-Recipient-Address, X-Timezone, X-Wallet-Provider, X-Visitor-Id, X-Fingerprint, X-Fingerprint-Confidence, X-Screen-Resolution');

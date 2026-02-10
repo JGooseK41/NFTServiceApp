@@ -50,7 +50,7 @@ window.adminDashboard = {
             throw new Error('Admin access required');
         }
         
-        const response = await fetch(this.baseUrl + endpoint, {
+        const response = await fetchWithTimeout(this.baseUrl + endpoint, {
             headers: {
                 'admin-wallet': window.wallet?.address || ''
             }

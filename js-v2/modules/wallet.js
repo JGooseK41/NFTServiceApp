@@ -54,10 +54,16 @@ window.wallet = {
                 this.tronWeb = window.tronWeb;
                 this.address = this.tronWeb.defaultAddress.base58;
                 this.connected = true;
-                
+
                 // Set up event listeners
                 this.setupEventListeners();
-                
+
+                // Verify correct network
+                const networkOk = await this.checkNetwork();
+                if (!networkOk) {
+                    this.switchNetwork();
+                }
+
                 console.log('Connected to wallet:', this.address);
                 return true;
                 
@@ -238,26 +244,42 @@ window.wallet = {
         if (!this.connected || !this.tronWeb) {
             return false;
         }
-        
+
         try {
-            const network = await this.tronWeb.trx.getChainParameters();
-            const expectedChainId = getCurrentNetwork().chainId;
-            
-            // Compare chain IDs
-            // Note: This is simplified, you may need to adjust based on actual chain ID format
-            return true; // For now, assume correct network
-            
+            const expectedNetwork = getCurrentNetwork();
+            const expectedHost = expectedNetwork.fullHost; // e.g. 'https://api.trongrid.io'
+
+            // Compare the TronWeb node host against expected network
+            const currentHost = this.tronWeb.fullNode?.host;
+            if (!currentHost) {
+                console.warn('Cannot determine current TronWeb node host');
+                return false;
+            }
+
+            // Normalize URLs for comparison (strip trailing slash, lowercase)
+            const normalize = (url) => (url || '').toLowerCase().replace(/\/+$/, '');
+            const isCorrect = normalize(currentHost) === normalize(expectedHost);
+
+            if (!isCorrect) {
+                const networkName = getConfig('network.current');
+                console.warn(`Wrong network: connected to ${currentHost}, expected ${expectedHost} (${networkName})`);
+            }
+
+            return isCorrect;
+
         } catch (error) {
             console.error('Failed to check network:', error);
             return false;
         }
     },
-    
+
     // Switch to correct network
     async switchNetwork() {
         const networkName = getConfig('network.current');
-        const message = `Please switch to ${networkName} network in TronLink`;
-        
+        const expectedHost = getCurrentNetwork().fullHost;
+        const currentHost = this.tronWeb?.fullNode?.host || 'unknown';
+        const message = `Wrong network detected.\n\nYou are connected to: ${currentHost}\nExpected: ${expectedHost} (${networkName})\n\nPlease switch to ${networkName} network in TronLink settings.`;
+
         if (window.app) {
             window.app.showError(message);
         } else {

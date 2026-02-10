@@ -6,7 +6,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
+const pool = require('../db');
 const path = require('path');
 const fs = require('fs').promises;
 const cors = require('cors');
@@ -29,11 +29,6 @@ const corsOptions = {
 };
 
 router.use(cors(corsOptions));
-
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-});
 
 // Disk paths
 const DISK_MOUNT_PATH = process.env.DISK_MOUNT_PATH || '/var/data';

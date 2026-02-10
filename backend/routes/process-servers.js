@@ -5,22 +5,8 @@
 
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
+const pool = require('../db');
 const { formatServerId } = require('../utils/server-id-formatter');
-
-// Database connection with better error handling
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgresql://nftservice:nftservice123@localhost:5432/nftservice_db',
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
-    connectionTimeoutMillis: 5000,
-    query_timeout: 10000,
-    statement_timeout: 10000
-});
-
-// Test database connection on startup
-pool.on('error', (err) => {
-    console.error('Unexpected database pool error:', err);
-});
 
 /**
  * GET /api/process-servers

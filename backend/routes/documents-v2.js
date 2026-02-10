@@ -8,13 +8,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
-const { Pool } = require('pg');
-
-// Database
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+const pool = require('../db');
 
 // Storage paths
 const STORAGE_PATH = process.env.DISK_MOUNT_PATH || '/var/data';

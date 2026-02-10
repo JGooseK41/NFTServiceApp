@@ -475,7 +475,7 @@ window.app = {
         try {
             // Check if server is already registered on backend
             const checkUrl = `${getConfig('backend.baseUrl')}/api/server/check/${this.state.userAddress}`;
-            const checkResponse = await fetch(checkUrl);
+            const checkResponse = await fetchWithTimeout(checkUrl);
             const checkData = await checkResponse.json();
 
             if (checkData.registered) {
@@ -670,7 +670,7 @@ window.app = {
             errorDiv.style.display = 'none';
             this.showProcessing('Registering your agency...');
 
-            const response = await fetch(getApiUrl('registerServer'), {
+            const response = await fetchWithTimeout(getApiUrl('registerServer'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -893,7 +893,7 @@ window.app = {
 
         try {
             const checkUrl = `${getConfig('backend.baseUrl')}/api/server/check/${this.state.userAddress}`;
-            const response = await fetch(checkUrl);
+            const response = await fetchWithTimeout(checkUrl);
             const data = await response.json();
 
             if (data.registered) {
@@ -940,7 +940,7 @@ window.app = {
 
             // Check backend registration
             const checkUrl = `${getConfig('backend.baseUrl')}/api/server/check/${this.state.userAddress}`;
-            const response = await fetch(checkUrl);
+            const response = await fetchWithTimeout(checkUrl);
             const data = await response.json();
 
             if (data.registered) {
@@ -2518,10 +2518,10 @@ window.app = {
         const formData = new FormData();
         formData.append('document', file);
         
-        const response = await fetch(getApiUrl('uploadDocument'), {
+        const response = await fetchWithTimeout(getApiUrl('uploadDocument'), {
             method: 'POST',
             body: formData
-        });
+        }, 120000);
         
         if (!response.ok) {
             throw new Error('Failed to upload document');

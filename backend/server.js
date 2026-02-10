@@ -1,7 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
-const { Pool } = require('pg');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 // Use fixed disk storage manager with better error handling
 const DiskStorageManager = require('./disk-storage-manager');
@@ -24,11 +25,8 @@ try {
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Database connection
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+// Shared database pool
+const pool = require('./db');
 
 // Ensure essential tables exist at startup
 async function ensureTablesExist() {
@@ -88,6 +86,34 @@ async function ensureTablesExist() {
 ensureTablesExist();
 
 // Middleware
+
+// Security headers
+app.use(helmet({
+    contentSecurityPolicy: false, // Disabled since backend mostly serves JSON API
+    crossOriginEmbedderPolicy: false // Allow cross-origin resources
+}));
+
+// Rate limiting - global: 200 requests per minute per IP
+const globalLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 200,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' }
+});
+app.use(globalLimiter);
+
+// Stricter rate limit for write endpoints (POST/PUT/DELETE): 30 per minute
+const writeLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many write requests, please try again later.' },
+    skip: (req) => req.method === 'GET' || req.method === 'OPTIONS'
+});
+app.use('/api', writeLimiter);
+
 // Enhanced CORS configuration
 const { configureCORS, allowedOrigins } = require('./cors');
 
@@ -181,23 +207,11 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps, curl, or local files)
     if (!origin) return callback(null, true);
     
-    // Allow 'null' origin for local file testing
-    if (origin === 'null') {
-      console.log('Allowing local file testing (null origin)');
-      return callback(null, true);
-    }
-    
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       console.log('Rejected CORS origin:', origin);
-      // Instead of error, just allow it with a warning in production
-      if (process.env.NODE_ENV === 'production') {
-        console.log('WARNING: Allowing unregistered origin in production:', origin);
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
+      callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,

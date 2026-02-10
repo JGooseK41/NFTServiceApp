@@ -1156,7 +1156,7 @@ window.proofOfService = {
                 
                 console.log('Fetching PDF from backend:', pdfUrl);
                 
-                const response = await fetch(pdfUrl, {
+                const response = await fetchWithTimeout(pdfUrl, {
                     headers: {
                         'X-Server-Address': window.wallet?.address || 'TN6RjhuLZmgbpKvNKE8Diz7XqXnAEFWsPq'
                     }

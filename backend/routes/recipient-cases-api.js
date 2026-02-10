@@ -6,7 +6,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
+const pool = require('../db');
 const cors = require('cors');
 const TronWeb = require('tronweb');
 const emailService = require('../services/email-service');
@@ -30,11 +30,6 @@ const corsOptions = {
 
 // Apply CORS to all routes
 router.use(cors(corsOptions));
-
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-});
 
 // Build forensic details object from request headers (middleware-extracted)
 function buildForensicDetails(req, extraDetails = {}) {
@@ -466,12 +461,24 @@ router.get('/:caseNumber/document', async (req, res) => {
             const userAgent = req.clientUserAgent || req.headers['user-agent'];
             const acceptLanguage = req.clientLanguage || req.headers['accept-language'];
             const timezone = req.clientTimezone || req.headers['x-timezone'];
-            await pool.query(`
-                INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, accept_language, timezone)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            // Atomically insert audit log and check if this is the first view
+            // Uses a CTE to avoid TOCTOU race where concurrent requests both see count=1
+            const actorAddress = recipientAddress || 'anonymous';
+            const auditResult = await pool.query(`
+                WITH inserted AS (
+                    INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, accept_language, timezone)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    RETURNING id
+                )
+                SELECT
+                    (SELECT COUNT(*) FROM audit_logs
+                     WHERE action_type = 'recipient_document_view'
+                       AND actor_address = $2
+                       AND target_id = $3) as view_count
+                FROM inserted
             `, [
                 'recipient_document_view',
-                recipientAddress || 'anonymous',
+                actorAddress,
                 caseNumber,
                 JSON.stringify(buildForensicDetails(req, { alert_token_id: caseData.alert_token_id, document_token_id: caseData.document_token_id })),
                 ipAddress,
@@ -479,20 +486,12 @@ router.get('/:caseNumber/document', async (req, res) => {
                 acceptLanguage,
                 timezone
             ]);
-            console.log(`✅ Logged document view for case ${caseNumber} by ${recipientAddress || 'anonymous'}`);
+            console.log(`✅ Logged document view for case ${caseNumber} by ${actorAddress}`);
 
             // Check if this is the FIRST document view by this recipient for this case
-            // Only send email notification on first view to avoid spamming
+            // The CTE above atomically inserts and counts in one statement to prevent race conditions
             try {
-                const viewCountResult = await pool.query(`
-                    SELECT COUNT(*) as view_count
-                    FROM audit_logs
-                    WHERE action_type = 'recipient_document_view'
-                      AND actor_address = $1
-                      AND target_id = $2
-                `, [recipientAddress || 'anonymous', caseNumber]);
-
-                const viewCount = parseInt(viewCountResult.rows[0]?.view_count || '0');
+                const viewCount = parseInt(auditResult.rows[0]?.view_count || '0');
                 console.log(`📧 Email check: case=${caseNumber}, recipient=${recipientAddress}, viewCount=${viewCount}`);
 
                 // Only notify on first view (we just inserted one, so count should be 1)

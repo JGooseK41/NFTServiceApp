@@ -5,15 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
-
-// Database connection
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('render.com') 
-        ? { rejectUnauthorized: false }
-        : false
-});
+const pool = require('../db');
 
 /**
  * Generate base64 Alert metadata

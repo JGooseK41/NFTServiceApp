@@ -5,6 +5,30 @@
 
 const sgMail = require('@sendgrid/mail');
 
+/**
+ * Escape HTML to prevent injection in email templates
+ */
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+// Standard email footer with CAN-SPAM compliance
+const EMAIL_FOOTER = `
+    <div style="padding: 20px; text-align: center; color: #999; font-size: 12px; border-top: 1px solid #eee;">
+        <p style="margin: 0;">TheBlockService - A Product of The Block Audit LLC</p>
+        <p style="margin: 5px 0 0 0;">1 East Broward Blvd, Suite 700, Fort Lauderdale, FL 33301</p>
+        <p style="margin: 10px 0 0 0;">
+            <a href="https://theblockservice.com/settings" style="color: #999;">Manage notification preferences</a>
+        </p>
+    </div>
+`;
+
 // Initialize SendGrid with API key
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
 const FROM_EMAIL = process.env.FROM_EMAIL || process.env.SENDGRID_FROM_EMAIL || 'noreply@theblockaudit.com';
@@ -51,7 +75,7 @@ async function sendEmail(to, subject, htmlContent, textContent = null) {
  * Notify admin when a new server registers
  */
 async function notifyNewServerRegistration(serverData) {
-    const subject = `New Process Server Registration: ${serverData.agency_name}`;
+    const subject = `New Process Server Registration: ${escapeHtml(serverData.agency_name)}`;
 
     const htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -67,30 +91,30 @@ async function notifyNewServerRegistration(serverData) {
                     <table style="width: 100%; border-collapse: collapse;">
                         <tr>
                             <td style="padding: 10px 0; color: #666; width: 140px;"><strong>Agency Name:</strong></td>
-                            <td style="padding: 10px 0; color: #333;">${serverData.agency_name}</td>
+                            <td style="padding: 10px 0; color: #333;">${escapeHtml(serverData.agency_name)}</td>
                         </tr>
                         <tr>
                             <td style="padding: 10px 0; color: #666;"><strong>Wallet Address:</strong></td>
-                            <td style="padding: 10px 0; color: #333; font-family: monospace; font-size: 12px;">${serverData.wallet_address}</td>
+                            <td style="padding: 10px 0; color: #333; font-family: monospace; font-size: 12px;">${escapeHtml(serverData.wallet_address)}</td>
                         </tr>
                         <tr>
                             <td style="padding: 10px 0; color: #666;"><strong>Contact Email:</strong></td>
-                            <td style="padding: 10px 0; color: #333;">${serverData.contact_email}</td>
+                            <td style="padding: 10px 0; color: #333;">${escapeHtml(serverData.contact_email)}</td>
                         </tr>
                         <tr>
                             <td style="padding: 10px 0; color: #666;"><strong>Phone Number:</strong></td>
-                            <td style="padding: 10px 0; color: #333;">${serverData.phone_number}</td>
+                            <td style="padding: 10px 0; color: #333;">${escapeHtml(serverData.phone_number)}</td>
                         </tr>
                         ${serverData.website ? `
                         <tr>
                             <td style="padding: 10px 0; color: #666;"><strong>Website:</strong></td>
-                            <td style="padding: 10px 0; color: #333;">${serverData.website}</td>
+                            <td style="padding: 10px 0; color: #333;">${escapeHtml(serverData.website)}</td>
                         </tr>
                         ` : ''}
                         ${serverData.license_number ? `
                         <tr>
                             <td style="padding: 10px 0; color: #666;"><strong>License Number:</strong></td>
-                            <td style="padding: 10px 0; color: #333;">${serverData.license_number}</td>
+                            <td style="padding: 10px 0; color: #333;">${escapeHtml(serverData.license_number)}</td>
                         </tr>
                         ` : ''}
                         <tr>
@@ -105,7 +129,7 @@ async function notifyNewServerRegistration(serverData) {
                         <strong>Action Required:</strong> This server needs blockchain approval before they can mint NFTs.
                     </p>
                     <p style="margin: 10px 0 0 0; color: #666;">
-                        Go to Admin Panel → Role Management → Grant Process Server Role
+                        Go to Admin Panel &rarr; Role Management &rarr; Grant Process Server Role
                     </p>
                 </div>
 
@@ -118,9 +142,7 @@ async function notifyNewServerRegistration(serverData) {
                 </div>
             </div>
 
-            <div style="padding: 20px; text-align: center; color: #999; font-size: 12px;">
-                <p>TheBlockService - A Product of The Block Audit LLC</p>
-            </div>
+            ${EMAIL_FOOTER}
         </div>
     `;
 
@@ -141,7 +163,7 @@ async function sendServerWelcomeEmail(serverData) {
             </div>
 
             <div style="padding: 30px; background: #f9f9f9;">
-                <h2 style="color: #333; margin-top: 0;">Welcome, ${serverData.agency_name}!</h2>
+                <h2 style="color: #333; margin-top: 0;">Welcome, ${escapeHtml(serverData.agency_name)}!</h2>
 
                 <p style="color: #555; line-height: 1.6;">
                     Thank you for registering with TheBlockService. Your agency has been successfully registered
@@ -153,11 +175,11 @@ async function sendServerWelcomeEmail(serverData) {
                     <table style="width: 100%; border-collapse: collapse;">
                         <tr>
                             <td style="padding: 8px 0; color: #666;"><strong>Agency:</strong></td>
-                            <td style="padding: 8px 0; color: #333;">${serverData.agency_name}</td>
+                            <td style="padding: 8px 0; color: #333;">${escapeHtml(serverData.agency_name)}</td>
                         </tr>
                         <tr>
                             <td style="padding: 8px 0; color: #666;"><strong>Wallet:</strong></td>
-                            <td style="padding: 8px 0; color: #333; font-family: monospace; font-size: 11px;">${serverData.wallet_address}</td>
+                            <td style="padding: 8px 0; color: #333; font-family: monospace; font-size: 11px;">${escapeHtml(serverData.wallet_address)}</td>
                         </tr>
                     </table>
                 </div>
@@ -183,10 +205,7 @@ async function sendServerWelcomeEmail(serverData) {
                 </p>
             </div>
 
-            <div style="padding: 20px; text-align: center; color: #999; font-size: 12px;">
-                <p>TheBlockService - A Product of The Block Audit LLC</p>
-                <p>This is an automated message. Please do not reply directly to this email.</p>
-            </div>
+            ${EMAIL_FOOTER}
         </div>
     `;
 
@@ -214,7 +233,7 @@ async function notifyServerApproved(serverData) {
                     </div>
                 </div>
 
-                <h2 style="color: #333; margin-top: 0; text-align: center;">Congratulations, ${serverData.agency_name}!</h2>
+                <h2 style="color: #333; margin-top: 0; text-align: center;">Congratulations, ${escapeHtml(serverData.agency_name)}!</h2>
 
                 <p style="color: #555; line-height: 1.6; text-align: center;">
                     Your account has been approved on the blockchain. You can now start serving legal notices
@@ -245,9 +264,7 @@ async function notifyServerApproved(serverData) {
                 </div>
             </div>
 
-            <div style="padding: 20px; text-align: center; color: #999; font-size: 12px;">
-                <p>TheBlockService - A Product of The Block Audit LLC</p>
-            </div>
+            ${EMAIL_FOOTER}
         </div>
     `;
 
@@ -273,7 +290,7 @@ async function notifyNoticeAccessed(serverEmail, accessData) {
     };
 
     const actionDesc = actionDescriptions[actionType] || actionType.replace(/_/g, ' ');
-    const subject = `📋 Notice Accessed: ${caseNumber} - Recipient ${actionDesc}`;
+    const subject = `Notice Accessed: ${caseNumber} - Recipient ${actionDesc}`;
 
     const htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -296,17 +313,17 @@ async function notifyNoticeAccessed(serverEmail, accessData) {
                     <table style="width: 100%; border-collapse: collapse;">
                         <tr>
                             <td style="padding: 10px 0; color: #666; width: 140px;"><strong>Case Number:</strong></td>
-                            <td style="padding: 10px 0; color: #333; font-weight: bold;">${caseNumber}</td>
+                            <td style="padding: 10px 0; color: #333; font-weight: bold;">${escapeHtml(caseNumber)}</td>
                         </tr>
                         <tr>
                             <td style="padding: 10px 0; color: #666;"><strong>Recipient:</strong></td>
-                            <td style="padding: 10px 0; color: #333; font-family: monospace; font-size: 12px;">${recipientAddress}</td>
+                            <td style="padding: 10px 0; color: #333; font-family: monospace; font-size: 12px;">${escapeHtml(recipientAddress)}</td>
                         </tr>
                         <tr>
                             <td style="padding: 10px 0; color: #666;"><strong>Action:</strong></td>
                             <td style="padding: 10px 0; color: #333;">
                                 <span style="background: #e8f5e9; padding: 4px 12px; border-radius: 4px; color: #2e7d32;">
-                                    ${actionDesc.charAt(0).toUpperCase() + actionDesc.slice(1)}
+                                    ${escapeHtml(actionDesc.charAt(0).toUpperCase() + actionDesc.slice(1))}
                                 </span>
                             </td>
                         </tr>
@@ -333,12 +350,7 @@ async function notifyNoticeAccessed(serverEmail, accessData) {
                 </div>
             </div>
 
-            <div style="padding: 20px; text-align: center; color: #999; font-size: 12px;">
-                <p>TheBlockService - A Product of The Block Audit LLC</p>
-                <p style="margin-top: 10px;">
-                    <a href="https://theblockservice.com/settings" style="color: #999;">Manage notification preferences</a>
-                </p>
-            </div>
+            ${EMAIL_FOOTER}
         </div>
     `;
 
@@ -371,7 +383,7 @@ async function notifyFirstDocumentView(serverEmail, accessData) {
                 <h2 style="color: #2e7d32; margin-top: 0; text-align: center;">Document Successfully Viewed!</h2>
 
                 <p style="color: #555; line-height: 1.6; text-align: center; font-size: 16px;">
-                    The recipient has <strong>opened and viewed</strong> the legal document for case <strong>${caseNumber}</strong>.
+                    The recipient has <strong>opened and viewed</strong> the legal document for case <strong>${escapeHtml(caseNumber)}</strong>.
                     This provides strong evidence of actual notice.
                 </p>
 
@@ -379,11 +391,11 @@ async function notifyFirstDocumentView(serverEmail, accessData) {
                     <table style="width: 100%; border-collapse: collapse;">
                         <tr>
                             <td style="padding: 10px 0; color: #666; width: 140px;"><strong>Case Number:</strong></td>
-                            <td style="padding: 10px 0; color: #333; font-weight: bold; font-size: 18px;">${caseNumber}</td>
+                            <td style="padding: 10px 0; color: #333; font-weight: bold; font-size: 18px;">${escapeHtml(caseNumber)}</td>
                         </tr>
                         <tr>
                             <td style="padding: 10px 0; color: #666;"><strong>Recipient:</strong></td>
-                            <td style="padding: 10px 0; color: #333; font-family: monospace; font-size: 12px;">${recipientAddress}</td>
+                            <td style="padding: 10px 0; color: #333; font-family: monospace; font-size: 12px;">${escapeHtml(recipientAddress)}</td>
                         </tr>
                         <tr>
                             <td style="padding: 10px 0; color: #666;"><strong>First Viewed:</strong></td>
@@ -409,9 +421,7 @@ async function notifyFirstDocumentView(serverEmail, accessData) {
                 </div>
             </div>
 
-            <div style="padding: 20px; text-align: center; color: #999; font-size: 12px;">
-                <p>TheBlockService - A Product of The Block Audit LLC</p>
-            </div>
+            ${EMAIL_FOOTER}
         </div>
     `;
 

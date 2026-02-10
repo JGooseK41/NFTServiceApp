@@ -128,7 +128,7 @@ window.documents = {
                     
                     // Step 2: ALWAYS store on backend for our records (regardless of IPFS success)
                     try {
-                        const uploadResponse = await fetch('https://nftserviceapp.onrender.com/api/thumbnail/store-base64', {
+                        const uploadResponse = await fetchWithTimeout('https://nftserviceapp.onrender.com/api/thumbnail/store-base64', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -374,7 +374,7 @@ window.documents = {
             formData.append('recipientAddress', options.recipientAddress || '');
             
             // Use encrypted upload endpoint
-            const response = await fetch(getDocumentApiUrl('documents/upload-encrypted'), {
+            const response = await fetchWithTimeout(getDocumentApiUrl('documents/upload-encrypted'), {
                 method: 'POST',
                 body: formData,
                 headers: {
@@ -529,7 +529,7 @@ window.documents = {
         formData.append('pinataMetadata', JSON.stringify(metadata));
         
         // Upload via backend proxy (to protect API keys)
-        const response = await fetch(getDocumentApiUrl('uploadDocument'), {
+        const response = await fetchWithTimeout(getDocumentApiUrl('uploadDocument'), {
             method: 'POST',
             body: formData
         });

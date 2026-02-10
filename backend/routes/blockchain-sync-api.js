@@ -1,12 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
+const pool = require('../db');
 const axios = require('axios');
+const requireAdminKey = require('../middleware/admin-key-auth');
 
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-});
+// Require admin authentication for all blockchain sync routes
+router.use(requireAdminKey);
 
 // Contract address
 const CONTRACT_ADDRESS = 'TLhYHQatauDtZ4iNCePU26WbVjsXtMPdoN';

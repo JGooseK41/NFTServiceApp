@@ -5,7 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
+const pool = require('../db');
 const cors = require('cors');
 
 // CORS configuration
@@ -26,11 +26,6 @@ const corsOptions = {
 };
 
 router.use(cors(corsOptions));
-
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-});
 
 /**
  * Format timestamp with both UTC and local time based on timezone

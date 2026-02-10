@@ -1,12 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
-
-// Database connection
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgresql://nftservice:nftservice123@localhost:5432/nftservice_db',
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
-});
+const pool = require('../db');
 
 /**
  * GET /api/cases/by-number/:caseNumber
@@ -319,10 +313,10 @@ router.post('/notices/create', async (req, res) => {
         
         console.log('Creating notice with server address:', serverAddress);
         
-        // Start transaction
-        await pool.query('BEGIN');
-        
+        const client = await pool.connect();
         try {
+            await client.query('BEGIN');
+
             // Create the main notice record
             const noticeQuery = `
                 INSERT INTO served_notices (
@@ -340,9 +334,9 @@ router.post('/notices/create', async (req, res) => {
                     $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW()
                 ) RETURNING *
             `;
-            
+
             const noticeId = `notice_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            
+
             const values = [
                 noticeId,
                 caseNumber,
@@ -354,21 +348,23 @@ router.post('/notices/create', async (req, res) => {
                 pageCount || 1,
                 'PENDING_BLOCKCHAIN'
             ];
-            
-            const result = await pool.query(noticeQuery, values);
-            
-            await pool.query('COMMIT');
-            
+
+            const result = await client.query(noticeQuery, values);
+
+            await client.query('COMMIT');
+
             res.json({
                 success: true,
                 id: result.rows[0].id,
                 noticeId: noticeId,
                 message: 'Notice created successfully'
             });
-            
+
         } catch (error) {
-            await pool.query('ROLLBACK');
+            await client.query('ROLLBACK');
             throw error;
+        } finally {
+            client.release();
         }
         
     } catch (error) {

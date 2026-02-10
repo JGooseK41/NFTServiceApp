@@ -210,7 +210,7 @@ window.admin = {
 
             // Active servers (from backend)
             try {
-                const response = await fetch(getApiUrl('getServerInfo'));
+                const response = await fetchWithTimeout(getApiUrl('getServerInfo'));
                 if (response.ok) {
                     const data = await response.json();
                     const serversEl = document.getElementById('activeServers');

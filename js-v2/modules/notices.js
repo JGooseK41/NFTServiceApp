@@ -42,6 +42,17 @@ function formatUTCTime(date) {
     return d.toISOString().split('T')[1].replace(/\.\d{3}Z$/, '') + ' UTC';
 }
 
+// HTML escape helper to prevent XSS
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 window.notices = {
 
     // Initialize module
@@ -232,7 +243,7 @@ window.notices = {
                             const url = `${apiBase}/v1/contracts/${contractAddress}/events?event_name=Transfer&limit=10`;
                             console.log(`Token extraction attempt ${attempt}/${retries} from: ${url}`);
 
-                            const response = await fetch(url);
+                            const response = await fetchWithTimeout(url);
                             if (response.ok) {
                                 const data = await response.json();
                                 if (data.success && data.data) {
@@ -351,7 +362,7 @@ window.notices = {
                             console.log(`Backend update attempt ${attempt}/${maxRetries}...`);
 
                             // Use non-transactional endpoint to avoid transaction issues on Render
-                            const serviceUpdateResponse = await fetch(
+                            const serviceUpdateResponse = await fetchWithTimeout(
                                 `${backendUrl}/api/cases/${encodeURIComponent(caseIdentifier)}/service-complete-notx`,
                                 {
                                     method: 'PUT',
@@ -679,7 +690,7 @@ window.notices = {
         // If no agency ID, try to register with backend to get one
         if (!agencyId) {
             try {
-                const response = await fetch(getApiUrl('registerServer'), {
+                const response = await fetchWithTimeout(getApiUrl('registerServer'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -992,26 +1003,26 @@ window.notices = {
                 <div class="modal-dialog modal-xl">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title">Legal Notice - ${notice.caseNumber}</h5>
+                            <h5 class="modal-title">Legal Notice - ${escapeHtml(notice.caseNumber)}</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body">
                             <div class="row">
                                 <div class="col-md-6">
                                     <h6>Notice Details</h6>
-                                    <p><strong>Type:</strong> ${notice.type}</p>
-                                    <p><strong>Case:</strong> ${notice.caseNumber}</p>
+                                    <p><strong>Type:</strong> ${escapeHtml(notice.type)}</p>
+                                    <p><strong>Case:</strong> ${escapeHtml(notice.caseNumber)}</p>
                                     <p><strong>Served:</strong> ${formatUTC(notice.timestamp)}</p>
-                                    ${notice.noticeText ? `<p><strong>Description:</strong> ${notice.noticeText}</p>` : ''}
+                                    ${notice.noticeText ? `<p><strong>Description:</strong> ${escapeHtml(notice.noticeText)}</p>` : ''}
                                 </div>
                                 <div class="col-md-6">
                                     <h6>Preview</h6>
-                                    <img src="${notice.thumbnail}" class="img-fluid" alt="Notice preview">
+                                    <img src="${escapeHtml(notice.thumbnail)}" class="img-fluid" alt="Notice preview">
                                 </div>
                             </div>
                             ${notice.ipfsHash ? `
                                 <div class="mt-3">
-                                    <button class="btn btn-primary" onclick="notices.downloadDocument('${notice.ipfsHash}', '${notice.encryptionKey}')">
+                                    <button class="btn btn-primary" onclick="notices.downloadDocument('${escapeHtml(notice.ipfsHash)}', '${escapeHtml(notice.encryptionKey)}')">
                                         Download Full Document
                                     </button>
                                 </div>
@@ -1019,7 +1030,7 @@ window.notices = {
                         </div>
                         <div class="modal-footer">
                             ${notice.type === 'document' ? `
-                                <button class="btn btn-success" onclick="notices.signDocument('${notice.noticeId}')">
+                                <button class="btn btn-success" onclick="notices.signDocument('${escapeHtml(notice.noticeId)}')">
                                     Sign Document
                                 </button>
                             ` : ''}
@@ -1047,8 +1058,8 @@ window.notices = {
     async downloadDocument(ipfsHash, encryptionKey) {
         try {
             const url = `${getConfig('storage.ipfsGateway')}${ipfsHash}`;
-            const response = await fetch(url);
-            
+            const response = await fetchWithTimeout(url);
+
             if (!response.ok) {
                 throw new Error('Failed to download document');
             }
@@ -1096,8 +1107,8 @@ window.notices = {
 
         return recipients.map((r, idx) => {
             const addr = typeof r === 'string' ? r : r.address;
-            const label = typeof r === 'object' && r.label ? `[${r.label}] ` : '';
-            return `<small>${idx + 1}. ${label}${addr}</small>`;
+            const label = typeof r === 'object' && r.label ? `[${escapeHtml(r.label)}] ` : '';
+            return `<small>${idx + 1}. ${label}${escapeHtml(addr)}</small>`;
         }).join('<br>');
     },
 
@@ -1134,9 +1145,9 @@ window.notices = {
         const blockchainSection = isLiteContract ? `
             <li><strong>NFT Transaction:</strong><br>
                 <small class="text-break">
-                    <a href="${window.getTronScanUrl ? window.getTronScanUrl(data.alertTxId) : 'https://tronscan.org/#/transaction/' + data.alertTxId}"
+                    <a href="${escapeHtml(window.getTronScanUrl ? window.getTronScanUrl(data.alertTxId) : 'https://tronscan.org/#/transaction/' + data.alertTxId)}"
                        target="_blank" class="text-decoration-none">
-                        ${String(data.alertTxId).substring(0, 20)}...
+                        ${escapeHtml(String(data.alertTxId).substring(0, 20))}...
                         <i class="bi bi-box-arrow-up-right"></i>
                     </a>
                 </small>
@@ -1144,18 +1155,18 @@ window.notices = {
         ` : `
             <li><strong>Alert NFT TX:</strong><br>
                 <small class="text-break">
-                    <a href="${window.getTronScanUrl ? window.getTronScanUrl(data.alertTxId) : 'https://tronscan.org/#/transaction/' + data.alertTxId}"
+                    <a href="${escapeHtml(window.getTronScanUrl ? window.getTronScanUrl(data.alertTxId) : 'https://tronscan.org/#/transaction/' + data.alertTxId)}"
                        target="_blank" class="text-decoration-none">
-                        ${String(data.alertTxId).substring(0, 20)}...
+                        ${escapeHtml(String(data.alertTxId).substring(0, 20))}...
                         <i class="bi bi-box-arrow-up-right"></i>
                     </a>
                 </small>
             </li>
             <li><strong>Document NFT TX:</strong><br>
                 <small class="text-break">
-                    <a href="${window.getTronScanUrl ? window.getTronScanUrl(data.documentTxId) : 'https://tronscan.org/#/transaction/' + data.documentTxId}"
+                    <a href="${escapeHtml(window.getTronScanUrl ? window.getTronScanUrl(data.documentTxId) : 'https://tronscan.org/#/transaction/' + data.documentTxId)}"
                        target="_blank" class="text-decoration-none">
-                        ${String(data.documentTxId).substring(0, 20)}...
+                        ${escapeHtml(String(data.documentTxId).substring(0, 20))}...
                         <i class="bi bi-box-arrow-up-right"></i>
                     </a>
                 </small>
@@ -1182,7 +1193,7 @@ window.notices = {
                                 <div class="col-md-6">
                                     <h6>Service Details:</h6>
                                     <ul class="list-unstyled">
-                                        <li><strong>Case Number:</strong> ${data.caseNumber}</li>
+                                        <li><strong>Case Number:</strong> ${escapeHtml(data.caseNumber)}</li>
                                         <li><strong>Recipient${data.recipients && data.recipients.length > 1 ? 's' : ''}:</strong><br>
                                             ${this.formatRecipientsForModal(data.recipients)}
                                         </li>
@@ -1207,20 +1218,20 @@ window.notices = {
                             ${data.thumbnail ? `
                             <div class="text-center mb-3" id="nftImagePreview">
                                 <h6>NFT Preview:</h6>
-                                <img src="${data.thumbnail}" class="img-fluid" style="max-height: 200px; border: 1px solid #dee2e6;">
+                                <img src="${escapeHtml(data.thumbnail)}" class="img-fluid" style="max-height: 200px; border: 1px solid #dee2e6;">
                             </div>
                             ` : ''}
 
                             <div class="alert alert-info">
                                 <strong>Recipient Access:</strong> The recipient can view and download their documents at:<br>
-                                <a href="${data.viewUrl}" target="_blank">${data.viewUrl}</a>
+                                <a href="${escapeHtml(data.viewUrl)}" target="_blank">${escapeHtml(data.viewUrl)}</a>
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-primary" onclick="notices.printServiceReceipt('${data.caseNumber}')">
+                            <button type="button" class="btn btn-primary" onclick="notices.printServiceReceipt('${escapeHtml(data.caseNumber)}')">
                                 <i class="bi bi-printer"></i> Print Service Receipt
                             </button>
-                            <button type="button" class="btn btn-success" onclick="notices.exportStampedDocs('${data.caseNumber}')">
+                            <button type="button" class="btn btn-success" onclick="notices.exportStampedDocs('${escapeHtml(data.caseNumber)}')">
                                 <i class="bi bi-file-earmark-pdf"></i> Export Stamped Documents
                             </button>
                             <button type="button" class="btn btn-info" onclick="window.app.navigate('cases')" data-bs-dismiss="modal">
@@ -1612,7 +1623,7 @@ window.notices = {
                 console.log('Fetching document from IPFS:', data.ipfsHash);
                 const ipfsGateway = 'https://gateway.pinata.cloud/ipfs/';
                 try {
-                    const response = await fetch(`${ipfsGateway}${data.ipfsHash}`);
+                    const response = await fetchWithTimeout(`${ipfsGateway}${data.ipfsHash}`);
                     if (response.ok) {
                         pdfBytes = await response.arrayBuffer();
                         isEncrypted = true; // IPFS documents are always encrypted
@@ -1629,7 +1640,7 @@ window.notices = {
                 const serverAddress = window.app?.state?.userAddress || '';
                 try {
                     // Use the server PDF endpoint which doesn't require recipient auth
-                    const response = await fetch(`${backendUrl}/api/cases/${encodeURIComponent(data.caseNumber)}/pdf?serverAddress=${serverAddress}`);
+                    const response = await fetchWithTimeout(`${backendUrl}/api/cases/${encodeURIComponent(data.caseNumber)}/pdf?serverAddress=${serverAddress}`);
                     if (response.ok) {
                         pdfBytes = await response.arrayBuffer();
                         // Backend serves unencrypted documents
@@ -1861,12 +1872,12 @@ window.notices = {
                         <div class="modal-body">
                             <div class="alert alert-danger">
                                 <strong>❌ Transaction Failed</strong><br>
-                                ${data.error}
+                                ${escapeHtml(data.error)}
                             </div>
-                            
+
                             <h6>Details:</h6>
                             <ul>
-                                <li><strong>Case Number:</strong> ${data.caseNumber}</li>
+                                <li><strong>Case Number:</strong> ${escapeHtml(data.caseNumber)}</li>
                                 <li><strong>Recipient${data.recipients && data.recipients.length > 1 ? 's' : ''}:</strong><br>
                                     ${this.formatRecipientsForModal(data.recipients)}
                                 </li>
@@ -1928,7 +1939,7 @@ window.notices = {
             <!DOCTYPE html>
             <html>
             <head>
-                <title>Proof of Delivery - ${data.caseNumber}</title>
+                <title>Proof of Delivery - ${escapeHtml(data.caseNumber)}</title>
                 <style>
                     body { font-family: Arial, sans-serif; margin: 40px; }
                     .header { text-align: center; border-bottom: 3px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
@@ -1959,7 +1970,7 @@ window.notices = {
                     <div class="section-title">Service Details</div>
                     <div class="detail-row">
                         <span class="label">Case Number:</span>
-                        <span class="value">${data.caseNumber}</span>
+                        <span class="value">${escapeHtml(data.caseNumber)}</span>
                     </div>
                     <div class="detail-row">
                         <span class="label">Service Date:</span>
@@ -1971,7 +1982,7 @@ window.notices = {
                     </div>
                     <div class="detail-row">
                         <span class="label">Notice ID:</span>
-                        <span class="value">${data.noticeId}</span>
+                        <span class="value">${escapeHtml(data.noticeId)}</span>
                     </div>
                 </div>
                 
@@ -1979,15 +1990,15 @@ window.notices = {
                     <div class="section-title">Recipient Information</div>
                     ${(data.recipients || [data.recipient]).filter(Boolean).map((r, idx) => {
                         const addr = typeof r === 'string' ? r : r.address;
-                        const label = typeof r === 'object' && r.label ? ` (${r.label})` : '';
+                        const label = typeof r === 'object' && r.label ? ` (${escapeHtml(r.label)})` : '';
                         return `<div class="detail-row">
                             <span class="label">${(data.recipients || []).length > 1 ? `Recipient ${idx + 1}:` : 'Wallet Address:'}</span>
-                            <span class="value">${addr}${label}</span>
+                            <span class="value">${escapeHtml(addr)}${label}</span>
                         </div>`;
                     }).join('')}
                     <div class="detail-row">
                         <span class="label">Access URL:</span>
-                        <span class="value">${data.viewUrl}</span>
+                        <span class="value">${escapeHtml(data.viewUrl)}</span>
                     </div>
                 </div>
                 
@@ -1995,18 +2006,18 @@ window.notices = {
                     <div class="section-title">Blockchain Confirmation</div>
                     <div class="detail-row">
                         <span class="label">NFT Transaction:</span>
-                        <span class="value tx-hash">${data.alertTxId}</span>
+                        <span class="value tx-hash">${escapeHtml(data.alertTxId)}</span>
                     </div>
                     <div class="detail-row">
                         <span class="label">Verification:</span>
-                        <span class="value">View on TronScan: ${window.getTronScanUrl ? window.getTronScanUrl(data.alertTxId) : 'https://tronscan.org/#/transaction/' + data.alertTxId}</span>
+                        <span class="value">View on TronScan: ${escapeHtml(window.getTronScanUrl ? window.getTronScanUrl(data.alertTxId) : 'https://tronscan.org/#/transaction/' + data.alertTxId)}</span>
                     </div>
                 </div>
 
                 ${includeImage && data.thumbnail ? `
                 <div class="section">
                     <div class="section-title">NFT Image</div>
-                    <img src="${data.thumbnail}" class="nft-image" alt="Legal Notice NFT">
+                    <img src="${escapeHtml(data.thumbnail)}" class="nft-image" alt="Legal Notice NFT">
                 </div>
                 ` : ''}
                 
@@ -2050,8 +2061,8 @@ window.notices = {
                         <div style="max-height: 200px; overflow-y: auto; border: 1px solid #333; padding: 10px; background: #1a1a1a;">
                             ${error.recipients.map((recipient, index) => `
                                 <label style="display: block; margin: 5px 0; cursor: pointer;">
-                                    <input type="checkbox" value="${recipient}" checked style="margin-right: 10px;">
-                                    ${recipient}
+                                    <input type="checkbox" value="${escapeHtml(recipient)}" checked style="margin-right: 10px;">
+                                    ${escapeHtml(recipient)}
                                 </label>
                             `).join('')}
                         </div>
@@ -2108,7 +2119,7 @@ window.notices = {
                         <h3>Failed Recipients (${data.failedCount}):</h3>
                         ${data.results.filter(r => !r.success).map(r => `
                             <div style="margin: 5px 0;">
-                                ${r.recipient}: ${r.error}
+                                ${escapeHtml(r.recipient)}: ${escapeHtml(r.error)}
                             </div>
                         `).join('')}
                     </div>

@@ -5,12 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
-
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
-});
+const pool = require('../db');
 
 // Admin addresses - move to environment variable in production
 const ADMIN_ADDRESSES = (process.env.ADMIN_ADDRESSES || 'TN6RjhuLZmgbpKvNKE8Diz7XqXnAEFWsPq').split(',');
@@ -58,9 +53,10 @@ const checkAdminAuth = async (req, res, next) => {
             }
         } catch (verifyError) {
             console.error('Signature verification error:', verifyError.message);
-            // If TronWeb not available or verification fails, log and allow for now
-            // In production, this should fail closed
-            console.warn('WARNING: Signature verification skipped - TronWeb not available');
+            return res.status(401).json({
+                error: 'Signature verification failed',
+                message: verifyError.message
+            });
         }
     }
 

@@ -8,12 +8,7 @@
 const express = require('express');
 const router = express.Router();
 const blockchainSync = require('../services/blockchain-sync');
-const { Pool } = require('pg');
-
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgresql://nftservice:nftservice123@localhost:5432/nftservice_db',
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
-});
+const pool = require('../db');
 
 /**
  * POST /api/notices/stage

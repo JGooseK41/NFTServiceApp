@@ -8,8 +8,10 @@ const express = require('express');
 const router = express.Router();
 const path = require('path');
 const fs = require('fs').promises;
-const { promisify } = require('util');
-const exec = promisify(require('child_process').exec);
+const requireAdminKey = require('../middleware/admin-key-auth');
+
+// Require admin authentication for all disk browser routes
+router.use(requireAdminKey);
 
 // Main disk paths to check
 const DISK_PATHS = {
@@ -233,23 +235,27 @@ router.get('/search', async (req, res) => {
     
     try {
         const results = [];
-        
-        // Search in main directories
+
+        // Search in main directories using safe fs operations (no shell exec)
         for (const [name, dirPath] of Object.entries(DISK_PATHS)) {
             try {
-                const { stdout } = await exec(`find ${dirPath} -type f -name "*${query}*" 2>/dev/null | head -20`);
-                const files = stdout.split('\n').filter(f => f);
-                
-                for (const file of files) {
+                await fs.access(dirPath);
+                const files = await fs.readdir(dirPath);
+                const matching = files.filter(f => f.toLowerCase().includes(query.toLowerCase()));
+
+                for (const file of matching.slice(0, 20)) {
                     try {
-                        const stat = await fs.stat(file);
-                        results.push({
-                            path: file,
-                            name: path.basename(file),
-                            directory: dirPath,
-                            size_mb: (stat.size / 1024 / 1024).toFixed(2),
-                            modified: stat.mtime
-                        });
+                        const filePath = path.join(dirPath, file);
+                        const stat = await fs.stat(filePath);
+                        if (stat.isFile()) {
+                            results.push({
+                                path: filePath,
+                                name: file,
+                                directory: dirPath,
+                                size_mb: (stat.size / 1024 / 1024).toFixed(2),
+                                modified: stat.mtime
+                            });
+                        }
                     } catch (e) {
                         // Skip files we can't stat
                     }

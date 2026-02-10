@@ -1,12 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
-
-// Initialize database connection
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://nftservice:nftservice123@localhost:5432/nftservice_db',
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
-});
+const pool = require('../db');
 
 // ================================================
 // WORKFLOW STAGE 1: PRE-CREATION
@@ -129,22 +123,23 @@ router.post('/delivered', async (req, res) => {
       contractAddress
     } = req.body;
 
-    // Start transaction
-    await pool.query('BEGIN');
-
+    // Use a dedicated client for transactional integrity
+    const client = await pool.connect();
     try {
+      await client.query('BEGIN');
+
       // Insert into active_notices
       const insertQuery = `
         INSERT INTO active_notices (
           pending_notice_id, case_number, server_address, recipient_address,
           alert_id, alert_tx_hash, alert_thumbnail_url, alert_nft_description,
           alert_token_uri, alert_delivered_at,
-          document_id, document_tx_hash, document_ipfs_hash, 
+          document_id, document_tx_hash, document_ipfs_hash,
           document_encryption_key, document_unencrypted_url, document_created_at,
           notice_type, issuing_agency, jurisdiction, contract_address
         ) VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP,
-          $10, $11, $12, $13, $14, 
+          $10, $11, $12, $13, $14,
           CASE WHEN $10 IS NOT NULL THEN CURRENT_TIMESTAMP ELSE NULL END,
           $15, $16, $17, $18
         )
@@ -172,21 +167,21 @@ router.post('/delivered', async (req, res) => {
         contractAddress
       ];
 
-      const result = await pool.query(insertQuery, values);
+      const result = await client.query(insertQuery, values);
       const activeNotice = result.rows[0];
 
       // Update pending notice status
       if (pendingNoticeId) {
-        await pool.query(
+        await client.query(
           'UPDATE pending_notices SET status = $1, sent_at = CURRENT_TIMESTAMP WHERE id = $2',
           ['sent', pendingNoticeId]
         );
       }
 
       // Log event
-      await pool.query(`
+      await client.query(`
         INSERT INTO notice_events (
-          notice_id, event_type, actor_address, actor_type, 
+          notice_id, event_type, actor_address, actor_type,
           details, transaction_hash
         ) VALUES ($1, $2, $3, $4, $5, $6)
       `, [
@@ -198,15 +193,17 @@ router.post('/delivered', async (req, res) => {
         alertTxHash
       ]);
 
-      await pool.query('COMMIT');
+      await client.query('COMMIT');
 
       res.json({
         success: true,
         notice: activeNotice
       });
     } catch (error) {
-      await pool.query('ROLLBACK');
+      await client.query('ROLLBACK');
       throw error;
+    } finally {
+      client.release();
     }
   } catch (error) {
     console.error('Error recording delivered notice:', error);
@@ -230,12 +227,13 @@ router.post('/:noticeId/acknowledge', async (req, res) => {
       locationData
     } = req.body;
 
-    await pool.query('BEGIN');
-
+    const client = await pool.connect();
     try {
+      await client.query('BEGIN');
+
       // Update active notice
       const updateQuery = `
-        UPDATE active_notices 
+        UPDATE active_notices
         SET is_acknowledged = true,
             acknowledged_at = CURRENT_TIMESTAMP,
             acknowledgment_tx_hash = $1
@@ -243,17 +241,18 @@ router.post('/:noticeId/acknowledge', async (req, res) => {
         RETURNING *
       `;
 
-      const result = await pool.query(updateQuery, [transactionHash, noticeId]);
-      
+      const result = await client.query(updateQuery, [transactionHash, noticeId]);
+
       if (result.rows.length === 0) {
-        await pool.query('ROLLBACK');
+        await client.query('ROLLBACK');
+        client.release();
         return res.status(404).json({ error: 'Notice not found' });
       }
 
       const notice = result.rows[0];
 
       // Log event
-      await pool.query(`
+      await client.query(`
         INSERT INTO notice_events (
           notice_id, event_type, actor_address, actor_type,
           ip_address, user_agent, location_data, details, transaction_hash
@@ -270,15 +269,17 @@ router.post('/:noticeId/acknowledge', async (req, res) => {
         transactionHash
       ]);
 
-      await pool.query('COMMIT');
+      await client.query('COMMIT');
 
       res.json({
         success: true,
         notice
       });
     } catch (error) {
-      await pool.query('ROLLBACK');
+      await client.query('ROLLBACK');
       throw error;
+    } finally {
+      client.release();
     }
   } catch (error) {
     console.error('Error recording acknowledgment:', error);

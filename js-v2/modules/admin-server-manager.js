@@ -26,7 +26,7 @@ window.adminServerManager = {
         `;
 
         try {
-            const response = await fetch(`${this.baseUrl}/api/admin/process-servers`, {
+            const response = await fetchWithTimeout(`${this.baseUrl}/api/admin/process-servers`, {
                 headers: {
                     'X-Admin-Address': this.adminAddress || ''
                 }
@@ -320,7 +320,7 @@ window.adminServerManager = {
         };
 
         try {
-            const response = await fetch(`${this.baseUrl}/api/admin/process-servers/update`, {
+            const response = await fetchWithTimeout(`${this.baseUrl}/api/admin/process-servers/update`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -351,7 +351,7 @@ window.adminServerManager = {
         }
 
         try {
-            const response = await fetch(`${this.baseUrl}/api/admin/process-servers/delete`, {
+            const response = await fetchWithTimeout(`${this.baseUrl}/api/admin/process-servers/delete`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -383,7 +383,7 @@ window.adminServerManager = {
         }
 
         try {
-            const response = await fetch(`${this.baseUrl}/api/admin/process-servers/update`, {
+            const response = await fetchWithTimeout(`${this.baseUrl}/api/admin/process-servers/update`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -470,7 +470,7 @@ window.adminServerManager = {
 
         // Load cases
         try {
-            const response = await fetch(`${this.baseUrl}/api/admin/process-servers/${walletAddress}/cases`, {
+            const response = await fetchWithTimeout(`${this.baseUrl}/api/admin/process-servers/${walletAddress}/cases`, {
                 headers: {
                     'X-Admin-Address': this.adminAddress || ''
                 }
@@ -596,7 +596,7 @@ window.adminServerManager = {
     // View case details
     async viewCaseDetails(noticeId) {
         try {
-            const response = await fetch(`${this.baseUrl}/api/admin/cases/${noticeId}`, {
+            const response = await fetchWithTimeout(`${this.baseUrl}/api/admin/cases/${noticeId}`, {
                 headers: {
                     'X-Admin-Address': this.adminAddress || ''
                 }
@@ -692,7 +692,7 @@ window.adminServerManager = {
                 ? `/api/admin/documents/${noticeId}/alert`
                 : `/api/admin/documents/${noticeId}/document`;
 
-            const response = await fetch(`${this.baseUrl}${endpoint}`, {
+            const response = await fetchWithTimeout(`${this.baseUrl}${endpoint}`, {
                 headers: {
                     'X-Admin-Address': this.adminAddress || ''
                 }
@@ -754,7 +754,7 @@ window.adminServerManager = {
         }
 
         try {
-            const response = await fetch(`${this.baseUrl}/api/admin/process-servers/${walletAddress}/toggle`, {
+            const response = await fetchWithTimeout(`${this.baseUrl}/api/admin/process-servers/${walletAddress}/toggle`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

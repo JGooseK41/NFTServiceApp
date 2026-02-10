@@ -9,18 +9,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const crypto = require('crypto');
-const { Pool } = require('pg');
-
-// Initialize database connection with better settings
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://nftservice:nftservice123@localhost:5432/nftservice_db',
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
-  max: 20, // Maximum number of clients in the pool
-  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 5000, // Return an error after 5 seconds if connection cannot be established
-  statement_timeout: 30000, // Cancel queries after 30 seconds
-  query_timeout: 30000 // Alternative timeout setting
-});
+const pool = require('../db');
 
 // Type safety utilities
 const SafeTypes = {

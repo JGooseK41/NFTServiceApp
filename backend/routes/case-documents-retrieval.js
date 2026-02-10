@@ -5,18 +5,9 @@
 
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
+const pool = require('../db');
 const path = require('path');
 const fs = require('fs').promises;
-
-// Database connection
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgresql://nftservice:nftservice123@dpg-ctblpudds78s73ck5nkg-a.oregon-postgres.render.com/nftservice_db?sslmode=require',
-    ssl: { rejectUnauthorized: false },
-    max: 20,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
-});
 
 // Disk storage paths (matching pdf-disk-storage.js)
 const DISK_MOUNT_PATH = process.env.DISK_MOUNT_PATH || '/var/data';

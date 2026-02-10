@@ -4,12 +4,11 @@
 
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
+const pool = require('../db');
+const requireAdminKey = require('../middleware/admin-key-auth');
 
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-});
+// Require admin authentication for all diagnostic routes
+router.use(requireAdminKey);
 
 /**
  * GET /api/diagnostic/cases/:walletAddress
