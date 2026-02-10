@@ -498,16 +498,35 @@ router.get('/:caseNumber/document', async (req, res) => {
                 // Only notify on first view (we just inserted one, so count should be 1)
                 if (viewCount === 1 && recipientAddress) {
                     // Get server's email from process_servers table
-                    const serverResult = await pool.query(`
+                    // Filter for rows that actually have a contact_email set
+                    let serverResult = await pool.query(`
                         SELECT ps.contact_email, ps.agency_name
                         FROM case_service_records csr
                         JOIN process_servers ps ON LOWER(ps.wallet_address) = LOWER(csr.server_address)
                         WHERE csr.case_number = $1
+                          AND ps.contact_email IS NOT NULL AND ps.contact_email != ''
+                        LIMIT 1
                     `, [caseNumber]);
 
-                    console.log(`📧 Server lookup: ${serverResult.rows.length} rows found for case ${caseNumber}`, serverResult.rows.map(r => ({ email: r.contact_email, agency: r.agency_name })));
+                    // Fallback: if the serving wallet has no email, find another wallet for same agency that does
+                    if (serverResult.rows.length === 0) {
+                        serverResult = await pool.query(`
+                            SELECT ps2.contact_email, ps2.agency_name
+                            FROM case_service_records csr
+                            JOIN process_servers ps ON LOWER(ps.wallet_address) = LOWER(csr.server_address)
+                            JOIN process_servers ps2 ON ps2.agency_name = ps.agency_name
+                                AND ps2.contact_email IS NOT NULL AND ps2.contact_email != ''
+                            WHERE csr.case_number = $1
+                            LIMIT 1
+                        `, [caseNumber]);
+                        if (serverResult.rows.length > 0) {
+                            console.log(`📧 Found email via agency fallback for case ${caseNumber}`);
+                        }
+                    }
 
-                    if (serverResult.rows.length > 0 && serverResult.rows[0].contact_email) {
+                    console.log(`📧 Server lookup: ${serverResult.rows.length} rows with email for case ${caseNumber}`);
+
+                    if (serverResult.rows.length > 0) {
                         const serverEmail = serverResult.rows[0].contact_email;
                         const serverName = serverResult.rows[0].agency_name;
 

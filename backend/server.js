@@ -1745,6 +1745,20 @@ async function ensureMasterAdminRegistered() {
       await pool.query('UPDATE process_servers SET agency = $1 WHERE LOWER(wallet_address) = LOWER($2)', [agencyName, walletAddress]);
     } catch (e) { /* agency column might not exist */ }
 
+    // Backfill contact_email on all wallets for this agency that are missing it
+    try {
+      const updated = await pool.query(
+        `UPDATE process_servers SET contact_email = $1, updated_at = NOW()
+         WHERE agency_name = $2 AND (contact_email IS NULL OR contact_email = '')`,
+        ['jesse@theblockaudit.com', agencyName]
+      );
+      if (updated.rowCount > 0) {
+        console.log(`📧 Backfilled contact_email on ${updated.rowCount} wallet(s) for ${agencyName}`);
+      }
+    } catch (e) {
+      console.log('Could not backfill contact emails:', e.message);
+    }
+
   } catch (error) {
     console.error('Failed to ensure master admin registration:', error.message);
   }
