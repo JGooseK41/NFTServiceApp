@@ -2221,7 +2221,20 @@
                 };
             }
 
-            // MetaMask detection (Ethereum wallet - may have TRON via snap/bridge)
+            // TronLink detection (check BEFORE MetaMask since both can be installed)
+            if (window.tronLink || window.tronWeb?.ready) {
+                return {
+                    provider: 'TronLink',
+                    version: window.tronLink?.version || null,
+                    type: deviceInfo.isMobile ? 'Mobile App' : 'Browser Extension',
+                    ready: window.tronWeb?.ready || false,
+                    network: window.tronWeb?.fullNode?.host || null,
+                    isInAppBrowser: ua.includes('tronlink'),
+                    chainType: 'tron'
+                };
+            }
+
+            // MetaMask detection (Ethereum wallet - only if TronLink not present)
             if (window.ethereum?.isMetaMask) {
                 return {
                     provider: 'MetaMask',
