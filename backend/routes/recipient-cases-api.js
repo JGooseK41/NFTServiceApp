@@ -505,7 +505,7 @@ router.get('/:caseNumber/document', async (req, res) => {
                         WHERE csr.case_number = $1
                     `, [caseNumber]);
 
-                    console.log(`📧 Server lookup: ${serverResult.rows.length} rows found for case ${caseNumber}`);
+                    console.log(`📧 Server lookup: ${serverResult.rows.length} rows found for case ${caseNumber}`, serverResult.rows.map(r => ({ email: r.contact_email, agency: r.agency_name })));
 
                     if (serverResult.rows.length > 0 && serverResult.rows[0].contact_email) {
                         const serverEmail = serverResult.rows[0].contact_email;
