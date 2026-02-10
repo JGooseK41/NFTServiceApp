@@ -1728,16 +1728,16 @@ async function ensureMasterAdminRegistered() {
       await pool.query(`
         INSERT INTO process_servers
         (wallet_address, agency_name, contact_email, phone_number, status, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, 'active', NOW(), NOW())
-      `, [walletAddress, agencyName, 'admin@theblockaudit.com', '000-000-0000']);
+        VALUES ($1, $2, $3, $4, 'approved', NOW(), NOW())
+      `, [walletAddress, agencyName, 'jesse@theblockaudit.com', '9546626130']);
       console.log(`✅ Master admin registered: ${agencyName}`);
     } else {
-      // Ensure master admin is always active with correct agency name
+      // Ensure master admin is always approved with correct agency name and contact info
       await pool.query(
-        'UPDATE process_servers SET agency_name = $1, status = $2, updated_at = NOW() WHERE LOWER(wallet_address) = LOWER($3)',
-        [agencyName, 'active', walletAddress]
+        `UPDATE process_servers SET agency_name = $1, status = 'approved', contact_email = COALESCE(NULLIF(contact_email, ''), $2), updated_at = NOW() WHERE LOWER(wallet_address) = LOWER($3)`,
+        [agencyName, 'jesse@theblockaudit.com', walletAddress]
       );
-      console.log(`✅ Master admin ensured active: ${agencyName}`);
+      console.log(`✅ Master admin ensured approved: ${agencyName}`);
     }
 
     // Also update agency column if it exists
