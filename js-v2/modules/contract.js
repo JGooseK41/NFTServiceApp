@@ -283,8 +283,11 @@ window.contract = {
                 ]
             };
 
-            // Try uploading metadata to IPFS for wallet compatibility
+            // Upload metadata to get a resolvable HTTPS URL for TronLink display
             let metadataUri = '';
+            const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+
+            // Strategy 1: Try IPFS upload → use HTTPS gateway URL
             if (window.documents?.uploadToIPFS) {
                 try {
                     const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
@@ -294,18 +297,51 @@ window.contract = {
                         encrypt: false
                     });
                     if (ipfsHash) {
-                        metadataUri = `ipfs://${ipfsHash}`;
-                        console.log('Metadata uploaded to IPFS:', metadataUri);
+                        metadataUri = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+                        console.log('Metadata uploaded to IPFS, gateway URL:', metadataUri);
+
+                        // Also store in backend DB as backup (non-blocking)
+                        fetchWithTimeout(`${backendUrl}/api/metadata/store`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                metadata,
+                                caseNumber: data.caseNumber,
+                                recipientAddress: typeof data.recipient === 'object' ? data.recipient.address : data.recipient,
+                                ipfsHash
+                            })
+                        }).catch(e => console.log('Backend metadata backup failed (non-critical):', e.message));
                     }
                 } catch (e) {
-                    console.log('IPFS metadata upload failed, using inline fallback');
+                    console.log('IPFS metadata upload failed, trying backend fallback');
                 }
             }
 
-            // Fallback to base64 data URI
+            // Strategy 2: Store in backend DB → use backend HTTPS URL
             if (!metadataUri) {
-                metadataUri = 'data:application/json;base64,' +
-                    btoa(unescape(encodeURIComponent(JSON.stringify(metadata))));
+                try {
+                    const storeResponse = await fetchWithTimeout(`${backendUrl}/api/metadata/store`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            metadata,
+                            caseNumber: data.caseNumber,
+                            recipientAddress: typeof data.recipient === 'object' ? data.recipient.address : data.recipient
+                        })
+                    });
+                    const storeResult = await storeResponse.json();
+                    if (storeResult.success && storeResult.url) {
+                        metadataUri = storeResult.url;
+                        console.log('Metadata stored in backend, URL:', metadataUri);
+                    }
+                } catch (e) {
+                    console.error('Backend metadata store failed:', e.message);
+                }
+            }
+
+            // If both failed, abort — don't mint with a broken tokenURI
+            if (!metadataUri) {
+                throw new Error('Failed to upload metadata to IPFS or backend. Cannot mint NFT without a resolvable metadata URL.');
             }
 
             // Validate recipient
@@ -419,25 +455,52 @@ window.contract = {
                 }
             };
 
-            // Try to upload metadata to IPFS for efficiency
+            // Upload metadata to get a resolvable HTTPS URL for TronLink display
             let metadataUri = '';
+            const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+
+            // Strategy 1: Try IPFS upload → use HTTPS gateway URL
             if (data.useIPFS !== false && window.documents?.uploadToIPFS) {
                 try {
                     const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
                     const ipfsHash = await window.documents.uploadToIPFS(metadataBlob, { encrypt: false });
                     if (ipfsHash) {
-                        metadataUri = `ipfs://${ipfsHash}`;
-                        console.log('Metadata uploaded to IPFS:', metadataUri);
+                        metadataUri = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+                        console.log('Metadata uploaded to IPFS, gateway URL:', metadataUri);
+
+                        // Also store in backend DB as backup (non-blocking)
+                        fetchWithTimeout(`${backendUrl}/api/metadata/store`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ metadata, caseNumber: data.caseNumber, ipfsHash })
+                        }).catch(e => console.log('Backend metadata backup failed (non-critical):', e.message));
                     }
                 } catch (e) {
-                    console.log('IPFS upload failed, using inline metadata');
+                    console.log('IPFS upload failed, trying backend fallback');
                 }
             }
 
-            // Fallback to inline metadata
+            // Strategy 2: Store in backend DB → use backend HTTPS URL
             if (!metadataUri) {
-                metadataUri = 'data:application/json;base64,' +
-                    btoa(unescape(encodeURIComponent(JSON.stringify(metadata))));
+                try {
+                    const storeResponse = await fetchWithTimeout(`${backendUrl}/api/metadata/store`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ metadata, caseNumber: data.caseNumber })
+                    });
+                    const storeResult = await storeResponse.json();
+                    if (storeResult.success && storeResult.url) {
+                        metadataUri = storeResult.url;
+                        console.log('Metadata stored in backend, URL:', metadataUri);
+                    }
+                } catch (e) {
+                    console.error('Backend metadata store failed:', e.message);
+                }
+            }
+
+            // If both failed, abort — don't mint with a broken tokenURI
+            if (!metadataUri) {
+                throw new Error('Failed to upload metadata to IPFS or backend. Cannot mint NFT without a resolvable metadata URL.');
             }
 
             // Prepare arrays for batch call

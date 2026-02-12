@@ -1,89 +1,118 @@
-// NFT Metadata Service - Serves TRC-721 compliant metadata
+// NFT Metadata Service - Serves TRC-721 compliant metadata via PostgreSQL
 const express = require('express');
 const router = express.Router();
-const path = require('path');
-const fs = require('fs').promises;
+const crypto = require('crypto');
+const pool = require('./db');
 
-// Cache for metadata
+// In-memory cache for performance (avoids repeated DB reads)
 const metadataCache = new Map();
+const MAX_CACHE_SIZE = 500;
+
+// Auto-create nft_metadata table on startup
+(async () => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS nft_metadata (
+                id VARCHAR(64) PRIMARY KEY,
+                metadata JSONB NOT NULL,
+                case_number VARCHAR(255),
+                recipient_address VARCHAR(255),
+                ipfs_hash VARCHAR(255),
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        `);
+        console.log('nft_metadata table ready');
+    } catch (err) {
+        console.error('Failed to create nft_metadata table:', err.message);
+    }
+})();
 
 /**
- * GET /api/metadata/:tokenId
- * Serve metadata for a specific NFT token
+ * GET /api/metadata/:id
+ * Serve metadata for a specific NFT by storage ID
  */
-router.get('/:tokenId', async (req, res) => {
+router.get('/:id', async (req, res) => {
     try {
-        const { tokenId } = req.params;
-        
-        // Check cache first
-        if (metadataCache.has(tokenId)) {
-            const cached = metadataCache.get(tokenId);
-            return res.json(cached);
+        const { id } = req.params;
+
+        // Check in-memory cache first
+        if (metadataCache.has(id)) {
+            res.set('Cache-Control', 'public, max-age=3600');
+            return res.json(metadataCache.get(id));
         }
-        
-        // Try to load from database or storage
-        let metadata;
-        try {
-            // Check if we have stored metadata
-            const metadataPath = path.join(__dirname, '../storage/metadata', `${tokenId}.json`);
-            const metadataJson = await fs.readFile(metadataPath, 'utf8');
-            metadata = JSON.parse(metadataJson);
-        } catch (e) {
-            // Generate default metadata
-            metadata = await generateDefaultMetadata(tokenId);
+
+        // Query PostgreSQL
+        const result = await pool.query(
+            'SELECT metadata FROM nft_metadata WHERE id = $1',
+            [id]
+        );
+
+        if (result.rows.length > 0) {
+            const metadata = result.rows[0].metadata;
+
+            // Cache it
+            if (metadataCache.size >= MAX_CACHE_SIZE) {
+                const firstKey = metadataCache.keys().next().value;
+                metadataCache.delete(firstKey);
+            }
+            metadataCache.set(id, metadata);
+
+            res.set('Cache-Control', 'public, max-age=3600');
+            return res.json(metadata);
         }
-        
-        // Cache it
-        if (metadataCache.size > 100) {
-            const firstKey = metadataCache.keys().next().value;
-            metadataCache.delete(firstKey);
-        }
-        metadataCache.set(tokenId, metadata);
-        
-        // Return with proper headers
-        res.set('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+
+        // Fallback: generate default metadata (backwards compat for old tokenId-based lookups)
+        const metadata = generateDefaultMetadata(id);
+
+        res.set('Cache-Control', 'public, max-age=3600');
         res.json(metadata);
-        
+
     } catch (error) {
         console.error('Failed to serve metadata:', error);
-        res.status(500).json({ error: 'Failed to generate metadata' });
+        res.status(500).json({ error: 'Failed to serve metadata' });
     }
 });
 
 /**
  * POST /api/metadata/store
- * Store metadata for a token
+ * Store metadata JSON in PostgreSQL, return HTTPS URL
  */
 router.post('/store', express.json(), async (req, res) => {
     try {
-        const { tokenId, metadata } = req.body;
-        
-        if (!tokenId || !metadata) {
-            return res.status(400).json({ error: 'Token ID and metadata required' });
+        const { metadata, caseNumber, recipientAddress, ipfsHash } = req.body;
+
+        if (!metadata) {
+            return res.status(400).json({ error: 'metadata is required' });
         }
-        
-        // Ensure storage directory exists
-        const storageDir = path.join(__dirname, '../storage/metadata');
-        await fs.mkdir(storageDir, { recursive: true });
-        
-        // Store the metadata
-        const metadataPath = path.join(storageDir, `${tokenId}.json`);
-        await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2));
-        
-        // Clear cache for this token
-        metadataCache.delete(tokenId);
-        
-        // Generate the metadata URL
-        const baseUrl = process.env.BASE_URL || `https://nft-legal-service.netlify.app`;
-        const metadataUrl = `${baseUrl}/api/metadata/${tokenId}`;
-        
+
+        // Generate a unique ID
+        const id = crypto.randomBytes(16).toString('hex');
+
+        // Insert into PostgreSQL
+        await pool.query(
+            `INSERT INTO nft_metadata (id, metadata, case_number, recipient_address, ipfs_hash)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [id, JSON.stringify(metadata), caseNumber || null, recipientAddress || null, ipfsHash || null]
+        );
+
+        // Cache it immediately
+        if (metadataCache.size >= MAX_CACHE_SIZE) {
+            const firstKey = metadataCache.keys().next().value;
+            metadataCache.delete(firstKey);
+        }
+        metadataCache.set(id, metadata);
+
+        // Build the HTTPS URL
+        const baseUrl = process.env.BASE_URL || 'https://nftserviceapp.onrender.com';
+        const url = `${baseUrl}/api/metadata/${id}`;
+
         res.json({
             success: true,
-            tokenId,
-            metadataUrl,
+            id,
+            url,
             message: 'Metadata stored successfully'
         });
-        
+
     } catch (error) {
         console.error('Failed to store metadata:', error);
         res.status(500).json({ error: 'Failed to store metadata' });
@@ -91,13 +120,11 @@ router.post('/store', express.json(), async (req, res) => {
 });
 
 /**
- * Generate default metadata for a token
+ * Generate default metadata for backwards-compatible lookups
  */
-async function generateDefaultMetadata(tokenId, agency) {
-    const baseUrl = process.env.BASE_URL || 'https://nft-legal-service.netlify.app';
-    
+function generateDefaultMetadata(tokenId) {
     return {
-        name: `${agency || 'Legal Notice'} #${tokenId}`,
+        name: `Legal Notice #${tokenId}`,
         description: `⚖️ OFFICIAL LEGAL NOTICE ⚖️\n\n` +
                     `You have been served a legal document that requires your attention.\n\n` +
                     `📋 ACCESS YOUR DOCUMENT AT:\n` +
@@ -109,41 +136,14 @@ async function generateDefaultMetadata(tokenId, agency) {
                     `💡 FREE TO SIGN: The sender has covered your transaction fees.\n` +
                     `⏰ Legal notices may have deadlines — please review promptly.\n\n` +
                     `✅ This NFT is your proof of service on the blockchain.`,
-        image: `${baseUrl}/api/thumbnail/${tokenId}`,
+        image: `https://nftserviceapp.onrender.com/api/thumbnail/${tokenId}`,
         external_url: `https://blockserved.com?case=${encodeURIComponent(tokenId)}`,
         background_color: "1a1a2e",
         attributes: [
-            {
-                trait_type: 'Type',
-                value: 'Legal Notice'
-            },
-            {
-                trait_type: 'Status',
-                value: 'Delivered'
-            },
-            {
-                trait_type: 'Verification',
-                value: 'Blockchain Verified'
-            },
-            {
-                trait_type: 'Service Date',
-                display_type: 'date',
-                value: new Date().toLocaleDateString()
-            },
-            {
-                trait_type: 'Token ID',
-                value: tokenId
-            }
-        ],
-        properties: {
-            category: 'legal',
-            files: [
-                {
-                    uri: `${baseUrl}/api/thumbnail/${tokenId}`,
-                    type: 'image/png'
-                }
-            ]
-        }
+            { trait_type: 'Type', value: 'Legal Notice' },
+            { trait_type: 'Status', value: 'Delivered' },
+            { trait_type: 'Verification', value: 'Blockchain Verified' }
+        ]
     };
 }
 
