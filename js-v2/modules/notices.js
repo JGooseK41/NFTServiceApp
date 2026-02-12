@@ -511,10 +511,11 @@ window.notices = {
 
                 // Use exact values from transaction, fallback to config
                 const feeConfig = window.app?.feeConfig || {
-                    serviceFeeInTRX: 10,
-                    recipientFundingInTRX: 20,
-                    totalPerNoticeInTRX: 30
+                    serviceFeeInTRX: 100,
+                    recipientFundingInTRX: 1,
+                    totalPerNoticeInTRX: 101
                 };
+                const notificationAmountTRX = window.contract?.notificationAmountTRX || 5;
 
                 receipt = await this.generateReceipt({
                     noticeId,
@@ -533,10 +534,12 @@ window.notices = {
                     feeBreakdown: {
                         serviceFee: paymentDetails.totalServiceFees || (feeConfig.serviceFeeInTRX * recipientCount),
                         recipientFunding: paymentDetails.totalRecipientFunding || (feeConfig.recipientFundingInTRX * recipientCount),
-                        totalPaymentTRX: paymentDetails.totalPaymentTRX || (feeConfig.totalPerNoticeInTRX * recipientCount),
+                        notificationTransfer: paymentDetails.totalNotificationTransfers || (notificationAmountTRX * recipientCount),
+                        totalPaymentTRX: paymentDetails.totalWithNotifications || paymentDetails.totalWithNotification || ((feeConfig.totalPerNoticeInTRX + notificationAmountTRX) * recipientCount),
                         perRecipient: {
                             serviceFee: paymentDetails.serviceFeePerRecipient || paymentDetails.serviceFee || feeConfig.serviceFeeInTRX,
-                            recipientFunding: paymentDetails.recipientFundingPerRecipient || paymentDetails.recipientFunding || feeConfig.recipientFundingInTRX
+                            recipientFunding: paymentDetails.recipientFundingPerRecipient || paymentDetails.recipientFunding || feeConfig.recipientFundingInTRX,
+                            notificationTransfer: paymentDetails.notificationTransferPerRecipient || paymentDetails.notificationTransfer || notificationAmountTRX
                         },
                         recipientCount
                     }

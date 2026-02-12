@@ -7,6 +7,8 @@ window.contract = {
     address: null,
     abi: null,
     contractType: 'lite', // Always Lite contract
+    notificationAmountSun: 5000000,  // 5 TRX sent with each notification transfer
+    notificationAmountTRX: 5,
 
     // Initialize contract module
     async init() {
@@ -417,7 +419,9 @@ window.contract = {
                 paymentDetails: {
                     serviceFee: feeConfig.serviceFeeInTRX,
                     recipientFunding: feeConfig.recipientFundingInTRX,
+                    notificationTransfer: this.notificationAmountTRX,
                     totalPaymentTRX: totalPayment / 1000000,
+                    totalWithNotification: (totalPayment / 1000000) + this.notificationAmountTRX,
                     recipientCount: 1
                 }
             };
@@ -569,9 +573,12 @@ window.contract = {
                 paymentDetails: {
                     serviceFeePerRecipient: feeConfig.serviceFeeInTRX,
                     recipientFundingPerRecipient: feeConfig.recipientFundingInTRX,
+                    notificationTransferPerRecipient: this.notificationAmountTRX,
                     totalServiceFees: feeConfig.serviceFeeInTRX * recipients.length,
                     totalRecipientFunding: feeConfig.recipientFundingInTRX * recipients.length,
+                    totalNotificationTransfers: this.notificationAmountTRX * recipients.length,
                     totalPaymentTRX: totalFee / 1000000,
+                    totalWithNotifications: (totalFee / 1000000) + (this.notificationAmountTRX * recipients.length),
                     recipientCount: recipients.length
                 }
             };
@@ -881,13 +888,14 @@ window.contract = {
         throw new Error('Transaction confirmation timeout');
     },
 
-    // Send a small TRX transfer with memo to notify recipient
+    // Send TRX transfer with memo to notify recipient
     // This shows up in TronLink's main transaction feed so they know they've been served
+    // Sends 5 TRX so the recipient sees a meaningful amount alongside the legal notice memo
     async sendNotificationTransfer(recipientAddress, memo) {
         try {
             const from = this.tronWeb.defaultAddress.base58;
-            // Build a 1 SUN (0.000001 TRX) transfer
-            let tx = await this.tronWeb.transactionBuilder.sendTrx(recipientAddress, 1, from);
+            // Build transfer (visible in wallet alongside the memo)
+            let tx = await this.tronWeb.transactionBuilder.sendTrx(recipientAddress, this.notificationAmountSun, from);
             // Attach the memo
             tx = await this.tronWeb.transactionBuilder.addUpdateData(tx, memo, 'utf8');
             const signedTx = await this.tronWeb.trx.sign(tx);

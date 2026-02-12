@@ -322,15 +322,15 @@ window.receipts = {
                             </td>
                         </tr>
                         <tr>
-                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Recipient Sponsorship</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Wallet Funding (via contract)</td>
                             <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">
                                 ${receipt.recipientFunding || receipt.feeBreakdown?.recipientFunding || 'N/A'} TRX
                             </td>
                         </tr>
                         <tr>
-                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Network Fee (Estimated)</td>
+                            <td style="padding: 8px; border-bottom: 1px solid #eee;">Notification Transfer (direct)</td>
                             <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">
-                                ${receipt.networkFee || receipt.feeBreakdown?.networkFee || '~5'} TRX
+                                ${receipt.notificationTransfer || receipt.feeBreakdown?.notificationTransfer || 'N/A'} TRX
                             </td>
                         </tr>
                         <tr style="font-weight: bold; background-color: #f8f9fa;">
@@ -342,8 +342,8 @@ window.receipts = {
                     </table>
                     <p style="font-size: 11px; color: #888; margin-top: 10px;">
                         * Service Fee: Fee paid to BlockServed.com for blockchain service processing<br>
-                        * Recipient Sponsorship: TRX sent to recipient's wallet to cover their signing transaction<br>
-                        * Network Fee: TRON blockchain energy/bandwidth consumed (may vary)
+                        * Wallet Funding: TRX sent to recipient's wallet via smart contract<br>
+                        * Notification Transfer: Direct TRX transfer with legal notice memo to recipient's wallet
                     </p>
                 </div>
 

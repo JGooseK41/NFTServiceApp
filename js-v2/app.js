@@ -3067,10 +3067,12 @@ window.app = {
                 // Update admin display if on admin page
                 const configDisplay = document.getElementById('currentFeeConfigDisplay');
                 if (configDisplay) {
+                    const notifTRX = window.contract?.notificationAmountTRX || 5;
                     configDisplay.innerHTML = `
                         Service Fee: ${this.feeConfig.serviceFeeInTRX} TRX<br>
-                        Recipient Sponsorship: ${this.feeConfig.recipientFundingInTRX} TRX<br>
-                        <strong>Total per Notice: ${this.feeConfig.totalPerNoticeInTRX} TRX</strong>
+                        Wallet Funding: ${this.feeConfig.recipientFundingInTRX} TRX<br>
+                        Notification Transfer: ${notifTRX} TRX<br>
+                        <strong>Total per Notice: ${this.feeConfig.totalPerNoticeInTRX + notifTRX} TRX</strong>
                     `;
                 }
 
@@ -3084,12 +3086,12 @@ window.app = {
             console.warn('Could not load fee config:', error);
             // Use defaults
             this.feeConfig = {
-                serviceFee: 10000000,
-                recipientFunding: 20000000,
-                totalPerNotice: 30000000,
-                serviceFeeInTRX: 10,
-                recipientFundingInTRX: 20,
-                totalPerNoticeInTRX: 30
+                serviceFee: 100000000,
+                recipientFunding: 1000000,
+                totalPerNotice: 101000000,
+                serviceFeeInTRX: 100,
+                recipientFundingInTRX: 1,
+                totalPerNoticeInTRX: 101
             };
         }
 
@@ -3103,9 +3105,9 @@ window.app = {
         const recipientCount = recipientInputs.length;
 
         // Use loaded fee config or defaults
-        const serviceFee = this.feeConfig?.serviceFeeInTRX || 10;
-        const recipientFunding = this.feeConfig?.recipientFundingInTRX || 20;
-        const totalPerRecipient = this.feeConfig?.totalPerNoticeInTRX || 30;
+        const serviceFee = this.feeConfig?.serviceFeeInTRX || 100;
+        const recipientFunding = this.feeConfig?.recipientFundingInTRX || 1;
+        const totalPerRecipient = this.feeConfig?.totalPerNoticeInTRX || 101;
 
         // Update UI elements
         const recipientCountEl = document.getElementById('recipientCount');

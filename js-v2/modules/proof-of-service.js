@@ -145,8 +145,10 @@ window.proofOfService = {
             // Fee breakdown data (exact costs from transaction)
             serviceFeePerRecipient: caseData.serviceFeePerRecipient || caseData.feeBreakdown?.perRecipient?.serviceFee,
             recipientFundingPerRecipient: caseData.recipientFundingPerRecipient || caseData.feeBreakdown?.perRecipient?.recipientFunding,
+            notificationTransferPerRecipient: caseData.notificationTransferPerRecipient || caseData.feeBreakdown?.perRecipient?.notificationTransfer,
             totalServiceFees: caseData.totalServiceFees || caseData.serviceFee || caseData.service_fee || caseData.feeBreakdown?.serviceFee,
             totalRecipientFunding: caseData.totalRecipientFunding || caseData.recipientFunding || caseData.recipient_funding || caseData.feeBreakdown?.recipientFunding,
+            totalNotificationTransfers: caseData.totalNotificationTransfers || caseData.feeBreakdown?.notificationTransfer,
             totalPaymentTRX: caseData.totalPaymentTRX || caseData.feeBreakdown?.totalPaymentTRX || caseData.totalTransactionCost || caseData.totalCost,
             recipientCount: caseData.recipientCount || (caseData.recipients ? caseData.recipients.length : 1)
         };
@@ -595,9 +597,10 @@ window.proofOfService = {
                         <table>
                             <thead>
                                 <tr>
-                                    <th style="width: 50%;">Recipient Address</th>
-                                    <th style="width: 25%; text-align: right;">Service Fee</th>
-                                    <th style="width: 25%; text-align: right;">Sponsorship</th>
+                                    <th style="width: 40%;">Recipient Address</th>
+                                    <th style="width: 20%; text-align: right;">Service Fee</th>
+                                    <th style="width: 20%; text-align: right;">Wallet Funding</th>
+                                    <th style="width: 20%; text-align: right;">Notification</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -609,6 +612,7 @@ window.proofOfService = {
                                         <td class="mono" style="font-size: 9pt;">${shortAddr}</td>
                                         <td style="text-align: right;">${receipt.serviceFeePerRecipient || (receipt.totalServiceFees / receipt.recipientCount) || 'N/A'} TRX</td>
                                         <td style="text-align: right;">${receipt.recipientFundingPerRecipient || (receipt.totalRecipientFunding / receipt.recipientCount) || 'N/A'} TRX</td>
+                                        <td style="text-align: right;">${receipt.notificationTransferPerRecipient || (receipt.totalNotificationTransfers / receipt.recipientCount) || 'N/A'} TRX</td>
                                     </tr>
                                     `;
                                 }).join('') || `
@@ -616,6 +620,7 @@ window.proofOfService = {
                                     <td class="mono" style="font-size: 9pt;">Recipient 1</td>
                                     <td style="text-align: right;">${receipt.serviceFeePerRecipient || receipt.totalServiceFees || 'N/A'} TRX</td>
                                     <td style="text-align: right;">${receipt.recipientFundingPerRecipient || receipt.totalRecipientFunding || 'N/A'} TRX</td>
+                                    <td style="text-align: right;">${receipt.notificationTransferPerRecipient || receipt.totalNotificationTransfers || 'N/A'} TRX</td>
                                 </tr>
                                 `}
                             </tbody>
@@ -631,14 +636,18 @@ window.proofOfService = {
                                     <td style="width: 30%; text-align: right;">${receipt.totalServiceFees || 'N/A'} TRX</td>
                                 </tr>
                                 <tr>
-                                    <td>Total Recipient Sponsorships (${receipt.recipientCount} × ${receipt.recipientFundingPerRecipient || (receipt.totalRecipientFunding / receipt.recipientCount)} TRX)</td>
+                                    <td>Total Wallet Funding (${receipt.recipientCount} × ${receipt.recipientFundingPerRecipient || (receipt.totalRecipientFunding / receipt.recipientCount)} TRX)</td>
                                     <td style="text-align: right;">${receipt.totalRecipientFunding || 'N/A'} TRX</td>
                                 </tr>
+                                <tr>
+                                    <td>Total Notification Transfers (${receipt.recipientCount} × ${receipt.notificationTransferPerRecipient || (receipt.totalNotificationTransfers / receipt.recipientCount)} TRX)</td>
+                                    <td style="text-align: right;">${receipt.totalNotificationTransfers || 'N/A'} TRX</td>
+                                </tr>
                                 <tr style="border-top: 2px solid #000;">
-                                    <td><strong>TOTAL TRX SENT TO CONTRACT</strong></td>
+                                    <td><strong>TOTAL EXPENDITURE</strong></td>
                                     <td style="text-align: right;"><strong>${receipt.totalPaymentTRX || (
-                                        (receipt.totalServiceFees && receipt.totalRecipientFunding)
-                                            ? (parseFloat(receipt.totalServiceFees) + parseFloat(receipt.totalRecipientFunding))
+                                        (receipt.totalServiceFees && receipt.totalRecipientFunding && receipt.totalNotificationTransfers)
+                                            ? (parseFloat(receipt.totalServiceFees) + parseFloat(receipt.totalRecipientFunding) + parseFloat(receipt.totalNotificationTransfers))
                                             : 'N/A'
                                     )} TRX</strong></td>
                                 </tr>
@@ -654,8 +663,9 @@ window.proofOfService = {
                         <div class="section-title">III. Fee Explanation</div>
                         <div style="font-size: 10pt;">
                             <p><strong>Service Fee:</strong> Platform fee collected by BlockServed for blockchain service processing, document storage on IPFS, NFT minting, and transaction coordination.</p>
-                            <p><strong>Recipient Sponsorship:</strong> TRX sent directly to each recipient's wallet. This ensures recipients have sufficient TRX to cover their transaction fees when acknowledging receipt of the notice.</p>
-                            <p><strong>Network Fees:</strong> TRON blockchain charges for energy and bandwidth consumption. These fees are separate from the contract payment and depend on the sender's staked TRX resources. Verify actual network costs on the block explorer.</p>
+                            <p><strong>Wallet Funding:</strong> TRX sent to each recipient's wallet via the smart contract to ensure they have sufficient resources for blockchain interactions.</p>
+                            <p><strong>Notification Transfer:</strong> Direct TRX transfer sent to each recipient with a memo containing the legal notice details. This appears as a visible transaction in the recipient's wallet, alerting them to the served notice.</p>
+                            <p><strong>Network Fees:</strong> TRON blockchain charges for energy and bandwidth consumption. These fees are separate from the above and depend on the sender's staked TRX resources. Verify actual network costs on the block explorer.</p>
                         </div>
                     </div>
 
