@@ -90,8 +90,18 @@ ensureTablesExist();
 // Security headers
 app.use(helmet({
     contentSecurityPolicy: false, // Disabled since backend mostly serves JSON API
-    crossOriginEmbedderPolicy: false // Allow cross-origin resources
+    crossOriginEmbedderPolicy: false, // Allow cross-origin resources
+    frameguard: false // Disabled — CSP frame-ancestors below handles iframe security
 }));
+
+// Allow only known frontend domains to embed backend content (PDF previews) in iframes
+app.use((req, res, next) => {
+    res.setHeader(
+        'Content-Security-Policy',
+        "frame-ancestors 'self' https://theblockservice.com https://www.theblockservice.com https://nftserviceapp.netlify.app https://blockserved.com https://www.blockserved.com"
+    );
+    next();
+});
 
 // Rate limiting - global: 200 requests per minute per IP
 const globalLimiter = rateLimit({
