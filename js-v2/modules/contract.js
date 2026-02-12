@@ -285,11 +285,11 @@ window.contract = {
                 ]
             };
 
-            // Upload metadata to get a resolvable HTTPS URL for TronLink display
+            // Upload metadata — TronLink natively resolves ipfs:// URIs for tokenURI
             let metadataUri = '';
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
 
-            // Strategy 1: Try IPFS upload → use HTTPS gateway URL
+            // Strategy 1: Upload to IPFS → use ipfs:// protocol URI (TronLink resolves natively)
             if (window.documents?.uploadToIPFS) {
                 try {
                     const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
@@ -299,8 +299,8 @@ window.contract = {
                         encrypt: false
                     });
                     if (ipfsHash) {
-                        metadataUri = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
-                        console.log('Metadata uploaded to IPFS, gateway URL:', metadataUri);
+                        metadataUri = `ipfs://${ipfsHash}`;
+                        console.log('Metadata uploaded to IPFS:', metadataUri);
 
                         // Also store in backend DB as backup (non-blocking)
                         fetchWithTimeout(`${backendUrl}/api/metadata/store`, {
@@ -319,7 +319,7 @@ window.contract = {
                 }
             }
 
-            // Strategy 2: Store in backend DB → use backend HTTPS URL
+            // Strategy 2: Store in backend DB → use backend HTTPS URL (fallback only)
             if (!metadataUri) {
                 try {
                     const storeResponse = await fetchWithTimeout(`${backendUrl}/api/metadata/store`, {
@@ -334,7 +334,7 @@ window.contract = {
                     const storeResult = await storeResponse.json();
                     if (storeResult.success && storeResult.url) {
                         metadataUri = storeResult.url;
-                        console.log('Metadata stored in backend, URL:', metadataUri);
+                        console.log('Metadata stored in backend (fallback), URL:', metadataUri);
                     }
                 } catch (e) {
                     console.error('Backend metadata store failed:', e.message);
@@ -459,18 +459,18 @@ window.contract = {
                 }
             };
 
-            // Upload metadata to get a resolvable HTTPS URL for TronLink display
+            // Upload metadata — TronLink natively resolves ipfs:// URIs for tokenURI
             let metadataUri = '';
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
 
-            // Strategy 1: Try IPFS upload → use HTTPS gateway URL
+            // Strategy 1: Upload to IPFS → use ipfs:// protocol URI (TronLink resolves natively)
             if (data.useIPFS !== false && window.documents?.uploadToIPFS) {
                 try {
                     const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
                     const ipfsHash = await window.documents.uploadToIPFS(metadataBlob, { encrypt: false });
                     if (ipfsHash) {
-                        metadataUri = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
-                        console.log('Metadata uploaded to IPFS, gateway URL:', metadataUri);
+                        metadataUri = `ipfs://${ipfsHash}`;
+                        console.log('Metadata uploaded to IPFS:', metadataUri);
 
                         // Also store in backend DB as backup (non-blocking)
                         fetchWithTimeout(`${backendUrl}/api/metadata/store`, {
@@ -484,7 +484,7 @@ window.contract = {
                 }
             }
 
-            // Strategy 2: Store in backend DB → use backend HTTPS URL
+            // Strategy 2: Store in backend DB → use backend HTTPS URL (fallback only)
             if (!metadataUri) {
                 try {
                     const storeResponse = await fetchWithTimeout(`${backendUrl}/api/metadata/store`, {
@@ -495,7 +495,7 @@ window.contract = {
                     const storeResult = await storeResponse.json();
                     if (storeResult.success && storeResult.url) {
                         metadataUri = storeResult.url;
-                        console.log('Metadata stored in backend, URL:', metadataUri);
+                        console.log('Metadata stored in backend (fallback), URL:', metadataUri);
                     }
                 } catch (e) {
                     console.error('Backend metadata store failed:', e.message);
