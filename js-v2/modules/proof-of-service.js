@@ -175,6 +175,17 @@ window.proofOfService = {
         const hasExpenditure = receipt.totalServiceFees || receipt.totalRecipientFunding || receipt.totalPaymentTRX;
         const totalPages = hasExpenditure ? 4 : 3;
 
+        // Compute section numbers for Page 2+ (I-III are fixed on Page 1)
+        const hasMessages = receipt.notificationMessages?.length > 0;
+        const hasNftImage = !!receipt.alertImage;
+        let sn = 4; // next section number (IV+)
+        const sNumMessages = hasMessages ? sn++ : 0;
+        const sNumNft = hasNftImage ? sn++ : 0;
+        const sNumVerify = sn++;
+        const sNumAbout = sn++;
+        const sNumAffirm = sn++;
+        const toRoman = (n) => ['','I','II','III','IV','V','VI','VII','VIII','IX','X'][n] || n;
+
         const html = `
             <!DOCTYPE html>
             <html>
@@ -411,51 +422,65 @@ window.proofOfService = {
 
                     <div class="section">
                         <div class="section-title">III. Service Recipients</div>
-                        <table>
+                        <table style="font-size: 9pt;">
                             <thead>
                                 <tr>
-                                    <th style="width: 60%;">Recipient Wallet Address</th>
-                                    <th style="width: 20%;">Token ID</th>
-                                    <th style="width: 20%;">Status</th>
+                                    <th style="width: 60%; padding: 4px 6px;">Recipient Wallet Address</th>
+                                    <th style="width: 20%; padding: 4px 6px;">Token ID</th>
+                                    <th style="width: 20%; padding: 4px 6px;">Status</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${(receipt.recipients || []).map((r, i) => `
                                 <tr>
-                                    <td class="mono">${typeof r === 'string' ? r : (r.address || 'N/A')}</td>
-                                    <td>${tokenId !== 'N/A' ? '#' + (parseInt(tokenId) + i) : 'N/A'}</td>
-                                    <td>Delivered</td>
+                                    <td class="mono" style="padding: 4px 6px;">${typeof r === 'string' ? r : (r.address || 'N/A')}</td>
+                                    <td style="padding: 4px 6px;">${tokenId !== 'N/A' ? '#' + (parseInt(tokenId) + i) : 'N/A'}</td>
+                                    <td style="padding: 4px 6px;">Delivered</td>
                                 </tr>
                                 `).join('') || `
                                 <tr>
-                                    <td colspan="3" style="text-align: center;">No recipient data available</td>
+                                    <td colspan="3" style="text-align: center; padding: 4px 6px;">No recipient data available</td>
                                 </tr>
                                 `}
                             </tbody>
                         </table>
                     </div>
 
+                    <div class="footer">
+                        BlockServed™ Proof of Service | Case ${receipt.caseNumber} | Page 1 of ${totalPages}
+                    </div>
+                </div>
+
+                <!-- PAGE 2: Messages, NFT Evidence & Verification Instructions -->
+                <div class="page">
+                    <div class="header">
+                        <h1>Proof of Blockchain Service</h1>
+                        <div class="case-ref"><strong>Case No. ${receipt.caseNumber}</strong> (continued)</div>
+                    </div>
+
                     ${receipt.notificationMessages?.length > 0 ? `
                     <div class="section">
-                        <div class="section-title">IV. Notification Messages Delivered</div>
-                        <table>
+                        <div class="section-title">${toRoman(sNumMessages)}. Notification Messages Delivered</div>
+                        <table style="font-size: 8pt;">
                             <thead>
                                 <tr>
-                                    <th style="width: 30%;">Recipient</th>
-                                    <th style="width: 55%;">Message</th>
-                                    <th style="width: 15%;">Status</th>
+                                    <th style="width: 25%; padding: 3px 5px;">Recipient</th>
+                                    <th style="width: 60%; padding: 3px 5px;">Message</th>
+                                    <th style="width: 15%; padding: 3px 5px;">Status</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${receipt.notificationMessages.map(n => {
                                     const addr = n.address || 'N/A';
                                     const truncAddr = addr.length > 18 ? addr.slice(0, 10) + '...' + addr.slice(-8) : addr;
+                                    const msg = n.message || '\u2014';
+                                    const truncMsg = msg.length > 100 ? msg.slice(0, 100) + '\u2026' : msg;
                                     const statusLabel = n.status === 'sent' ? 'Sent' : n.status === 'failed' ? 'Failed' : 'Skipped';
                                     return `
                                 <tr>
-                                    <td class="mono" style="font-size: 8pt;">${truncAddr}</td>
-                                    <td style="font-size: 8pt; word-break: break-word;">${n.message || '—'}</td>
-                                    <td>${statusLabel}</td>
+                                    <td class="mono" style="padding: 3px 5px;">${truncAddr}</td>
+                                    <td style="padding: 3px 5px; word-break: break-word;">${truncMsg}</td>
+                                    <td style="padding: 3px 5px;">${statusLabel}</td>
                                 </tr>`;
                                 }).join('')}
                             </tbody>
@@ -463,21 +488,9 @@ window.proofOfService = {
                     </div>
                     ` : ''}
 
-                    <div class="footer">
-                        BlockServed™ Proof of Service | Case ${receipt.caseNumber} | Page 1 of ${totalPages}
-                    </div>
-                </div>
-
-                <!-- PAGE 2: NFT Evidence & Verification Instructions -->
-                <div class="page">
-                    <div class="header">
-                        <h1>Proof of Blockchain Service</h1>
-                        <div class="case-ref"><strong>Case No. ${receipt.caseNumber}</strong> (continued)</div>
-                    </div>
-
                     ${receipt.alertImage ? `
                     <div class="section">
-                        <div class="section-title">IV. NFT Evidence</div>
+                        <div class="section-title">${toRoman(sNumNft)}. NFT Evidence</div>
                         <p style="font-size: 10pt; margin-bottom: 10px;">
                             The following NFT was minted and transferred to the recipient's wallet as immutable proof of service:
                         </p>
@@ -491,7 +504,7 @@ window.proofOfService = {
                     ` : ''}
 
                     <div class="section">
-                        <div class="section-title">${receipt.alertImage ? 'V' : 'IV'}. Verification Instructions</div>
+                        <div class="section-title">${toRoman(sNumVerify)}. Verification Instructions</div>
                         <p style="font-size: 10pt;">To independently verify this service, follow these steps:</p>
                         <ol class="verification-list">
                             <li><strong>Access Block Explorer:</strong> Navigate to the blockchain explorer at:<br>
@@ -507,7 +520,7 @@ window.proofOfService = {
                     </div>
 
                     <div class="section">
-                        <div class="section-title">${receipt.alertImage ? 'VI' : 'V'}. About Blockchain Service</div>
+                        <div class="section-title">${toRoman(sNumAbout)}. About Blockchain Service</div>
                         <p style="font-size: 10pt; text-align: justify;">
                             This proof of service utilizes blockchain technology to create an immutable, timestamped record of legal document delivery.
                             The Non-Fungible Token (NFT) transferred to the recipient's wallet serves as cryptographic proof that the notice was delivered
@@ -529,7 +542,7 @@ window.proofOfService = {
                     </div>
 
                     <div class="section">
-                        <div class="section-title">${receipt.alertImage ? 'VII' : 'VI'}. Server Affirmation & Witness Acknowledgment</div>
+                        <div class="section-title">${toRoman(sNumAffirm)}. Server Affirmation & Witness Acknowledgment</div>
                         <div class="affirmation">
                             <p style="margin-bottom: 10px;">
                                 I, the undersigned, hereby declare under penalty of perjury that on <strong>${servedDateFormatted}</strong>

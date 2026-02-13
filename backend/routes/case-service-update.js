@@ -667,6 +667,7 @@ router.get('/cases/:caseNumber/service-data', async (req, res) => {
                 agency: metadata?.agency,
                 noticeType: metadata?.noticeType,
                 metadata: metadata,
+                notificationMessages: metadata?.notificationMessages || [],
                 createdAt: caseData.created_at,
                 updatedAt: caseData.updated_at
             }
@@ -679,6 +680,62 @@ router.get('/cases/:caseNumber/service-data', async (req, res) => {
             error: 'Failed to fetch case service data',
             message: error.message
         });
+    }
+});
+
+/**
+ * PUT /api/cases/:caseNumber/notification-messages
+ * Append notification messages to case metadata
+ */
+router.put('/cases/:caseNumber/notification-messages', async (req, res) => {
+    try {
+        const caseNumber = (req.params.caseNumber || '').trim();
+        const { messages } = req.body;
+
+        if (!caseNumber) {
+            return res.status(400).json({ success: false, error: 'Case number is required' });
+        }
+        if (!Array.isArray(messages) || messages.length === 0) {
+            return res.status(400).json({ success: false, error: 'Messages array is required' });
+        }
+
+        console.log(`Saving ${messages.length} notification messages for case ${caseNumber}`);
+
+        // Read existing metadata
+        const existing = await pool.query('SELECT metadata FROM cases WHERE id = $1', [caseNumber]);
+        if (existing.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Case not found' });
+        }
+
+        const metadata = typeof existing.rows[0].metadata === 'string'
+            ? JSON.parse(existing.rows[0].metadata)
+            : (existing.rows[0].metadata || {});
+
+        // Append new messages with timestamp
+        const existingMessages = metadata.notificationMessages || [];
+        const timestampedMessages = messages.map(m => ({
+            ...m,
+            savedAt: new Date().toISOString()
+        }));
+        metadata.notificationMessages = [...existingMessages, ...timestampedMessages];
+
+        // Update metadata
+        await pool.query(
+            'UPDATE cases SET metadata = $2::jsonb, updated_at = NOW() WHERE id = $1',
+            [caseNumber, JSON.stringify(metadata)]
+        );
+
+        console.log(`Saved ${timestampedMessages.length} notification messages for case ${caseNumber} (total: ${metadata.notificationMessages.length})`);
+
+        res.json({
+            success: true,
+            message: `Saved ${timestampedMessages.length} notification messages`,
+            totalMessages: metadata.notificationMessages.length
+        });
+
+    } catch (error) {
+        console.error('Error saving notification messages:', error);
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 

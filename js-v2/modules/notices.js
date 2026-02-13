@@ -575,6 +575,20 @@ window.notices = {
                 console.warn('Notification transfers failed (non-blocking):', notifyError);
             }
 
+            // Save notification messages to backend (non-blocking)
+            if (notificationMessages.length > 0 && caseIdentifier) {
+                try {
+                    await fetch(`${backendUrl}/api/cases/${encodeURIComponent(caseIdentifier)}/notification-messages`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ messages: notificationMessages })
+                    });
+                    console.log(`Saved ${notificationMessages.length} notification messages to backend`);
+                } catch (saveErr) {
+                    console.warn('Failed to save notification messages to backend:', saveErr);
+                }
+            }
+
             // Step 9: Generate receipt with fee breakdown
             if (window.app?.showProcessing) {
                 window.app.showProcessing('Generating service receipt...', 'Almost done!');

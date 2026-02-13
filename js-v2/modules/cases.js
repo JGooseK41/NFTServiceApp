@@ -2150,7 +2150,8 @@ window.cases = {
                 totalServiceFees: feeBreakdown?.serviceFee || serviceData?.totalServiceFees || serviceData?.serviceFee || (feeConfig.serviceFeeInTRX * recipientCount),
                 totalRecipientFunding: feeBreakdown?.recipientFunding || serviceData?.totalRecipientFunding || serviceData?.recipientFunding || (feeConfig.recipientFundingInTRX * recipientCount),
                 totalTransactionCost: feeBreakdown?.total || serviceData?.totalTransactionCost || serviceData?.totalCost,
-                recipientCount: recipientCount
+                recipientCount: recipientCount,
+                notificationMessages: serviceData?.notificationMessages || caseData.notificationMessages || caseData.metadata?.notificationMessages || []
             };
 
             console.log('Receipt data prepared:', receiptData);
@@ -2814,6 +2815,7 @@ window.cases = {
             let sent = 0;
             let skipped = 0;
             let failed = 0;
+            const notificationMessages = [];
 
             for (let i = 0; i < recipientAddresses.length; i++) {
                 const approval = await showNotificationApproval(
@@ -2821,10 +2823,14 @@ window.cases = {
                 );
 
                 if (approval.action === 'skipAll') {
+                    for (let j = i; j < recipientAddresses.length; j++) {
+                        notificationMessages.push({ address: recipientAddresses[j], message: '', status: 'skipped' });
+                    }
                     skipped += recipientAddresses.length - i;
                     break;
                 }
                 if (approval.action === 'skip') {
+                    notificationMessages.push({ address: recipientAddresses[i], message: '', status: 'skipped' });
                     skipped++;
                     continue;
                 }
@@ -2841,13 +2847,18 @@ window.cases = {
                 if (window.app?.hideProcessing) window.app.hideProcessing();
 
                 if (!result.success) {
+                    notificationMessages.push({ address: recipientAddresses[i], message: approval.message, status: 'failed' });
                     failed++;
                     console.warn(`Notification transfer failed for ${recipientAddresses[i]}:`, result.error);
                     if (result.error && (result.error.includes('Confirmation declined') || result.error.includes('reject'))) {
+                        for (let j = i + 1; j < recipientAddresses.length; j++) {
+                            notificationMessages.push({ address: recipientAddresses[j], message: '', status: 'skipped' });
+                        }
                         skipped += recipientAddresses.length - i - 1;
                         break;
                     }
                 } else {
+                    notificationMessages.push({ address: recipientAddresses[i], message: approval.message, status: 'sent' });
                     sent++;
                     console.log(`Notification sent to ${recipientAddresses[i]}: ${result.txId}`);
                 }
@@ -2855,6 +2866,21 @@ window.cases = {
                 // Rate limiting: 3-second delay between transfers
                 if (i < recipientAddresses.length - 1) {
                     await new Promise(r => setTimeout(r, 3000));
+                }
+            }
+
+            // Save notification messages to backend
+            if (notificationMessages.length > 0) {
+                try {
+                    const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+                    await fetchWithTimeout(`${backendUrl}/api/cases/${encodeURIComponent(caseNumber)}/notification-messages`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ messages: notificationMessages })
+                    });
+                    console.log(`Saved ${notificationMessages.length} notification messages to backend`);
+                } catch (saveErr) {
+                    console.warn('Failed to save notification messages to backend:', saveErr);
                 }
             }
 
