@@ -27,6 +27,10 @@ contract LegalNoticeNFT_Lite_v2 {
     mapping(address => uint256[]) private _ownedTokens;
     mapping(uint256 => uint256) private _ownedTokensIndex;
 
+    // Global enumeration (ERC721Enumerable)
+    uint256[] private _allTokens;
+    mapping(uint256 => uint256) private _allTokensIndex;
+
     // Notice tracking - minimal storage
     struct Notice {
         address recipient;
@@ -298,6 +302,11 @@ contract LegalNoticeNFT_Lite_v2 {
         return _currentTokenId - 1;
     }
 
+    function tokenByIndex(uint256 index) public view returns (uint256) {
+        require(index < _allTokens.length, "Index out of bounds");
+        return _allTokens[index];
+    }
+
     function tokenOfOwnerByIndex(address owner, uint256 index) public view returns (uint256) {
         require(index < _ownedTokens[owner].length, "Index out of bounds");
         return _ownedTokens[owner][index];
@@ -346,9 +355,14 @@ contract LegalNoticeNFT_Lite_v2 {
         _owners[tokenId] = to;
         _balances[to]++;
 
+        // Per-owner enumeration
         uint256 index = _ownedTokens[to].length;
         _ownedTokens[to].push(tokenId);
         _ownedTokensIndex[tokenId] = index;
+
+        // Global enumeration (ERC721Enumerable)
+        _allTokensIndex[tokenId] = _allTokens.length;
+        _allTokens.push(tokenId);
 
         emit Transfer(address(0), to, tokenId);
     }
@@ -494,6 +508,7 @@ contract LegalNoticeNFT_Lite_v2 {
         return
             interfaceId == 0x01ffc9a7 || // ERC165
             interfaceId == 0x80ac58cd || // ERC721
-            interfaceId == 0x5b5e139f;   // ERC721Metadata
+            interfaceId == 0x5b5e139f || // ERC721Metadata
+            interfaceId == 0x780e9d63;   // ERC721Enumerable
     }
 }

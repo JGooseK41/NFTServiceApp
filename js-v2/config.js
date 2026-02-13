@@ -73,7 +73,7 @@ window.AppConfig = {
     network: {
         nile: {
             fullHost: 'https://nile.trongrid.io',
-            contractAddress: 'TPD6Q4ivfk6ibNZHkmWpQq7tkviHCVrJ8V',
+            contractAddress: 'TTnn2wPhKX1AAEuavkqbj9G9LfXy5uoMNz',
             chainId: '0x8dd8f8',
             contractType: 'lite-v2',
             chain: 'tron-nile'
