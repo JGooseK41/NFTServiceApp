@@ -85,7 +85,7 @@ window.AppConfig = {
             contractType: 'lite',
             chain: 'tron-mainnet'
         },
-        current: 'mainnet' // Current active network
+        current: 'nile' // Current active network (testing new contract)
     },
     
     // Backend Configuration
