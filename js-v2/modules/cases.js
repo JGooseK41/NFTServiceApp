@@ -1133,6 +1133,11 @@ window.cases = {
                                                 <i class="bi bi-clipboard-data"></i> View Recipient Audit Log
                                             </button>
                                         </div>
+                                        <div class="col-md-6">
+                                            <button class="btn btn-warning w-100" onclick="cases.sendMessage('${caseNumber}')">
+                                                <i class="bi bi-send"></i> Send Message
+                                            </button>
+                                        </div>
                                         ${txHash ? `
                                         <div class="col-md-6">
                                             <a href="${window.getTronScanUrl ? window.getTronScanUrl(txHash) : 'https://tronscan.org/#/transaction/' + txHash}" target="_blank" class="btn btn-info w-100">
@@ -2746,6 +2751,128 @@ window.cases = {
         
         // No notices served yet
         return '<tr><td colspan="5" class="text-center text-muted">No notices served yet</td></tr>';
+    },
+
+    // Send message transfers to recipients of an already-served case
+    async sendMessage(caseNumber) {
+        try {
+            if (!window.wallet?.connected) {
+                window.app.showError('Please connect your wallet first.');
+                return;
+            }
+            if (!window.contract?.sendNotificationTransfer) {
+                window.app.showError('Contract not initialized. Please connect your wallet and try again.');
+                return;
+            }
+
+            // Find case data from local storage
+            const allCases = window.storage.get('cases') || [];
+            const legalNoticeCases = JSON.parse(localStorage.getItem('legalnotice_cases') || '[]');
+            let caseData = allCases.find(c => (c.caseNumber || c.case_number || c.id) === caseNumber)
+                        || legalNoticeCases.find(c => (c.caseNumber || c.case_number || c.id) === caseNumber);
+
+            // Try backend if not found locally
+            if (!caseData) {
+                const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+                const resp = await fetchWithTimeout(`${backendUrl}/api/cases/by-number/${encodeURIComponent(caseNumber)}`, {
+                    headers: { 'X-Server-Address': window.wallet.address }
+                });
+                if (resp.ok) {
+                    const result = await resp.json();
+                    caseData = result.success ? result.case : null;
+                }
+            }
+
+            if (!caseData) {
+                window.app.showError('Case not found: ' + caseNumber);
+                return;
+            }
+
+            const recipients = caseData.recipients || [];
+            if (recipients.length === 0) {
+                window.app.showError('No recipients found for this case.');
+                return;
+            }
+
+            const recipientAddresses = recipients.map(r => typeof r === 'string' ? r : r.address);
+            const noticeType = caseData.noticeType || caseData.notice_type
+                || (caseData.metadata && (typeof caseData.metadata === 'string' ? JSON.parse(caseData.metadata) : caseData.metadata).noticeType)
+                || 'Legal Notice';
+            const agency = caseData.agency || caseData.issuingAgency
+                || (caseData.metadata && (typeof caseData.metadata === 'string' ? JSON.parse(caseData.metadata) : caseData.metadata).agency)
+                || 'via Blockserved.com';
+            const defaultMemo = `Legal Notice: ${noticeType} - Visit www.blockserved.com to view notice. Reference: ${agency}, Case #${caseNumber}`;
+
+            // Close the service details modal to avoid stacking
+            const receiptModal = document.getElementById('receiptModal');
+            if (receiptModal) {
+                const bsModal = bootstrap.Modal.getInstance(receiptModal);
+                if (bsModal) bsModal.hide();
+                await new Promise(r => setTimeout(r, 400));
+            }
+
+            let sent = 0;
+            let skipped = 0;
+            let failed = 0;
+
+            for (let i = 0; i < recipientAddresses.length; i++) {
+                const approval = await showNotificationApproval(
+                    recipientAddresses[i], defaultMemo, i + 1, recipientAddresses.length
+                );
+
+                if (approval.action === 'skipAll') {
+                    skipped += recipientAddresses.length - i;
+                    break;
+                }
+                if (approval.action === 'skip') {
+                    skipped++;
+                    continue;
+                }
+
+                // Show processing while TronLink signs
+                if (window.app?.showProcessing) {
+                    window.app.showProcessing('Sending message...', `${i + 1} of ${recipientAddresses.length}`);
+                }
+
+                const result = await window.contract.sendNotificationTransfer(
+                    recipientAddresses[i], approval.message
+                );
+
+                if (window.app?.hideProcessing) window.app.hideProcessing();
+
+                if (!result.success) {
+                    failed++;
+                    console.warn(`Notification transfer failed for ${recipientAddresses[i]}:`, result.error);
+                    if (result.error && (result.error.includes('Confirmation declined') || result.error.includes('reject'))) {
+                        skipped += recipientAddresses.length - i - 1;
+                        break;
+                    }
+                } else {
+                    sent++;
+                    console.log(`Notification sent to ${recipientAddresses[i]}: ${result.txId}`);
+                }
+
+                // Rate limiting: 3-second delay between transfers
+                if (i < recipientAddresses.length - 1) {
+                    await new Promise(r => setTimeout(r, 3000));
+                }
+            }
+
+            // Show summary
+            let summary = `Messages complete: ${sent} sent`;
+            if (skipped > 0) summary += `, ${skipped} skipped`;
+            if (failed > 0) summary += `, ${failed} failed`;
+            if (sent > 0) {
+                window.app.showSuccess(summary);
+            } else {
+                window.app.showWarning(summary);
+            }
+
+        } catch (error) {
+            console.error('Send message error:', error);
+            if (window.app?.hideProcessing) window.app.hideProcessing();
+            window.app.showError('Failed to send messages: ' + error.message);
+        }
     }
 };
 
