@@ -272,7 +272,7 @@ window.contract = {
             const metadata = {
                 name: `Legal Notice - Case #${data.caseNumber}`,
                 description: this._buildNoticeDescription(data),
-                image: data.thumbnailUrl || data.thumbnail,
+                image: this._toGatewayUrl(data.thumbnailUrl || data.thumbnail),
                 external_url: `https://blockserved.com?case=${encodeURIComponent(data.caseNumber)}`,
                 background_color: "1a1a2e",
                 attributes: [
@@ -441,7 +441,7 @@ window.contract = {
             const metadata = {
                 name: `${data.agency || 'Legal Notice'} - Case #${data.caseNumber}`,
                 description: this._buildNoticeDescription(data),
-                image: data.thumbnailUrl || 'https://blockserved.com/images/legal-notice-thumb.png',
+                image: this._toGatewayUrl(data.thumbnailUrl) || 'https://blockserved.com/images/legal-notice-thumb.png',
                 external_url: `https://blockserved.com?case=${encodeURIComponent(data.caseNumber)}`,
                 background_color: "1a1a2e",
                 attributes: [
