@@ -2122,18 +2122,21 @@
             if (!checkMobileWallet()) {
                 return;
             }
-            
+
             try {
                 if (!window.tronWeb) {
                     showAlert('Please install TronLink wallet extension', 'error');
                     return;
                 }
 
-                // Request account access
-                const accounts = await window.tronLink.request({ method: 'tron_requestAccounts' });
-                
-                if (accounts && accounts.length > 0) {
+                // Request account access - returns { code: 200 } on success, not an array
+                const result = await window.tronLink.request({ method: 'tron_requestAccounts' });
+
+                if (result?.code === 200 || (window.tronWeb && window.tronWeb.ready && window.tronWeb.defaultAddress?.base58)) {
                     handleWalletConnected();
+                } else {
+                    console.log('tron_requestAccounts result:', result);
+                    showAlert('Wallet connection was declined or not ready. Please try again.', 'error');
                 }
             } catch (error) {
                 console.error('Error connecting wallet:', error);
