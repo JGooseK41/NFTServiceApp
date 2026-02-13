@@ -150,7 +150,8 @@ window.proofOfService = {
             totalRecipientFunding: caseData.totalRecipientFunding || caseData.recipientFunding || caseData.recipient_funding || caseData.feeBreakdown?.recipientFunding,
             totalNotificationTransfers: caseData.totalNotificationTransfers || caseData.feeBreakdown?.notificationTransfer,
             totalPaymentTRX: caseData.totalPaymentTRX || caseData.feeBreakdown?.totalPaymentTRX || caseData.totalTransactionCost || caseData.totalCost,
-            recipientCount: caseData.recipientCount || (caseData.recipients ? caseData.recipients.length : 1)
+            recipientCount: caseData.recipientCount || (caseData.recipients ? caseData.recipients.length : 1),
+            notificationMessages: caseData.notificationMessages || []
         };
 
         return receipt;
@@ -433,6 +434,34 @@ window.proofOfService = {
                             </tbody>
                         </table>
                     </div>
+
+                    ${receipt.notificationMessages?.length > 0 ? `
+                    <div class="section">
+                        <div class="section-title">IV. Notification Messages Delivered</div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 30%;">Recipient</th>
+                                    <th style="width: 55%;">Message</th>
+                                    <th style="width: 15%;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${receipt.notificationMessages.map(n => {
+                                    const addr = n.address || 'N/A';
+                                    const truncAddr = addr.length > 18 ? addr.slice(0, 10) + '...' + addr.slice(-8) : addr;
+                                    const statusLabel = n.status === 'sent' ? 'Sent' : n.status === 'failed' ? 'Failed' : 'Skipped';
+                                    return `
+                                <tr>
+                                    <td class="mono" style="font-size: 8pt;">${truncAddr}</td>
+                                    <td style="font-size: 8pt; word-break: break-word;">${n.message || '—'}</td>
+                                    <td>${statusLabel}</td>
+                                </tr>`;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                    ` : ''}
 
                     <div class="footer">
                         BlockServed™ Proof of Service | Case ${receipt.caseNumber} | Page 1 of ${totalPages}

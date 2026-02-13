@@ -53,6 +53,48 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
+// Show notification approval modal and wait for user decision
+function showNotificationApproval(recipientAddress, defaultMessage, index, total) {
+    return new Promise((resolve) => {
+        document.getElementById('notifCounter').textContent = `(${index} of ${total})`;
+        document.getElementById('notifRecipientAddress').textContent = recipientAddress;
+        document.getElementById('notifMessage').value = defaultMessage;
+
+        const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('notificationApprovalModal'));
+
+        function cleanup() {
+            document.getElementById('notifSendBtn').removeEventListener('click', onSend);
+            document.getElementById('notifSkipBtn').removeEventListener('click', onSkip);
+            document.getElementById('notifSkipAllBtn').removeEventListener('click', onSkipAll);
+        }
+
+        function onSend() {
+            const message = document.getElementById('notifMessage').value.trim();
+            cleanup();
+            modal.hide();
+            resolve({ action: 'send', message });
+        }
+
+        function onSkip() {
+            cleanup();
+            modal.hide();
+            resolve({ action: 'skip', message: '' });
+        }
+
+        function onSkipAll() {
+            cleanup();
+            modal.hide();
+            resolve({ action: 'skipAll', message: '' });
+        }
+
+        document.getElementById('notifSendBtn').addEventListener('click', onSend);
+        document.getElementById('notifSkipBtn').addEventListener('click', onSkip);
+        document.getElementById('notifSkipAllBtn').addEventListener('click', onSkipAll);
+
+        modal.show();
+    });
+}
+
 window.notices = {
 
     // Initialize module
@@ -467,32 +509,66 @@ window.notices = {
                 console.warn('No case identifier available - service data not saved to backend');
             }
 
-            // Step 8.5: Send TRX notification transfer with memo to each recipient
-            // This makes the serve visible in TronLink's main transaction feed
+            // Step 8.5: Send TRX notification transfers with user approval
+            // Shows approval popup for each recipient so user can review/edit memo before sending
+            const notificationMessages = [];
             try {
                 const recipientAddresses = getRecipientAddresses(data.recipients);
                 if (recipientAddresses.length > 0 && window.contract?.sendNotificationTransfer) {
-                    const memo = `Legal Notice: ${data.noticeType || 'Legal Document'} - Visit www.blockserved.com to view notice. Reference: ${data.issuingAgency || 'N/A'}, Case #${data.caseNumber || 'N/A'}`;
+                    const defaultMemo = `Legal Notice: ${data.noticeType || 'Legal Document'} - Visit www.blockserved.com to view notice. Reference: ${data.issuingAgency || 'N/A'}, Case #${data.caseNumber || 'N/A'}`;
 
-                    if (window.app?.updateProcessing) {
-                        window.app.updateProcessing('Sending notification to recipients...', `0 of ${recipientAddresses.length} notifications sent`);
-                    }
+                    // Hide processing modal and wait for backdrop cleanup before showing approval modal
+                    if (window.app?.hideProcessing) window.app.hideProcessing();
+                    await new Promise(r => setTimeout(r, 300));
 
                     for (let i = 0; i < recipientAddresses.length; i++) {
-                        if (window.app?.updateProcessing) {
-                            window.app.updateProcessing('Sending notification to recipients...', `${i} of ${recipientAddresses.length} notifications sent`);
+                        // Show approval popup — user can edit message, skip, or skip all
+                        const approval = await showNotificationApproval(
+                            recipientAddresses[i], defaultMemo, i + 1, recipientAddresses.length
+                        );
+
+                        if (approval.action === 'skipAll') {
+                            // Mark all remaining recipients as skipped
+                            for (let j = i; j < recipientAddresses.length; j++) {
+                                notificationMessages.push({ address: recipientAddresses[j], message: '', status: 'skipped' });
+                            }
+                            break;
                         }
-                        const result = await window.contract.sendNotificationTransfer(recipientAddresses[i], memo);
+                        if (approval.action === 'skip') {
+                            notificationMessages.push({ address: recipientAddresses[i], message: '', status: 'skipped' });
+                            continue;
+                        }
+
+                        // Show processing while TronLink signs
+                        if (window.app?.showProcessing) {
+                            window.app.showProcessing('Sending notification...', `${i + 1} of ${recipientAddresses.length}`);
+                        }
+
+                        const result = await window.contract.sendNotificationTransfer(
+                            recipientAddresses[i], approval.message
+                        );
+
+                        if (window.app?.hideProcessing) window.app.hideProcessing();
+
                         if (!result.success) {
+                            notificationMessages.push({ address: recipientAddresses[i], message: approval.message, status: 'failed' });
                             console.warn(`Notification transfer failed for ${recipientAddresses[i]}:`, result.error);
-                            // If user rejected the TronLink popup, skip remaining
                             if (result.error && (result.error.includes('Confirmation declined') || result.error.includes('reject'))) {
                                 console.log('User rejected notification transfer, skipping remaining');
+                                // Mark remaining as skipped
+                                for (let j = i + 1; j < recipientAddresses.length; j++) {
+                                    notificationMessages.push({ address: recipientAddresses[j], message: '', status: 'skipped' });
+                                }
                                 break;
                             }
                         } else {
+                            notificationMessages.push({ address: recipientAddresses[i], message: approval.message, status: 'sent' });
                             console.log(`Notification sent to ${recipientAddresses[i]}: ${result.txId}`);
                         }
+
+                        // Rate limiting: 3-second delay after each transfer to avoid TronGrid 429s
+                        // Also ensures hideProcessing() backdrop cleanup (150ms) completes
+                        await new Promise(r => setTimeout(r, 3000));
                     }
                 }
             } catch (notifyError) {
@@ -500,8 +576,8 @@ window.notices = {
             }
 
             // Step 9: Generate receipt with fee breakdown
-            if (window.app?.updateProcessing) {
-                window.app.updateProcessing('Generating service receipt...', 'Almost done!');
+            if (window.app?.showProcessing) {
+                window.app.showProcessing('Generating service receipt...', 'Almost done!');
             }
             let receipt = null;
             try {
@@ -530,6 +606,7 @@ window.notices = {
                     thumbnail,
                     ipfsHash: documentData.ipfsHash,
                     contractType: 'lite',
+                    notificationMessages,
                     // Fee breakdown with exact amounts from transaction
                     feeBreakdown: {
                         serviceFee: paymentDetails.totalServiceFees || (feeConfig.serviceFeeInTRX * recipientCount),
