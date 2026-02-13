@@ -566,13 +566,28 @@ window.notices = {
                             console.log(`Notification sent to ${recipientAddresses[i]}: ${result.txId}`);
                         }
 
-                        // Rate limiting: 3-second delay after each transfer to avoid TronGrid 429s
-                        // Also ensures hideProcessing() backdrop cleanup (150ms) completes
-                        await new Promise(r => setTimeout(r, 3000));
+                        // Rate limiting: 5-second delay after each transfer to avoid TronGrid 429s
+                        // (background token extraction also hits TronGrid concurrently)
+                        await new Promise(r => setTimeout(r, 5000));
                     }
                 }
             } catch (notifyError) {
                 console.warn('Notification transfers failed (non-blocking):', notifyError);
+            }
+
+            // Alert user about any failed notifications
+            const failedNotifs = notificationMessages.filter(n => n.status === 'failed');
+            if (failedNotifs.length > 0) {
+                const failedAddrs = failedNotifs.map(n => {
+                    const a = n.address || '?';
+                    return a.length > 18 ? a.slice(0, 8) + '...' + a.slice(-6) : a;
+                }).join(', ');
+                if (window.app?.showWarning) {
+                    window.app.showWarning(
+                        `${failedNotifs.length} notification(s) failed to send. Use "Send Message" in Cases to retry. Failed: ${failedAddrs}`
+                    );
+                }
+                console.error(`NOTIFICATION FAILURE: ${failedNotifs.length} of ${notificationMessages.length} notifications failed for case ${caseIdentifier || data.caseNumber}:`, failedNotifs);
             }
 
             // Save notification messages to backend (non-blocking)

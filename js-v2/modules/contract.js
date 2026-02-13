@@ -891,21 +891,31 @@ window.contract = {
     // Send TRX transfer with memo to notify recipient
     // This shows up in TronLink's main transaction feed so they know they've been served
     // Sends 5 TRX so the recipient sees a meaningful amount alongside the legal notice memo
-    async sendNotificationTransfer(recipientAddress, memo) {
-        try {
-            const from = this.tronWeb.defaultAddress.base58;
-            // Build transfer (visible in wallet alongside the memo)
-            let tx = await this.tronWeb.transactionBuilder.sendTrx(recipientAddress, this.notificationAmountSun, from);
-            // Attach the memo
-            tx = await this.tronWeb.transactionBuilder.addUpdateData(tx, memo, 'utf8');
-            const signedTx = await this.tronWeb.trx.sign(tx);
-            const result = await this.tronWeb.trx.sendRawTransaction(signedTx);
-            const txId = result.txid || result.transaction?.txID;
-            console.log('Notification transfer sent:', txId);
-            return { success: true, txId };
-        } catch (error) {
-            console.warn('Notification transfer failed:', error.message || error);
-            return { success: false, error: error.message || String(error) };
+    async sendNotificationTransfer(recipientAddress, memo, retries = 2) {
+        for (let attempt = 1; attempt <= retries; attempt++) {
+            try {
+                const from = this.tronWeb.defaultAddress.base58;
+                // Build transfer (visible in wallet alongside the memo)
+                let tx = await this.tronWeb.transactionBuilder.sendTrx(recipientAddress, this.notificationAmountSun, from);
+                // Attach the memo
+                tx = await this.tronWeb.transactionBuilder.addUpdateData(tx, memo, 'utf8');
+                const signedTx = await this.tronWeb.trx.sign(tx);
+                const result = await this.tronWeb.trx.sendRawTransaction(signedTx);
+                const txId = result.txid || result.transaction?.txID;
+                console.log('Notification transfer sent:', txId);
+                return { success: true, txId };
+            } catch (error) {
+                const errMsg = error.message || String(error);
+                const is429 = errMsg.includes('429') || errMsg.includes('rate') || errMsg.includes('Too Many');
+                if (is429 && attempt < retries) {
+                    const backoff = 5000 * attempt;
+                    console.warn(`Notification 429 rate limit (attempt ${attempt}/${retries}), retrying in ${backoff/1000}s...`);
+                    await new Promise(r => setTimeout(r, backoff));
+                    continue;
+                }
+                console.warn('Notification transfer failed:', errMsg);
+                return { success: false, error: errMsg };
+            }
         }
     }
 };

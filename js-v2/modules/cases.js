@@ -2863,9 +2863,9 @@ window.cases = {
                     console.log(`Notification sent to ${recipientAddresses[i]}: ${result.txId}`);
                 }
 
-                // Rate limiting: 3-second delay between transfers
+                // Rate limiting: 5-second delay between transfers to avoid TronGrid 429s
                 if (i < recipientAddresses.length - 1) {
-                    await new Promise(r => setTimeout(r, 3000));
+                    await new Promise(r => setTimeout(r, 5000));
                 }
             }
 
@@ -2884,13 +2884,24 @@ window.cases = {
                 }
             }
 
-            // Show summary
-            let summary = `Messages complete: ${sent} sent`;
-            if (skipped > 0) summary += `, ${skipped} skipped`;
-            if (failed > 0) summary += `, ${failed} failed`;
-            if (sent > 0) {
+            // Show summary — prominent warning if any failed
+            const failedMsgs = notificationMessages.filter(n => n.status === 'failed');
+            if (failedMsgs.length > 0) {
+                const failedAddrs = failedMsgs.map(n => {
+                    const a = n.address || '?';
+                    return a.length > 18 ? a.slice(0, 8) + '...' + a.slice(-6) : a;
+                }).join(', ');
+                window.app.showWarning(
+                    `${sent} sent, ${failedMsgs.length} FAILED. Retry with "Send Message" for: ${failedAddrs}`
+                );
+                console.error(`MESSAGE FAILURE: ${failedMsgs.length} of ${recipientAddresses.length} messages failed for case ${caseNumber}:`, failedMsgs);
+            } else if (sent > 0) {
+                let summary = `Messages complete: ${sent} sent`;
+                if (skipped > 0) summary += `, ${skipped} skipped`;
                 window.app.showSuccess(summary);
             } else {
+                let summary = `Messages complete: ${sent} sent`;
+                if (skipped > 0) summary += `, ${skipped} skipped`;
                 window.app.showWarning(summary);
             }
 
