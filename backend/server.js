@@ -774,11 +774,15 @@ app.post('/api/notices/served', async (req, res) => {
     
     // Log audit event
     if (serverAddress) {
+      const ipAddress = req.clientIp || req.ip;
+      const userAgent = req.clientUserAgent || req.headers['user-agent'];
+      const acceptLanguage = req.clientLanguage || req.headers['accept-language'];
+      const timezone = req.clientTimezone || req.headers['x-timezone'];
       await pool.query(
-        `INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address)
-         VALUES ('notice_served', $1, $2, $3, $4)`,
-        [serverAddress, noticeId, JSON.stringify({ recipientAddress, noticeType }), 
-         req.clientIp || req.ip]
+        `INSERT INTO audit_logs (action_type, actor_address, target_id, details, ip_address, user_agent, accept_language, timezone)
+         VALUES ('notice_served', $1, $2, $3, $4, $5, $6, $7)`,
+        [serverAddress, caseNumber || noticeId, JSON.stringify({ recipientAddress, noticeType, noticeId }),
+         ipAddress, userAgent, acceptLanguage, timezone]
       ).catch(err => {
         console.warn('Could not log audit event:', err.message);
       });

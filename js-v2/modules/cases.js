@@ -1519,11 +1519,13 @@ window.cases = {
                                                             const fpConf = d.fingerprintConfidence ? d.fingerprintConfidence + '% confidence' : '';
                                                             const fpTooltip = d.fingerprint ? 'Derived from: canvas, WebGL (GPU), audio, fonts, hardware, plugins' + (fpConf ? ' — ' + fpConf : '') : '';
                                                             const matchesCase = cases._eventMatchesCase(event, caseNumber, alertTokenId, documentTokenId);
+                                                            const noticeLabel = d.noticeType || event.targetId || '<span class="text-muted">—</span>';
+                                                            const tsUTC = new Date(event.timestamp).toLocaleString('en-US', { timeZone: 'UTC' }) + ' UTC';
                                                             return `
                                                             <tr data-case-match="${matchesCase}" ${!matchesCase ? 'style="display:none;"' : ''}>
-                                                                <td><small>${new Date(event.timestamp).toLocaleString()}</small></td>
+                                                                <td><small>${tsUTC}</small></td>
                                                                 <td>${cases.getActionBadge(event.action)}</td>
-                                                                <td><small>${event.targetId || '<span class="text-muted">—</span>'}</small></td>
+                                                                <td><small>${noticeLabel}</small></td>
                                                                 <td><small><code>${event.ipAddress || 'N/A'}</code></small></td>
                                                                 <td><small>${ua.browser} / ${ua.os}</small></td>
                                                                 <td><small>${lang}</small></td>
