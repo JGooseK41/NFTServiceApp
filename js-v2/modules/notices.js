@@ -122,9 +122,23 @@ window.notices = {
     async createNotice(data) {
         try {
             console.log('Creating legal service package for recipients:', data.recipients);
-            
+
             // Step 1: Validate inputs
             this.validateNoticeData(data);
+
+            // Step 1.5: Pre-flight balance check (before uploading documents)
+            if (window.contract?.checkBalanceForServe) {
+                const recipientCount = Array.isArray(data.recipients) ? data.recipients.length : 1;
+                const balanceCheck = await window.contract.checkBalanceForServe(recipientCount);
+                if (!balanceCheck.sufficient) {
+                    throw new Error(
+                        `Insufficient wallet balance to serve ${recipientCount} recipient${recipientCount > 1 ? 's' : ''}. ` +
+                        `You have ${balanceCheck.balanceTRX.toFixed(1)} TRX but need approximately ${balanceCheck.requiredTRX} TRX. ` +
+                        `Please add at least ${balanceCheck.shortfallTRX} TRX to your wallet before proceeding.`
+                    );
+                }
+                console.log(`Balance check passed: ${balanceCheck.balanceTRX.toFixed(1)} TRX available, ${balanceCheck.requiredTRX} TRX needed`);
+            }
             
             // Step 2: Generate unique notice ID
             const noticeId = this.generateNoticeId();

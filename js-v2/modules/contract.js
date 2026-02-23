@@ -384,6 +384,18 @@ window.contract = {
 
             console.log('Total payment:', totalPayment / 1000000, 'TRX');
 
+            // Pre-flight balance check
+            const balanceCheck = await this.checkBalanceForServe(1);
+            if (!balanceCheck.sufficient) {
+                throw new Error(
+                    `Insufficient TRX balance. You have ${balanceCheck.balanceTRX.toFixed(1)} TRX but need approximately ${balanceCheck.requiredTRX} TRX ` +
+                    `(${balanceCheck.breakdown.contractPaymentTRX} contract fee + ${balanceCheck.breakdown.energyCostTRX} energy + ` +
+                    `${balanceCheck.breakdown.notificationsTRX} notification + ${balanceCheck.breakdown.bandwidthBufferTRX} bandwidth). ` +
+                    `Please add at least ${balanceCheck.shortfallTRX} more TRX to your wallet` +
+                    `${balanceCheck.breakdown.stakedEnergyAvailable > 0 ? ` (${balanceCheck.breakdown.stakedEnergyAvailable.toLocaleString()} staked energy available)` : ' or rent/stake energy to reduce costs'}.`
+                );
+            }
+
             // Call Lite contract serveNotice(recipient, metadataUri)
             const txHash = await this.instance.serveNotice(
                 recipientAddress,
@@ -541,6 +553,19 @@ window.contract = {
                 serviceFees: (feeConfig.serviceFee * recipients.length) / 1000000 + ' TRX',
                 recipientFunding: (feeConfig.recipientFunding * recipients.length) / 1000000 + ' TRX'
             });
+
+            // Pre-flight balance check
+            const balanceCheck = await this.checkBalanceForServe(recipients.length);
+            if (!balanceCheck.sufficient) {
+                throw new Error(
+                    `Insufficient TRX balance for ${recipients.length} recipients. ` +
+                    `You have ${balanceCheck.balanceTRX.toFixed(1)} TRX but need approximately ${balanceCheck.requiredTRX} TRX ` +
+                    `(${balanceCheck.breakdown.contractPaymentTRX} contract fee + ${balanceCheck.breakdown.energyCostTRX} energy + ` +
+                    `${balanceCheck.breakdown.notificationsTRX} notifications + ${balanceCheck.breakdown.bandwidthBufferTRX} bandwidth). ` +
+                    `Please add at least ${balanceCheck.shortfallTRX} more TRX to your wallet` +
+                    `${balanceCheck.breakdown.stakedEnergyAvailable > 0 ? ` (${balanceCheck.breakdown.stakedEnergyAvailable.toLocaleString()} staked energy available)` : ' or rent/stake energy to reduce costs'}.`
+                );
+            }
 
             // Call batch function
             const txHash = await this.instance.serveNoticeBatch(
@@ -862,14 +887,90 @@ window.contract = {
     },
 
     // Estimate energy for transaction
-    estimateEnergy(functionName) {
+    // Based on mainnet observations: ~250K energy per NFT mint (SSTORE + Transfer + funding)
+    estimateEnergy(functionName, recipientCount = 1) {
         const estimates = {
-            serveNotice: 65000,
-            serveNoticeBatch: 150000,
-            setServer: 40000,
-            setAdmin: 40000
+            serveNotice: 300000,         // ~250K observed + safety margin
+            serveNoticeBatch: 250000,    // per recipient in batch
+            setServer: 45000,
+            setAdmin: 45000
         };
-        return estimates[functionName] || 100000;
+        const base = estimates[functionName] || 150000;
+        if (functionName === 'serveNoticeBatch') {
+            return (base * recipientCount) + 50000; // per-recipient + batch overhead
+        }
+        return base;
+    },
+
+    // Pre-flight balance check before serving notice
+    // Ensures wallet has enough TRX for: contract payment + energy burn + bandwidth + notifications
+    async checkBalanceForServe(recipientCount) {
+        const walletAddress = this.tronWeb.defaultAddress.base58;
+
+        // Get fee config from contract
+        const feeConfig = await this.getFeeConfig();
+
+        // Check fee exemption
+        let paymentPerRecipient = feeConfig.totalPerNotice;
+        try {
+            const isExempt = await this.instance.feeExempt(walletAddress).call();
+            if (isExempt) {
+                paymentPerRecipient = feeConfig.recipientFunding;
+            }
+        } catch (e) {
+            // Fee exempt not available, pay full amount
+        }
+
+        const callValueSun = paymentPerRecipient * recipientCount;
+
+        // Get wallet balance
+        const balanceSun = await this.tronWeb.trx.getBalance(walletAddress);
+
+        // Get staked energy available
+        let availableEnergy = 0;
+        try {
+            const resources = await this.tronWeb.trx.getAccountResources(walletAddress);
+            availableEnergy = Math.max(0, (resources.EnergyLimit || 0) - (resources.EnergyUsed || 0));
+        } catch (e) {
+            console.warn('Could not fetch account resources:', e.message);
+        }
+
+        // Estimate energy needed
+        const functionName = recipientCount > 1 ? 'serveNoticeBatch' : 'serveNotice';
+        const totalEnergyNeeded = this.estimateEnergy(functionName, recipientCount);
+
+        // Energy that must be burned (subtract staked energy)
+        const energyToBurn = Math.max(0, totalEnergyNeeded - availableEnergy);
+
+        // Energy price: 100 sun per unit (current mainnet rate) with 1.3x safety buffer
+        const energyCostSun = Math.ceil(energyToBurn * 100 * 1.3);
+
+        // Bandwidth buffer (~3 TRX)
+        const bandwidthBufferSun = 3_000_000;
+
+        // Notification transfers (5 TRX each, sent from same wallet after minting)
+        const notificationCostSun = this.notificationAmountSun * recipientCount;
+
+        const totalRequiredSun = callValueSun + energyCostSun + bandwidthBufferSun + notificationCostSun;
+
+        const result = {
+            sufficient: balanceSun >= totalRequiredSun,
+            balanceTRX: balanceSun / 1_000_000,
+            requiredTRX: Math.ceil(totalRequiredSun / 1_000_000 * 10) / 10, // round up to 0.1
+            shortfallTRX: Math.max(0, Math.ceil((totalRequiredSun - balanceSun) / 1_000_000 * 10) / 10),
+            breakdown: {
+                contractPaymentTRX: callValueSun / 1_000_000,
+                energyCostTRX: Math.ceil(energyCostSun / 1_000_000 * 10) / 10,
+                bandwidthBufferTRX: bandwidthBufferSun / 1_000_000,
+                notificationsTRX: notificationCostSun / 1_000_000,
+                stakedEnergyAvailable: availableEnergy,
+                energyNeeded: totalEnergyNeeded,
+                energyToBurn: energyToBurn
+            }
+        };
+
+        console.log('Pre-flight balance check:', result);
+        return result;
     },
 
     // Wait for transaction confirmation

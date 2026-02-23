@@ -126,12 +126,13 @@ window.AppConfig = {
         // Fee settings (in TRX)
         defaultServiceFee: 10,
         
-        // Energy estimates
+        // Energy estimates (based on mainnet observations: ~250K per NFT mint)
         energyEstimates: {
-            createAlert: 65000,
-            createDocument: 75000,
+            createAlert: 300000,
+            createDocument: 300000,
+            serveNoticeBatch: 250000, // per recipient + 50K overhead
             updateFee: 30000,
-            grantRole: 40000
+            grantRole: 45000
         },
         
         // Role definitions
