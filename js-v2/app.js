@@ -971,12 +971,22 @@ window.app = {
             const data = await response.json();
 
             if (data.registered) {
-                roles.push({
-                    role: 'Registered Process Server',
-                    icon: 'bi-person-badge-fill',
-                    color: 'success',
-                    details: `Agency: ${data.agency_name}`
-                });
+                const dbStatus = data.status;
+                if (dbStatus === 'pending' || (dbStatus === 'approved' && !this.state.isRegisteredServer)) {
+                    roles.push({
+                        role: 'Pending Process Server',
+                        icon: 'bi-hourglass-split',
+                        color: 'warning',
+                        details: `Agency: ${data.agency_name} — awaiting admin authorization`
+                    });
+                } else {
+                    roles.push({
+                        role: 'Registered Process Server',
+                        icon: 'bi-person-badge-fill',
+                        color: 'success',
+                        details: `Agency: ${data.agency_name}`
+                    });
+                }
             }
 
             // Check contract roles if contract is available
@@ -1003,6 +1013,19 @@ window.app = {
                             icon: 'bi-patch-check-fill',
                             color: 'primary',
                             details: 'Authorized to mint legal notice NFTs'
+                        });
+                    }
+
+                    // Check fee exemption
+                    if (window.contract.instance.feeExempt) {
+                        const isFeeExempt = await window.contract.instance.feeExempt(this.state.userAddress).call();
+                        roles.push({
+                            role: 'Fee Exemption',
+                            icon: isFeeExempt ? 'bi-cash-stack' : 'bi-cash',
+                            color: isFeeExempt ? 'success' : 'secondary',
+                            details: isFeeExempt
+                                ? 'This wallet is exempt from service fees (only pays recipient funding)'
+                                : 'Standard fees apply — service fee + recipient funding per serve'
                         });
                     }
                 } catch (contractError) {
@@ -1066,12 +1089,15 @@ window.app = {
                         <div class="modal-body">
                             <div class="mb-3">
                                 <label class="form-label text-muted">Connected Wallet</label>
-                                <div class="font-monospace bg-light p-2 rounded" style="word-break: break-all;">
-                                    ${this.state.userAddress}
+                                <div class="d-flex align-items-center bg-light p-2 rounded">
+                                    <span class="font-monospace flex-grow-1" style="word-break: break-all;">${this.state.userAddress}</span>
+                                    <button class="btn btn-sm btn-outline-secondary ms-2 flex-shrink-0" id="roleModalCopyBtn" title="Copy address">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
                                 </div>
                             </div>
                             <hr>
-                            <h6>Assigned Roles:</h6>
+                            <h6>Wallet Status:</h6>
                             ${rolesHtml}
                         </div>
                         <div class="modal-footer">
@@ -1085,6 +1111,17 @@ window.app = {
         document.body.insertAdjacentHTML('beforeend', modalHtml);
         const modal = new bootstrap.Modal(document.getElementById('roleModal'));
         modal.show();
+
+        // Copy button handler
+        const copyBtn = document.getElementById('roleModalCopyBtn');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(this.state.userAddress).then(() => {
+                    copyBtn.innerHTML = '<i class="bi bi-check-lg"></i>';
+                    setTimeout(() => { copyBtn.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 1500);
+                });
+            });
+        }
 
         // Clean up when closed
         document.getElementById('roleModal').addEventListener('hidden.bs.modal', function() {
