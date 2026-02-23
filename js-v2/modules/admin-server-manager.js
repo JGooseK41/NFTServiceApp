@@ -649,6 +649,7 @@ window.adminServerManager = {
 
     // Render cases for a server
     renderServerCases(cases, server) {
+        this._lastCases = cases; // Cache for detail view
         const content = document.getElementById('serverCasesContent');
 
         if (cases.length === 0) {
@@ -671,12 +672,12 @@ window.adminServerManager = {
                     <thead class="table-light">
                         <tr>
                             <th>Case Number</th>
-                            <th>Notice ID</th>
-                            <th>Recipient</th>
+                            <th>Recipients</th>
+                            <th>Pages</th>
                             <th>Served</th>
                             <th>Status</th>
                             <th>TX Hash</th>
-                            <th>Actions</th>
+                            <th class="text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -693,7 +694,7 @@ window.adminServerManager = {
 
     // Render a single case row
     renderCaseRow(c) {
-        const statusBadge = c.is_signed
+        const statusBadge = c.accepted
             ? '<span class="badge bg-success">Signed</span>'
             : c.status === 'served'
                 ? '<span class="badge bg-info">Served</span>'
@@ -703,32 +704,39 @@ window.adminServerManager = {
             ? new Date(c.served_at).toLocaleString()
             : 'N/A';
 
+        // Recipients is a JSON array of addresses
+        const recipients = Array.isArray(c.recipients) ? c.recipients : [];
+        const recipientDisplay = recipients.length > 0
+            ? recipients.map(r => `<code class="small">${this.truncateAddress(r)}</code>`).join('<br>')
+            : '<span class="text-muted small">N/A</span>';
+
+        const txHash = c.tx_hash || c.transaction_hash;
+
         return `
             <tr data-case="${(c.case_number || '').toLowerCase()}">
-                <td><strong>${c.case_number || 'N/A'}</strong></td>
-                <td><code class="small">${c.notice_id || c.id || 'N/A'}</code></td>
-                <td><code class="small">${this.truncateAddress(c.recipient_address)}</code></td>
+                <td>
+                    <strong>${c.case_number || 'N/A'}</strong>
+                    <br><small class="text-muted">${c.issuing_agency || ''}</small>
+                </td>
+                <td>
+                    ${recipientDisplay}
+                    <br><small class="text-muted">${recipients.length} recipient${recipients.length !== 1 ? 's' : ''}</small>
+                </td>
+                <td class="text-center">${c.page_count || '-'}</td>
                 <td><small>${servedDate}</small></td>
                 <td>${statusBadge}</td>
                 <td>
-                    ${c.tx_hash || c.transaction_hash ? `
-                        <a href="${this.getExplorerUrl(c.tx_hash || c.transaction_hash)}" target="_blank" class="small">
-                            ${this.truncateAddress(c.tx_hash || c.transaction_hash)}
+                    ${txHash ? `
+                        <a href="${this.getExplorerUrl(txHash)}" target="_blank" class="small">
+                            ${this.truncateAddress(txHash)}
                             <i class="bi bi-box-arrow-up-right"></i>
                         </a>
                     ` : '<span class="text-muted small">N/A</span>'}
                 </td>
-                <td>
-                    <div class="btn-group btn-group-sm">
-                        <button class="btn btn-outline-primary" onclick="adminServerManager.viewCaseDetails('${c.notice_id || c.id}')">
-                            <i class="bi bi-eye"></i>
-                        </button>
-                        ${c.has_alert_image || c.alert_image ? `
-                            <button class="btn btn-outline-info" onclick="adminServerManager.viewDocument('${c.notice_id || c.id}', 'alert')">
-                                <i class="bi bi-image"></i>
-                            </button>
-                        ` : ''}
-                    </div>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-outline-primary" onclick="adminServerManager.viewCaseDetail('${this.escapeHtml(c.case_number)}', '${c.id}')">
+                        <i class="bi bi-eye"></i> Details
+                    </button>
                 </td>
             </tr>
         `;
@@ -747,7 +755,129 @@ window.adminServerManager = {
         });
     },
 
-    // View case details
+    // View full case detail from case_service_records data
+    viewCaseDetail(caseNumber, caseId) {
+        // Find the case in our cached data
+        const cases = this._lastCases || [];
+        const c = cases.find(x => String(x.id) === String(caseId) || x.case_number === caseNumber);
+        if (!c) {
+            alert('Case data not found. Try reloading.');
+            return;
+        }
+
+        const modalId = 'caseDetailModal';
+        let modal = document.getElementById(modalId);
+        if (modal) modal.remove();
+
+        const recipients = Array.isArray(c.recipients) ? c.recipients : [];
+        const noticeDetails = Array.isArray(c.notice_details) ? c.notice_details : [];
+        const txHash = c.tx_hash || c.transaction_hash;
+
+        // Build recipient rows with notice-level detail
+        let recipientRows = '';
+        if (noticeDetails.length > 0) {
+            recipientRows = noticeDetails.map((nd, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td><code class="small">${nd.recipient_address || 'N/A'}</code>
+                        <button class="btn btn-sm btn-link p-0 ms-1" onclick="navigator.clipboard.writeText('${nd.recipient_address || ''}')" title="Copy">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </td>
+                    <td><code class="small">${nd.notice_id || 'N/A'}</code></td>
+                    <td>${nd.alert_token_id || '-'}</td>
+                    <td>${nd.accepted ? '<span class="badge bg-success">Signed</span>' : '<span class="badge bg-secondary">No</span>'}</td>
+                </tr>
+            `).join('');
+        } else if (recipients.length > 0) {
+            recipientRows = recipients.map((addr, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td><code class="small">${addr}</code>
+                        <button class="btn btn-sm btn-link p-0 ms-1" onclick="navigator.clipboard.writeText('${addr}')" title="Copy">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </td>
+                    <td><span class="text-muted">-</span></td>
+                    <td>-</td>
+                    <td>-</td>
+                </tr>
+            `).join('');
+        }
+
+        modal = document.createElement('div');
+        modal.id = modalId;
+        modal.className = 'modal fade';
+        modal.innerHTML = `
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">
+                            <i class="bi bi-folder2-open"></i> Case: ${c.case_number}
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <h6>Case Information</h6>
+                                <table class="table table-sm mb-0">
+                                    <tr><th style="width:40%">Case Number:</th><td><strong>${c.case_number}</strong></td></tr>
+                                    <tr><th>Agency:</th><td>${c.issuing_agency || 'N/A'}</td></tr>
+                                    <tr><th>Server Name:</th><td>${c.server_name || 'N/A'}</td></tr>
+                                    <tr><th>Status:</th><td>${c.accepted ? '<span class="badge bg-success">Signed</span>' : c.status === 'served' ? '<span class="badge bg-info">Served</span>' : c.status || 'N/A'}</td></tr>
+                                    <tr><th>Served At:</th><td>${c.served_at ? new Date(c.served_at).toLocaleString() : 'N/A'}</td></tr>
+                                    <tr><th>Pages:</th><td>${c.page_count || 'N/A'}</td></tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Blockchain Data</h6>
+                                <table class="table table-sm mb-0">
+                                    <tr><th style="width:40%">TX Hash:</th><td>${txHash ? `<a href="${this.getExplorerUrl(txHash)}" target="_blank" class="small">${this.truncateAddress(txHash)} <i class="bi bi-box-arrow-up-right"></i></a>` : 'N/A'}</td></tr>
+                                    <tr><th>Alert Token:</th><td>${c.alert_token_id || 'N/A'}</td></tr>
+                                    <tr><th>Doc Token:</th><td>${c.document_token_id || 'N/A'}</td></tr>
+                                    <tr><th>IPFS Hash:</th><td>${c.ipfs_hash ? `<code class="small">${this.truncateAddress(c.ipfs_hash)}</code>` : 'N/A'}</td></tr>
+                                    <tr><th>Server Wallet:</th><td><code class="small">${this.truncateAddress(c.server_address)}</code></td></tr>
+                                    <tr><th>Encryption:</th><td>${c.encryption_key ? '<span class="badge bg-success">Yes</span>' : '<span class="badge bg-secondary">No</span>'}</td></tr>
+                                </table>
+                            </div>
+                        </div>
+
+                        <h6><i class="bi bi-people"></i> Recipients (${recipients.length})</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Recipient Address</th>
+                                        <th>Notice ID</th>
+                                        <th>Token ID</th>
+                                        <th>Signed</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${recipientRows || '<tr><td colspan="5" class="text-muted text-center">No recipient data</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        ${txHash ? `
+                            <a href="${this.getExplorerUrl(txHash)}" target="_blank" class="btn btn-outline-primary me-auto">
+                                <i class="bi bi-box-arrow-up-right"></i> View on Explorer
+                            </a>
+                        ` : ''}
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        new bootstrap.Modal(modal).show();
+    },
+
+    // View case details (legacy - uses served_notices by notice_id)
     async viewCaseDetails(noticeId) {
         try {
             const response = await fetchWithTimeout(`${this.baseUrl}/api/admin/cases/${noticeId}`, {

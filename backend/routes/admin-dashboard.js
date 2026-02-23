@@ -201,6 +201,7 @@ router.get('/process-servers/:address/cases', checkAdminAuth, async (req, res) =
 
         let query = `
             SELECT
+                csr.id,
                 csr.case_number,
                 csr.recipients,
                 csr.transaction_hash,
@@ -214,7 +215,20 @@ router.get('/process-servers/:address/cases', checkAdminAuth, async (req, res) =
                 csr.server_address,
                 csr.server_name,
                 csr.issuing_agency,
-                csr.page_count
+                csr.page_count,
+                csr.encryption_key,
+                (
+                    SELECT json_agg(json_build_object(
+                        'notice_id', sn.notice_id,
+                        'recipient_address', sn.recipient_address,
+                        'alert_token_id', sn.alert_id,
+                        'accepted', sn.accepted,
+                        'accepted_at', sn.accepted_at
+                    ))
+                    FROM served_notices sn
+                    WHERE sn.case_number = csr.case_number
+                      AND LOWER(sn.server_address) = LOWER(csr.server_address)
+                ) as notice_details
             FROM case_service_records csr
             WHERE LOWER(csr.server_address) = LOWER($1)
         `;
