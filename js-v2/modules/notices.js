@@ -800,53 +800,19 @@ window.notices = {
     
     // Get or create server ID (wallet address + optional agency ID)
     async getServerId() {
-        // Server ID is now based on wallet address
+        // Use wallet address as server ID (already validated during registration flow)
         const walletAddress = window.wallet?.address;
         if (!walletAddress) {
             console.error('Wallet not connected, cannot generate server ID');
             return 'UNKNOWN';
         }
 
-        // Check if we have a registered agency ID
-        let agencyId = localStorage.getItem('legalnotice_agency_id');
+        // Use existing app state or localStorage — no need to call backend
+        const serverId = window.app?.state?.serverId ||
+            localStorage.getItem(getConfig('storage.keys.serverId')) ||
+            walletAddress;
 
-        // If no agency ID, try to register with backend to get one
-        if (!agencyId) {
-            try {
-                const response = await fetchWithTimeout(getApiUrl('registerServer'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        wallet_address: walletAddress,
-                        server_id: walletAddress,  // Use wallet as server ID
-                        server_name: 'Process Server',
-                        agency_name: 'via Blockserved.com'
-                    })
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    // Backend may return an agency ID
-                    if (data.agencyId) {
-                        agencyId = data.agencyId;
-                        localStorage.setItem('legalnotice_agency_id', agencyId);
-                    }
-                }
-            } catch (error) {
-                // Registration not available - that's fine, we'll use wallet address only
-                console.log('Server registration not available, using wallet address as server ID');
-            }
-        }
-
-        // Build server ID: wallet address + optional agency ID
-        let serverId = walletAddress;
-        if (agencyId) {
-            serverId = `${walletAddress}-${agencyId}`;
-        }
-
-        // Store in localStorage for consistency
         localStorage.setItem(getConfig('storage.keys.serverId'), serverId);
-
         return serverId;
     },
 
