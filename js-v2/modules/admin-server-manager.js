@@ -9,8 +9,12 @@ window.adminServerManager = {
 
     init() {
         this.baseUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
-        this.adminAddress = window.wallet?.address || window.tronWeb?.defaultAddress?.base58;
         console.log('Admin Server Manager initialized');
+    },
+
+    // Get current admin address (resolved at call time, not init time)
+    getAdminAddress() {
+        return window.wallet?.address || window.tronWeb?.defaultAddress?.base58 || this.adminAddress || '';
     },
 
     // Load all process servers
@@ -28,7 +32,7 @@ window.adminServerManager = {
         try {
             const response = await fetchWithTimeout(`${this.baseUrl}/api/admin/process-servers`, {
                 headers: {
-                    'X-Admin-Address': this.adminAddress || ''
+                    'X-Admin-Address': this.getAdminAddress()
                 }
             });
 
@@ -351,7 +355,7 @@ window.adminServerManager = {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Admin-Address': this.adminAddress || ''
+                    'X-Admin-Address': this.getAdminAddress()
                 },
                 body: JSON.stringify(data)
             });
@@ -382,7 +386,7 @@ window.adminServerManager = {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Admin-Address': this.adminAddress || ''
+                    'X-Admin-Address': this.getAdminAddress()
                 },
                 body: JSON.stringify({ wallet_address: walletAddress })
             });
@@ -414,7 +418,7 @@ window.adminServerManager = {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Admin-Address': this.adminAddress || ''
+                    'X-Admin-Address': this.getAdminAddress()
                 },
                 body: JSON.stringify({
                     wallet_address: walletAddress,
@@ -477,7 +481,7 @@ window.adminServerManager = {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-Admin-Address': this.adminAddress || ''
+                            'X-Admin-Address': this.getAdminAddress()
                         },
                         body: JSON.stringify({
                             wallet_address: walletAddress,
@@ -526,7 +530,7 @@ window.adminServerManager = {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-Admin-Address': this.adminAddress || ''
+                        'X-Admin-Address': this.getAdminAddress()
                     },
                     body: JSON.stringify({
                         wallet_address: walletAddress,
@@ -613,7 +617,7 @@ window.adminServerManager = {
         try {
             const response = await fetchWithTimeout(`${this.baseUrl}/api/admin/process-servers/${walletAddress}/cases`, {
                 headers: {
-                    'X-Admin-Address': this.adminAddress || ''
+                    'X-Admin-Address': this.getAdminAddress()
                 }
             });
 
@@ -739,7 +743,7 @@ window.adminServerManager = {
         try {
             const response = await fetchWithTimeout(`${this.baseUrl}/api/admin/cases/${noticeId}`, {
                 headers: {
-                    'X-Admin-Address': this.adminAddress || ''
+                    'X-Admin-Address': this.getAdminAddress()
                 }
             });
 
@@ -835,7 +839,7 @@ window.adminServerManager = {
 
             const response = await fetchWithTimeout(`${this.baseUrl}${endpoint}`, {
                 headers: {
-                    'X-Admin-Address': this.adminAddress || ''
+                    'X-Admin-Address': this.getAdminAddress()
                 }
             });
 
@@ -899,7 +903,7 @@ window.adminServerManager = {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Admin-Address': this.adminAddress || ''
+                    'X-Admin-Address': this.getAdminAddress()
                 }
             });
 
