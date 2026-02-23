@@ -222,8 +222,7 @@ router.get('/process-servers/:address/cases', checkAdminAuth, async (req, res) =
                         'notice_id', sn.notice_id,
                         'recipient_address', sn.recipient_address,
                         'alert_token_id', sn.alert_id,
-                        'accepted', sn.accepted,
-                        'accepted_at', sn.accepted_at
+                        'accepted', sn.accepted
                     ))
                     FROM served_notices sn
                     WHERE sn.case_number = csr.case_number
