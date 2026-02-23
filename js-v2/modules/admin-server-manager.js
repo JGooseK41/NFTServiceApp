@@ -452,11 +452,14 @@ window.adminServerManager = {
             return;
         }
 
-        try {
-            // Show progress
-            const statusEl = document.getElementById('blockchainAuthStatus');
-            if (statusEl) statusEl.remove();
+        // Validate address is proper Base58Check (TRON addresses are case-sensitive)
+        const tronWeb = window.contract.tronWeb || window.tronWeb;
+        if (!tronWeb || !tronWeb.isAddress(walletAddress)) {
+            alert('Invalid TRON address: "' + walletAddress + '". The address may have been stored in lowercase. Ask the server to reconnect their wallet to fix the stored address, then try again.');
+            return;
+        }
 
+        try {
             // Step 1: Call setServer(address, true) on-chain
             console.log('Authorizing server on blockchain:', walletAddress);
             await window.contract.grantRole('PROCESS_SERVER', walletAddress);
@@ -515,6 +518,12 @@ window.adminServerManager = {
 
         if (!window.contract || !window.contract.instance) {
             alert('Contract not initialized. Please connect your admin wallet first.');
+            return;
+        }
+
+        const tronWeb = window.contract.tronWeb || window.tronWeb;
+        if (!tronWeb || !tronWeb.isAddress(walletAddress)) {
+            alert('Invalid TRON address: "' + walletAddress + '". The address may have been stored in lowercase.');
             return;
         }
 

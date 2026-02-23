@@ -157,7 +157,7 @@ const handleServerRegistration = async (req, res) => {
         `;
 
         const values = [
-            wallet_address.toLowerCase(),
+            wallet_address,
             agency_name.trim(),
             contact_email.trim().toLowerCase(),
             phone_number.trim(),
@@ -199,7 +199,7 @@ const handleServerRegistration = async (req, res) => {
         // Send email notifications (non-blocking)
         if (emailService) {
             const serverData = {
-                wallet_address: wallet_address.toLowerCase(),
+                wallet_address: wallet_address,
                 agency_name: agency_name.trim(),
                 contact_email: contact_email.trim().toLowerCase(),
                 phone_number: phone_number.trim(),
@@ -460,6 +460,19 @@ router.get('/api/server/check/:walletAddress', async (req, res) => {
             return res.json({
                 registered: false,
                 message: 'Wallet not registered'
+            });
+        }
+
+        // Auto-heal: if stored address is lowercase but caller has correct case, fix it
+        const storedAddress = result.rows[0].wallet_address;
+        if (storedAddress !== walletAddress && storedAddress.toLowerCase() === walletAddress.toLowerCase()) {
+            pool.query(
+                'UPDATE process_servers SET wallet_address = $1, updated_at = NOW() WHERE LOWER(wallet_address) = LOWER($2)',
+                [walletAddress, walletAddress]
+            ).then(() => {
+                console.log('Auto-healed wallet address case:', storedAddress, '->', walletAddress);
+            }).catch(err => {
+                console.log('Could not auto-heal wallet address:', err.message);
             });
         }
 
