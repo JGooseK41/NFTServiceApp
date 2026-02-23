@@ -26,7 +26,7 @@ async function ensureTableExists() {
                 physical_address TEXT,
                 website VARCHAR(255),
                 license_number VARCHAR(100),
-                status VARCHAR(50) DEFAULT 'approved',
+                status VARCHAR(50) DEFAULT 'pending',
                 created_at TIMESTAMP DEFAULT NOW(),
                 updated_at TIMESTAMP DEFAULT NOW()
             )
@@ -44,7 +44,7 @@ async function ensureTableExists() {
         'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS physical_address TEXT',
         'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS website VARCHAR(255)',
         'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS license_number VARCHAR(100)',
-        'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT \'approved\'',
+        'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT \'pending\'',
         'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()',
         'ALTER TABLE process_servers ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()'
     ];
@@ -152,7 +152,7 @@ const handleServerRegistration = async (req, res) => {
                 license_number,
                 status,
                 created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'approved', NOW())
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', NOW())
             RETURNING *
         `;
 
@@ -235,7 +235,7 @@ const handleServerRegistration = async (req, res) => {
         res.status(201).json({
             success: true,
             server: result.rows[0],
-            message: 'Process server registered successfully. Agency name is now permanently linked to this wallet.'
+            message: 'Registration submitted — pending admin approval. You will be notified when your account is authorized.'
         });
 
     } catch (error) {
@@ -452,7 +452,7 @@ router.get('/api/server/check/:walletAddress', async (req, res) => {
         const { walletAddress } = req.params;
 
         const result = await pool.query(
-            'SELECT wallet_address, agency_name FROM process_servers WHERE LOWER(wallet_address) = LOWER($1)',
+            'SELECT wallet_address, agency_name, status FROM process_servers WHERE LOWER(wallet_address) = LOWER($1)',
             [walletAddress]
         );
 
@@ -465,7 +465,8 @@ router.get('/api/server/check/:walletAddress', async (req, res) => {
 
         res.json({
             registered: true,
-            agency_name: result.rows[0].agency_name
+            agency_name: result.rows[0].agency_name,
+            status: result.rows[0].status
         });
 
     } catch (error) {

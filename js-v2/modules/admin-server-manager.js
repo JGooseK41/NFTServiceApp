@@ -107,15 +107,26 @@ window.adminServerManager = {
 
     // Render a single server row
     renderServerRow(server) {
-        const statusBadge = server.is_active
-            ? '<span class="badge bg-success">Active</span>'
-            : server.status === 'pending'
-                ? '<span class="badge bg-warning text-dark">Pending</span>'
-                : '<span class="badge bg-danger">Inactive</span>';
+        let statusBadge;
+        if (server.is_active) {
+            statusBadge = '<span class="badge bg-success">Active</span>';
+        } else if (server.status === 'pending') {
+            statusBadge = '<span class="badge bg-warning text-dark">Pending</span>';
+        } else if (server.status === 'approved') {
+            statusBadge = '<span class="badge bg-info">Registered</span>';
+        } else if (server.status === 'suspended') {
+            statusBadge = '<span class="badge bg-danger">Suspended</span>';
+        } else {
+            statusBadge = `<span class="badge bg-secondary">${server.status || 'Unknown'}</span>`;
+        }
 
         const lastActive = server.last_activity
             ? new Date(server.last_activity).toLocaleDateString()
             : 'Never';
+
+        // Show authorize icon for servers not yet active
+        const actionIcon = server.is_active ? 'pause' : 'shield-check';
+        const actionLabel = server.is_active ? '' : ' Authorize';
 
         return `
             <tr data-wallet="${server.wallet_address}" data-name="${(server.full_name || '').toLowerCase()}" data-agency="${(server.agency || '').toLowerCase()}">
@@ -145,9 +156,15 @@ window.adminServerManager = {
                         <button class="btn btn-outline-primary" onclick="adminServerManager.viewServerCases('${server.wallet_address}', '${(server.full_name || '').replace(/'/g, "\\'")}')">
                             <i class="bi bi-folder2-open"></i> Cases
                         </button>
-                        <button class="btn btn-outline-secondary" onclick="adminServerManager.toggleServer('${server.wallet_address}', ${server.is_active})">
-                            <i class="bi bi-${server.is_active ? 'pause' : 'play'}"></i>
-                        </button>
+                        ${server.is_active ? `
+                            <button class="btn btn-outline-secondary" onclick="adminServerManager.viewServerDetails('${server.wallet_address}')" title="Manage">
+                                <i class="bi bi-gear"></i>
+                            </button>
+                        ` : `
+                            <button class="btn btn-outline-success" onclick="adminServerManager.authorizeOnBlockchain('${server.wallet_address}')" title="Authorize on Blockchain">
+                                <i class="bi bi-shield-check"></i>
+                            </button>
+                        `}
                     </div>
                 </td>
             </tr>
@@ -166,11 +183,18 @@ window.adminServerManager = {
         let modal = document.getElementById(modalId);
         if (modal) modal.remove();
 
-        const statusBadge = server.is_active
-            ? '<span class="badge bg-success">Active</span>'
-            : server.status === 'pending'
-                ? '<span class="badge bg-warning text-dark">Pending</span>'
-                : `<span class="badge bg-danger">${server.status || 'Inactive'}</span>`;
+        let statusBadge;
+        if (server.is_active) {
+            statusBadge = '<span class="badge bg-success">Active</span>';
+        } else if (server.status === 'pending') {
+            statusBadge = '<span class="badge bg-warning text-dark">Pending</span>';
+        } else if (server.status === 'approved') {
+            statusBadge = '<span class="badge bg-info">Registered</span>';
+        } else if (server.status === 'suspended') {
+            statusBadge = '<span class="badge bg-danger">Suspended</span>';
+        } else {
+            statusBadge = `<span class="badge bg-secondary">${server.status || 'Unknown'}</span>`;
+        }
 
         const registeredDate = server.created_at
             ? new Date(server.created_at).toLocaleDateString()
@@ -180,8 +204,8 @@ window.adminServerManager = {
             ? new Date(server.last_activity).toLocaleDateString()
             : 'Never';
 
-        // Show Approve if pending, Suspend if active/approved
-        const isPending = server.status === 'pending';
+        // Determine action button states
+        const needsAuthorization = server.status === 'pending' || server.status === 'approved';
         const isActive = server.is_active;
 
         modal = document.createElement('div');
@@ -276,19 +300,22 @@ window.adminServerManager = {
                             <button class="btn btn-danger" onclick="adminServerManager.deleteServer('${server.wallet_address}')">
                                 <i class="bi bi-trash"></i> Delete
                             </button>
-                            ${isPending ? `
-                                <button class="btn btn-success ms-2" onclick="adminServerManager.setServerStatus('${server.wallet_address}', 'active')">
-                                    <i class="bi bi-check-circle"></i> Approve
+                            ${needsAuthorization ? `
+                                <button class="btn btn-success ms-2" onclick="adminServerManager.authorizeOnBlockchain('${server.wallet_address}')">
+                                    <i class="bi bi-shield-check"></i> Authorize on Blockchain
                                 </button>
                             ` : ''}
                             ${isActive ? `
+                                <button class="btn btn-danger ms-2" onclick="adminServerManager.revokeOnBlockchain('${server.wallet_address}')">
+                                    <i class="bi bi-shield-x"></i> Revoke Access
+                                </button>
                                 <button class="btn btn-warning ms-2" onclick="adminServerManager.setServerStatus('${server.wallet_address}', 'suspended')">
                                     <i class="bi bi-pause-circle"></i> Suspend
                                 </button>
                             ` : ''}
-                            ${!isActive && !isPending ? `
-                                <button class="btn btn-success ms-2" onclick="adminServerManager.setServerStatus('${server.wallet_address}', 'active')">
-                                    <i class="bi bi-check-circle"></i> Activate
+                            ${!isActive && !needsAuthorization ? `
+                                <button class="btn btn-success ms-2" onclick="adminServerManager.authorizeOnBlockchain('${server.wallet_address}')">
+                                    <i class="bi bi-shield-check"></i> Re-Authorize on Blockchain
                                 </button>
                             ` : ''}
                         </div>
@@ -407,6 +434,120 @@ window.adminServerManager = {
         } catch (error) {
             console.error('Error updating server status:', error);
             alert('Error updating status: ' + error.message);
+        }
+    },
+
+    // Authorize a process server on the blockchain (calls setServer)
+    async authorizeOnBlockchain(walletAddress) {
+        if (!confirm('This will submit a blockchain transaction to authorize this process server. Continue?')) {
+            return;
+        }
+
+        if (!window.contract || !window.contract.instance) {
+            alert('Contract not initialized. Please connect your admin wallet first.');
+            return;
+        }
+
+        try {
+            // Show progress
+            const statusEl = document.getElementById('blockchainAuthStatus');
+            if (statusEl) statusEl.remove();
+
+            // Step 1: Call setServer(address, true) on-chain
+            console.log('Authorizing server on blockchain:', walletAddress);
+            await window.contract.grantRole('PROCESS_SERVER', walletAddress);
+            console.log('Blockchain authorization successful');
+
+            // Step 2: Update backend status to blockchain_approved
+            try {
+                const adminKey = prompt('Enter admin API key to send approval notification:');
+                if (adminKey) {
+                    await fetchWithTimeout(`${this.baseUrl}/api/server/approve`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            wallet_address: walletAddress,
+                            admin_key: adminKey
+                        })
+                    });
+                    console.log('Backend status updated and notification sent');
+                } else {
+                    // Still update the status via the admin update endpoint
+                    await fetchWithTimeout(`${this.baseUrl}/api/admin/process-servers/update`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Admin-Address': this.adminAddress || ''
+                        },
+                        body: JSON.stringify({
+                            wallet_address: walletAddress,
+                            status: 'blockchain_approved'
+                        })
+                    });
+                    console.log('Backend status updated (no notification)');
+                }
+            } catch (backendErr) {
+                console.error('Backend update failed (blockchain auth succeeded):', backendErr);
+            }
+
+            alert('Server authorized on blockchain successfully!');
+
+            // Close modal and reload
+            const modal = document.getElementById('serverDetailsModal');
+            if (modal) bootstrap.Modal.getInstance(modal)?.hide();
+            await this.loadProcessServers();
+
+        } catch (error) {
+            console.error('Error authorizing server on blockchain:', error);
+            alert('Blockchain authorization failed: ' + (error.message || error));
+        }
+    },
+
+    // Revoke a process server's blockchain access (calls setServer(address, false))
+    async revokeOnBlockchain(walletAddress) {
+        if (!confirm('This will revoke this server\'s blockchain access. They will no longer be able to mint NFTs. Continue?')) {
+            return;
+        }
+
+        if (!window.contract || !window.contract.instance) {
+            alert('Contract not initialized. Please connect your admin wallet first.');
+            return;
+        }
+
+        try {
+            // Step 1: Call setServer(address, false) on-chain
+            console.log('Revoking server on blockchain:', walletAddress);
+            await window.contract.revokeRole('PROCESS_SERVER', walletAddress);
+            console.log('Blockchain revocation successful');
+
+            // Step 2: Update backend status to suspended
+            try {
+                await fetchWithTimeout(`${this.baseUrl}/api/admin/process-servers/update`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Address': this.adminAddress || ''
+                    },
+                    body: JSON.stringify({
+                        wallet_address: walletAddress,
+                        status: 'suspended'
+                    })
+                });
+                console.log('Backend status updated to suspended');
+            } catch (backendErr) {
+                console.error('Backend update failed (blockchain revoke succeeded):', backendErr);
+            }
+
+            alert('Server access revoked successfully.');
+
+            // Close modal and reload
+            const modal = document.getElementById('serverDetailsModal');
+            if (modal) bootstrap.Modal.getInstance(modal)?.hide();
+            await this.loadProcessServers();
+
+        } catch (error) {
+            console.error('Error revoking server on blockchain:', error);
+            alert('Blockchain revocation failed: ' + (error.message || error));
         }
     },
 

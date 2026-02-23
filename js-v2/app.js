@@ -5,6 +5,7 @@ window.app = {
         initialized: false,
         walletConnected: false,
         isRegisteredServer: false, // Whether wallet is a registered process server
+        isPendingServer: false, // Whether wallet is registered but pending admin approval
         currentPage: 'welcome',
         userAddress: null,
         serverId: null,
@@ -331,7 +332,11 @@ window.app = {
                 return;
             }
             if (!this.state.isRegisteredServer) {
-                this.showError('You must be a registered process server to access this feature. Please register first.');
+                if (this.state.isPendingServer) {
+                    this.showError('Your registration is pending admin approval. You will be notified when your account is authorized.');
+                } else {
+                    this.showError('You must be a registered process server to access this feature. Please register first.');
+                }
                 this.navigate('welcome');
                 return;
             }
@@ -470,6 +475,24 @@ window.app = {
         }
     },
     
+    // Check blockchain for server role
+    async checkBlockchainRole() {
+        if (!window.contract || !window.contract.instance) return false;
+        try {
+            if (window.contract.instance.isServer) {
+                const result = await window.contract.instance.isServer(this.state.userAddress).call();
+                if (result) return true;
+            }
+            if (window.contract.instance.PROCESS_SERVER_ROLE) {
+                const serverRole = await window.contract.instance.PROCESS_SERVER_ROLE().call();
+                return await window.contract.instance.hasRole(serverRole, this.state.userAddress).call();
+            }
+        } catch (e) {
+            console.log('Contract role check failed:', e.message);
+        }
+        return false;
+    },
+
     // Check if server is registered and load agency info
     async registerServer() {
         try {
@@ -479,8 +502,7 @@ window.app = {
             const checkData = await checkResponse.json();
 
             if (checkData.registered) {
-                // Server is registered in backend - store agency info
-                this.state.isRegisteredServer = true;
+                // Store agency info regardless of approval status
                 this.state.agencyName = checkData.agency_name;
                 this.state.serverId = this.state.userAddress;
                 localStorage.setItem('legalnotice_agency_name', checkData.agency_name);
@@ -492,36 +514,43 @@ window.app = {
                     agencyField.value = checkData.agency_name;
                 }
 
-                console.log('Server registered as:', checkData.agency_name);
-            } else {
-                // Not in backend - check blockchain role
-                let hasBlockchainRole = false;
+                const dbStatus = checkData.status;
 
-                if (window.contract && window.contract.instance) {
-                    try {
-                        // Lite v2: use isServer() mapping
-                        if (window.contract.instance.isServer) {
-                            hasBlockchainRole = await window.contract.instance.isServer(this.state.userAddress).call();
-                            console.log('Blockchain isServer check:', hasBlockchainRole);
-                        }
-                        // V5 fallback: use PROCESS_SERVER_ROLE + hasRole
-                        if (!hasBlockchainRole && window.contract.instance.PROCESS_SERVER_ROLE) {
-                            const serverRole = await window.contract.instance.PROCESS_SERVER_ROLE().call();
-                            hasBlockchainRole = await window.contract.instance.hasRole(serverRole, this.state.userAddress).call();
-                            console.log('Blockchain PROCESS_SERVER_ROLE check:', hasBlockchainRole);
-                        }
-                    } catch (contractError) {
-                        console.log('Contract role check failed:', contractError.message);
+                // If backend says blockchain_approved or active, grant access immediately
+                if (dbStatus === 'blockchain_approved' || dbStatus === 'active') {
+                    this.state.isRegisteredServer = true;
+                    this.state.isPendingServer = false;
+                    console.log('Server authorized (db status:', dbStatus, '):', checkData.agency_name);
+                } else {
+                    // Status is 'pending' or legacy 'approved' — verify blockchain role
+                    const hasBlockchainRole = await this.checkBlockchainRole();
+                    console.log('Blockchain isServer check:', hasBlockchainRole, '(db status:', dbStatus, ')');
+
+                    if (hasBlockchainRole) {
+                        // Has on-chain role — grant access
+                        this.state.isRegisteredServer = true;
+                        this.state.isPendingServer = false;
+                        console.log('Server authorized via blockchain role:', checkData.agency_name);
+                    } else {
+                        // Registered but not yet authorized
+                        this.state.isRegisteredServer = false;
+                        this.state.isPendingServer = true;
+                        console.log('Server registered but pending approval:', checkData.agency_name);
                     }
                 }
+            } else {
+                // Not in backend — check blockchain role as fallback
+                const hasBlockchainRole = await this.checkBlockchainRole();
+                console.log('Not registered in backend, blockchain check:', hasBlockchainRole);
 
                 if (hasBlockchainRole) {
-                    // Has blockchain role but not in backend - still grant access
                     this.state.isRegisteredServer = true;
+                    this.state.isPendingServer = false;
                     this.state.serverId = this.state.userAddress;
-                    console.log('Wallet authorized as server on blockchain');
+                    console.log('Wallet authorized as server on blockchain (not in DB)');
                 } else {
                     this.state.isRegisteredServer = false;
+                    this.state.isPendingServer = false;
                     console.log('Wallet not registered as a process server');
                 }
             }
@@ -532,31 +561,18 @@ window.app = {
         } catch (error) {
             console.error('Failed to check server registration:', error);
 
-            // Backend unavailable - still try blockchain role check as fallback
-            let hasBlockchainRole = false;
-            if (window.contract && window.contract.instance) {
-                try {
-                    // Lite v2: use isServer() mapping
-                    if (window.contract.instance.isServer) {
-                        hasBlockchainRole = await window.contract.instance.isServer(this.state.userAddress).call();
-                    }
-                    // V5 fallback
-                    if (!hasBlockchainRole && window.contract.instance.PROCESS_SERVER_ROLE) {
-                        const serverRole = await window.contract.instance.PROCESS_SERVER_ROLE().call();
-                        hasBlockchainRole = await window.contract.instance.hasRole(serverRole, this.state.userAddress).call();
-                    }
-                    console.log('Blockchain server role fallback check:', hasBlockchainRole);
-                } catch (contractError) {
-                    console.log('Contract role fallback check failed:', contractError.message);
-                }
-            }
+            // Backend unavailable — fall back to blockchain role check
+            const hasBlockchainRole = await this.checkBlockchainRole();
+            console.log('Blockchain server role fallback check:', hasBlockchainRole);
 
             if (hasBlockchainRole) {
                 this.state.isRegisteredServer = true;
+                this.state.isPendingServer = false;
                 this.state.serverId = this.state.userAddress;
                 console.log('Wallet authorized as server on blockchain (backend unavailable)');
             } else {
                 this.state.isRegisteredServer = false;
+                this.state.isPendingServer = false;
             }
 
             this.updateUIForRole();
@@ -567,8 +583,9 @@ window.app = {
     updateUIForRole() {
         const isRegistered = this.state.isRegisteredServer;
         const isConnected = this.state.walletConnected;
+        const isPending = this.state.isPendingServer;
 
-        console.log('Updating UI for role - Connected:', isConnected, 'Registered:', isRegistered);
+        console.log('Updating UI for role - Connected:', isConnected, 'Registered:', isRegistered, 'Pending:', isPending);
 
         // Nav items that require registration
         const restrictedNavItems = document.querySelectorAll('[data-page="serve"], [data-page="cases"], [data-page="receipts"]');
@@ -582,13 +599,14 @@ window.app = {
         // Welcome page sections
         const getStartedSection = document.getElementById('getStartedSection');
         const registeredServerSection = document.getElementById('registeredServerSection');
+        const pendingApprovalSection = document.getElementById('pendingApprovalSection');
         const connectWalletPrompt = document.getElementById('connectWalletPrompt');
         const registerPrompt = document.getElementById('registerPrompt');
         const welcomeAgencyName = document.getElementById('welcomeAgencyName');
 
         if (getStartedSection) {
-            // Show get started section if not registered
-            getStartedSection.style.display = !isRegistered ? 'block' : 'none';
+            // Show get started section if not registered and not pending
+            getStartedSection.style.display = (!isRegistered && !isPending) ? 'block' : 'none';
         }
 
         if (connectWalletPrompt) {
@@ -597,12 +615,22 @@ window.app = {
         }
 
         if (registerPrompt) {
-            // Show register prompt only if connected but not registered
-            registerPrompt.style.display = (isConnected && !isRegistered) ? 'block' : 'none';
+            // Show register prompt only if connected but not registered and not pending
+            registerPrompt.style.display = (isConnected && !isRegistered && !isPending) ? 'block' : 'none';
+        }
+
+        if (pendingApprovalSection) {
+            // Show pending section when connected and pending
+            pendingApprovalSection.style.display = (isConnected && isPending) ? 'block' : 'none';
+            // Fill in agency name in pending section
+            const pendingAgencyName = document.getElementById('pendingAgencyName');
+            if (pendingAgencyName && this.state.agencyName) {
+                pendingAgencyName.textContent = this.state.agencyName;
+            }
         }
 
         if (registeredServerSection) {
-            // Show registered server section only if connected AND registered
+            // Show registered server section only if connected AND registered (not pending)
             registeredServerSection.style.display = (isConnected && isRegistered) ? 'block' : 'none';
         }
 
@@ -690,30 +718,29 @@ window.app = {
 
             if (response.ok && data.success) {
                 try {
-                    // Store agency info and mark as registered
-                    this.state.isRegisteredServer = true;
+                    // Store agency info but mark as PENDING (not registered)
+                    this.state.isRegisteredServer = false;
+                    this.state.isPendingServer = true;
                     this.state.agencyName = agencyName;
                     this.state.serverId = this.state.userAddress;
                     localStorage.setItem('legalnotice_agency_name', agencyName);
                     localStorage.setItem(getConfig('storage.keys.serverId'), this.state.userAddress);
 
-                    // Auto-fill agency name in the serve form
-                    const agencyField = document.getElementById('issuingAgency');
-                    if (agencyField) {
-                        agencyField.value = agencyName;
-                    }
-
-                    // Update UI to show registered server options
+                    // Update UI to show pending approval section
                     this.updateUIForRole();
 
                     // Close registration modal
                     const regModal = bootstrap.Modal.getInstance(document.getElementById('serverRegistrationModal'));
                     if (regModal) regModal.hide();
 
-                    this.showSuccess('Agency registered successfully! Your agency name is now permanently linked to this wallet.');
+                    // Close onboarding modal if open
+                    const onboardingModal = bootstrap.Modal.getInstance(document.getElementById('onboardingModal'));
+                    if (onboardingModal) onboardingModal.hide();
+
+                    this.showSuccess('Registration submitted! Your account is pending admin approval. You will be notified by email when authorized.');
                 } catch (successError) {
                     console.error('Error in registration success handler:', successError);
-                    this.showSuccess('Agency registered successfully!');
+                    this.showSuccess('Registration submitted — pending approval.');
                 }
             } else {
                 errorDiv.textContent = data.error || 'Registration failed';
@@ -2732,6 +2759,7 @@ window.app = {
         // Reset app state
         this.state.walletConnected = false;
         this.state.isRegisteredServer = false;
+        this.state.isPendingServer = false;
         this.state.userAddress = null;
         this.state.agencyName = null;
         this.state.tronWeb = null;

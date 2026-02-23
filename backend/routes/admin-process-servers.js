@@ -40,7 +40,7 @@ async function listServers(req, res) {
             license_number: row.license_number,
             jurisdictions: row.jurisdictions || row.jurisdiction,
             status: row.status,
-            is_active: row.status === 'active' || row.status === 'approved',
+            is_active: row.status === 'active' || row.status === 'blockchain_approved',
             total_cases: row.total_notices_served || 0,
             signed_cases: 0,
             last_activity: row.updated_at,
