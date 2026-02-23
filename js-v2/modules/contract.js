@@ -155,14 +155,47 @@ window.contract = {
         }
     },
 
-    // Get fee configuration from contract
-    async getFeeConfig() {
+    // Cached fee config (set by admin, doesn't change mid-session)
+    _feeConfigCache: null,
+    _feeConfigCacheTime: 0,
+    _feeExemptCache: null,
+    _feeExemptCacheTime: 0,
+
+    // Check fee exemption (cached for 10 minutes)
+    async isFeeExempt(walletAddress) {
+        const now = Date.now();
+        if (this._feeExemptCache !== null && (now - this._feeExemptCacheTime) < 10 * 60 * 1000) {
+            return this._feeExemptCache;
+        }
         try {
+            if (this.instance.feeExempt) {
+                const result = await this.instance.feeExempt(walletAddress).call();
+                this._feeExemptCache = !!result;
+                this._feeExemptCacheTime = now;
+                return this._feeExemptCache;
+            }
+        } catch (e) {
+            if (this._feeExemptCache !== null) return this._feeExemptCache;
+        }
+        return false;
+    },
+
+    // Get fee configuration from contract (cached for 10 minutes)
+    async getFeeConfig() {
+        // Return cached value if fresh (10 min TTL)
+        const now = Date.now();
+        if (this._feeConfigCache && (now - this._feeConfigCacheTime) < 10 * 60 * 1000) {
+            return this._feeConfigCache;
+        }
+
+        try {
+            let result;
+
             // Try v2 getFeeConfig first
             if (this.instance.getFeeConfig) {
                 try {
                     const config = await this.instance.getFeeConfig().call();
-                    return {
+                    result = {
                         serviceFee: parseInt(config._serviceFee || config[0]),
                         recipientFunding: parseInt(config._recipientFunding || config[1]),
                         totalPerNotice: parseInt(config._totalPerNotice || config[2]),
@@ -175,17 +208,29 @@ window.contract = {
                 }
             }
 
-            // Fallback for v1 contract (no recipient funding)
-            const serviceFee = parseInt(await this.instance.serviceFee().call());
-            return {
-                serviceFee: serviceFee,
-                recipientFunding: 0,
-                totalPerNotice: serviceFee,
-                serviceFeeInTRX: serviceFee / 1000000,
-                recipientFundingInTRX: 0,
-                totalPerNoticeInTRX: serviceFee / 1000000
-            };
+            if (!result) {
+                // Fallback for v1 contract (no recipient funding)
+                const serviceFee = parseInt(await this.instance.serviceFee().call());
+                result = {
+                    serviceFee: serviceFee,
+                    recipientFunding: 0,
+                    totalPerNotice: serviceFee,
+                    serviceFeeInTRX: serviceFee / 1000000,
+                    recipientFundingInTRX: 0,
+                    totalPerNoticeInTRX: serviceFee / 1000000
+                };
+            }
+
+            // Cache the result
+            this._feeConfigCache = result;
+            this._feeConfigCacheTime = now;
+            return result;
         } catch (error) {
+            // If we have a stale cache, use it rather than failing
+            if (this._feeConfigCache) {
+                console.warn('getFeeConfig failed, using cached value:', error.message);
+                return this._feeConfigCache;
+            }
             console.error('Failed to get fee config:', error);
             throw error;
         }
@@ -368,33 +413,16 @@ window.contract = {
                 total: feeConfig.totalPerNoticeInTRX + ' TRX'
             });
 
-            // Check if wallet is fee exempt (still pays recipient funding)
+            // Check if wallet is fee exempt (cached)
             const walletAddress = this.tronWeb.defaultAddress.base58;
             let totalPayment = feeConfig.totalPerNotice;
-
-            try {
-                const isExempt = await this.instance.feeExempt(walletAddress).call();
-                if (isExempt) {
-                    totalPayment = feeConfig.recipientFunding; // Only pay recipient funding
-                    console.log('Wallet is fee exempt - only paying recipient funding');
-                }
-            } catch (e) {
-                // Fee exempt check not available, pay full amount
+            const isExempt = await this.isFeeExempt(walletAddress);
+            if (isExempt) {
+                totalPayment = feeConfig.recipientFunding;
+                console.log('Wallet is fee exempt - only paying recipient funding');
             }
 
             console.log('Total payment:', totalPayment / 1000000, 'TRX');
-
-            // Pre-flight balance check
-            const balanceCheck = await this.checkBalanceForServe(1);
-            if (!balanceCheck.sufficient) {
-                throw new Error(
-                    `Insufficient TRX balance. You have ${balanceCheck.balanceTRX.toFixed(1)} TRX but need approximately ${balanceCheck.requiredTRX} TRX ` +
-                    `(${balanceCheck.breakdown.contractPaymentTRX} contract fee + ${balanceCheck.breakdown.energyCostTRX} energy + ` +
-                    `${balanceCheck.breakdown.notificationsTRX} notification + ${balanceCheck.breakdown.bandwidthBufferTRX} bandwidth). ` +
-                    `Please add at least ${balanceCheck.shortfallTRX} more TRX to your wallet` +
-                    `${balanceCheck.breakdown.stakedEnergyAvailable > 0 ? ` (${balanceCheck.breakdown.stakedEnergyAvailable.toLocaleString()} staked energy available)` : ' or rent/stake energy to reduce costs'}.`
-                );
-            }
 
             // Call Lite contract serveNotice(recipient, metadataUri)
             const txHash = await this.instance.serveNotice(
@@ -533,18 +561,13 @@ window.contract = {
                 total: feeConfig.totalPerNoticeInTRX + ' TRX'
             });
 
-            // Check fee exemption
+            // Check fee exemption (cached)
             const walletAddress = this.tronWeb.defaultAddress.base58;
             let paymentPerRecipient = feeConfig.totalPerNotice;
-
-            try {
-                const isExempt = await this.instance.feeExempt(walletAddress).call();
-                if (isExempt) {
-                    paymentPerRecipient = feeConfig.recipientFunding; // Only pay recipient funding
-                    console.log('Wallet is fee exempt - only paying recipient funding');
-                }
-            } catch (e) {
-                // Fee exempt check not available, pay full amount
+            const isExempt = await this.isFeeExempt(walletAddress);
+            if (isExempt) {
+                paymentPerRecipient = feeConfig.recipientFunding;
+                console.log('Wallet is fee exempt - only paying recipient funding');
             }
 
             const totalFee = paymentPerRecipient * recipients.length;
@@ -554,18 +577,8 @@ window.contract = {
                 recipientFunding: (feeConfig.recipientFunding * recipients.length) / 1000000 + ' TRX'
             });
 
-            // Pre-flight balance check
-            const balanceCheck = await this.checkBalanceForServe(recipients.length);
-            if (!balanceCheck.sufficient) {
-                throw new Error(
-                    `Insufficient TRX balance for ${recipients.length} recipients. ` +
-                    `You have ${balanceCheck.balanceTRX.toFixed(1)} TRX but need approximately ${balanceCheck.requiredTRX} TRX ` +
-                    `(${balanceCheck.breakdown.contractPaymentTRX} contract fee + ${balanceCheck.breakdown.energyCostTRX} energy + ` +
-                    `${balanceCheck.breakdown.notificationsTRX} notifications + ${balanceCheck.breakdown.bandwidthBufferTRX} bandwidth). ` +
-                    `Please add at least ${balanceCheck.shortfallTRX} more TRX to your wallet` +
-                    `${balanceCheck.breakdown.stakedEnergyAvailable > 0 ? ` (${balanceCheck.breakdown.stakedEnergyAvailable.toLocaleString()} staked energy available)` : ' or rent/stake energy to reduce costs'}.`
-                );
-            }
+            // Note: balance check already done in notices.js before document upload
+            // Skipping duplicate check here to reduce TronGrid API calls
 
             // Call batch function
             const txHash = await this.instance.serveNoticeBatch(
@@ -910,15 +923,11 @@ window.contract = {
         // Get fee config from contract
         const feeConfig = await this.getFeeConfig();
 
-        // Check fee exemption
+        // Check fee exemption (cached)
         let paymentPerRecipient = feeConfig.totalPerNotice;
-        try {
-            const isExempt = await this.instance.feeExempt(walletAddress).call();
-            if (isExempt) {
-                paymentPerRecipient = feeConfig.recipientFunding;
-            }
-        } catch (e) {
-            // Fee exempt not available, pay full amount
+        const isExempt = await this.isFeeExempt(walletAddress);
+        if (isExempt) {
+            paymentPerRecipient = feeConfig.recipientFunding;
         }
 
         const callValueSun = paymentPerRecipient * recipientCount;
