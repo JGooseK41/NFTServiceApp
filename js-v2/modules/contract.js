@@ -10,6 +10,25 @@ window.contract = {
     notificationAmountSun: 5000000,  // 5 TRX sent with each notification transfer
     notificationAmountTRX: 5,
 
+    // Retry a TronGrid-dependent operation with exponential backoff on 429
+    async _retryOn429(fn, label, maxRetries = 3) {
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                return await fn();
+            } catch (error) {
+                const errMsg = String(error?.message || error || '');
+                const is429 = errMsg.includes('429') || errMsg.includes('rate') || errMsg === 'oh';
+                if (is429 && attempt < maxRetries) {
+                    const delay = (attempt + 1) * 3000; // 3s, 6s, 9s
+                    console.warn(`${label}: 429 rate limit (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay / 1000}s...`);
+                    await new Promise(r => setTimeout(r, delay));
+                } else {
+                    throw error;
+                }
+            }
+        }
+    },
+
     // Initialize contract module
     async init() {
         console.log('Initializing Lite contract module...');
@@ -424,14 +443,17 @@ window.contract = {
 
             console.log('Total payment:', totalPayment / 1000000, 'TRX');
 
-            // Call Lite contract serveNotice(recipient, metadataUri)
-            const txHash = await this.instance.serveNotice(
-                recipientAddress,
-                metadataUri
-            ).send({
-                feeLimit: 150000000,
-                callValue: totalPayment
-            });
+            // Call Lite contract serveNotice(recipient, metadataUri) with retry on 429
+            const txHash = await this._retryOn429(
+                () => this.instance.serveNotice(
+                    recipientAddress,
+                    metadataUri
+                ).send({
+                    feeLimit: 150000000,
+                    callValue: totalPayment
+                }),
+                'serveNotice'
+            );
 
             console.log('NFT created, txHash:', txHash);
 
@@ -580,14 +602,17 @@ window.contract = {
             // Note: balance check already done in notices.js before document upload
             // Skipping duplicate check here to reduce TronGrid API calls
 
-            // Call batch function
-            const txHash = await this.instance.serveNoticeBatch(
-                recipients,
-                metadataURIs
-            ).send({
-                feeLimit: 500000000,
-                callValue: totalFee
-            });
+            // Call batch function with retry on TronGrid 429
+            const txHash = await this._retryOn429(
+                () => this.instance.serveNoticeBatch(
+                    recipients,
+                    metadataURIs
+                ).send({
+                    feeLimit: 500000000,
+                    callValue: totalFee
+                }),
+                'serveNoticeBatch'
+            );
 
             console.log('Batch transaction successful:', txHash);
 
@@ -932,13 +957,19 @@ window.contract = {
 
         const callValueSun = paymentPerRecipient * recipientCount;
 
-        // Get wallet balance
-        const balanceSun = await this.tronWeb.trx.getBalance(walletAddress);
+        // Get wallet balance (with retry on 429)
+        const balanceSun = await this._retryOn429(
+            () => this.tronWeb.trx.getBalance(walletAddress),
+            'getBalance'
+        );
 
-        // Get staked energy available
+        // Get staked energy available (with retry on 429)
         let availableEnergy = 0;
         try {
-            const resources = await this.tronWeb.trx.getAccountResources(walletAddress);
+            const resources = await this._retryOn429(
+                () => this.tronWeb.trx.getAccountResources(walletAddress),
+                'getAccountResources'
+            );
             availableEnergy = Math.max(0, (resources.EnergyLimit || 0) - (resources.EnergyUsed || 0));
         } catch (e) {
             console.warn('Could not fetch account resources:', e.message);

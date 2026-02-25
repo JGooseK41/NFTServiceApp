@@ -7,7 +7,10 @@ window.adminAccess = {
     isAdmin: false,
     adminData: null,
     checkInterval: null,
-    
+    _lastCheckTime: 0,
+    _lastCheckWallet: null,
+    _checkCooldownMs: 30000, // Don't re-check within 30 seconds
+
     // Initialize admin access control
     async init() {
         console.log('Initializing admin access control...');
@@ -42,7 +45,16 @@ window.adminAccess = {
                 this.hideAdminUI();
                 return false;
             }
-            
+
+            // Skip if we already checked this wallet recently
+            const now = Date.now();
+            if (window.wallet.address === this._lastCheckWallet &&
+                (now - this._lastCheckTime) < this._checkCooldownMs) {
+                return this.isAdmin;
+            }
+            this._lastCheckTime = now;
+            this._lastCheckWallet = window.wallet.address;
+
             const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
             const response = await fetchWithTimeout(`${backendUrl}/api/admin-auth/check/${window.wallet.address}`);
             
