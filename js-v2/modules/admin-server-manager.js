@@ -465,34 +465,17 @@ window.adminServerManager = {
             await window.contract.grantRole('PROCESS_SERVER', walletAddress);
             console.log('Blockchain authorization successful');
 
-            // Step 2: Update backend status to blockchain_approved
+            // Step 2: Update backend status to blockchain_approved and send notification
             try {
-                const adminKey = prompt('Enter admin API key to send approval notification:');
-                if (adminKey) {
-                    await fetchWithTimeout(`${this.baseUrl}/api/server/approve`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            wallet_address: walletAddress,
-                            admin_key: adminKey
-                        })
-                    });
-                    console.log('Backend status updated and notification sent');
-                } else {
-                    // Still update the status via the admin update endpoint
-                    await fetchWithTimeout(`${this.baseUrl}/api/admin/process-servers/update`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Admin-Address': this.getAdminAddress()
-                        },
-                        body: JSON.stringify({
-                            wallet_address: walletAddress,
-                            status: 'blockchain_approved'
-                        })
-                    });
-                    console.log('Backend status updated (no notification)');
-                }
+                await fetchWithTimeout(`${this.baseUrl}/api/server/approve`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        wallet_address: walletAddress,
+                        admin_address: this.getAdminAddress()
+                    })
+                });
+                console.log('Backend status updated and notification sent');
             } catch (backendErr) {
                 console.error('Backend update failed (blockchain auth succeeded):', backendErr);
             }

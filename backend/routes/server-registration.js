@@ -498,33 +498,42 @@ router.get('/api/server/check/:walletAddress', async (req, res) => {
  */
 router.post('/api/server/approve', async (req, res) => {
     try {
-        const { wallet_address, admin_key } = req.body;
+        const { wallet_address, admin_key, admin_address } = req.body;
 
-        // Admin key validation - fails closed if not configured
+        // Auth: accept either API key or admin wallet address
+        let authenticated = false;
+
+        // Method 1: API key authentication
         const ADMIN_KEY = process.env.ADMIN_API_KEY;
-        if (!ADMIN_KEY) {
-            return res.status(503).json({
-                success: false,
-                error: 'Admin endpoint not configured. Set ADMIN_API_KEY environment variable.'
-            });
+        if (admin_key && ADMIN_KEY) {
+            const crypto = require('crypto');
+            try {
+                const keyBuffer = Buffer.from(ADMIN_KEY, 'utf8');
+                const providedBuffer = Buffer.from(String(admin_key), 'utf8');
+                if (keyBuffer.length === providedBuffer.length &&
+                    crypto.timingSafeEqual(keyBuffer, providedBuffer)) {
+                    authenticated = true;
+                }
+            } catch (e) {
+                // Key comparison failed, try wallet auth
+            }
         }
 
-        // Constant-time comparison to prevent timing attacks
-        const crypto = require('crypto');
-        try {
-            const keyBuffer = Buffer.from(ADMIN_KEY, 'utf8');
-            const providedBuffer = Buffer.from(String(admin_key || ''), 'utf8');
-            if (keyBuffer.length !== providedBuffer.length ||
-                !crypto.timingSafeEqual(keyBuffer, providedBuffer)) {
-                return res.status(403).json({
-                    success: false,
-                    error: 'Invalid admin key'
-                });
+        // Method 2: Admin wallet address authentication
+        if (!authenticated && admin_address) {
+            const adminCheck = await pool.query(
+                'SELECT wallet_address FROM admin_users WHERE wallet_address = $1 AND is_active = true',
+                [admin_address]
+            );
+            if (adminCheck.rows.length > 0) {
+                authenticated = true;
             }
-        } catch (e) {
+        }
+
+        if (!authenticated) {
             return res.status(403).json({
                 success: false,
-                error: 'Invalid admin key'
+                error: 'Unauthorized: valid admin credentials required'
             });
         }
 
