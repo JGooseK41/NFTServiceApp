@@ -299,7 +299,8 @@ window.notices = {
                             const url = `${apiBase}/v1/contracts/${contractAddress}/events?event_name=Transfer&limit=10`;
                             console.log(`Token extraction attempt ${attempt}/${retries} from: ${url}`);
 
-                            const response = await fetchWithTimeout(url);
+                            const headers = window.TRONGRID_API_KEY ? { 'TRON-PRO-API-KEY': window.TRONGRID_API_KEY } : {};
+                            const response = await fetchWithTimeout(url, { headers });
                             if (response.ok) {
                                 const data = await response.json();
                                 if (data.success && data.data) {

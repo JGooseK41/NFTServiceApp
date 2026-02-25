@@ -55,6 +55,9 @@ window.wallet = {
                 this.address = this.tronWeb.defaultAddress.base58;
                 this.connected = true;
 
+                // Set TronGrid API key on TronWeb for higher rate limits
+                await this._setTronGridApiKey();
+
                 // Set up event listeners
                 this.setupEventListeners();
 
@@ -293,6 +296,36 @@ window.wallet = {
         return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
     },
     
+    // Fetch TronGrid API key from backend and set on TronWeb instance
+    async _setTronGridApiKey() {
+        try {
+            const backendUrl = getConfig('backend.baseUrl') || 'https://nftserviceapp.onrender.com';
+            const response = await fetchWithTimeout(`${backendUrl}/api/config/trongrid-key`, {}, 5000);
+            const data = await response.json();
+            if (data.key) {
+                window.TRONGRID_API_KEY = data.key;
+                // Set header on TronWeb so all API calls include the key
+                if (this.tronWeb && typeof this.tronWeb.setHeader === 'function') {
+                    this.tronWeb.setHeader({ 'TRON-PRO-API-KEY': data.key });
+                    console.log('TronGrid API key configured on TronWeb');
+                } else if (this.tronWeb) {
+                    // Fallback: set on fullNode/solidityNode/eventServer directly
+                    const setOnProvider = (provider) => {
+                        if (provider && provider.headers) {
+                            provider.headers['TRON-PRO-API-KEY'] = data.key;
+                        }
+                    };
+                    setOnProvider(this.tronWeb.fullNode);
+                    setOnProvider(this.tronWeb.solidityNode);
+                    setOnProvider(this.tronWeb.eventServer);
+                    console.log('TronGrid API key configured on TronWeb providers');
+                }
+            }
+        } catch (e) {
+            console.warn('Could not fetch TronGrid API key:', e.message);
+        }
+    },
+
     // Validate address
     isValidAddress(address) {
         if (!address || typeof address !== 'string') {

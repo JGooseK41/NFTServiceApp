@@ -1638,11 +1638,17 @@ app.use('/api/alerts', alertMetadataRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     message: 'NFT Service Backend is running',
     timestamp: new Date().toISOString()
   });
+});
+
+// TronGrid API key for frontend (rate-limit key, not a secret credential)
+app.get('/api/config/trongrid-key', (req, res) => {
+  const key = process.env.TRONGRID_API_KEY || '';
+  res.json({ key: key || null });
 });
 
 // Case Management with Render Disk Storage
